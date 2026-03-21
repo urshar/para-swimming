@@ -2,22 +2,33 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Reihenfolge ist wichtig:
+     *   1. Nations        → keine FK-Abhängigkeiten
+     *   2. StrokeTypes    → keine FK-Abhängigkeiten
+     *   3. ExceptionCodes → keine FK-Abhängigkeiten
+     *
+     * Clubs, Athletes, Meets usw. werden NICHT per Seeder angelegt —
+     * diese kommen über CRUD oder LENEX-Import.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->command->info('');
+        $this->command->info('Para Swimming — Datenbank wird befüllt...');
+        $this->command->info('');
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            NationsSeeder::class,
+            StrokeTypesSeeder::class,
+            ExceptionCodesSeeder::class,
         ]);
+
+        $this->command->info('');
+        $this->command->info('Fertig! Datenbank ist bereit.');
+        $this->command->info('');
     }
 }
