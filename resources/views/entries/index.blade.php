@@ -3,6 +3,7 @@
 @section('title', 'Meldungen')
 
 @section('content')
+
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         <form method="GET" class="flex flex-wrap gap-3">
             <flux:select name="meet_id" placeholder="Wettkampf wählen…" class="flex-1 min-w-48">
@@ -24,19 +25,17 @@
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         <flux:table>
-            <flux:table.head>
-                <flux:table.row>
-                    <flux:table.cell heading>Athlet</flux:table.cell>
-                    <flux:table.cell heading>Wettkampf</flux:table.cell>
-                    <flux:table.cell heading>Disziplin</flux:table.cell>
-                    <flux:table.cell heading>Klasse</flux:table.cell>
-                    <flux:table.cell heading>Meldezeit</flux:table.cell>
-                    <flux:table.cell heading>Club</flux:table.cell>
-                    <flux:table.cell heading>Status</flux:table.cell>
-                    <flux:table.cell heading></flux:table.cell>
-                </flux:table.row>
-            </flux:table.head>
-            <flux:table.body>
+            <flux:table.columns>
+                <flux:table.column>Athlet</flux:table.column>
+                <flux:table.column>Wettkampf</flux:table.column>
+                <flux:table.column>Disziplin</flux:table.column>
+                <flux:table.column>Klasse</flux:table.column>
+                <flux:table.column>Meldezeit</flux:table.column>
+                <flux:table.column>Club</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
+                <flux:table.column></flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows>
                 @forelse($entries as $entry)
                     <flux:table.row>
                         <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
@@ -86,10 +85,11 @@
                         </flux:table.cell>
                     </flux:table.row>
                 @endforelse
-            </flux:table.body>
+            </flux:table.rows>
         </flux:table>
         @if($entries->hasPages())
             <div class="p-4 border-t border-zinc-200 dark:border-zinc-800">{{ $entries->links() }}</div>
         @endif
     </div>
+
 @endsection
