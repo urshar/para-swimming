@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Meet;
 use App\Services\LenexExportService;
+use DOMException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -40,7 +41,14 @@ class LenexExportController extends Controller
         $meet = Meet::findOrFail($request->input('meet_id'));
         $exportType = $request->input('export_type');
 
-        $xml = $this->exportService->build($meet, $exportType);
+        try {
+            $xml = $this->exportService->build($meet, $exportType);
+        } catch (DOMException $e) {
+            return back()->withErrors([
+                'export' => 'LENEX Export fehlgeschlagen: '.$e->getMessage(),
+            ]);
+        }
+
         $filename = $this->buildFilename($meet, $exportType);
 
         return response($xml, 200, [

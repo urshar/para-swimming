@@ -76,7 +76,13 @@ class RecordController extends Controller
 
     public function checkMeet(Meet $meet): RedirectResponse
     {
-        $checked = $this->checker->checkMeetResults($meet);
+        try {
+            $checked = $this->checker->checkMeetResults($meet);
+        } catch (Throwable $e) {
+            return back()->withErrors([
+                'check' => 'Rekord-Check fehlgeschlagen: '.$e->getMessage(),
+            ]);
+        }
 
         return redirect()
             ->route('meets.show', $meet)

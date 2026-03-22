@@ -54,15 +54,6 @@ class AthleteController extends Controller
         return view('athletes.index', compact('athletes', 'nations', 'clubs'));
     }
 
-    public function create(): View
-    {
-        $nations = Nation::active()->orderBy('name_de')->get();
-        $clubs = Club::with('nation')->orderBy('name')->get();
-        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
-
-        return view('athletes.form', compact('nations', 'clubs', 'exceptionCodes'));
-    }
-
     /**
      * @throws Throwable
      */
@@ -79,6 +70,15 @@ class AthleteController extends Controller
         return redirect()
             ->route('athletes.index')
             ->with('success', 'Athlet erfolgreich angelegt.');
+    }
+
+    public function create(): View
+    {
+        $nations = Nation::active()->orderBy('name_de')->get();
+        $clubs = Club::with('nation')->orderBy('name')->get();
+        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
+
+        return view('athletes.form', compact('nations', 'clubs', 'exceptionCodes'));
     }
 
     public function show(Athlete $athlete): View
@@ -98,6 +98,8 @@ class AthleteController extends Controller
         return view('athletes.show', compact('athlete', 'results'));
     }
 
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
     public function edit(Athlete $athlete): View
     {
         $athlete->load(['sportClasses', 'exceptions']);
@@ -114,7 +116,7 @@ class AthleteController extends Controller
      */
     public function update(Request $request, Athlete $athlete): RedirectResponse
     {
-        $data = $this->validateAthlete($request, $athlete);
+        $data = $this->validateAthlete($request);
 
         DB::transaction(function () use ($request, $athlete, $data) {
             $athlete->update($data['athlete']);
@@ -136,9 +138,7 @@ class AthleteController extends Controller
             ->with('success', 'Athlet gelöscht.');
     }
 
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
-
-    private function validateAthlete(Request $request, ?Athlete $athlete = null): array
+    private function validateAthlete(Request $request): array
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
