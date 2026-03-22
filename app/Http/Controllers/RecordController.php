@@ -155,8 +155,8 @@ class RecordController extends Controller
             'comment' => 'nullable|string|max:255',
 
             'splits' => 'nullable|array',
-            'splits.*.distance' => 'required_with:splits.*|integer|min:1',
-            'splits.*.split_time' => 'required_with:splits.*|integer|min:0',
+            'splits.*.distance' => 'nullable|integer|min:1',
+            'splits.*.split_time' => 'nullable|integer|min:0',
         ]);
 
         DB::transaction(function () use ($data) {
@@ -171,7 +171,11 @@ class RecordController extends Controller
                 ->where('is_current', true)
                 ->first();
 
-            $splits = $data['splits'] ?? [];
+            // Leere Split-Zeilen (ohne Distanz oder Zeit) herausfiltern
+            $splits = collect($data['splits'] ?? [])
+                ->filter(fn ($s) => ! empty($s['distance']) && ! empty($s['split_time']))
+                ->values()
+                ->toArray();
             unset($data['splits']);
 
             $newRecord = SwimRecord::create(array_merge($data, [

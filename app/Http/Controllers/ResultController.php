@@ -179,15 +179,17 @@ class ResultController extends Controller
             'is_european_record' => 'boolean',
             'is_national_record' => 'boolean',
 
-            // Splits
             'splits' => 'nullable|array',
-            'splits.*.distance' => 'required_with:splits.*|integer|min:1',
-            'splits.*.split_time' => 'required_with:splits.*|integer|min:0',
+            'splits.*.distance' => 'nullable|integer|min:1',
+            'splits.*.split_time' => 'nullable|integer|min:0',
         ]);
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),
-            'splits' => $validated['splits'] ?? [],
+            'splits' => collect($validated['splits'] ?? [])
+                ->filter(fn ($s) => ! empty($s['distance']) && ! empty($s['split_time']))
+                ->values()
+                ->toArray(),
         ];
     }
 
