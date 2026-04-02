@@ -3,6 +3,7 @@
 @section('title', 'Athleten')
 
 @section('content')
+
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
         <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
@@ -43,7 +44,7 @@
         @endif
     </form>
 
-    <flux:table>
+    <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
         <flux:table.columns>
             <flux:table.column>Athlet</flux:table.column>
             <flux:table.column>Verein</flux:table.column>
@@ -106,4 +107,5 @@
     </flux:table>
 
     <div class="mt-4">{{ $athletes->links() }}</div>
+
 @endsection

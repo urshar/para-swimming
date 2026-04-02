@@ -3,6 +3,7 @@
 @section('title', 'LENEX Import')
 
 @section('content')
+
     <div class="max-w-xl">
         <div class="flex items-center gap-3 mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">LENEX Import</h1>
@@ -11,13 +12,58 @@
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6"
              x-data="{
              dragging: false,
+             importing: false,
+             filename: '',
              handleDrop(event) {
                  this.dragging = false;
-                 document.getElementById('lenex-file-input').files = event.dataTransfer.files;
+                 const file = event.dataTransfer.files[0];
+                 if (file) {
+                     document.getElementById('lenex-file-input').files = event.dataTransfer.files;
+                     this.filename = file.name;
+                 }
+             },
+             handleFileChange(event) {
+                 this.filename = event.target.files[0]?.name || '';
+             },
+             handleSubmit() {
+                 if (!this.filename) return;
+                 this.importing = true;
              }
          }">
 
-            <form method="POST" action="{{ route('lenex.import.store') }}" enctype="multipart/form-data">
+            {{-- Lade-Overlay --}}
+            <div x-show="importing"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 class="text-center py-8">
+
+                {{-- Spinner --}}
+                <svg class="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400 animate-spin"
+                     fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                            stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                    Import läuft…
+                </p>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-1">
+                    <span x-text="filename" class="font-mono"></span>
+                </p>
+                <p class="text-xs text-zinc-400">
+                    Bitte warten — Wettkampf, Sessions und Disziplinen werden verarbeitet.
+                </p>
+            </div>
+
+            {{-- Import-Formular --}}
+            <form method="POST"
+                  action="{{ route('lenex.import.store') }}"
+                  enctype="multipart/form-data"
+                  x-show="!importing"
+                  @submit.prevent="handleSubmit(); $el.submit()">
                 @csrf
 
                 {{-- Drop Zone --}}
@@ -37,20 +83,31 @@
                               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                     <p class="text-zinc-600 dark:text-zinc-400 mb-1">
-                        LENEX Datei hierher ziehen oder <span class="text-blue-600 dark:text-blue-400 font-medium">auswählen</span>
+                        LENEX Datei hierher ziehen oder
+                        <span class="text-blue-600 dark:text-blue-400 font-medium">auswählen</span>
                     </p>
                     <p class="text-xs text-zinc-400">.lxf oder .xml · Max. 20 MB</p>
-                    <input type="file" name="lenex_file" id="lenex-file-input" accept=".lxf,.xml" class="hidden"
-                           @change="$el.closest('form').querySelector('[data-filename]').textContent = $el.files[0]?.name || ''">
+                    <input type="file"
+                           id="lenex-file-input"
+                           name="lenex_file"
+                           accept=".lxf,.lef,.xml"
+                           class="hidden"
+                           @change="handleFileChange($event)">
                 </div>
 
-                <p class="text-sm text-center text-zinc-500 mt-2" data-filename></p>
+                {{-- Dateiname --}}
+                <p class="text-sm text-center mt-2 min-h-5"
+                   :class="filename ? 'text-zinc-700 dark:text-zinc-300 font-medium' : 'text-zinc-400'">
+                    <span x-text="filename || ''"></span>
+                </p>
+
                 <flux:error name="lenex_file" class="mt-2"/>
 
-                {{-- Info --}}
+                {{-- Info-Typen --}}
                 <div class="mt-5 space-y-2">
-                    <p class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Erkannte
-                        Import-Typen</p>
+                    <p class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Erkannte Import-Typen
+                    </p>
                     <div class="grid grid-cols-3 gap-3">
                         @foreach(['Struktur' => 'Meet + Sessions + Events', 'Meldungen' => '+ Clubs, Athleten, Meldungen', 'Ergebnisse' => '+ Ergebnisse, Splits'] as $type => $desc)
                             <div class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
@@ -61,10 +118,22 @@
                     </div>
                 </div>
 
-                <flux:button type="submit" variant="primary" icon="arrow-up-tray" class="w-full mt-5">
+                {{-- Submit --}}
+                <flux:button
+                    type="submit"
+                    variant="primary"
+                    icon="arrow-up-tray"
+                    class="w-full mt-5"
+                    x-bind:disabled="!filename">
                     Datei importieren
                 </flux:button>
+
+                <p
+                    x-show="!filename"
+                    class="text-xs text-center text-zinc-400 mt-2"
+                >Bitte zuerst eine Datei auswählen</p>
             </form>
         </div>
     </div>
+
 @endsection

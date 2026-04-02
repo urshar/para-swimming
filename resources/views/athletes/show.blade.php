@@ -3,16 +3,15 @@
 @section('title', $athlete->display_name)
 
 @section('content')
+
     <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-3">
-            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="arrow-left" size="sm" />
             <div>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                     {{ match($athlete->gender) { 'M' => 'Herr', 'F' => 'Dame', default => 'Nicht binär' } }}
-                    @if($athlete->birth_date)
-                        · *{{ $athlete->birth_date->format('d.m.Y') }}
-                    @endif
+                    @if($athlete->birth_date) · *{{ $athlete->birth_date->format('d.m.Y') }} @endif
                     · {{ $athlete->nation?->code }}
                 </p>
             </div>
@@ -32,8 +31,7 @@
                     <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
                     <dd class="font-medium mt-0.5">
                         @if($athlete->club)
-                            <a href="{{ route('clubs.show', $athlete->club) }}"
-                               class="hover:text-blue-600 transition-colors">
+                            <a href="{{ route('clubs.show', $athlete->club) }}" class="hover:text-blue-600 transition-colors">
                                 {{ $athlete->club->display_name }}
                             </a>
                         @else
@@ -66,8 +64,7 @@
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Sport-Klassen</h2>
             @forelse($athlete->sportClasses as $sc)
-                <div
-                    class="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                <div class="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
                 <span class="font-mono font-bold text-lg text-zinc-900 dark:text-zinc-100">
                     {{ $sc->sport_class }}
                 </span>
@@ -101,7 +98,7 @@
     {{-- Ergebnisse --}}
     <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Ergebnisse</h2>
 
-    <flux:table>
+    <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
         <flux:table.columns>
             <flux:table.column>Wettkampf</flux:table.column>
             <flux:table.column>Disziplin</flux:table.column>
@@ -138,15 +135,9 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex gap-1">
-                            @if($result->is_world_record)
-                                <flux:badge size="sm" color="yellow">WR</flux:badge>
-                            @endif
-                            @if($result->is_european_record)
-                                <flux:badge size="sm" color="blue">ER</flux:badge>
-                            @endif
-                            @if($result->is_national_record)
-                                <flux:badge size="sm" color="emerald">NR</flux:badge>
-                            @endif
+                            @if($result->is_world_record)    <flux:badge size="sm" color="yellow">WR</flux:badge> @endif
+                            @if($result->is_european_record) <flux:badge size="sm" color="blue">ER</flux:badge> @endif
+                            @if($result->is_national_record) <flux:badge size="sm" color="emerald">NR</flux:badge> @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
@@ -161,4 +152,5 @@
     </flux:table>
 
     <div class="mt-4">{{ $results->links() }}</div>
+
 @endsection

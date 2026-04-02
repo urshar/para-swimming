@@ -54,10 +54,14 @@ Route::resource('meets.results', ResultController::class)
 Route::prefix('lenex')->name('lenex.')->group(function () {
 
     // Import — dreistufig: Upload → Review → Resolve
-    Route::get('import', [LenexImportController::class, 'showForm'])->name('import');
-    Route::post('import', [LenexImportController::class, 'import'])->name('import.store');
-    Route::get('import/review', [LenexImportController::class, 'review'])->name('import.review');
-    Route::post('import/resolve', [LenexImportController::class, 'resolve'])->name('import.resolve');
+    Route::get('/import', [LenexImportController::class, 'showForm'])->name('import');
+    Route::post('/import', [LenexImportController::class, 'import'])->name('import.store');
+    Route::get('/import/confirm-meet', [LenexImportController::class, 'confirmMeet'])->name('import.confirm-meet');
+    Route::post('/import/run', [LenexImportController::class, 'runImport'])->name('import.run');
+    Route::get('/import/review', [LenexImportController::class, 'review'])->name('import.review');
+    Route::post('/import/resolve-clubs', [LenexImportController::class, 'resolveClubs'])->name('import.resolve-clubs');
+    Route::post('/import/resolve-athletes',
+        [LenexImportController::class, 'resolveAthletes'])->name('import.resolve-athletes');
 
     // Export
     Route::get('export', [LenexExportController::class, 'showForm'])->name('export');

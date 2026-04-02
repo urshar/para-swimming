@@ -23,8 +23,9 @@
         </form>
     </div>
 
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-        <flux:table>
+    <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <flux:table
+            class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
             <flux:table.columns>
                 <flux:table.column>Athlet</flux:table.column>
                 <flux:table.column>Wettkampf</flux:table.column>

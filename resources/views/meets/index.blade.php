@@ -98,11 +98,11 @@
                     <flux:table.cell>
                         @if($meet->lenex_status)
                             <flux:badge size="sm" color="{{ match($meet->lenex_status) {
-                                'OFFICIAL'  => 'emerald',
-                                'RUNNING'   => 'blue',
-                                'SEEDED'    => 'amber',
-                                default     => 'zinc',
-                            } }}">
+                            'OFFICIAL'  => 'emerald',
+                            'RUNNING'   => 'blue',
+                            'SEEDED'    => 'amber',
+                            default     => 'zinc',
+                        } }}">
                                 {{ $meet->lenex_status }}
                             </flux:badge>
                         @else

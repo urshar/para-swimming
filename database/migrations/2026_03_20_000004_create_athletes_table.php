@@ -22,7 +22,7 @@ return new class extends Migration
 
             $table->date('birth_date')->nullable();
 
-            // LENEX 3.0: M, F, N (non binary)
+            // LENEX 3.0: M, F, N (nonbinary)
             $table->enum('gender', ['M', 'F', 'N'])->default('M');
 
             // Lizenznummern
@@ -40,16 +40,12 @@ return new class extends Migration
             // Global unique ID von swimrankings.net (swrid in LENEX)
             $table->string('swrid')->nullable();
 
-            // LENEX Import-Referenz: nicht unique — Meetmanager vergibt pro Veranstaltung neu
-            $table->string('lenex_athlete_id')->nullable();
-
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['last_name', 'first_name']);
             $table->index('nation_id');
             $table->index('club_id');
-            $table->index('lenex_athlete_id');
             $table->index('license');
             $table->index('license_ipc');
             $table->index('swrid');

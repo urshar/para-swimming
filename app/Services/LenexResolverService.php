@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Athlete;
 use App\Models\AthleteSportClass;
 use App\Models\Club;
+use App\Models\ExceptionCode;
 use App\Models\Nation;
 use Illuminate\Support\Facades\DB;
 use SimpleXMLElement;
@@ -37,6 +38,9 @@ class LenexResolverService
 
     /** lenex_event_id → App SwimEvent ID */
     private array $eventCache = [];
+
+    /** ExceptionCode.code → ExceptionCode.id (einmalig geladen) */
+    private ?array $exceptionCodeCache = null;
 
     /** Unbekannte Clubs die manuell aufgelöst werden müssen */
     private array $unresolvedClubs = [];
@@ -149,20 +153,12 @@ class LenexResolverService
             $athlete = Athlete::where('license', $license)->whereNull('deleted_at')->first();
         }
 
-        // 2. SDMS ID (IPC Lizenznummer)
-        if (! $athlete && $licenseIpc) {
+        // 2. SDMS ID (IPC Lizenznummer) — nur wenn nicht "0"
+        if (! $athlete && $licenseIpc && $licenseIpc !== '0') {
             $athlete = Athlete::where('license_ipc', $licenseIpc)->whereNull('deleted_at')->first();
         }
 
-        // 3. lenex_athlete_id + club_id
-        if (! $athlete && $lenexId && $clubId) {
-            $athlete = Athlete::where('lenex_athlete_id', $lenexId)
-                ->where('club_id', $clubId)
-                ->whereNull('deleted_at')
-                ->first();
-        }
-
-        // 4. Name + Geburtsdatum + Geschlecht + Nation
+        // 3. Name + Geburtsdatum + Geschlecht + Nation
         if (! $athlete && $lastName && $firstName && $birthDate) {
             $athlete = Athlete::where(DB::raw('LOWER(last_name)'), '=', mb_strtolower($lastName))
                 ->where(DB::raw('LOWER(first_name)'), '=', mb_strtolower($firstName))
@@ -174,14 +170,14 @@ class LenexResolverService
         }
 
         if ($athlete) {
-            if ($lenexId && ! $athlete->lenex_athlete_id) {
-                $athlete->update(['lenex_athlete_id' => $lenexId]);
-            }
+            // lenex_athlete_id NICHT in DB speichern — sie ist pro Export unterschiedlich
+            // und würde das Matching bei zukünftigen Importen brechen.
+            // Nur im Memory-Cache für diesen Import-Vorgang verwenden.
             if ($lenexId) {
                 $this->athleteCache[$lenexId] = $athlete->id;
             }
 
-            // Sport-Klassen aus HANDICAP aktualisieren, falls vorhanden
+            // HANDICAP: Sport-Klassen + Exceptions synchronisieren
             if (isset($athleteXml->HANDICAP)) {
                 $this->syncHandicap($athlete, $athleteXml->HANDICAP);
             }
@@ -208,8 +204,6 @@ class LenexResolverService
         return null;
     }
 
-    // ── Cache-Methoden ────────────────────────────────────────────────────────
-
     public function createAthlete(array $data): Athlete
     {
         $athlete = Athlete::create([
@@ -221,7 +215,7 @@ class LenexResolverService
             'club_id' => $data['club_id'] ?? null,
             'license' => $data['license'] ?? null,
             'license_ipc' => $data['license_ipc'] ?? null,
-            'lenex_athlete_id' => $data['lenex_athlete_id'] ?? null,
+            // lenex_athlete_id wird NICHT gespeichert — ist pro Export unterschiedlich
         ]);
 
         if ($data['lenex_athlete_id'] ?? null) {
@@ -230,6 +224,8 @@ class LenexResolverService
 
         return $athlete;
     }
+
+    // ── Cache-Methoden ────────────────────────────────────────────────────────
 
     public function addToEventCache(string $lenexEventId, int $swimEventId): void
     {
@@ -246,8 +242,6 @@ class LenexResolverService
         $this->clubCache[$lenexId] = $clubId;
     }
 
-    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
-
     public function addToAthleteCache(string $lenexId, int $athleteId): void
     {
         $this->athleteCache[$lenexId] = $athleteId;
@@ -263,12 +257,12 @@ class LenexResolverService
         return $this->athleteCache[$lenexId] ?? null;
     }
 
+    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
+
     public function getUnresolvedClubs(): array
     {
         return $this->unresolvedClubs;
     }
-
-    // ── HANDICAP / Sport-Klassen ──────────────────────────────────────────────
 
     public function getUnresolvedAthletes(): array
     {
@@ -285,17 +279,38 @@ class LenexResolverService
         return count($this->unresolvedClubs) + count($this->unresolvedAthletes);
     }
 
+    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
+
+    /**
+     * Synchronisiert Sport-Klassen (S/SB/SM) und Exceptions aus dem HANDICAP-Element.
+     *
+     * Splash LENEX Format:
+     *   <HANDICAP free="7" breast="6" medley="7"
+     *             freestatus="CONFIRMED" breaststatus="CONFIRMED"
+     *             exception="A, 1, 4" />
+     *
+     * Das exception-Attribut ist eine komma-getrennte Liste von WPS Exception Codes
+     * (z.B. "A", "1", "2" ...) die gegen die exception_codes Tabelle gematcht werden.
+     */
     private function syncHandicap(Athlete $athlete, SimpleXMLElement $handicapXml): void
     {
+        $this->syncSportClasses($athlete, $handicapXml);
+        $this->syncExceptions($athlete, $handicapXml);
+    }
+
+    /**
+     * Sport-Klassen S / SB / SM aus HANDICAP-Attributen synchronisieren.
+     */
+    private function syncSportClasses(Athlete $athlete, SimpleXMLElement $handicapXml): void
+    {
         $mapping = [
-            'S' => ['lenex_attr' => 'free', 'status_attr' => 'freestatus'],
+            'S' => ['lenex_attr' => 'free',   'status_attr' => 'freestatus'],
             'SB' => ['lenex_attr' => 'breast', 'status_attr' => 'breaststatus'],
             'SM' => ['lenex_attr' => 'medley', 'status_attr' => 'medleystatus'],
         ];
 
         foreach ($mapping as $category => $attrs) {
-            $classNumber = (string) ($handicapXml[$attrs['lenex_attr']] ?? '');
-            $classNumber = trim($classNumber);
+            $classNumber = trim((string) ($handicapXml[$attrs['lenex_attr']] ?? ''));
             if ($classNumber === '' || $classNumber === '0') {
                 continue;
             }
@@ -313,7 +328,66 @@ class LenexResolverService
         }
     }
 
-    // ── Event Cache ───────────────────────────────────────────────────────────
+    /**
+     * WPS Exceptions aus dem exception-Attribut des HANDICAP-Elements synchronisieren.
+     *
+     * Splash speichert die Codes komma-getrennt im Attribut:
+     *   exception="A, 1, 4"  →  ExceptionCodes mit code IN ('A', '1', '4')
+     *
+     * Bestehende Exceptions des Athleten werden vollständig ersetzt (sync).
+     */
+    private function syncExceptions(Athlete $athlete, SimpleXMLElement $handicapXml): void
+    {
+        $exceptionAttr = trim((string) ($handicapXml['exception'] ?? ''));
+        if ($exceptionAttr === '') {
+            return;
+        }
+
+        // Codes parsen: "A, 1, 4" → ['A', '1', '4']
+        $codes = array_filter(
+            array_map('trim', explode(',', $exceptionAttr)),
+            fn (string $c) => $c !== ''
+        );
+
+        if (empty($codes)) {
+            return;
+        }
+
+        // ExceptionCode IDs aus dem Cache / DB holen
+        $exceptionCodeMap = $this->loadExceptionCodeCache();
+        $ids = [];
+        foreach ($codes as $code) {
+            if (isset($exceptionCodeMap[$code])) {
+                $ids[] = $exceptionCodeMap[$code];
+            }
+            // Unbekannte Codes werden stillschweigend übersprungen
+        }
+
+        if (empty($ids)) {
+            return;
+        }
+
+        // Sync: bestehende Exceptions ersetzen
+        // withoutDetaching würde Duplikate erzeugen bei erneutem Import
+        $athlete->exceptions()->sync($ids);
+    }
+
+    /**
+     * Lädt alle ExceptionCodes einmalig in einen code→id Cache.
+     * Vermeidet N+1 Queries beim Athleten-Import.
+     *
+     * @return array<string, int> z.B. ['A' => 1, '1' => 2, '2' => 3, ...]
+     */
+    private function loadExceptionCodeCache(): array
+    {
+        if ($this->exceptionCodeCache === null) {
+            $this->exceptionCodeCache = ExceptionCode::pluck('id', 'code')->all();
+        }
+
+        return $this->exceptionCodeCache;
+    }
+
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     private function mapHandicapStatus(string $status): ?string
     {
