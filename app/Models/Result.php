@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -74,7 +75,7 @@ class Result extends Model
             return $this->status ?? '—';
         }
 
-        return Entry::formatTime($this->swim_time);
+        return TimeParser::display($this->swim_time);
     }
 
     public function isValid(): bool

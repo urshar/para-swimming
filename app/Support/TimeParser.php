@@ -59,7 +59,15 @@ class TimeParser
     }
 
     /**
-     * Hundertstelsekunden → lesbares Anzeigeformat "1:02.45" oder "58.32"
+     * Hundertstelsekunden → lesbares Anzeigeformat mit führenden Nullen.
+     *
+     * Beispiele:
+     *   34,45 cs  →  "00:34.45"
+     *   83,22 cs  →  "01:23.22"
+     *   3789,00 cs → "01:03:09.00"
+     *
+     * Minuten werden immer zweistellig mit führender Null angezeigt (00:34.45),
+     * Stunden, nur wenn > 0.
      */
     public static function display(int $centiseconds): string
     {
@@ -69,12 +77,10 @@ class TimeParser
         $cs = $centiseconds % 100;
 
         if ($hours > 0) {
-            return sprintf('%d:%02d:%02d.%02d', $hours, $minutes, $seconds, $cs);
-        }
-        if ($minutes > 0) {
-            return sprintf('%d:%02d.%02d', $minutes, $seconds, $cs);
+            return sprintf('%02d:%02d:%02d.%02d', $hours, $minutes, $seconds, $cs);
         }
 
-        return sprintf('%d.%02d', $seconds, $cs);
+        // Immer MM:SS.ss mit führender Null — auch "00:34.45"
+        return sprintf('%02d:%02d.%02d', $minutes, $seconds, $cs);
     }
 }
