@@ -73,15 +73,7 @@ class LenexResolverService
                 ->first();
         }
 
-        // 2. lenex_club_id + nation_id
-        if (! $club && $lenexId && $nationId) {
-            $club = Club::where('lenex_club_id', $lenexId)
-                ->where('nation_id', $nationId)
-                ->whereNull('deleted_at')
-                ->first();
-        }
-
-        // 3. normalisierter Name + nation_id
+        // 2. normalisierter Name + nation_id
         if (! $club && $name && $nationId) {
             $club = Club::where(DB::raw('LOWER(TRIM(name))'), '=', mb_strtolower(trim($name)))
                 ->where('nation_id', $nationId)
@@ -90,9 +82,6 @@ class LenexResolverService
         }
 
         if ($club) {
-            if ($lenexId && ! $club->lenex_club_id) {
-                $club->update(['lenex_club_id' => $lenexId]);
-            }
             $this->clubCache[$cacheKey] = $club->id;
 
             return $club;
@@ -113,20 +102,13 @@ class LenexResolverService
 
     public function createClub(array $data): Club
     {
-        $club = Club::create([
+        return Club::create([
             'name' => $data['name'],
             'short_name' => $data['short_name'] ?? null,
             'code' => $data['code'] ?? null,
             'nation_id' => $data['nation_id'],
             'type' => $data['type'] ?? 'CLUB',
-            'lenex_club_id' => $data['lenex_club_id'] ?? null,
         ]);
-
-        if ($data['lenex_club_id'] ?? null) {
-            $this->clubCache[$data['lenex_club_id']] = $club->id;
-        }
-
-        return $club;
     }
 
     // ── Athleten ──────────────────────────────────────────────────────────────
@@ -227,8 +209,6 @@ class LenexResolverService
         return $athlete;
     }
 
-    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
-
     public function addToEventCache(string $lenexEventId, int $swimEventId): void
     {
         $this->eventCache[$lenexEventId] = $swimEventId;
@@ -238,6 +218,8 @@ class LenexResolverService
     {
         return $this->eventCache[$lenexEventId] ?? null;
     }
+
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     public function addToClubCache(string $lenexId, int $clubId): void
     {
@@ -249,12 +231,12 @@ class LenexResolverService
         $this->athleteCache[$lenexId] = $athleteId;
     }
 
-    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
-
     public function getClubIdFromCache(string $lenexId): ?int
     {
         return $this->clubCache[$lenexId] ?? null;
     }
+
+    // ── Cache-Methoden ────────────────────────────────────────────────────────
 
     public function getAthleteIdFromCache(string $lenexId): ?int
     {
@@ -270,8 +252,6 @@ class LenexResolverService
     {
         return $this->unresolvedAthletes;
     }
-
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     public function hasUnresolved(): bool
     {
@@ -300,7 +280,7 @@ class LenexResolverService
         $this->syncExceptions($athlete, $handicapXml);
     }
 
-    // ── Cache-Methoden ────────────────────────────────────────────────────────
+    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
 
     /**
      * Sport-Klassen S / SB / SM aus HANDICAP-Attributen synchronisieren.
@@ -398,6 +378,8 @@ class LenexResolverService
 
         return $this->exceptionCodeCache;
     }
+
+    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
 
     private function extractPrimarySportClass(SimpleXMLElement $handicapXml): ?string
     {

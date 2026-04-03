@@ -32,6 +32,7 @@
             <flux:table.column>Kürzel</flux:table.column>
             <flux:table.column>Nation</flux:table.column>
             <flux:table.column>Typ</flux:table.column>
+            <flux:table.column>Verband</flux:table.column>
             <flux:table.column>Athleten</flux:table.column>
             <flux:table.column></flux:table.column>
         </flux:table.columns>
@@ -51,9 +52,37 @@
                     <flux:table.cell>
                         <flux:badge size="sm" color="zinc">{{ $club->nation?->code }}</flux:badge>
                     </flux:table.cell>
-                    <flux:table.cell
-                        class="text-sm text-zinc-500">{{ $club->type !== 'CLUB' ? $club->type : '–' }}</flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">{{ $club->athletes_count }}</flux:table.cell>
+                    <flux:table.cell>
+                        <flux:badge size="sm" color="{{ match($club->type) {
+                            'NATIONALTEAM' => 'blue',
+                            'REGIONALTEAM' => 'indigo',
+                            'VERBAND'      => 'violet',
+                            default        => 'zinc',
+                        } }}">
+                            {{ match($club->type) {
+                                'CLUB'         => 'Verein',
+                                'NATIONALTEAM' => 'Nationalteam',
+                                'REGIONALTEAM' => 'Regionalteam',
+                                'VERBAND'      => 'Verband',
+                                'UNATTACHED'   => 'Ohne Zuordnung',
+                                default        => $club->type,
+                            } }}
+                        </flux:badge>
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        {{ $club->regional_association ?? '–' }}
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">
+                        @if($club->athletes_active_count > 0 || $club->athletes_inactive_count > 0)
+                            <span
+                                class="text-zinc-900 dark:text-zinc-100 font-medium">{{ $club->athletes_active_count }}</span>
+                            @if($club->athletes_inactive_count > 0)
+                                <span class="text-zinc-400 ml-1">({{ $club->athletes_inactive_count }} inaktiv)</span>
+                            @endif
+                        @else
+                            <span class="text-zinc-400">–</span>
+                        @endif
+                    </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('clubs.show', $club) }}" size="sm" variant="ghost" icon="eye"/>
@@ -69,7 +98,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center py-12 text-zinc-400">Keine Vereine gefunden.
+                    <flux:table.cell colspan="7" class="text-center py-12 text-zinc-400">Keine Vereine gefunden.
                     </flux:table.cell>
                 </flux:table.row>
             @endforelse

@@ -15,17 +15,42 @@ use Throwable;
  * Prüft Wettkampf-Ergebnisse gegen bestehende Rekorde und legt
  * neue Rekord-Einträge an wenn ein Ergebnis einen Rekord bricht.
  *
- * Unterstützte Rekord-Typen:
- *   WR  → Weltrekord
- *   ER  → Europarekord
- *   NR  → Nationalrekord (gefiltert nach Nation des Athleten)
+ * Unterstützte Rekord-Typen (nur nationale/regionale Rekorde):
+ *   AUT             → Österreichischer Nationalrekord (altersunabhängig)
+ *   AUT.JR          → Österreichischer Jugendrekord (Jahrgang ≤ 18 im Wettkampfjahr)
+ *   AUT.WBSV        → Wiener BehindertenSportVerband (altersunabhängig)
+ *   AUT.WBSV.JR     → Wiener BehindertenSportVerband Jugend
+ *   AUT.BBSV        → Burgenländischer BSV (altersunabhängig)
+ *   AUT.BBSV.JR     → Burgenländischer BSV Jugend
+ *   AUT.KLSV        → Kärntner BSV (altersunabhängig)
+ *   AUT.KLSV.JR     → Kärntner BSV Jugend
+ *   AUT.NOEVSV      → Niederösterreichischer VSV (altersunabhängig)
+ *   AUT.NOEVSV.JR   → Niederösterreichischer VSV Jugend
+ *   AUT.OBSV        → Oberösterreichischer BSV (altersunabhängig)
+ *   AUT.OBSV.JR     → Oberösterreichischer BSV Jugend
+ *   AUT.SBSV        → Salzburger BSV (altersunabhängig)
+ *   AUT.SBSV.JR     → Salzburger BSV Jugend
+ *   AUT.STBSV       → Steirischer BSV (altersunabhängig)
+ *   AUT.STBSV.JR    → Steirischer BSV Jugend
+ *   AUT.TBSV        → Tiroler BSV (altersunabhängig)
+ *   AUT.TBSV.JR     → Tiroler BSV Jugend
+ *   AUT.VBSV        → Vorarlberger BSV (altersunabhängig)
+ *   AUT.VBSV.JR     → Vorarlberger BSV Jugend
+ *
+ * NICHT geprüft (internationale Rekorde):
+ *   WR, ER, OR — werden nicht automatisch gesetzt
+ *
+ * Altersregel Jugendrekord:
+ *   Alter = Wettkampfjahr − Geburtsjahr (Jahrgangs-Regel, Stand 31.12.)
+ *   Jugend = Alter ≤ 18
  *
  * Ablauf pro Result:
- *   1. Aktuellen Rekord für diese Kombination suchen
- *      (record_type + sport_class + gender + course + distance + relay_count)
- *   2. Ist das Result schneller? → neuen Rekord anlegen
- *   3. Alten Rekord auf APPROVED.HISTORY + is_current=false setzen
- *   4. Result Rekord-Flags aktualisieren (is_world_record usw.)
+ *   1. Prüfen ob Athlet Österreicher ist → sonst kein Check
+ *   2. Nationalrekord (AUT) prüfen
+ *   3. Jugendrekord (AUT.JR) prüfen wenn Alter ≤ 18
+ *   4. Regionalrekord (AUT.XXXX) prüfen wenn Club einem Verband zugeordnet ist
+ *   5. Regionalen Jugendrekord (AUT.XXXX.JR) prüfen wenn Alter ≤ 18 + Regionalverband
+ *   6. Result Rekord-Flags aktualisieren
  */
 class RecordCheckerService
 {
@@ -38,10 +63,13 @@ class RecordCheckerService
      */
     public function checkMeetResults(Meet $meet): int
     {
-        $meet->load(['nation']);
-
         $results = $meet->results()
-            ->with(['athlete.nation', 'swimEvent.strokeType', 'splits'])
+            ->with([
+                'athlete.nation',
+                'athlete.club',
+                'swimEvent.strokeType',
+                'splits',
+            ])
             ->whereNull('status') // nur gültige Ergebnisse
             ->whereNotNull('swim_time')
             ->get();
@@ -68,48 +96,74 @@ class RecordCheckerService
             return;
         }
 
+        // Nur österreichische Athleten
+        $nationCode = $result->athlete?->nation?->code;
+        if ($nationCode !== 'AUT') {
+            return;
+        }
+
         $strokeTypeId = $event->stroke_type_id;
         $course = $meet->course;
         $distance = $event->distance;
         $relayCount = $event->relay_count;
         $sportClass = $result->sport_class;
-        $gender = $result->athlete?->gender === 'F' ? 'F' : 'M';
+        $gender = $result->athlete->gender === 'F' ? 'F' : 'M';
+        $nationId = $result->athlete->nation->id;
+        $isJunior = $this->isJunior($result, $meet);
 
-        // Weltrekord prüfen
-        $isWr = $this->checkRecordType(
-            'WR', $strokeTypeId, $sportClass, $gender,
+        $isJr = false;
+        $isRr = false;
+        $isRjr = false;
+
+        // ── 1. Österreichischer Nationalrekord ────────────────────────────────
+        $isNr = $this->checkRecordType(
+            'AUT',
+            $strokeTypeId, $sportClass, $gender,
             $course, $distance, $relayCount,
-            $result, null
+            $result, $nationId
         );
 
-        // Europarekord prüfen (nur wenn Nation in Europa)
-        $isEr = false;
-        if ($this->isEuropeanNation($result->athlete?->nation?->code)) {
-            $isEr = $this->checkRecordType(
-                'ER', $strokeTypeId, $sportClass, $gender,
-                $course, $distance, $relayCount,
-                $result, null
-            );
-        }
-
-        // Nationalrekord prüfen
-        $isNr = false;
-        $nationCode = $result->athlete?->nation?->code;
-        if ($nationCode) {
-            $nationId = $result->athlete->nation->id;
-            $isNr = $this->checkRecordType(
-                $nationCode, $strokeTypeId, $sportClass, $gender,
+        // ── 2. Österreichischer Jugendrekord ──────────────────────────────────
+        if ($isJunior) {
+            $isJr = $this->checkRecordType(
+                'AUT.JR',
+                $strokeTypeId, $sportClass, $gender,
                 $course, $distance, $relayCount,
                 $result, $nationId
             );
         }
 
-        // Rekord-Flags am Result aktualisieren
-        if ($isWr || $isEr || $isNr) {
+        // ── 3. Regionalrekord + 4. Regionaler Jugendrekord ───────────────────
+        // regional_record_type liefert z.B. "AUT.WBSV" (siehe Club Model)
+        $regionalBase = $result->athlete?->club?->regional_record_type;
+
+        if ($regionalBase) {
+            // Altersunabhängiger Regionalrekord
+            $isRr = $this->checkRecordType(
+                $regionalBase,
+                $strokeTypeId, $sportClass, $gender,
+                $course, $distance, $relayCount,
+                $result, $nationId
+            );
+
+            // Regionaler Jugendrekord — z.B. "AUT.WBSV.JR"
+            if ($isJunior) {
+                $isRjr = $this->checkRecordType(
+                    $regionalBase.'.JR',
+                    $strokeTypeId, $sportClass, $gender,
+                    $course, $distance, $relayCount,
+                    $result, $nationId
+                );
+            }
+        }
+
+        // ── 5. Result-Flags aktualisieren ─────────────────────────────────────
+        if ($isNr || $isJr || $isRr || $isRjr) {
             $result->update([
-                'is_world_record' => $isWr,
-                'is_european_record' => $isEr,
                 'is_national_record' => $isNr,
+                'is_junior_record' => $isJr,
+                'is_regional_record' => $isRr,
+                'is_regional_junior_record' => $isRjr,
             ]);
         }
     }
@@ -117,7 +171,7 @@ class RecordCheckerService
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
-     * Prüft, ob das Result einen Rekord eines bestimmten Typs bricht.
+     * Prüft ob das Result einen Rekord eines bestimmten Typs bricht.
      * Legt bei Bedarf einen neuen SwimRecord an.
      *
      * @throws Throwable
@@ -143,7 +197,7 @@ class RecordCheckerService
             ->where('is_current', true)
             ->first();
 
-        // Kein bestehender Rekord → das ist automatisch ein neuer Rekord
+        // Kein bestehender Rekord → automatisch neuer Rekord
         $isNewRecord = ! $current || $result->swim_time < $current->swim_time;
 
         if (! $isNewRecord) {
@@ -200,25 +254,25 @@ class RecordCheckerService
     }
 
     /**
-     * Europäische Nationen laut IOC-Codes.
-     * Relevant für Europarekord-Prüfung.
+     * Prüft ob ein Athlet beim Wettkampf als Jugendlicher gilt.
+     *
+     * Regel: Jahrgangs-Alter = Wettkampfjahr − Geburtsjahr ≤ 18
+     * (Stichtag 31.12. des Wettkampfjahres)
+     *
+     * Gibt false zurück wenn Geburtsdatum fehlt oder Meet kein Datum hat.
      */
-    private function isEuropeanNation(?string $code): bool
+    private function isJunior(Result $result, Meet $meet): bool
     {
-        if (! $code) {
+        $birthDate = $result->athlete?->birth_date;
+        $meetDate = $meet->start_date;
+
+        if (! $birthDate || ! $meetDate) {
             return false;
         }
 
-        $european = [
-            'ALB', 'AND', 'ARM', 'AUT', 'AZE', 'BEL', 'BIH', 'BLR',
-            'BUL', 'CRO', 'CYP', 'CZE', 'DEN', 'ESP', 'EST', 'FIN',
-            'FRA', 'GBR', 'GEO', 'GER', 'GRE', 'HUN', 'IRL', 'ISL',
-            'ISR', 'ITA', 'KAZ', 'KOS', 'LAT', 'LIE', 'LTU', 'LUX',
-            'MDA', 'MKD', 'MLT', 'MNE', 'MON', 'NED', 'NOR', 'POL',
-            'POR', 'ROU', 'RUS', 'SLO', 'SMR', 'SRB', 'SVK', 'SUI',
-            'SWE', 'TUR', 'UKR',
-        ];
+        $meetYear = (int) $meetDate->format('Y');
+        $birthYear = (int) $birthDate->format('Y');
 
-        return in_array(strtoupper($code), $european, true);
+        return ($meetYear - $birthYear) <= 18;
     }
 }

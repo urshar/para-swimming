@@ -9,12 +9,20 @@
         <flux:button href="{{ route('records.create') }}" variant="primary" icon="plus">Rekord eintragen</flux:button>
     </div>
 
-    {{-- Typ-Tabs --}}
+    {{--
+        Hauptkategorie-Tabs
+        Kategorien: International | National | Regional
+        Der aktive Tab wird über $category gesteuert (vom Controller übergeben).
+    --}}
     <div class="flex gap-2 mb-4 flex-wrap">
-        @foreach(['WR' => 'Weltrekorde', 'ER' => 'Europarekorde', 'NR' => 'Nationalrekorde', 'OR' => 'Olympische Rekorde'] as $type => $label)
-            <a href="{{ route('records.index', ['type' => $type] + request()->except('type')) }}"
+        @foreach([
+            'international' => 'International',
+            'national'      => 'National',
+            'regional'      => 'Regional',
+        ] as $cat => $label)
+            <a href="{{ route('records.index', ['category' => $cat]) }}"
                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-               {{ $recordType === $type
+               {{ $category === $cat
                    ? 'bg-blue-600 text-white'
                    : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-blue-400' }}">
                 {{ $label }}
@@ -22,22 +30,63 @@
         @endforeach
     </div>
 
-    {{-- Filter --}}
-    <form method="GET" class="flex flex-wrap gap-3 mb-4">
-        <input type="hidden" name="type" value="{{ $recordType }}">
-        <flux:input name="sport_class" value="{{ request('sport_class') }}" placeholder="Klasse z.B. S4" class="w-28" />
-        <flux:select name="gender" placeholder="Geschlecht" class="w-36">
+    {{-- Filter-Zeile: Untertyp-Dropdown + Sport-Klasse + Geschlecht + Bahn --}}
+    <form method="GET" class="flex flex-wrap gap-3 mb-6">
+        <input type="hidden" name="category" value="{{ $category }}">
+
+        {{-- Untertyp je nach Kategorie --}}
+        @if($category === 'international')
+            <flux:select name="type" class="w-44">
+                @foreach(['WR' => 'Weltrekorde', 'ER' => 'Europarekorde', 'OR' => 'Olympische Rekorde'] as $type => $label)
+                    <option value="{{ $type }}" @selected(request('type', 'WR') === $type)>{{ $label }}</option>
+                @endforeach
+            </flux:select>
+        @elseif($category === 'national')
+            <flux:select name="type" class="w-44">
+                <option value="AUT" @selected(request('type', 'AUT') === 'AUT')>Österreich (gesamt)</option>
+                <option value="AUT.JR" @selected(request('type') === 'AUT.JR')>Österreich Jugend</option>
+            </flux:select>
+        @else
+            {{-- Regional: Verband-Dropdown + optional Jugend-Toggle --}}
+            <flux:select name="type" class="w-56">
+                @foreach($regionalTypes as $type => $label)
+                    <option value="{{ $type }}" @selected(request('type', 'AUT.WBSV') === $type)>{{ $label }}</option>
+                @endforeach
+            </flux:select>
+        @endif
+
+        <flux:input name="sport_class" value="{{ request('sport_class') }}" placeholder="Klasse z.B. S4" class="w-28"/>
+
+        <flux:select name="gender" class="w-36">
             <option value="">Alle</option>
             <option value="M" @selected(request('gender') === 'M')>Herren</option>
             <option value="F" @selected(request('gender') === 'F')>Damen</option>
         </flux:select>
-        <flux:select name="course" placeholder="Bahn" class="w-36">
+
+        <flux:select name="course" class="w-36">
             <option value="">Alle Bahnen</option>
             <option value="LCM" @selected(request('course') === 'LCM')>LCM (50m)</option>
             <option value="SCM" @selected(request('course') === 'SCM')>SCM (25m)</option>
         </flux:select>
+
         <flux:button type="submit" icon="funnel">Filtern</flux:button>
     </form>
+
+    {{-- Aktiver Typ als Badge --}}
+    <div class="flex items-center gap-2 mb-4">
+        <flux:badge color="blue" size="sm">{{ $recordTypeLabel }}</flux:badge>
+        @if(request('sport_class'))
+            <flux:badge color="zinc" size="sm">{{ request('sport_class') }}</flux:badge>
+        @endif
+        @if(request('gender'))
+            <flux:badge color="{{ request('gender') === 'M' ? 'blue' : 'pink' }}" size="sm">
+                {{ request('gender') === 'M' ? 'Herren' : 'Damen' }}
+            </flux:badge>
+        @endif
+        @if(request('course'))
+            <flux:badge color="zinc" size="sm">{{ request('course') }}</flux:badge>
+        @endif
+    </div>
 
     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
         <flux:table.columns>
@@ -47,6 +96,7 @@
             <flux:table.column>Bahn</flux:table.column>
             <flux:table.column>Zeit</flux:table.column>
             <flux:table.column>Athlet</flux:table.column>
+            <flux:table.column>Verein</flux:table.column>
             <flux:table.column>Datum</flux:table.column>
             <flux:table.column></flux:table.column>
         </flux:table.columns>
@@ -75,7 +125,8 @@
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-400">
                         @if($record->athlete)
-                            <a href="{{ route('athletes.show', $record->athlete) }}" class="hover:text-blue-600 transition-colors">
+                            <a href="{{ route('athletes.show', $record->athlete) }}"
+                               class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->display_name }}
                             </a>
                             <span class="text-zinc-400">({{ $record->athlete->nation?->code }})</span>
@@ -84,15 +135,28 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500">
+                        {{ $record->athlete?->club?->short_name ?? $record->athlete?->club?->name ?? '–' }}
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500">
                         {{ $record->set_date?->format('d.m.Y') ?? '–' }}
                     </flux:table.cell>
                     <flux:table.cell>
-                        <flux:button href="{{ route('records.show', $record) }}" size="sm" variant="ghost" icon="eye" />
+                        <div class="flex items-center gap-1 justify-end">
+                            <flux:button href="{{ route('records.show', $record) }}" size="sm" variant="ghost"
+                                         icon="eye"/>
+                            <flux:button href="{{ route('records.edit', $record) }}" size="sm" variant="ghost"
+                                         icon="pencil"/>
+                            <form method="POST" action="{{ route('records.destroy', $record) }}"
+                                  x-data @submit.prevent="if(confirm('Rekord löschen?')) $el.submit()">
+                                @csrf @method('DELETE')
+                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500"/>
+                            </form>
+                        </div>
                     </flux:table.cell>
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="8" class="text-center py-12 text-zinc-400">
+                    <flux:table.cell colspan="9" class="text-center py-12 text-zinc-400">
                         Keine Rekorde gefunden.
                     </flux:table.cell>
                 </flux:table.row>

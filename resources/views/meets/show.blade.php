@@ -19,11 +19,13 @@
                          icon="arrow-down-tray" size="sm">
                 LENEX Export
             </flux:button>
-            <flux:button href="{{ route('records.check', $meet) }}" variant="ghost" icon="star" size="sm"
-                         x-data
-                         @click.prevent="if(confirm('Alle Ergebnisse auf Rekorde prüfen?')) window.location.href=$el.href">
-                Rekorde prüfen
-            </flux:button>
+            <form method="POST" action="{{ route('records.check', $meet) }}"
+                  x-data @submit.prevent="if(confirm('Alle Ergebnisse auf Rekorde prüfen?')) $el.submit()">
+                @csrf
+                <flux:button type="submit" variant="ghost" icon="star" size="sm">
+                    Rekorde prüfen
+                </flux:button>
+            </form>
             <flux:button href="{{ route('meets.edit', $meet) }}" variant="ghost" icon="pencil" size="sm">
                 Bearbeiten
             </flux:button>

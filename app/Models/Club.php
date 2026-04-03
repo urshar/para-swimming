@@ -12,12 +12,27 @@ class Club extends Model
 {
     use SoftDeletes;
 
+    // ── regionale Verbandscodes (Österreich) ──────────────────────────────────
+
+    const array REGIONAL_ASSOCIATIONS = [
+        'WBSV' => 'Wiener BehindertenSportVerband',
+        'BBSV' => 'Burgenländischer BSV',
+        'KLSV' => 'Kärntner BSV',
+        'NOEVSV' => 'Niederösterreichischer Versehrten Sportverband',
+        'OBSV' => 'Oberösterreichischer BSV',
+        'SBSV' => 'Salzburger BSV',
+        'STBSV' => 'Steirischer BSV',
+        'TBSV' => 'Tiroler BSV',
+        'VBSV' => 'Vorarlberger BSV',
+    ];
+
     protected $fillable = [
         'name',
         'short_name',
         'code',
         'nation_id',
         'type',
+        'regional_association',
         'swrid',
         'lenex_club_id',
     ];
@@ -54,5 +69,40 @@ class Club extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->short_name ?? $this->name;
+    }
+
+    /**
+     * Gibt den vollen Namen des Regionalverbands zurück.
+     * z.B. "WBSV" → "Wiener BehindertenSportVerband"
+     */
+    public function getRegionalAssociationNameAttribute(): ?string
+    {
+        if (! $this->regional_association) {
+            return null;
+        }
+
+        return self::REGIONAL_ASSOCIATIONS[$this->regional_association] ?? $this->regional_association;
+    }
+
+    /**
+     * Gibt den record_type-Wert für Regionalrekorde zurück.
+     * z.B. "AUT.WBSV"
+     * Null, wenn kein Regionalverband zugeordnet.
+     */
+    public function getRegionalRecordTypeAttribute(): ?string
+    {
+        if (! $this->regional_association) {
+            return null;
+        }
+
+        return 'AUT.'.$this->regional_association;
+    }
+
+    /**
+     * Ist dieser Club einem österreichischen Regionalverband zugeordnet?
+     */
+    public function hasRegionalAssociation(): bool
+    {
+        return ! empty($this->regional_association);
     }
 }

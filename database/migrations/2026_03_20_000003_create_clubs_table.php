@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('clubs', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('short_name', 40)->nullable();  // LENEX CLUB.shortname (max. 20 Zeichen laut Spec, wir nehmen 40)
+            $table->string('short_name',
+                40)->nullable();  // LENEX CLUB.shortname (max. 20 Zeichen laut Spec, wir nehmen 40)
             $table->string('code', 10)->nullable();         // LENEX CLUB.code — offizieller Vereinscode
             $table->foreignId('nation_id')->constrained()->restrictOnDelete();
 
@@ -21,21 +22,31 @@ return new class extends Migration
                 'NATIONALTEAM',
                 'REGIONALTEAM',
                 'UNATTACHED',
+                'VERBAND',
             ])->default('CLUB');
 
-            // LENEX CLUB.swrid — global unique ID von swimrankings.net
-            // Fehlt in früherer Version, aber in LENEX 3.0 für CLUB definiert
-            $table->string('swrid')->nullable();
+            $table->enum('regional_association', [
+                'WBSV',
+                'BBSV',
+                'KLSV',
+                'NOEVSV',
+                'OBSV',
+                'SBSV',
+                'STBSV',
+                'TBSV',
+                'VBSV',
+            ])->nullable();
 
-            // LENEX Import-Referenz: nicht unique — Meetmanager vergibt pro Export neu
-            $table->string('lenex_club_id')->nullable();
+            // LENEX CLUB.swrid — global unique ID von swimrankings.net
+            // fehlt in früherer Version, aber in LENEX 3.0 für CLUB definiert
+            $table->string('swrid')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
 
             $table->index('nation_id');
-            $table->index('lenex_club_id');
             $table->index('swrid');
+            $table->index('regional_association');
         });
     }
 

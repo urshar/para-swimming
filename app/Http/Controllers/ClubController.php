@@ -12,7 +12,12 @@ class ClubController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Club::with('nation')->orderBy('name');
+        $query = Club::with('nation')
+            ->withCount([
+                'athletes as athletes_active_count' => fn ($q) => $q->whereNull('status'),
+                'athletes as athletes_inactive_count' => fn ($q) => $q->where('status', 'INACTIVE'),
+            ])
+            ->orderBy('name');
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -45,7 +50,8 @@ class ClubController extends Controller
             'short_name' => 'nullable|string|max:40',
             'code' => 'nullable|string|max:10',
             'nation_id' => 'required|exists:nations,id',
-            'type' => 'required|in:CLUB,NATIONALTEAM,REGIONALTEAM,UNATTACHED',
+            'type' => 'required|in:CLUB,NATIONALTEAM,REGIONALTEAM,UNATTACHED,VERBAND',
+            'regional_association' => 'nullable|in:'.implode(',', array_keys(Club::REGIONAL_ASSOCIATIONS)),
         ]);
 
         $club = Club::create($data);
@@ -83,7 +89,8 @@ class ClubController extends Controller
             'short_name' => 'nullable|string|max:40',
             'code' => 'nullable|string|max:10',
             'nation_id' => 'required|exists:nations,id',
-            'type' => 'required|in:CLUB,NATIONALTEAM,REGIONALTEAM,UNATTACHED',
+            'type' => 'required|in:CLUB,NATIONALTEAM,REGIONALTEAM,UNATTACHED,VERBAND',
+            'regional_association' => 'nullable|in:'.implode(',', array_keys(Club::REGIONAL_ASSOCIATIONS)),
         ]);
 
         $club->update($data);

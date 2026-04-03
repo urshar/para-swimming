@@ -4,24 +4,43 @@
 
 @section('content')
 
-    <div class="flex items-center gap-3 mb-6">
-        <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="ghost"
-                     icon="arrow-left" size="sm"/>
-        <div>
-            <div class="flex items-center gap-2">
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                    {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
-                    m {{ $record->strokeType?->name_de }}
-                </h1>
-                <flux:badge color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
-                    {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
-                </flux:badge>
-                <flux:badge color="zinc">{{ $record->course }}</flux:badge>
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="ghost"
+                         icon="arrow-left" size="sm"/>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                        {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
+                        m {{ $record->strokeType?->name_de }}
+                    </h1>
+                    <flux:badge color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
+                        {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
+                    </flux:badge>
+                    <flux:badge color="zinc">{{ $record->course }}</flux:badge>
+                </div>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
+                </p>
             </div>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
-            </p>
         </div>
+        <flux:button href="{{ route('records.edit', $record) }}" variant="ghost" icon="pencil" size="sm">
+            Bearbeiten
+        </flux:button>
+        <form method="POST" action="{{ route('records.destroy', $record) }}"
+              x-data
+              @submit.prevent="
+                  const msg = $el.dataset.hasPredecessor === '1'
+                      ? 'Rekord löschen? Der Vorgänger-Rekord wird automatisch wiederhergestellt.'
+                      : 'Rekord unwiderruflich löschen? Es gibt keinen Vorgänger-Rekord.';
+                  if(confirm(msg)) $el.submit()
+              "
+              data-has-predecessor="{{ $record->supersedes_id ? '1' : '0' }}">
+            @csrf @method('DELETE')
+            <flux:button type="submit" variant="ghost" icon="trash" size="sm" class="text-red-500">
+                Löschen
+            </flux:button>
+        </form>
     </div>
 
     <div class="grid grid-cols-3 gap-6 mb-6">
@@ -47,6 +66,12 @@
                         @else
                             <span class="text-zinc-400">–</span>
                         @endif
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
+                    <dd class="font-medium mt-0.5">
+                        {{ $record->athlete?->club?->short_name ?? $record->athlete?->club?->name ?? '–' }}
                     </dd>
                 </div>
                 <div>
@@ -149,12 +174,22 @@
                         </flux:table.cell>
                         <flux:table.cell>
                             @if(!$histRecord->is_current)
-                                <form method="POST" action="{{ route('records.destroy', $histRecord) }}"
-                                      x-data @submit.prevent="if(confirm('Historischen Rekord löschen?')) $el.submit()">
-                                    @csrf @method('DELETE')
-                                    <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                                 class="text-red-500"/>
-                                </form>
+                                <div class="flex items-center gap-1 justify-end">
+                                    <form method="POST" action="{{ route('records.restore', $histRecord) }}"
+                                          x-data
+                                          @submit.prevent="if(confirm('Diesen Rekord als aktuellen Rekord wiederherstellen?')) $el.submit()">
+                                        @csrf
+                                        <flux:button type="submit" size="sm" variant="ghost" icon="arrow-path"
+                                                     class="text-emerald-500" title="Wiederherstellen"/>
+                                    </form>
+                                    <form method="POST" action="{{ route('records.destroy', $histRecord) }}"
+                                          x-data
+                                          @submit.prevent="if(confirm('Historischen Rekord löschen?')) $el.submit()">
+                                        @csrf @method('DELETE')
+                                        <flux:button type="submit" size="sm" variant="ghost" icon="trash"
+                                                     class="text-red-500" title="Löschen"/>
+                                    </form>
+                                </div>
                             @endif
                         </flux:table.cell>
                     </flux:table.row>

@@ -74,8 +74,11 @@ Route::prefix('records')->name('records.')->group(function () {
     Route::get('/', [RecordController::class, 'index'])->name('index');
     Route::get('create', [RecordController::class, 'createManual'])->name('create');
     Route::post('/', [RecordController::class, 'storeManual'])->name('store');
+    Route::get('{record}/edit', [RecordController::class, 'edit'])->name('edit');
+    Route::put('{record}', [RecordController::class, 'update'])->name('update');
     Route::get('{record}', [RecordController::class, 'show'])->name('show');
     Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
+    Route::post('{record}/restore', [RecordController::class, 'restore'])->name('restore');
 
     Route::get('import', [RecordController::class, 'importForm'])->name('import');
     Route::post('import', [RecordController::class, 'import'])->name('import.store');

@@ -67,6 +67,10 @@ return new class extends Migration
             $table->boolean('is_european_record')->default(false);
             $table->boolean('is_national_record')->default(false);
 
+            $table->boolean('is_junior_record')->default(false);
+            $table->boolean('is_regional_record')->default(false);
+            $table->boolean('is_regional_junior_record')->default(false);
+
             // LENEX resultid — nicht unique in unserer DB (verschiedene Meets)
             // Nur für Import-Referenz innerhalb eines Meets
             $table->string('lenex_result_id')->nullable();

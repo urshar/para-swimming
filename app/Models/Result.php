@@ -26,6 +26,9 @@ class Result extends Model
         'is_world_record',
         'is_european_record',
         'is_national_record',
+        'is_junior_record',
+        'is_regional_record',
+        'is_regional_junior_record',
         'lenex_result_id',
     ];
 
@@ -33,6 +36,9 @@ class Result extends Model
         'is_world_record' => 'boolean',
         'is_european_record' => 'boolean',
         'is_national_record' => 'boolean',
+        'is_junior_record' => 'boolean',
+        'is_regional_record' => 'boolean',
+        'is_regional_junior_record' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -88,6 +94,9 @@ class Result extends Model
     {
         return $this->is_world_record
             || $this->is_european_record
-            || $this->is_national_record;
+            || $this->is_national_record
+            || $this->is_junior_record
+            || $this->is_regional_record
+            || $this->is_regional_junior_record;
     }
 }
