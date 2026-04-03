@@ -70,10 +70,10 @@ class AthleteController extends Controller
     {
         $data = $this->validateAthlete($request);
 
-        DB::transaction(function () use ($request, $data) {
+        DB::transaction(function () use ($data) {
             $athlete = Athlete::create($data['athlete']);
             $this->syncSportClasses($athlete, $data['sport_classes']);
-            $this->syncExceptions($athlete, $request->input('exceptions', []));
+            $this->syncExceptions($athlete, $data['exceptions']);
         });
 
         return redirect()
@@ -116,10 +116,10 @@ class AthleteController extends Controller
     {
         $data = $this->validateAthlete($request);
 
-        DB::transaction(function () use ($request, $athlete, $data) {
+        DB::transaction(function () use ($athlete, $data) {
             $athlete->update($data['athlete']);
             $this->syncSportClasses($athlete, $data['sport_classes']);
-            $this->syncExceptions($athlete, $request->input('exceptions', []));
+            $this->syncExceptions($athlete, $data['exceptions']);
         });
 
         return redirect()
@@ -153,20 +153,38 @@ class AthleteController extends Controller
             'status' => 'nullable|in:EXHIBITION,FOREIGNER,ROOKIE',
             'disability_type' => 'nullable|string|max:30',
 
+            // Sport-Klassen: 3 fixe Zeilen, class_number kann leer sein
+            // → nullable statt required_with, Filterung in syncSportClasses()
             'sport_classes' => 'nullable|array',
-            'sport_classes.*.category' => 'required_with:sport_classes.*|in:S,SB,SM',
-            'sport_classes.*.class_number' => 'required_with:sport_classes.*|string|max:10',
+            'sport_classes.*.category' => 'nullable|in:S,SB,SM',
+            'sport_classes.*.class_number' => 'nullable|string|max:10',
             'sport_classes.*.status' => 'nullable|in:NATIONAL,NEW,REVIEW,OBSERVATION,CONFIRMED',
 
+            // Exceptions: Checkboxen — nur angehakte werden submitted,
+            // aber das category-Select sendet auch nicht-angehakte Zeilen mit.
+            // code_id nullable — Filterung in syncExceptions()
             'exceptions' => 'nullable|array',
-            'exceptions.*.code_id' => 'required_with:exceptions.*|exists:exception_codes,id',
+            'exceptions.*.code_id' => 'nullable|exists:exception_codes,id',
             'exceptions.*.category' => 'nullable|in:S,SB,SM',
             'exceptions.*.note' => 'nullable|string|max:255',
         ]);
 
+        // Sport-Klassen ohne class_number herausfiltern
+        $sportClasses = collect($validated['sport_classes'] ?? [])
+            ->filter(fn ($c) => ! empty($c['class_number']))
+            ->values()
+            ->all();
+
+        // Exceptions ohne code_id herausfiltern (nicht angehakte Checkboxen)
+        $exceptions = collect($validated['exceptions'] ?? [])
+            ->filter(fn ($e) => ! empty($e['code_id']))
+            ->values()
+            ->all();
+
         return [
             'athlete' => collect($validated)->except(['sport_classes', 'exceptions'])->toArray(),
-            'sport_classes' => $validated['sport_classes'] ?? [],
+            'sport_classes' => $sportClasses,
+            'exceptions' => $exceptions,
         ];
     }
 
@@ -175,9 +193,6 @@ class AthleteController extends Controller
         $athlete->sportClasses()->delete();
 
         foreach ($sportClasses as $classData) {
-            if (empty($classData['class_number'])) {
-                continue;
-            }
             $athlete->sportClasses()->create([
                 'category' => $classData['category'],
                 'class_number' => $classData['class_number'],
@@ -191,9 +206,6 @@ class AthleteController extends Controller
     {
         $syncData = [];
         foreach ($exceptions as $exception) {
-            if (empty($exception['code_id'])) {
-                continue;
-            }
             $syncData[$exception['code_id']] = [
                 'category' => $exception['category'] ?? null,
                 'note' => $exception['note'] ?? null,

@@ -59,6 +59,8 @@ class LenexParserService
         ];
     }
 
+    // ── Entries ───────────────────────────────────────────────────────────────
+
     /**
      * Nur den LENEX-Typ erkennen ohne zu importieren.
      * Wird vom Controller für die Meet-Auswahl benötigt.
@@ -71,6 +73,8 @@ class LenexParserService
 
         return $this->detectType($xml);
     }
+
+    // ── Results ───────────────────────────────────────────────────────────────
 
     /**
      * Meet-Metadaten aus der Datei lesen ohne zu importieren.
@@ -98,7 +102,7 @@ class LenexParserService
     }
 
     /**
-     * Liest Athleten aus der XML für die angegebenen Club-lenex_ids.
+     * Liest Athleten aus dem XML für die angegebenen Club-lenex_ids.
      * Wird nach dem Anlegen neuer Clubs aufgerufen, um deren Athleten
      * für die Review-Seite zu sammeln — ohne Import-Durchlauf.
      *
@@ -127,13 +131,17 @@ class LenexParserService
         $athletes = [];
 
         foreach ($meetXml->CLUBS->CLUB as $clubXml) {
-            $lenexClubId = (string) ($clubXml['id'] ?? '');
+            // Splash verwendet 'clubid', LENEX-Standard wäre 'id'
+            $lenexClubId = (string) ($clubXml['clubid'] ?? $clubXml['id'] ?? '');
+            $code = (string) ($clubXml['code'] ?? '');
+            // Denselben cache_key wie resolveClub() berechnen
+            $cacheKey = $lenexClubId ?: ('code:'.$code);
 
-            if (! in_array($lenexClubId, $clubLenexIds, true)) {
+            if (! isset($clubIdMap[$cacheKey])) {
                 continue;
             }
 
-            $dbClubId = $clubIdMap[$lenexClubId] ?? null;
+            $dbClubId = $clubIdMap[$cacheKey];
             $nationCode = (string) ($clubXml['nation'] ?? '');
             $nation = Nation::where('code', $nationCode)->first();
             $nationId = $nation?->id ?? 0;
@@ -163,6 +171,8 @@ class LenexParserService
         return $athletes;
     }
 
+    // ── Event-ID Auflösung ────────────────────────────────────────────────────
+
     /**
      * Lädt eine LENEX-Datei als SimpleXMLElement.
      * Unterstützt sowohl .lxf (ZIP-komprimiert) als auch .xml/.lef (plain XML).
@@ -189,6 +199,8 @@ class LenexParserService
 
         return $xml;
     }
+
+    // ── Sport-Klassen aus AGEGROUPS extrahieren ───────────────────────────────
 
     /**
      * Extrahiert den XML-Inhalt aus einer LXF (ZIP) oder LEF/XML Datei.
@@ -225,6 +237,8 @@ class LenexParserService
 
         return $content;
     }
+
+    // ── XML laden ────────────────────────────────────────────────────────────
 
     /**
      * @throws Exception
@@ -326,6 +340,8 @@ class LenexParserService
         return $meet;
     }
 
+    // ── Format-Konvertierungen ────────────────────────────────────────────────
+
     private function importSessions(
         Meet $meet,
         SimpleXMLElement $sessionsXml,
@@ -343,8 +359,6 @@ class LenexParserService
             }
         }
     }
-
-    // ── Typ-Erkennung ─────────────────────────────────────────────────────────
 
     private function importEvent(
         Meet $meet,
@@ -413,8 +427,6 @@ class LenexParserService
         $this->stats['events']++;
     }
 
-    // ── Meet importieren ─────────────────────────────────────────────────────
-
     /**
      * Liest alle handicap-Werte aus AGEGROUP-Elementen eines EVENTs.
      *
@@ -458,7 +470,7 @@ class LenexParserService
         return implode(' ', array_keys($classes));
     }
 
-    // ── Sessions + Events ─────────────────────────────────────────────────────
+    // ── Enum-Mappings ─────────────────────────────────────────────────────────
 
     private function mapGender(string $gender): string
     {
@@ -478,8 +490,6 @@ class LenexParserService
         return in_array($upper, $valid) ? $upper : 'TIM';
     }
 
-    // ── Clubs + Athletes ──────────────────────────────────────────────────────
-
     private function mapTechnique(string $technique): ?string
     {
         $valid = ['DIVE', 'GLIDE', 'KICK', 'PULL', 'START', 'TURN'];
@@ -495,8 +505,6 @@ class LenexParserService
 
         return in_array($upper, $valid) ? $upper : null;
     }
-
-    // ── Entries ───────────────────────────────────────────────────────────────
 
     private function importClubs(
         Meet $meet,
@@ -528,8 +536,6 @@ class LenexParserService
             }
         }
     }
-
-    // ── Results ───────────────────────────────────────────────────────────────
 
     private function importAthlete(
         Meet $meet,
@@ -596,8 +602,6 @@ class LenexParserService
         $this->stats['entries']++;
     }
 
-    // ── Event-ID Auflösung ────────────────────────────────────────────────────
-
     /**
      * Löst eine LENEX eventid zur internen SwimEvent-ID auf.
      *
@@ -633,14 +637,10 @@ class LenexParserService
         return $swimEventId;
     }
 
-    // ── Sport-Klassen aus AGEGROUPS extrahieren ───────────────────────────────
-
     private function parseTime(string $time): ?int
     {
         return TimeParser::parse($time);
     }
-
-    // ── XML laden ────────────────────────────────────────────────────────────
 
     private function parseTimeCode(string $time): ?string
     {
@@ -652,6 +652,8 @@ class LenexParserService
         return in_array($upper, ['NT', 'NAT', 'EXH']) ? $upper : null;
     }
 
+    // ── Typ-Erkennung ─────────────────────────────────────────────────────────
+
     private function mapCourse(string $course): ?string
     {
         $valid = ['LCM', 'SCM', 'SCY', 'SCM16', 'SCM20', 'SCM33', 'SCY20', 'SCY27', 'SCY33', 'SCY36', 'OPEN'];
@@ -660,7 +662,7 @@ class LenexParserService
         return in_array($upper, $valid) ? $upper : null;
     }
 
-    // ── Format-Konvertierungen ────────────────────────────────────────────────
+    // ── Meet importieren ─────────────────────────────────────────────────────
 
     private function mapEntryStatus(string $status): ?string
     {
@@ -669,6 +671,8 @@ class LenexParserService
 
         return in_array($upper, $valid) ? $upper : null;
     }
+
+    // ── Sessions + Events ─────────────────────────────────────────────────────
 
     private function importResult(
         Meet $meet,
@@ -727,7 +731,7 @@ class LenexParserService
         return in_array($upper, $valid) ? $upper : null;
     }
 
-    // ── Enum-Mappings ─────────────────────────────────────────────────────────
+    // ── Clubs + Athletes ──────────────────────────────────────────────────────
 
     /**
      * LENEX Reaktionszeit "+14" oder "-5" → Hundertstelsekunden (int, kann negativ sein)

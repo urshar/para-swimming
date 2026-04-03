@@ -51,6 +51,8 @@
                             <input type="hidden" name="clubs[{{ $i }}][code]" value="{{ $club['code'] }}">
                             <input type="hidden" name="clubs[{{ $i }}][nation_id]" value="{{ $club['nation_id'] }}">
                             <input type="hidden" name="clubs[{{ $i }}][lenex_id]" value="{{ $club['lenex_id'] }}">
+                            <input type="hidden" name="clubs[{{ $i }}][cache_key]"
+                                   value="{{ $club['cache_key'] ?? '' }}">
                         </div>
                     @endforeach
                 </div>

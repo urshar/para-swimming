@@ -52,12 +52,15 @@ class LenexResolverService
 
     public function resolveClub(SimpleXMLElement $clubXml, int $nationId): ?Club
     {
-        $lenexId = (string) ($clubXml['id'] ?? '');
+        $lenexId = (string) ($clubXml['clubid'] ?? $clubXml['id'] ?? '');
         $code = (string) ($clubXml['code'] ?? '');
         $name = (string) ($clubXml['name'] ?? '');
 
-        if ($lenexId && isset($this->clubCache[$lenexId])) {
-            return Club::find($this->clubCache[$lenexId]);
+        // Stabiler Cache-Key: lenex_id wenn vorhanden, sonst "code:BSRO" als Fallback
+        $cacheKey = $lenexId ?: ('code:'.$code);
+
+        if ($cacheKey && isset($this->clubCache[$cacheKey])) {
+            return Club::find($this->clubCache[$cacheKey]);
         }
 
         $club = null;
@@ -90,15 +93,14 @@ class LenexResolverService
             if ($lenexId && ! $club->lenex_club_id) {
                 $club->update(['lenex_club_id' => $lenexId]);
             }
-            if ($lenexId) {
-                $this->clubCache[$lenexId] = $club->id;
-            }
+            $this->clubCache[$cacheKey] = $club->id;
 
             return $club;
         }
 
-        // Nicht gefunden → vormerken
+        // Nicht gefunden → vormerken — cache_key mitgeben für resolveClubs()
         $this->unresolvedClubs[] = [
+            'cache_key' => $cacheKey,   // stabiler Key für extractAthletesForClubs
             'lenex_id' => $lenexId,
             'code' => $code,
             'name' => $name,
@@ -153,7 +155,7 @@ class LenexResolverService
             $athlete = Athlete::where('license', $license)->whereNull('deleted_at')->first();
         }
 
-        // 2. SDMS ID (IPC Lizenznummer) — nur wenn nicht "0"
+        // 2. SDMS ID (IPC Lizenznummer) —, nur wenn nicht "0"
         if (! $athlete && $licenseIpc && $licenseIpc !== '0') {
             $athlete = Athlete::where('license_ipc', $licenseIpc)->whereNull('deleted_at')->first();
         }
@@ -225,7 +227,7 @@ class LenexResolverService
         return $athlete;
     }
 
-    // ── Cache-Methoden ────────────────────────────────────────────────────────
+    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
 
     public function addToEventCache(string $lenexEventId, int $swimEventId): void
     {
@@ -247,6 +249,8 @@ class LenexResolverService
         $this->athleteCache[$lenexId] = $athleteId;
     }
 
+    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
+
     public function getClubIdFromCache(string $lenexId): ?int
     {
         return $this->clubCache[$lenexId] ?? null;
@@ -256,8 +260,6 @@ class LenexResolverService
     {
         return $this->athleteCache[$lenexId] ?? null;
     }
-
-    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
 
     public function getUnresolvedClubs(): array
     {
@@ -269,6 +271,8 @@ class LenexResolverService
         return $this->unresolvedAthletes;
     }
 
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
     public function hasUnresolved(): bool
     {
         return ! empty($this->unresolvedClubs) || ! empty($this->unresolvedAthletes);
@@ -278,8 +282,6 @@ class LenexResolverService
     {
         return count($this->unresolvedClubs) + count($this->unresolvedAthletes);
     }
-
-    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
 
     /**
      * Synchronisiert Sport-Klassen (S/SB/SM) und Exceptions aus dem HANDICAP-Element.
@@ -298,13 +300,15 @@ class LenexResolverService
         $this->syncExceptions($athlete, $handicapXml);
     }
 
+    // ── Cache-Methoden ────────────────────────────────────────────────────────
+
     /**
      * Sport-Klassen S / SB / SM aus HANDICAP-Attributen synchronisieren.
      */
     private function syncSportClasses(Athlete $athlete, SimpleXMLElement $handicapXml): void
     {
         $mapping = [
-            'S' => ['lenex_attr' => 'free',   'status_attr' => 'freestatus'],
+            'S' => ['lenex_attr' => 'free', 'status_attr' => 'freestatus'],
             'SB' => ['lenex_attr' => 'breast', 'status_attr' => 'breaststatus'],
             'SM' => ['lenex_attr' => 'medley', 'status_attr' => 'medleystatus'],
         ];
@@ -326,6 +330,14 @@ class LenexResolverService
                 ]
             );
         }
+    }
+
+    private function mapHandicapStatus(string $status): ?string
+    {
+        $valid = ['NATIONAL', 'NEW', 'REVIEW', 'OBSERVATION', 'CONFIRMED'];
+        $upper = strtoupper(trim($status));
+
+        return in_array($upper, $valid) ? $upper : null;
     }
 
     /**
@@ -385,16 +397,6 @@ class LenexResolverService
         }
 
         return $this->exceptionCodeCache;
-    }
-
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
-
-    private function mapHandicapStatus(string $status): ?string
-    {
-        $valid = ['NATIONAL', 'NEW', 'REVIEW', 'OBSERVATION', 'CONFIRMED'];
-        $upper = strtoupper(trim($status));
-
-        return in_array($upper, $valid) ? $upper : null;
     }
 
     private function extractPrimarySportClass(SimpleXMLElement $handicapXml): ?string

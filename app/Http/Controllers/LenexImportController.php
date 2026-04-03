@@ -26,62 +26,6 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Schritt 1: LENEX Datei hochladen, Typ erkennen.
-     * Bei entries/results → Meet-Auswahl anzeigen (Schritt 1b).
-     * Bei structure → direkt importieren.
-     */
-    public function import(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'lenex_file' => [
-                'required', 'file', 'max:20480', function ($attr, $value, $fail) {
-                    $ext = strtolower($value->getClientOriginalExtension());
-                    if (! in_array($ext, ['lxf', 'lef', 'xml'])) {
-                        $fail('Nur .lxf, .lef oder .xml Dateien sind erlaubt.');
-                    }
-                },
-            ],
-        ]);
-
-        $path = $request->file('lenex_file')->store('lenex-imports', 'local');
-        $fullPath = Storage::disk('local')->path($path);
-
-        try {
-            // Typ erkennen ohne zu importieren
-            $type = $this->parser->detectTypeFromFile($fullPath);
-            $meta = $this->parser->extractMeetMeta($fullPath);
-
-            // Bei structure: direkt importieren — keine Meet-Auswahl nötig
-            if ($type === 'structure') {
-                $result = $this->parser->import($fullPath, $this->resolver);
-                Storage::disk('local')->delete($path);
-
-                return $this->redirectAfterImport($result);
-            }
-
-            // Bei entries/results: ähnliche Meets suchen und zur Auswahl anzeigen
-            $candidates = $this->findMeetCandidates($meta);
-
-            $sessionKey = uniqid('lenex_import_', true);
-            Session::put($sessionKey, [
-                'path' => $path,
-                'type' => $type,
-                'meta' => $meta,
-            ]);
-
-            return redirect()->route('lenex.import.confirm-meet', ['session' => $sessionKey])
-                ->with('candidates', $candidates);
-
-        } catch (Exception $e) {
-            Storage::disk('local')->delete($path);
-
-            return back()->withErrors([
-                'lenex_file' => 'Import fehlgeschlagen: '.$e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
      * Schritt 1b: Meet-Auswahl anzeigen.
      */
     public function confirmMeet(Request $request): RedirectResponse|View
@@ -153,6 +97,62 @@ class LenexImportController extends Controller
     }
 
     /**
+     * Schritt 1: LENEX Datei hochladen, Typ erkennen.
+     * Bei entries/results → Meet-Auswahl anzeigen (Schritt 1b).
+     * Bei structure → direkt importieren.
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'lenex_file' => [
+                'required', 'file', 'max:20480', function ($attr, $value, $fail) {
+                    $ext = strtolower($value->getClientOriginalExtension());
+                    if (! in_array($ext, ['lxf', 'lef', 'xml'])) {
+                        $fail('Nur .lxf, .lef oder .xml Dateien sind erlaubt.');
+                    }
+                },
+            ],
+        ]);
+
+        $path = $request->file('lenex_file')->store('lenex-imports', 'local');
+        $fullPath = Storage::disk('local')->path($path);
+
+        try {
+            // Typ erkennen ohne zu importieren
+            $type = $this->parser->detectTypeFromFile($fullPath);
+            $meta = $this->parser->extractMeetMeta($fullPath);
+
+            // Bei structure: direkt importieren — keine Meet-Auswahl nötig
+            if ($type === 'structure') {
+                $result = $this->parser->import($fullPath, $this->resolver);
+                Storage::disk('local')->delete($path);
+
+                return $this->redirectAfterImport($result);
+            }
+
+            // Bei entries/results: ähnliche Meets suchen und zur Auswahl anzeigen
+            $candidates = $this->findMeetCandidates($meta);
+
+            $sessionKey = uniqid('lenex_import_', true);
+            Session::put($sessionKey, [
+                'path' => $path,
+                'type' => $type,
+                'meta' => $meta,
+            ]);
+
+            return redirect()->route('lenex.import.confirm-meet', ['session' => $sessionKey])
+                ->with('candidates', $candidates);
+
+        } catch (Exception $e) {
+            Storage::disk('local')->delete($path);
+
+            return back()->withErrors([
+                'lenex_file' => 'Import fehlgeschlagen: '.$e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Schritt 2: Review — unbekannte Clubs und Athleten anzeigen.
      */
     public function review(Request $request): RedirectResponse|View
@@ -173,7 +173,7 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Schritt 3a: Clubs anlegen → Athleten der neu angelegten Clubs aus der XML laden
+     * Schritt 3a: Clubs anlegen → Athleten der neu angelegten Clubs aus dem XML laden
      * und zur Review anzeigen. KEIN Import-Durchlauf hier.
      */
     public function resolveClubs(Request $request): RedirectResponse
@@ -201,13 +201,16 @@ class LenexImportController extends Controller
                     'type' => $clubData['type'] ?? 'CLUB',
                     'lenex_club_id' => $clubData['lenex_id'] ?? null,
                 ]);
-                if (! empty($clubData['lenex_id'])) {
-                    $newClubIds[$clubData['lenex_id']] = $club->id;
-                    $this->resolver->addToClubCache($clubData['lenex_id'], $club->id);
+                // cache_key ist der stabile Schlüssel (lenex_id oder "code:BSRO")
+                // Er muss mit dem übereinstimmen der in resolveClub() berechnet wurde
+                $cacheKey = $clubData['cache_key'] ?? '';
+                if ($cacheKey) {
+                    $newClubIds[$cacheKey] = $club->id;
+                    $this->resolver->addToClubCache($cacheKey, $club->id);
                 }
             }
 
-            // Athleten der neu angelegten Clubs aus der XML lesen
+            // Athleten der neu angelegten Clubs aus dem XML lesen
             $fullPath = Storage::disk('local')->path($importData['path']);
             $newAthletes = $this->parser->extractAthletesForClubs(
                 $fullPath,
@@ -292,44 +295,6 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Finaler Import-Durchlauf — wird genau einmal aufgerufen,
-     * nachdem alle Clubs und Athleten angelegt sind.
-     */
-    private function runFinalImport(string $sessionKey, array $resolvedClubIds): RedirectResponse
-    {
-        $importData = Session::get($sessionKey);
-
-        if (! $importData) {
-            return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen.']);
-        }
-
-        // Club-Cache aus der Session wiederherstellen
-        foreach ($resolvedClubIds as $lenexId => $clubId) {
-            $this->resolver->addToClubCache((string) $lenexId, $clubId);
-        }
-
-        $fullPath = Storage::disk('local')->path($importData['path']);
-        $forceMeetId = $importData['force_meet_id'] ?? null;
-
-        try {
-            $result = $this->parser->import($fullPath, $this->resolver, $forceMeetId);
-
-            Session::forget($sessionKey);
-            Storage::disk('local')->delete($importData['path']);
-
-            return $this->redirectAfterImport($result);
-
-        } catch (Exception $e) {
-            return back()->withErrors([
-                'import' => 'Finaler Import fehlgeschlagen: '.$e->getMessage(),
-            ]);
-        }
-    }
-
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
-
-    /**
      * Sucht Meets die zum importierten Meet passen könnten.
      * Matcht auf: gleiches Datum ODER ähnlicher Name (case-insensitive Teilstring).
      */
@@ -371,5 +336,43 @@ class LenexImportController extends Controller
             .$stats['results'].' Ergebnisse.';
 
         return redirect()->route('meets.index')->with('success', $message);
+    }
+
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Finaler Import-Durchlauf — wird genau einmal aufgerufen,
+     * nachdem alle Clubs und Athleten angelegt sind.
+     */
+    private function runFinalImport(string $sessionKey, array $resolvedClubIds): RedirectResponse
+    {
+        $importData = Session::get($sessionKey);
+
+        if (! $importData) {
+            return redirect()->route('lenex.import')
+                ->withErrors(['import' => 'Import-Session abgelaufen.']);
+        }
+
+        // Club-Cache aus der Session wiederherstellen (cache_key → club_id)
+        foreach ($resolvedClubIds as $cacheKey => $clubId) {
+            $this->resolver->addToClubCache((string) $cacheKey, $clubId);
+        }
+
+        $fullPath = Storage::disk('local')->path($importData['path']);
+        $forceMeetId = $importData['force_meet_id'] ?? null;
+
+        try {
+            $result = $this->parser->import($fullPath, $this->resolver, $forceMeetId);
+
+            Session::forget($sessionKey);
+            Storage::disk('local')->delete($importData['path']);
+
+            return $this->redirectAfterImport($result);
+
+        } catch (Exception $e) {
+            return back()->withErrors([
+                'import' => 'Finaler Import fehlgeschlagen: '.$e->getMessage(),
+            ]);
+        }
     }
 }
