@@ -54,10 +54,38 @@
             </div>
 
             <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div>
-                    <dt class="text-zinc-500 dark:text-zinc-400">Athlet</dt>
+                <div @if($record->relay_count > 1 && $record->relayTeam->isNotEmpty()) class="col-span-2" @endif>
+                    <dt class="text-zinc-500 dark:text-zinc-400">
+                        {{ $record->relay_count > 1 ? 'Staffel-Team' : 'Athlet' }}
+                    </dt>
                     <dd class="font-medium mt-0.5">
-                        @if($record->athlete)
+                        @if($record->relay_count > 1)
+                            {{-- Staffel --}}
+                            @if($record->relayTeam->isNotEmpty())
+                                <div class="space-y-1">
+                                    @foreach($record->relayTeam as $member)
+                                        <div class="flex items-center gap-2">
+                                            <flux:badge size="sm" color="zinc"
+                                                        class="font-mono w-6 text-center">{{ $member->position }}</flux:badge>
+                                            @if($member->athlete_id)
+                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                   class="hover:text-blue-600 transition-colors">
+                                                    {{ $member->display_name }}
+                                                </a>
+                                            @else
+                                                <span>{{ $member->display_name }}</span>
+                                            @endif
+                                            @if($member->birth_date)
+                                                <span
+                                                    class="text-zinc-400 text-xs">*{{ $member->birth_date->format('Y') }}</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-zinc-400 italic">Kein Team erfasst</span>
+                            @endif
+                        @elseif($record->athlete)
                             <a href="{{ route('athletes.show', $record->athlete) }}"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->full_name }}
@@ -71,7 +99,13 @@
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
                     <dd class="font-medium mt-0.5">
-                        {{ $record->athlete?->club?->short_name ?? $record->athlete?->club?->name ?? '–' }}
+                        {{-- Verein zum Zeitpunkt des Rekords -- kann von aktuellem Verein abweichen --}}
+                        {{ $record->club?->name
+                            ?? $record->athlete?->club?->short_name
+                            ?? $record->athlete?->club?->name ?? '–' }}
+                        @if($record->club && $record->athlete?->club_id !== $record->club_id)
+                            <span class="text-zinc-400 text-xs ml-1">(zum Zeitpunkt des Rekords)</span>
+                        @endif
                     </dd>
                 </div>
                 <div>

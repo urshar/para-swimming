@@ -30,9 +30,23 @@
         @endforeach
     </div>
 
+    {{-- Einzel / Staffel Toggle --}}
+    <div class="flex gap-2 mb-4">
+        @foreach(['' => 'Alle', 'single' => 'Einzel', 'relay' => 'Staffeln'] as $val => $label)
+            <a href="{{ route('records.index', array_merge(request()->query(), ['relay' => $val, 'page' => null])) }}"
+               class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+               {{ $relayFilter === $val
+                   ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900'
+                   : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+    </div>
+
     {{-- Filter-Zeile: Untertyp-Dropdown + Sport-Klasse + Geschlecht + Bahn --}}
     <form method="GET" class="flex flex-wrap gap-3 mb-6">
         <input type="hidden" name="category" value="{{ $category }}">
+        <input type="hidden" name="relay" value="{{ $relayFilter }}">
 
         {{-- Untertyp je nach Kategorie --}}
         @if($category === 'international')
@@ -95,7 +109,7 @@
             <flux:table.column>Disziplin</flux:table.column>
             <flux:table.column>Bahn</flux:table.column>
             <flux:table.column>Zeit</flux:table.column>
-            <flux:table.column>Athlet</flux:table.column>
+            <flux:table.column>Athlet / Team</flux:table.column>
             <flux:table.column>Verein</flux:table.column>
             <flux:table.column>Datum</flux:table.column>
             <flux:table.column></flux:table.column>
@@ -124,7 +138,28 @@
                         {{ $record->formatted_swim_time }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-400">
-                        @if($record->athlete)
+                        @if($record->relay_count > 1)
+                            {{-- Staffel: Team-Mitglieder --}}
+                            @if($record->relayTeam->isNotEmpty())
+                                <div class="space-y-0.5">
+                                    @foreach($record->relayTeam as $member)
+                                        <div class="text-xs">
+                                            <span class="text-zinc-400 font-mono w-4 inline-block">{{ $member->position }}.</span>
+                                            @if($member->athlete_id)
+                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                   class="hover:text-blue-600 transition-colors">
+                                                    {{ $member->display_name }}
+                                                </a>
+                                            @else
+                                                {{ $member->display_name }}
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-zinc-400 italic text-xs">Staffel</span>
+                            @endif
+                        @elseif($record->athlete)
                             <a href="{{ route('athletes.show', $record->athlete) }}"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->display_name }}
@@ -135,7 +170,10 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500">
-                        {{ $record->athlete?->club?->short_name ?? $record->athlete?->club?->name ?? '–' }}
+                        {{-- Verein zum Zeitpunkt des Rekords (kann vom aktuellen Verein abweichen) --}}
+                        {{ $record->club?->name ?? $record->club?->short_name
+                            ?? $record->athlete?->club?->short_name
+                            ?? $record->athlete?->club?->name ?? '–' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500">
                         {{ $record->set_date?->format('d.m.Y') ?? '–' }}

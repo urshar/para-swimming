@@ -141,6 +141,14 @@
                             value="intellectual" @selected(old('disability_type', $athlete->disability_type ?? '') === 'intellectual')>
                             Intellektuell
                         </option>
+                        <option
+                            value="deaf" @selected(old('disability_type', $athlete->disability_type ?? '') === 'deaf')>
+                            Hörbehinderung
+                        </option>
+                        <option
+                            value="trisomie" @selected(old('disability_type', $athlete->disability_type ?? '') === 'trisomie')>
+                            Down Syndrom
+                        </option>
                     </flux:select>
                 </flux:field>
             </div>

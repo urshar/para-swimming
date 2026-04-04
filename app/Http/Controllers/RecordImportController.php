@@ -77,6 +77,8 @@ class RecordImportController extends Controller
         $approvedAthletes = $request->input('athletes', []);
         $newClubData = $request->input('new_clubs', []);
         $newAthleteData = $request->input('new_athletes', []);
+        // regional[WBSV] = 'import' | 'skip'
+        $approvedRegional = $request->input('regional', []);
 
         try {
             $result = $this->importService->import(
@@ -85,6 +87,7 @@ class RecordImportController extends Controller
                 $approvedAthletes,
                 $newClubData,
                 $newAthleteData,
+                $approvedRegional,
             );
         } catch (Throwable $e) {
             return redirect()->route('records.import')

@@ -7,6 +7,7 @@ use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\RecordSplit;
+use App\Models\RelayTeamMember;
 use App\Models\StrokeType;
 use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
@@ -46,9 +47,14 @@ class RecordController extends Controller
             $recordType = $defaultType;
         }
 
-        $query = SwimRecord::with(['strokeType', 'athlete.nation', 'athlete.club', 'nation'])
+        // Einzel/Staffel Filter
+        $relayFilter = $request->input('relay', '');  // '' = alle, 'single' = Einzel, 'relay' = Staffeln
+
+        $query = SwimRecord::with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam'])
             ->where('record_type', $recordType)
             ->where('is_current', true)
+            ->when($relayFilter === 'single', fn ($q) => $q->where('relay_count', 1))
+            ->when($relayFilter === 'relay', fn ($q) => $q->where('relay_count', '>', 1))
             ->orderBy('sport_class')
             ->orderBy('gender')
             ->orderBy('distance');
@@ -71,12 +77,15 @@ class RecordController extends Controller
             'recordType' => $recordType,
             'recordTypeLabel' => $allowedTypes[$recordType],
             'regionalTypes' => $category === 'regional' ? $allowedTypes : [],
+            'relayFilter' => $relayFilter,
         ]);
     }
 
     public function show(SwimRecord $record): View
     {
-        $record->load(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'result', 'splits']);
+        $record->load([
+            'strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam', 'result', 'splits',
+        ]);
 
         $history = $record->getHistoryChain();
 
@@ -191,7 +200,7 @@ class RecordController extends Controller
 
     public function edit(SwimRecord $record): View
     {
-        $record->load('splits');
+        $record->load(['splits', 'relayTeam']);
 
         return view('records.form', array_merge($this->formData(), compact('record')));
     }
@@ -297,6 +306,7 @@ class RecordController extends Controller
             'course' => 'required|in:LCM,SCM,SCY,SCM16,SCM20,SCM33,SCY20,SCY27,SCY33,SCY36,OPEN',
             'distance' => 'required|integer|min:1',
             'relay_count' => 'required|integer|min:1',
+            'club_id' => 'nullable|exists:clubs,id',
             'swim_time' => ['required', ...$timeRegex],
             'record_status' => 'required|in:APPROVED,PENDING,INVALID,APPROVED.HISTORY,PENDING.HISTORY,TARGETTIME',
             'athlete_id' => 'nullable|exists:athletes,id',
@@ -309,6 +319,10 @@ class RecordController extends Controller
             'splits' => 'nullable|array',
             'splits.*.distance' => 'nullable|integer|min:1',
             'splits.*.split_time' => ['nullable', ...$timeRegex],
+            'relay_members' => 'nullable|array',
+            'relay_members.*.last_name' => 'nullable|string|max:100',
+            'relay_members.*.first_name' => 'nullable|string|max:100',
+            'relay_members.*.birth_date' => 'nullable|date',
         ];
     }
 
@@ -372,6 +386,37 @@ class RecordController extends Controller
             'strokeTypes' => StrokeType::active()->standard()->orderBy('name_de')->get(),
             'nations' => Nation::active()->orderBy('name_de')->get(),
             'athletes' => Athlete::with('club')->orderBy('last_name')->orderBy('first_name')->get(),
+            'clubs' => Club::orderBy('name')->get(),
         ];
+    }
+
+    /**
+     * Staffelmitglieder speichern (löscht bestehende und schreibt neu).
+     */
+    private function storeRelayMembers(SwimRecord $record, array $data): void
+    {
+        // Nur bei Staffeln
+        if ($record->relay_count <= 1) {
+            return;
+        }
+
+        $record->relayTeam()->delete();
+
+        foreach ($data['relay_members'] ?? [] as $i => $member) {
+            $last = trim($member['last_name'] ?? '');
+            $first = trim($member['first_name'] ?? '');
+            if (! $last && ! $first) {
+                continue;
+            }
+            RelayTeamMember::create([
+                'swim_record_id' => $record->id,
+                'position' => $i + 1,
+                'last_name' => $last,
+                'first_name' => $first,
+                'birth_date' => TimeParser::sanitizeDate($member['birth_date'] ?? null),
+                'gender' => null,
+                'athlete_id' => null,
+            ]);
+        }
     }
 }

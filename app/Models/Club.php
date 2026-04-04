@@ -15,15 +15,15 @@ class Club extends Model
     // ── regionale Verbandscodes (Österreich) ──────────────────────────────────
 
     const array REGIONAL_ASSOCIATIONS = [
-        'WBSV' => 'Wiener BehindertenSportVerband',
-        'BBSV' => 'Burgenländischer BSV',
-        'KLSV' => 'Kärntner BSV',
-        'NOEVSV' => 'Niederösterreichischer Versehrten Sportverband',
-        'OBSV' => 'Oberösterreichischer BSV',
-        'SBSV' => 'Salzburger BSV',
-        'STBSV' => 'Steirischer BSV',
-        'TBSV' => 'Tiroler BSV',
-        'VBSV' => 'Vorarlberger BSV',
+        'BBSV' => 'Burgenländischer Behindertensportverband',
+        'KLSV' => 'Kärntner Behindertensportverband',
+        'NOEVSV' => 'Niederösterreichischer Versehrtensportverband',
+        'OBSV' => 'Oberösterreichsicher Behindertensportverband',
+        'SBSV' => 'Salzburger Behindertensportverband',
+        'STBSV' => 'Steirischer Behindertensportverband',
+        'TBSV' => 'Tiroler Behindertensportverband',
+        'VBSV' => 'Vorarlberger Behindertensportverband',
+        'WBSV' => 'Wiener Behindertensportverband',
     ];
 
     protected $fillable = [

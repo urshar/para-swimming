@@ -58,6 +58,11 @@ return new class extends Migration
                 ->constrained('swim_records')
                 ->nullOnDelete();
 
+            $table->foreignId('club_id')
+                ->nullable()
+                ->constrained('clubs')
+                ->nullOnDelete();
+
             // ── Rekord-Klassifizierung ────────────────────────────────────────
             // RECORDLIST.type: WR, OR, ER, PAR, AFR, AR, OCR, CWR, AUT, GER …
             $table->string('record_type', 20);

@@ -1,4 +1,5 @@
 @php
+    use App\Models\Club;
     use App\Models\StrokeType;
     use App\Support\TimeParser;
 @endphp
@@ -34,6 +35,13 @@
                 <div class="text-2xl font-bold text-amber-600">{{ count($preview['unknown_athletes']) }}</div>
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">Unbekannte Athleten</div>
             </div>
+            @if(count($preview['regional_records']) > 0)
+                <div
+                    class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+                    <div class="text-2xl font-bold text-violet-600">{{ count($preview['regional_records']) }}</div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Regionalverbände</div>
+                </div>
+            @endif
         </div>
 
         <form method="POST" action="{{ route('records.import.run') }}">
@@ -143,6 +151,112 @@
                                     <p class="text-xs text-amber-600 dark:text-amber-400">
                                         Alle Rekorde dieses Athleten werden übersprungen.
                                     </p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Regionale Rekorde --}}
+            @if(count($preview['regional_records']) > 0)
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
+                    <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Regionale Rekorde</h2>
+                    <p class="text-xs text-zinc-400 mb-4">
+                        Für jeden Regionalverband wählen ob die Rekorde importiert werden sollen.
+                    </p>
+
+                    <div class="space-y-4">
+                        @foreach($preview['regional_records'] as $assocCode => $recs)
+                            @php
+                                $assocName = Club::REGIONAL_ASSOCIATIONS[$assocCode]
+                                    ?? $assocCode;
+                                $juniorCount  = collect($recs)->filter(fn($r) => str_ends_with($r['record_type'], '.JR'))->count();
+                                $seniorCount  = count($recs) - $juniorCount;
+                            @endphp
+                            <div class="border border-zinc-100 dark:border-zinc-700 rounded-lg p-4"
+                                 x-data="{ open: false }">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <flux:badge color="violet" size="sm">{{ $assocCode }}</flux:badge>
+                                        <div>
+                                            <span class="font-medium text-zinc-900 dark:text-zinc-100">
+                                                {{ $assocName }}
+                                            </span>
+                                            <span class="text-xs text-zinc-400 ml-2">
+                                                {{ count($recs) }} Rekord(e)
+                                                @if($seniorCount > 0)
+                                                    · {{ $seniorCount }} Senior
+                                                @endif
+                                                @if($juniorCount > 0)
+                                                    · {{ $juniorCount }} Jugend
+                                                @endif
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <button type="button"
+                                                @click="open = !open"
+                                                class="text-xs text-blue-500 hover:underline"
+                                                x-text="open ? 'Ausblenden' : 'Details anzeigen'">
+                                        </button>
+                                        <flux:select name="regional[{{ $assocCode }}]" class="w-36">
+                                            <option value="import">Importieren</option>
+                                            <option value="skip">Überspringen</option>
+                                        </flux:select>
+                                    </div>
+                                </div>
+
+                                {{-- Detail-Tabelle aufklappbar --}}
+                                <div x-show="open" x-cloak class="mt-4">
+                                    <flux:table>
+                                        <flux:table.columns>
+                                            <flux:table.column>Typ</flux:table.column>
+                                            <flux:table.column>Klasse</flux:table.column>
+                                            <flux:table.column>Disziplin</flux:table.column>
+                                            <flux:table.column>Bahn</flux:table.column>
+                                            <flux:table.column>Zeit</flux:table.column>
+                                            <flux:table.column>Athlet</flux:table.column>
+                                            <flux:table.column>Datum</flux:table.column>
+                                        </flux:table.columns>
+                                        <flux:table.rows>
+                                            @foreach($recs as $rec)
+                                                <flux:table.row>
+                                                    <flux:table.cell>
+                                                        <flux:badge size="sm"
+                                                                    color="violet">{{ $rec['record_type'] }}</flux:badge>
+                                                    </flux:table.cell>
+                                                    <flux:table.cell
+                                                        class="font-mono text-sm">{{ $rec['sport_class'] }}</flux:table.cell>
+                                                    <flux:table.cell class="text-sm">
+                                                        {{ $rec['distance'] }}m
+                                                        {{ StrokeType::find($rec['stroke_type_id'])?->name_de ?? '?' }}
+                                                        @if($rec['relay_count'] > 1)
+                                                            <span
+                                                                class="text-zinc-400">{{ $rec['relay_count'] }}x</span>
+                                                        @endif
+                                                    </flux:table.cell>
+                                                    <flux:table.cell>
+                                                        <flux:badge size="sm"
+                                                                    color="zinc">{{ $rec['course'] }}</flux:badge>
+                                                    </flux:table.cell>
+                                                    <flux:table.cell class="font-mono text-sm font-bold">
+                                                        {{ TimeParser::display($rec['swim_time']) }}
+                                                    </flux:table.cell>
+                                                    <flux:table.cell class="text-sm text-zinc-500">
+                                                        @if($rec['athlete'])
+                                                            {{ $rec['athlete']['last_name'] }} {{ $rec['athlete']['first_name'] }}
+                                                        @else
+                                                            <span class="text-zinc-400">Staffel</span>
+                                                        @endif
+                                                    </flux:table.cell>
+                                                    <flux:table.cell class="text-sm text-zinc-500">
+                                                        {{ $rec['set_date'] ?: '–' }}
+                                                    </flux:table.cell>
+                                                </flux:table.row>
+                                            @endforeach
+                                        </flux:table.rows>
+                                    </flux:table>
                                 </div>
                             </div>
                         @endforeach

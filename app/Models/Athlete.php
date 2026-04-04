@@ -77,8 +77,8 @@ class Athlete extends Model
     {
         $parts = array_filter([
             $this->name_prefix,
-            $this->first_name,
             $this->last_name,
+            $this->first_name,
         ]);
 
         return implode(' ', $parts);
@@ -86,7 +86,7 @@ class Athlete extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return $this->last_name.', '.$this->first_name;
+        return $this->name_prefix.' '.$this->last_name.', '.$this->first_name;
     }
 
     /** Sport-Klasse für eine bestimmte Kategorie (S / SB / SM) */

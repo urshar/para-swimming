@@ -144,37 +144,28 @@
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Leistung</h2>
 
+                {{-- Zeitmaske via IMask.js. Format: MM:SS.cs --}}
+                <flux:field>
+                    <flux:label>Schwimmzeit *</flux:label>
+                    <flux:input
+                        name="swim_time"
+                        type="text"
+                        value="{{ old('swim_time', $rec ? TimeParser::display($rec->swim_time) : '') }}"
+                        placeholder="00:00.00"
+                        required
+                        x-data
+                        x-init="IMask($el, { mask: '00:00.00', lazy: false, placeholderChar: '0' })"
+                    />
+                    <flux:description>Format: MM:SS.cs — z.B. 01:05.32</flux:description>
+                    <flux:error name="swim_time"/>
+                </flux:field>
+
                 <div class="grid grid-cols-2 gap-4">
-                    {{--
-                        Zeitmaske via IMask.js
-                        Format: MM:SS.cs → z.B. 01:05.32
-                        x-init initialisiert IMask sobald das Element im DOM ist.
-                        lazy: false → Platzhalter wird immer angezeigt.
-                    --}}
                     <flux:field>
-                        <flux:label>Schwimmzeit *</flux:label>
-                        <flux:input
-                            name="swim_time"
-                            type="text"
-                            value="{{ old('swim_time', $rec ? TimeParser::display($rec->swim_time) : '') }}"
-                            placeholder="00:00.00"
-                            required
-                            x-data
-                            x-init="
-                                IMask($el, {
-                                    mask: '00:00.00',
-                                    lazy: false,
-                                    placeholderChar: '0'
-                                })
-                            "
-                        />
-                        <flux:description>Format: MM:SS.cs — z.B. 01:05.32</flux:description>
-                        <flux:error name="swim_time"/>
-                    </flux:field>
-                    <flux:field>
-                        <flux:label>Athlet</flux:label>
+                        <flux:label>Athlet <span class="text-zinc-400 font-normal">(leer bei Staffeln)</span>
+                        </flux:label>
                         <flux:select name="athlete_id">
-                            <option value="">Kein Athlet</option>
+                            <option value="">Kein Athlet / Staffel</option>
                             @foreach($athletes as $athlete)
                                 <option value="{{ $athlete->id }}"
                                     @selected(old('athlete_id', $rec->athlete_id ?? '') == $athlete->id)>
@@ -186,6 +177,64 @@
                             @endforeach
                         </flux:select>
                     </flux:field>
+                    <flux:field>
+                        <flux:label>Verein <span class="text-zinc-400 font-normal">(zum Zeitpunkt des Rekords)</span>
+                        </flux:label>
+                        <flux:select name="club_id">
+                            <option value="">Kein Verein / unbekannt</option>
+                            @foreach($clubs as $club)
+                                <option value="{{ $club->id }}"
+                                    @selected(old('club_id', $rec->club_id ?? '') == $club->id)>
+                                    {{ $club->name }}
+                                    @if($club->code)
+                                        ({{ $club->code }})
+                                    @endif
+                                </option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+                </div>
+
+                {{-- Staffelteam (nur wenn relay_count > 1) --}}
+                <div
+                    x-data="{ isRelay: {{ ($rec->relay_count ?? 1) > 1 ? 'true' : 'false' }}, count: {{ $rec->relay_count ?? 4 }} }"
+                    x-show="isRelay || $el.closest('form').querySelector('[name=relay_count]').value > 1"
+                    class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
+                    <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Staffelteam</h3>
+                    <p class="text-xs text-zinc-400 mb-3">Staffelmitglieder zum Zeitpunkt des Rekords. Leere Zeilen
+                        werden ignoriert.</p>
+                    <div class="space-y-2">
+                        <div
+                            class="grid grid-cols-[2rem_1fr_1fr_6rem] gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-1">
+                            <span>#</span>
+                            <span>Nachname</span>
+                            <span>Vorname</span>
+                            <span>Geburtsjahr</span>
+                        </div>
+                        @for($i = 0; $i < 4; $i++)
+                            @php
+                                $member = $rec?->relayTeam[$i] ?? null;
+                            @endphp
+                            <div class="grid grid-cols-[2rem_1fr_1fr_6rem] gap-2 items-center">
+                                <span class="text-xs text-zinc-400 font-mono text-center">{{ $i + 1 }}</span>
+                                <flux:input
+                                    name="relay_members[{{ $i }}][last_name]"
+                                    placeholder="Nachname"
+                                    value="{{ old('relay_members.' . $i . '.last_name', $member?->last_name ?? '') }}"
+                                />
+                                <flux:input
+                                    name="relay_members[{{ $i }}][first_name]"
+                                    placeholder="Vorname"
+                                    value="{{ old('relay_members.' . $i . '.first_name', $member?->first_name ?? '') }}"
+                                />
+                                <flux:input
+                                    name="relay_members[{{ $i }}][birth_date]"
+                                    type="date"
+                                    value="{{ old('relay_members.' . $i . '.birth_date', $member?->birth_date?->format('Y-m-d') ?? '') }}"
+                                />
+                            </div>
+                        @endfor
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">

@@ -30,6 +30,7 @@ class SwimRecord extends Model
         'meet_city',
         'meet_course',
         'comment',
+        'club_id',
     ];
 
     protected $casts = [
@@ -65,23 +66,17 @@ class SwimRecord extends Model
         return $this->belongsTo(SwimRecord::class, 'superseded_by_id');
     }
 
-    /** Der ältere Rekord den dieser ersetzt hat */
-    public function supersedes(): BelongsTo
-    {
-        return $this->belongsTo(SwimRecord::class, 'supersedes_id');
-    }
-
     public function splits(): HasMany
     {
         return $this->hasMany(RecordSplit::class)->orderBy('distance');
     }
 
-    // ── Scopes ────────────────────────────────────────────────────────────────
-
     public function scopeCurrent($query)
     {
         return $query->where('is_current', true);
     }
+
+    // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeHistory($query)
     {
@@ -93,12 +88,12 @@ class SwimRecord extends Model
         return $query->where('record_type', $type);
     }
 
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
-
     public function getFormattedSwimTimeAttribute(): string
     {
         return Entry::formatTime($this->swim_time);
     }
+
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     /**
      * Gibt die vollständige Rekord-Kette zurück (ältester zuerst).
@@ -120,6 +115,12 @@ class SwimRecord extends Model
         return $chain;
     }
 
+    /** Der ältere Rekord den dieser ersetzt hat */
+    public function supersedes(): BelongsTo
+    {
+        return $this->belongsTo(SwimRecord::class, 'supersedes_id');
+    }
+
     /**
      * Wird aufgerufen wenn dieser Rekord von einem neueren überboten wird.
      * Setzt is_current = false, record_status und superseded_by_id.
@@ -135,5 +136,34 @@ class SwimRecord extends Model
                 default => $this->record_status,
             },
         ]);
+    }
+
+    public function club(): BelongsTo
+    {
+        return $this->belongsTo(Club::class);
+    }
+
+    public function relayTeam(): HasMany
+    {
+        return $this->hasMany(RelayTeamMember::class)->orderBy('position');
+    }
+
+    /**
+     * Gibt, an ob es sich um einen Staffelrekord handelt.
+     */
+    public function getIsRelayAttribute(): bool
+    {
+        return $this->relay_count > 1;
+    }
+
+    /**
+     * Verein-Name zum Zeitpunkt des Rekords.
+     * Fallback: aktueller Verein des Athleten.
+     */
+    public function getRecordClubNameAttribute(): ?string
+    {
+        return $this->club?->name
+            ?? $this->club?->short_name
+            ?? $this->athlete?->club?->name;
     }
 }
