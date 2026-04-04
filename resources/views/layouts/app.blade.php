@@ -69,7 +69,11 @@
 
         <flux:navlist.group heading="Rekorde & LENEX">
             <flux:navlist.item icon="star" href="{{ route('records.index') }}"
-                               :current="request()->routeIs('records.*')">Rekorde
+                               :current="request()->routeIs('records.index') || request()->routeIs('records.show') || request()->routeIs('records.create') || request()->routeIs('records.edit')">
+                Rekorde
+            </flux:navlist.item>
+            <flux:navlist.item icon="arrow-up-tray" href="{{ route('records.import') }}"
+                               :current="request()->routeIs('records.import*')">Rekorde importieren
             </flux:navlist.item>
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
                                :current="request()->routeIs('lenex.import*')">LENEX Import

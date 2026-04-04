@@ -83,4 +83,26 @@ class TimeParser
         // Immer MM:SS.ss mit führender Null — auch "00:34.45"
         return sprintf('%02d:%02d.%02d', $minutes, $seconds, $cs);
     }
+
+    /**
+     * Bereinigt einen Datums-String für die Datenbank.
+     * Gibt null zurück für leere, ungültige oder nicht existierende Daten.
+     *
+     * Beispiele:
+     *   ''           → null
+     *   '0000-00-00' → null
+     *   '2024-05-05' → '2024-05-05'
+     */
+    public static function sanitizeDate(?string $date): ?string
+    {
+        if (! $date || $date === '0000-00-00') {
+            return null;
+        }
+
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        return $date;
+    }
 }

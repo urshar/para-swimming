@@ -8,6 +8,7 @@ use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\RecordController;
+use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SwimEventController;
 use Illuminate\Support\Facades\Route;
@@ -74,15 +75,18 @@ Route::prefix('records')->name('records.')->group(function () {
     Route::get('/', [RecordController::class, 'index'])->name('index');
     Route::get('create', [RecordController::class, 'createManual'])->name('create');
     Route::post('/', [RecordController::class, 'storeManual'])->name('store');
+
+    // Import + Export + Check — VOR {record} damit 'import' nicht als ID gematcht wird
+    Route::get('import', [RecordImportController::class, 'showForm'])->name('import');
+    Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
+    Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
+    Route::post('export', [RecordController::class, 'export'])->name('export');
+    Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
+
+    // {record} Routen zuletzt
     Route::get('{record}/edit', [RecordController::class, 'edit'])->name('edit');
     Route::put('{record}', [RecordController::class, 'update'])->name('update');
     Route::get('{record}', [RecordController::class, 'show'])->name('show');
     Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
     Route::post('{record}/restore', [RecordController::class, 'restore'])->name('restore');
-
-    Route::get('import', [RecordController::class, 'importForm'])->name('import');
-    Route::post('import', [RecordController::class, 'import'])->name('import.store');
-    Route::post('export', [RecordController::class, 'export'])->name('export');
-
-    Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
 });
