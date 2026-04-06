@@ -38,8 +38,13 @@
                 </option>
             @endforeach
         </flux:select>
+        {{-- Aktiv-Filter: Standard = nur aktive --}}
+        <flux:select name="active_only" class="w-40">
+            <option value="1" @selected(request('active_only', '1') === '1')>Nur aktive</option>
+            <option value="0" @selected(request('active_only') === '0')>Alle (inkl. inaktive)</option>
+        </flux:select>
         <flux:button type="submit" icon="funnel">Filtern</flux:button>
-        @if(request()->hasAny(['search', 'gender', 'sport_class', 'nation_id', 'club_id']))
+        @if(request()->hasAny(['search', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
             <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
         @endif
     </form>
@@ -50,21 +55,25 @@
             <flux:table.column>Verein</flux:table.column>
             <flux:table.column>Nation</flux:table.column>
             <flux:table.column>Sport-Klassen</flux:table.column>
+            <flux:table.column>Level</flux:table.column>
             <flux:table.column>Geburtsdatum</flux:table.column>
             <flux:table.column></flux:table.column>
         </flux:table.columns>
         <flux:table.rows>
             @forelse($athletes as $athlete)
-                <flux:table.row>
+                <flux:table.row class="{{ $athlete->is_active ? '' : 'opacity-50' }}">
                     <flux:table.cell>
                         <a href="{{ route('athletes.show', $athlete) }}"
                            class="font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {{ $athlete->display_name }}
                         </a>
-                        <div class="text-xs text-zinc-400 mt-0.5">
+                        <div class="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
                             {{ match($athlete->gender) { 'M' => 'Herr', 'F' => 'Dame', default => 'Nicht binär' } }}
                             @if($athlete->license)
                                 · {{ $athlete->license }}
+                            @endif
+                            @if(!$athlete->is_active)
+                                <flux:badge size="sm" color="zinc">Inaktiv</flux:badge>
                             @endif
                         </div>
                     </flux:table.cell>
@@ -80,6 +89,9 @@
                         {{ $athlete->sport_classes_display ?: '–' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
+                        {{ $athlete->level ?? '–' }}
+                    </flux:table.cell>
+                    <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                         {{ $athlete->birth_date?->format('d.m.Y') ?? '–' }}
                     </flux:table.cell>
                     <flux:table.cell>
@@ -89,7 +101,8 @@
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
                                          icon="pencil"/>
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"
-                                  x-data @submit.prevent="if(confirm('Athlet wirklich löschen?')) $el.submit()">
+                                  x-data="{ del() { if(confirm('Athlet wirklich löschen?')) $el.submit() } }"
+                                  @submit.prevent="del()">
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500"/>
                             </form>
@@ -98,7 +111,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="6" class="text-center py-12 text-zinc-400">
+                    <flux:table.cell colspan="7" class="text-center py-12 text-zinc-400">
                         Keine Athleten gefunden.
                     </flux:table.cell>
                 </flux:table.row>

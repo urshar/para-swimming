@@ -1,128 +1,168 @@
-# Para Swimming NatDB — Projektzusammenfassung
+# Para Swimming NatDB — Projektzusammenfassung v4
 
 ## Tech Stack
+
 - Laravel 13, Livewire Starter Kit, Flux UI, Tailwind 4, Alpine.js, MySQL, PHP 8.4
 - IMask.js für Zeitformat-Eingaben (MM:SS.cs)
+- Blade-Views: `@extends('layouts.app')` + `@section('content')` — KEIN `<x-layouts.app>`
+- Flux UI Komponenten: `<flux:button>`, `<flux:field>`, `<flux:label>`, `<flux:select>` etc. — KEIN `x-flux::` Namespace
 
 ---
 
 ## Domäne
-Österreichische Para-Schwimm Rekordverwaltung (ÖBSV).  
-Rekordtypen: National (AUT), Jugend (AUT.JR), Regional (AUT.WBSV etc.), International (WR/ER/OR).  
-Sportklassen: S1–S21, SB1–SB14, SM1–SM14, Staffel-Klassen (49, 34 etc.)  
+
+Österreichische Para-Schwimm Rekordverwaltung (ÖBSV).
+Rekordtypen: National (AUT), Jugend (AUT.JR), regional (AUT.WBSV etc.), International (WR/ER/OR).
+Sportklassen: S1–S21, SB1–SB14, SM1–SM14, Staffel-Klassen (49, 34 etc.)
 Staffeln haben `relay_count > 1`, Einzel `relay_count = 1`.
 
 ---
 
-## Abgeschlossene Aufgaben
+## Abgeschlossene Aufgaben (Session 1 — aus v3)
 
 ### Datenbank-Migrationen
-| Datei | Inhalt |
-|---|---|
-| `000003b` | `regional_association` Enum zu `clubs` |
-| `000003c` | `lenex_club_id` entfernt, `VERBAND` zu Type-Enum |
-| `000009c` | `is_junior_record`, `is_regional_record`, `is_regional_junior_record` zu `results` |
-| `000010` (swim_records) | `club_id` direkt in der Create-Migration |
-| `000011` (relay_team_members) | Neue Tabelle für Staffelmitglieder |
+
+| Datei                         | Inhalt                                                                             |
+|-------------------------------|------------------------------------------------------------------------------------|
+| `000003b`                     | `regional_association` Enum zu `clubs`                                             |
+| `000003c`                     | `lenex_club_id` entfernt, `VERBAND` zu Type-Enum                                   |
+| `000009c`                     | `is_junior_record`, `is_regional_record`, `is_regional_junior_record` zu `results` |
+| `000010` (swim_records)       | `club_id` direkt in der Create-Migration                                           |
+| `000011` (relay_team_members) | Neue Tabelle für Staffelmitglieder                                                 |
 
 ### Models
+
 - **Club** — `REGIONAL_ASSOCIATIONS` Konstante (9 Verbände), `regional_record_type` Accessor
-- **Result** — neue Record-Flags in `$fillable` und `$casts`
-- **RelayTeamMember** — neues Model (position, first/last_name, birth_date, gender, athlete_id)
-- **SwimRecord** — Ergänzungen nötig: `club_id` in `$fillable`, `club()` BelongsTo, `relayTeam()` HasMany (siehe `SwimRecord_additions.php`)
+- **SwimRecord** — `club_id` in `$fillable`, `club()` BelongsTo, `relayTeam()` HasMany (ordered by position)
+- **RelayTeamMember** — position, first/last_name, birth_date, gender, athlete_id
 
 ### Services
+
 - **RecordCheckerService** — prüft AUT, AUT.JR, AUT.WBSV, AUT.WBSV.JR etc.
-    - Jugend-Regel: `Wettkampfjahr − Geburtsjahr ≤ 18` (Stichtag 31.12.)
-    - WR/ER/OR werden NICHT automatisch gesetzt
 - **RecordImportService** — importiert LENEX 3.0 Rekord-LXF/XML
-    - `preview()` → `import()` Flow mit Bestätigungsseite
-    - Parst `<ATHLETE>` (Einzel) und `<RELAY>` (Staffel) korrekt
-    - `<RELAY><RELAYPOSITIONS>` → `relay_team_members`
-    - Club mit `name="???"` wird übersprungen
-    - `AUT.JG` → `AUT.JR` Mapping
-    - NT-Einträge werden übersprungen
-    - Sportklasse: BREAST → SB, MEDLEY/IMRELAY → SM, sonst → S
-    - Neue Athleten bekommen `AthleteSportClass` automatisch angelegt
-    - Regionale Rekorde (`AUT.WBSV` etc.) separat gruppiert, Verband-Entscheidung per `$approvedRegional`
-    - Private Hilfsmethoden: `parseAthleteXml()`, `parseClubXml()`, `resolveClubs()`, `resolveAthletes()`, `createSportClass()`, `resolveClubId()`
-- **LenexResolverService** — `lenex_club_id` vollständig entfernt, Matching nur über `code+nation` → `name+nation`
+    - `preview()` → `import()` Flow
+    - `AUT.JG` → `AUT.JR` Mapping, NT-Einträge werden übersprungen
+    - Sportklasse: BREAST→SB, MEDLEY→SM, sonst→S
+- **LenexResolverService** — Club-Matching über `code+nation` → `name+nation`
 
-### Controllers
-- **RecordController**
-    - `index()`: Kategorie-Tabs (international/national/regional), Einzel/Staffel-Filter (`relay=single|relay|''`), Untertyp-Dropdown
-    - `formData()`: gibt `strokeTypes`, `nations`, `athletes`, `clubs` zurück
-    - `storeRelayMembers()`: speichert Staffelteam beim manuellen Anlegen/Bearbeiten
-    - Validation: `club_id`, `relay_members[]` inkl.
-- **RecordImportController** — `showForm()` → `preview()` → `run()`, `$approvedRegional` weitergegeben
+### Wichtige Entscheidungen
 
-### Views
-- **records/index** — Einzel/Staffel Toggle-Tabs, Disziplin-Format `4x 25m Freistil`, Staffel zeigt nummeriertes Team, Verein aus `record->club` (nicht `athlete->club`)
-- **records/show** — Staffel zeigt Team-Liste mit Positionen, Verein mit Hinweis bei Vereinswechsel
-- **records/form** — Verein-Dropdown (getrennt vom Athleten), Staffelteam-Block (4 Zeilen, Alpine.js x-show)
-- **records/import** — Upload-Formular
-- **records/import-preview** — Unbekannte Clubs/Athleten, regionale Rekorde aufklappbar pro Verband
-- **clubs/index** — Typ-Badge, Verband-Spalte, Athleten aktiv/inaktiv
-- **clubs/form** — Regionalverband-Dropdown
-- **meets/show** — "Rekorde prüfen" Button als POST-Formular
-
----
-
-## Wichtige Entscheidungen
-- `lenex_club_id` nicht persistiert (instabil, ändert sich pro Export)
+- `lenex_club_id` nicht persistiert (instabil)
 - `lenex_athlete_id` nicht persistiert (nur Memory-Cache pro Import)
-- `club_id` auf `swim_records`: Verein **zum Zeitpunkt des Rekords** (kann vom aktuellen Verein abweichen)
+- `club_id` auf `swim_records`: Verein **zum Zeitpunkt des Rekords**
 - Staffeln haben `athlete_id = null`, Club + Team via `relay_team_members`
-- Sportklasse-Prefix hängt vom Stroke ab: BREAST→SB, MEDLEY→SM, sonst→S
 
 ---
 
-## Offene Punkte / Pending
-- SwimRecord Model manuell ergänzen (siehe `SwimRecord_additions.php`):
-    - `'club_id'` in `$fillable`
-    - `club()` BelongsTo Relation
-    - `relayTeam()` HasMany Relation (ordered by position)
-- `records/import-preview.blade.php` — `StrokeType::find()` in der Blade-View ist nicht ideal, besser per eager load im Controller lösen
-- Export (LENEX): `club_id` und `relay_team_members` noch nicht im Export berücksichtigt
+## Abgeschlossene Aufgaben (Session 2 — Rekord-Export)
 
----
+### Neue Dateien
 
-## LENEX-Dateistruktur (neue Erkenntnis)
+| Datei                            | Pfad                                   |
+|----------------------------------|----------------------------------------|
+| `RecordLenexExportService.php`   | `app/Services/`                        |
+| `RecordExportController.php`     | `app/Http/Controllers/`                |
+| `export.blade.php` (Rekorde-Tab) | in `lenex/export.blade.php` integriert |
+
+### RecordLenexExportService
+
+Exportiert SwimRecords als LENEX 3.0 XML.
+
+**LENEX-Struktur:**
+
 ```xml
-<!-- Einzel -->
-<RECORD swimtime="00:01:05.39">
-  <SWIMSTYLE distance="100" relaycount="1" stroke="FREE" />
-  <MEETINFO city="Dornbirn" date="2012-05-06" name="ÖBSV - ÖSTM" nation="AUT" />
-  <ATHLETE firstname="Peter" lastname="Tichy" birthdate="1992-02-24" gender="M">
-    <CLUB code="VSCAW" nation="AUT" name="Versehrtensportklub ASVÖ Wien" />
-  </ATHLETE>
-</RECORD>
 
-<!-- Staffel mit Team -->
-<RECORD swimtime="00:02:31.96">
-  <SWIMSTYLE distance="50" relaycount="4" stroke="FREE" />
-  <RELAY>
-    <CLUB code="BSVLI" nation="AUT" name="BSV BBRZ Linz" />
-    <RELAYPOSITIONS>
-      <RELAYPOSITION number="1">
-        <ATHLETE firstname="Sven" lastname="Schünemann" birthdate="1984-05-26" gender="M" />
-      </RELAYPOSITION>
-    </RELAYPOSITIONS>
-  </RELAY>
-</RECORD>
-
-<!-- Staffel ohne Team (Club unbekannt) -->
-<RECORD swimtime="00:01:17.52">
-  <SWIMSTYLE distance="25" relaycount="4" stroke="FREE" />
-  <RELAY>
-    <CLUB name="???" />
-  </RELAY>
-</RECORD>
+<LENEX version="3.0">
+    <CONSTRUCTOR name="Para Swimming NatDB" version="1.0">
+        <CONTACT name="a-timing.wien" email="a.steiner@a-timing.wien"/>
+    </CONSTRUCTOR>
+    <RECORDLISTS>
+        <RECORDLIST type="AUT" course="LCM" gender="M" handicap="14"
+                    nation="AUT" updated="2024-05-01">
+            <RECORDS>
+                <RECORD swimtime="00:00:58.34">
+                    <SWIMSTYLE distance="100" relaycount="1" stroke="FREE"/>
+                    <MEETINFO name="ÖSTM" city="Wien" date="2024-05-01" nation="AUT"/>
+                    <ATHLETE lastname="..." firstname="..." birthdate="..." gender="M">
+                        <CLUB name="..." code="..." nation="AUT"/>
+                    </ATHLETE>
+                </RECORD>
+                <!-- Staffel: -->
+                <RECORD swimtime="00:02:31.96">
+                    <SWIMSTYLE distance="50" relaycount="4" stroke="FREE"/>
+                    <RELAY>
+                        <CLUB name="..." code="..." nation="AUT"/>
+                        <RELAYPOSITIONS>
+                            <RELAYPOSITION number="1">
+                                <ATHLETE lastname="..." firstname="..." birthdate="..." gender="M"/>
+                            </RELAYPOSITION>
+                        </RELAYPOSITIONS>
+                    </RELAY>
+                </RECORD>
+            </RECORDS>
+        </RECORDLIST>
+    </RECORDLISTS>
+</LENEX>
 ```
 
+**Gruppierung:** Eine RECORDLIST pro `(record_type, course, gender, sport_class)`.
+`handicap` = Klassenziffer (z.B. S14 → "14"), `nation` aus record_type abgeleitet (AUT.* → "AUT").
+`updated` = Max(`set_date`) aller Records der Gruppe.
+
+**Filter:**
+
+- `is_current = true`
+- `record_status` NOT IN `['INVALID', 'TARGETTIME']`
+- `swim_time IS NOT NULL` und `swim_time > 0` (kein NT / 00:00.00)
+
+**Download-Format:** XML wird als `.lef` in ein ZIP verpackt → Download als `.lxf`
+
+### RecordExportController
+
+```
+GET  /records/export          → showForm()
+POST /records/export/download → download()
+```
+
+Kategorien: `national` (AUT+AUT.JR), `regional` (AUT.XXXX+AUT.XXXX.JR), `international` (WR/ER/OR), `custom`.
+Filter: `courses[]` (LCM/SCM/SCY, leer=alle), `gender` (M/F, leer=beide).
+`$gender = (string) $request->input('gender', '')` — Cast nötig, leerer Radio-Value kommt als `null`.
+
+### LenexExportController (geändert)
+
+`showForm()` übergibt jetzt zusätzlich `'regionalTypes' => Club::REGIONAL_ASSOCIATIONS` an die View.
+
+### lenex/export.blade.php (geändert)
+
+Tab-Switcher (Alpine.js `x-data="{ tab: 'meet' }"`):
+
+- Tab **Wettkampf**: bestehender Meet-Export unverändert → `POST lenex.export.download`
+- Tab **Rekorde**: neues Formular → `POST records.export.download`
+
+### Routes (geändert)
+
+```php
+// Ersetzte: Route::post('export', ...) im records-Block
+Route::get('export', [RecordExportController::class, 'showForm'])->name('export');
+Route::post('export/download', [RecordExportController::class, 'download'])->name('export.download');
+```
+
+`use App\Http\Controllers\RecordExportController;` zum use-Block in `web.php` hinzufügen.
+Die alte `export()`-Methode im `RecordController` kann gelöscht werden.
+
 ---
 
-## Routes (relevante Rekord-Routen)
+## Offene Punkte
+
+- `records/import-preview.blade.php` — `StrokeType::find()` in der Blade-View ist nicht ideal, besser per eager load im
+  Controller lösen
+- Export: Splits werden exportiert, aber noch nicht geprüft ob `TimeParser::format()` mit `split_time` identisch zu
+  `swim_time` funktioniert
+
+---
+
+## Routes (vollständig, Rekorde)
+
 ```php
 GET  /records                    → records.index
 GET  /records/create             → records.create
@@ -130,11 +170,26 @@ POST /records                    → records.store
 GET  /records/import             → RecordImportController@showForm
 POST /records/import/preview     → RecordImportController@preview
 POST /records/import/run         → RecordImportController@run
-GET  /records/export             → records.export
-POST /meets/{meet}/check-records → records.check-meet
+GET  /records/export             → RecordExportController@showForm
+POST /records/export/download    → RecordExportController@download
+POST /records/check/{meet}       → RecordController@checkMeet
 GET  /records/{record}           → records.show
 GET  /records/{record}/edit      → records.edit
 PUT  /records/{record}           → records.update
 DELETE /records/{record}         → records.destroy
 POST /records/{record}/restore   → records.restore
+```
+
+## Routes (LENEX)
+
+```php
+GET  /lenex/import               → LenexImportController@showForm
+POST /lenex/import               → LenexImportController@import
+GET  /lenex/import/confirm-meet  → LenexImportController@confirmMeet
+POST /lenex/import/run           → LenexImportController@runImport
+GET  /lenex/import/review        → LenexImportController@review
+POST /lenex/import/resolve-clubs → LenexImportController@resolveClubs
+POST /lenex/import/resolve-athletes → LenexImportController@resolveAthletes
+GET  /lenex/export               → LenexExportController@showForm
+POST /lenex/export/download      → LenexExportController@download
 ```

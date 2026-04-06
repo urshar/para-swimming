@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\LenexExportController;
@@ -24,6 +25,26 @@ Route::resource('nations', NationController::class)
 Route::resource('clubs', ClubController::class);
 
 Route::resource('athletes', AthleteController::class);
+
+// Vereinswechsel
+Route::post('athletes/{athlete}/transfer-club',
+    [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
+
+// Klassifikation
+Route::post('athletes/{athlete}/classifications',
+    [AthleteController::class, 'storeClassification'])->name('athletes.classifications.store');
+Route::put('athletes/{athlete}/classifications/{classification}',
+    [AthleteController::class, 'updateClassification'])->name('athletes.classifications.update');
+Route::put('athletes/{athlete}/classifications/{classification}',
+    [AthleteController::class, 'updateClassification'])->name('athletes.classifications.update');
+Route::delete('athletes/{athlete}/classifications/{classification}',
+    [AthleteController::class, 'destroyClassification'])->name('athletes.classifications.destroy');
+
+// Level
+Route::post('athletes/{athlete}/levels', [AthleteController::class, 'storeLevel'])->name('athletes.levels.store');
+
+// ── Klassifizierer-Stammdaten (einfaches Resource) ────────────────────────────
+Route::resource('classifiers', ClassifierController::class);
 
 // ── Wettkämpfe ────────────────────────────────────────────────────────────────
 Route::resource('meets', MeetController::class);
