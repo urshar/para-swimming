@@ -126,10 +126,10 @@
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell class="font-medium text-sm">
-                        {{ $record->distance }}m {{ $record->strokeType?->name_de }}
                         @if($record->relay_count > 1)
                             <span class="text-zinc-400">{{ $record->relay_count }}x</span>
                         @endif
+                        {{ $record->distance }}m {{ $record->strokeType?->name_de }}
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge size="sm" color="zinc">{{ $record->course }}</flux:badge>

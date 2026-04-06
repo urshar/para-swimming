@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Club;
 use App\Models\Meet;
 use App\Services\LenexExportService;
 use DOMException;
@@ -22,7 +23,10 @@ class LenexExportController extends Controller
             ->orderByDesc('start_date')
             ->get();
 
-        return view('lenex.export', compact('meets'));
+        return view('lenex.export', [
+            'meets' => $meets,
+            'regionalTypes' => Club::REGIONAL_ASSOCIATIONS,
+        ]);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Athlete;
+use App\Models\AthleteSportClass;
 use App\Models\Club;
 use App\Models\Nation;
 use App\Models\RecordSplit;
@@ -242,7 +243,13 @@ class RecordImportService
                 $strokeCode = (string) ($style['stroke'] ?? '');
                 $distance = (int) ($style['distance'] ?? 0);
                 $relayCount = (int) ($style['relaycount'] ?? 1);
-                $sportClass = 'S'.$recordList['handicap'];
+                $classNumber = (string) $recordList['handicap'];
+                $classPrefix = match (strtoupper($strokeCode)) {
+                    'BREAST' => 'SB',
+                    'MEDLEY', 'IMRELAY' => 'SM',
+                    default => 'S',
+                };
+                $sportClass = $classPrefix.$classNumber;
 
                 $strokeTypeId = $this->resolveStrokeType($strokeCode);
                 if (! $strokeTypeId) {
@@ -287,6 +294,7 @@ class RecordImportService
                                 'license' => $license,
                                 'club_key' => $clubData['key'] ?? null,
                                 'club_name' => $clubData['name'] ?? null,
+                                'sport_class' => $sportClass,
                                 'db_id' => null,
                             ];
                         }
@@ -660,6 +668,10 @@ class RecordImportService
                     'club_id' => $clubKey ? ($clubIdMap[$clubKey] ?? null) : null,
                     'license' => $athlete['license'] ?: null,
                 ]);
+
+                // Sportklasse aus dem Rekord übernehmen (z.B. "S12" → S / 12)
+                $this->createSportClass($newAthlete, $athlete['sport_class'] ?? null);
+
                 $athleteIdMap[$key] = $newAthlete->id;
             } else {
                 $athleteIdMap[$key] = (int) $decision;
@@ -667,6 +679,34 @@ class RecordImportService
         }
 
         return $athleteIdMap;
+    }
+
+    /**
+     * Legt eine AthleteSportClass aus einer Sportklassen-Bezeichnung an.
+     *
+     * Format: "S12" → category=S, class_number=12
+     *         "SB9" → category=SB, class_number=9
+     *         "SM14"→ category=SM, class_number=14
+     *
+     * Wird nur angelegt, wenn die Klasse noch nicht existiert (updateOrCreate).
+     */
+    private function createSportClass(Athlete $athlete, ?string $sportClass): void
+    {
+        if (! $sportClass) {
+            return;
+        }
+
+        // Kategorie-Prefix (SB/SM vor S prüfen) und Nummer trennen
+        if (preg_match('/^(SB|SM|S)(\d+)$/', $sportClass, $m)) {
+            AthleteSportClass::updateOrCreate(
+                ['athlete_id' => $athlete->id, 'category' => $m[1]],
+                [
+                    'class_number' => $m[2],
+                    'sport_class' => $sportClass,
+                    'status' => null,
+                ]
+            );
+        }
     }
 
     /**

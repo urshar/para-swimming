@@ -171,7 +171,30 @@ class RecordCheckerService
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
-     * Prüft ob das Result einen Rekord eines bestimmten Typs bricht.
+     * Prüft, ob ein Athlet beim Wettkampf als Jugendlicher gilt.
+     *
+     * Regel: Jahrgangs-Alter = Wettkampfjahr − Geburtsjahr ≤ 18
+     * (Stichtag 31.12. des Wettkampfjahres)
+     *
+     * Gibt false zurück, wenn Geburtsdatum fehlt oder Meet kein Datum hat.
+     */
+    private function isJunior(Result $result, Meet $meet): bool
+    {
+        $birthDate = $result->athlete?->birth_date;
+        $meetDate = $meet->start_date;
+
+        if (! $birthDate || ! $meetDate) {
+            return false;
+        }
+
+        $meetYear = (int) $meetDate->format('Y');
+        $birthYear = (int) $birthDate->format('Y');
+
+        return ($meetYear - $birthYear) <= 18;
+    }
+
+    /**
+     * Prüft, ob das Result einen Rekord eines bestimmten Typs bricht.
      * Legt bei Bedarf einen neuen SwimRecord an.
      *
      * @throws Throwable
@@ -251,28 +274,5 @@ class RecordCheckerService
         });
 
         return true;
-    }
-
-    /**
-     * Prüft ob ein Athlet beim Wettkampf als Jugendlicher gilt.
-     *
-     * Regel: Jahrgangs-Alter = Wettkampfjahr − Geburtsjahr ≤ 18
-     * (Stichtag 31.12. des Wettkampfjahres)
-     *
-     * Gibt false zurück wenn Geburtsdatum fehlt oder Meet kein Datum hat.
-     */
-    private function isJunior(Result $result, Meet $meet): bool
-    {
-        $birthDate = $result->athlete?->birth_date;
-        $meetDate = $meet->start_date;
-
-        if (! $birthDate || ! $meetDate) {
-            return false;
-        }
-
-        $meetYear = (int) $meetDate->format('Y');
-        $birthYear = (int) $birthDate->format('Y');
-
-        return ($meetYear - $birthYear) <= 18;
     }
 }

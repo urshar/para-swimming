@@ -8,6 +8,7 @@ use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\RecordController;
+use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SwimEventController;
@@ -80,7 +81,11 @@ Route::prefix('records')->name('records.')->group(function () {
     Route::get('import', [RecordImportController::class, 'showForm'])->name('import');
     Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
     Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
-    Route::post('export', [RecordController::class, 'export'])->name('export');
+
+    // Export — zweistufig: Formular → Download
+    Route::get('export', [RecordExportController::class, 'showForm'])->name('export');
+    Route::post('export/download', [RecordExportController::class, 'download'])->name('export.download');
+
     Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
 
     // {record} Routen zuletzt
