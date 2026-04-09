@@ -17,7 +17,7 @@ return new class extends Migration
 
             $table->string('email')->nullable();
             $table->string('phone', 50)->nullable();
-            $table->string('nation', 3)->nullable(); // ISO 3166-1 alpha-3, z.B. "AUT"
+            $table->foreignId('nation_id')->nullable()->constrained('nations')->nullOnDelete();
             $table->enum('gender', ['M', 'F', 'N'])->nullable();
 
             $table->boolean('is_active')->default(true);
@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->index(['last_name', 'first_name']);
             $table->index('type');
-            $table->index('nation');
+            $table->index('nation_id');
         });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -25,7 +26,7 @@ class Classifier extends Model
         'type',
         'email',
         'phone',
-        'nation',
+        'nation_id',
         'gender',
         'is_active',
         'notes',
@@ -36,6 +37,11 @@ class Classifier extends Model
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
+
+    public function nation(): BelongsTo
+    {
+        return $this->belongsTo(Nation::class);
+    }
 
     public function classificationsAsMed(): HasMany
     {
@@ -79,5 +85,10 @@ class Classifier extends Model
     public function getTypeNameAttribute(): string
     {
         return self::TYPES[$this->type] ?? $this->type;
+    }
+
+    public function getNationCodeAttribute(): ?string
+    {
+        return $this->nation?->code;
     }
 }

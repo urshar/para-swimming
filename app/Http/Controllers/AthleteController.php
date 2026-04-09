@@ -126,6 +126,7 @@ class AthleteController extends Controller
             'classifications.medClassifier',
             'classifications.tech1Classifier',
             'classifications.tech2Classifier',
+            'classifications.exceptions',
             'levelHistory.user',
         ]);
 
@@ -138,10 +139,11 @@ class AthleteController extends Controller
         $medClassifiers = Classifier::active()->medical()->orderBy('last_name')->get();
         $techClassifiers = Classifier::active()->technical()->orderBy('last_name')->get();
         $users = User::orderBy('name')->get();
+        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
 
         return view('athletes.show', compact(
             'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users'
+            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes'
         ));
     }
 
@@ -254,28 +256,25 @@ class AthleteController extends Controller
      */
     public function storeClassification(Request $request, Athlete $athlete): RedirectResponse
     {
-        $validated = $request->validate([
-            'classified_at' => 'required|date',
-            'location' => 'nullable|string|max:200',
-            'med_classifier_id' => 'nullable|exists:classifiers,id',
-            'tech1_classifier_id' => 'nullable|exists:classifiers,id',
-            'tech2_classifier_id' => 'nullable|exists:classifiers,id',
-            'sport_class_result' => 'nullable|string|max:10',
-            'status' => 'nullable|in:CONFIRMED,NEW,REVIEW,OBSERVATION',
-            'notes' => 'nullable|string|max:1000',
-        ]);
+        $validated = $this->validateClassification($request);
 
         DB::transaction(function () use ($athlete, $validated) {
-            $athlete->classifications()->create($validated);
+            // Klassennummern normalisieren bevor gespeichert wird
+            $validated['result_s'] = $this->normalizeClassNumber('S', $validated['result_s'] ?? null);
+            $validated['result_sb'] = $this->normalizeClassNumber('SB', $validated['result_sb'] ?? null);
+            $validated['result_sm'] = $this->normalizeClassNumber('SM', $validated['result_sm'] ?? null);
+
+            $classification = $athlete->classifications()->create(
+                collect($validated)->except('exceptions')->toArray()
+            );
+            $this->syncClassificationExceptions($classification, $athlete, $validated['exceptions'] ?? []);
             $this->syncSportClassFromClassification($athlete, $validated);
         });
 
         return redirect()
             ->route('athletes.show', $athlete)
-            ->with('success', 'Klassifikation eingetragen und Sportklasse aktualisiert.');
+            ->with('success', 'Klassifikation eingetragen, Sportklasse und Exceptions aktualisiert.');
     }
-
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
      * PUT /athletes/{athlete}/classifications/{classification}
@@ -291,25 +290,24 @@ class AthleteController extends Controller
     ): RedirectResponse {
         abort_if($classification->athlete_id !== $athlete->id, 403);
 
-        $validated = $request->validate([
-            'classified_at' => 'required|date',
-            'location' => 'nullable|string|max:200',
-            'med_classifier_id' => 'nullable|exists:classifiers,id',
-            'tech1_classifier_id' => 'nullable|exists:classifiers,id',
-            'tech2_classifier_id' => 'nullable|exists:classifiers,id',
-            'sport_class_result' => 'nullable|string|max:10',
-            'status' => 'nullable|in:CONFIRMED,NEW,REVIEW,OBSERVATION',
-            'notes' => 'nullable|string|max:1000',
-        ]);
+        $validated = $this->validateClassification($request);
 
         DB::transaction(function () use ($athlete, $classification, $validated) {
-            $classification->update($validated);
+            // Klassennummern normalisieren bevor gespeichert wird
+            $validated['result_s'] = $this->normalizeClassNumber('S', $validated['result_s'] ?? null);
+            $validated['result_sb'] = $this->normalizeClassNumber('SB', $validated['result_sb'] ?? null);
+            $validated['result_sm'] = $this->normalizeClassNumber('SM', $validated['result_sm'] ?? null);
+
+            $classification->update(
+                collect($validated)->except('exceptions')->toArray()
+            );
+            $this->syncClassificationExceptions($classification, $athlete, $validated['exceptions'] ?? []);
             $this->syncSportClassFromClassification($athlete, $validated);
         });
 
         return redirect()
             ->route('athletes.show', $athlete)
-            ->with('success', 'Klassifikation aktualisiert und Sportklasse geprüft.');
+            ->with('success', 'Klassifikation aktualisiert, Sportklasse und Exceptions geprüft.');
     }
 
     /**
@@ -393,7 +391,9 @@ class AthleteController extends Controller
             'sport_classes' => 'nullable|array',
             'sport_classes.*.category' => 'nullable|in:S,SB,SM',
             'sport_classes.*.class_number' => 'nullable|string|max:10',
-            'sport_classes.*.status' => 'nullable|in:NATIONAL,NEW,REVIEW,OBSERVATION,CONFIRMED',
+            'sport_classes.*.classification_scope' => 'nullable|in:INTL,NAT',
+            'sport_classes.*.classification_status' => 'nullable|in:NEW,CONFIRMED,REVIEW,FRD,NE',
+            'sport_classes.*.frd_year' => 'nullable|integer|min:2000|max:2100',
 
             // Exceptions
             'exceptions' => 'nullable|array',
@@ -424,11 +424,14 @@ class AthleteController extends Controller
         $athlete->sportClasses()->delete();
 
         foreach ($sportClasses as $classData) {
+            $status = $classData['classification_status'] ?? null;
             $athlete->sportClasses()->create([
                 'category' => $classData['category'],
                 'class_number' => $classData['class_number'],
                 'sport_class' => $classData['category'].$classData['class_number'],
-                'status' => $classData['status'] ?? null,
+                'classification_scope' => $classData['classification_scope'] ?? 'INTL',
+                'classification_status' => $status,
+                'frd_year' => $status === 'FRD' ? ($classData['frd_year'] ?? null) : null,
             ]);
         }
     }
@@ -446,39 +449,151 @@ class AthleteController extends Controller
     }
 
     /**
-     * Synchronisiert AthleteSportClass aus einem Klassifikationsergebnis.
+     * Validierungsregeln für Klassifikations-Formulare (store + update).
+     */
+    private function validateClassification(Request $request): array
+    {
+        return $request->validate([
+            'classified_at' => 'required|date',
+            'location' => 'nullable|string|max:200',
+            'med_classifier_id' => 'nullable|exists:classifiers,id',
+            'tech1_classifier_id' => 'nullable|exists:classifiers,id',
+            'tech2_classifier_id' => 'nullable|exists:classifiers,id',
+            'result_s' => 'nullable|string|max:15',
+            'result_sb' => 'nullable|string|max:15',
+            'result_sm' => 'nullable|string|max:15',
+            'classification_scope' => 'required|in:INTL,NAT',
+            'classification_status' => 'nullable|in:NEW,CONFIRMED,REVIEW,FRD,NE',
+            'frd_year' => 'nullable|integer|min:2000|max:2100|required_if:classification_status,FRD',
+            'notes' => 'nullable|string|max:1000',
+            // Exceptions
+            'exceptions' => 'nullable|array',
+            'exceptions.*.code_id' => 'nullable|exists:exception_codes,id',
+            'exceptions.*.category' => 'nullable|in:S,SB,SM',
+            'exceptions.*.note' => 'nullable|string|max:255',
+        ]);
+    }
+
+    /**
+     * Normalisiert eine Klassennummer zum vollständigen Sport-Klassen-String.
+     * Akzeptiert sowohl "4" als auch "S4" / "SB3" / "SM14".
+     * Gibt null zurück, wenn leer.
+     */
+    private function normalizeClassNumber(string $category, ?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        // Bereits vollständiges Format: "S4", "SB3", "SM14"
+        if (preg_match('/^(SB|SM|S)\d+$/', $value)) {
+            return $value;
+        }
+
+        // Nur Nummer: "4" → "S4", "3" → "SB3"
+        if (preg_match('/^\d+$/', $value)) {
+            return $category.$value;
+        }
+
+        return null; // ungültiges Format → ignorieren
+    }
+
+    /**
+     * Sync Exceptions einer Klassifikation und übernimmt sie in die Stammdaten (athlete_exceptions).
      *
-     * Regel: Nur updaten, wenn die bestehende Sportklasse NICHT den Status CONFIRMED hat.
-     * Format: "S4" → category=S/4 | "SB3" → SB/3 | "SM14" → SM/14
+     * Ablauf:
+     *   1. Klassifikations-Exceptions ersetzen (athlete_classification_exceptions)
+     *   2. Athleten-Exceptions in Stammdaten übernehmen (athlete_exceptions)
+     *      → bestehende Stammdaten-Exceptions werden vollständig ersetzt
+     *
+     * Wichtig: Da der Unique-Constraint auf (id, exception_code_id, category) liegt,
+     * kann derselbe Code mit verschiedenen Kategorien mehrfach vorkommen.
+     * Daher kein sync(), sondern detach + attach.
+     */
+    private function syncClassificationExceptions(
+        AthleteClassification $classification,
+        Athlete $athlete,
+        array $exceptions
+    ): void {
+        // Exceptions aus dem Formular aufbereiten — leere code_id herausfiltern
+        $rows = collect($exceptions)
+            ->filter(fn ($e) => ! empty($e['code_id']))
+            ->map(fn ($e) => [
+                'code_id' => (int) $e['code_id'],
+                'category' => $e['category'] ?? null,
+                'note' => $e['note'] ?? null,
+            ])
+            ->values();
+
+        // 1. Klassifikations-Exceptions: alle löschen, neu anlegen
+        $classification->exceptions()->detach();
+        foreach ($rows as $row) {
+            $classification->exceptions()->attach($row['code_id'], [
+                'category' => $row['category'],
+                'note' => $row['note'],
+            ]);
+        }
+
+        // 2. Stammdaten-Exceptions übernehmen: alle löschen, neu anlegen
+        // athlete_exceptions hat denselben Unique-Constraint (athlete_id, code_id, category)
+        $athlete->exceptions()->detach();
+        foreach ($rows as $row) {
+            $athlete->exceptions()->attach($row['code_id'], [
+                'category' => $row['category'],
+                'note' => $row['note'],
+            ]);
+        }
+    }
+
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Synchronisiert AthleteSportClass aus einem Klassifikations-Ergebnis.
+     *
+     * Verarbeitet alle drei Kategorien (S, SB, SM) separat.
+     * Regel: Nur updaten, wenn bestehende Sportklasse NICHT CONFIRMED + INTL ist.
      */
     private function syncSportClassFromClassification(Athlete $athlete, array $validated): void
     {
-        if (empty($validated['sport_class_result'])) {
-            return;
+        $scope = $validated['classification_scope'] ?? 'INTL';
+        $status = $validated['classification_status'] ?? null;
+        $frdYear = $status === 'FRD' ? ($validated['frd_year'] ?? null) : null;
+
+        // result_s/sb/sm können entweder nur die Nummer ("4") oder den vollen String ("S4") enthalten.
+        // Der Controller normalisiert beides zum vollständigen Format.
+        $categoryMap = [
+            'S' => $this->normalizeClassNumber('S', $validated['result_s'] ?? null),
+            'SB' => $this->normalizeClassNumber('SB', $validated['result_sb'] ?? null),
+            'SM' => $this->normalizeClassNumber('SM', $validated['result_sm'] ?? null),
+        ];
+
+        foreach ($categoryMap as $category => $sportClassResult) {
+            if ($sportClassResult === null) {
+                continue;
+            }
+
+            $classNumber = ltrim($sportClassResult, 'A..Za..z');
+
+            $existing = $athlete->sportClasses()->where('category', $category)->first();
+
+            if ($existing
+                && $existing->classification_status === 'CONFIRMED'
+                && $existing->classification_scope === 'INTL') {
+                continue;
+            }
+
+            $athlete->sportClasses()->updateOrCreate(
+                ['category' => $category],
+                [
+                    'class_number' => $classNumber,
+                    'sport_class' => $sportClassResult,
+                    'classification_scope' => $scope,
+                    'classification_status' => $status,
+                    'frd_year' => $frdYear,
+                ]
+            );
         }
-
-        if (! preg_match('/^(SB|SM|S)(\d+)$/', $validated['sport_class_result'], $m)) {
-            return;
-        }
-
-        $category = $m[1];
-        $classNumber = $m[2];
-
-        // Bestehende Sportklasse laden (fresh, nicht aus Cache)
-        $existing = $athlete->sportClasses()->where('category', $category)->first();
-
-        // Nicht überschreiben wenn bereits CONFIRMED
-        if ($existing && $existing->status === 'CONFIRMED') {
-            return;
-        }
-
-        $athlete->sportClasses()->updateOrCreate(
-            ['category' => $category],
-            [
-                'class_number' => $classNumber,
-                'sport_class' => $validated['sport_class_result'],
-                'status' => $validated['status'] ?? null,
-            ]
-        );
     }
 }

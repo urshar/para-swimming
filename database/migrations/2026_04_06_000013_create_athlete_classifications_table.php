@@ -10,7 +10,17 @@ return new class extends Migration
      * Classifications-History eines Athleten.
      *
      * Pro Klassifikationsereignis: 1 medizinischer + 2 technische Klassifizierer.
-     * Klassifizierer können bei jeder Klassifikation unterschiedlich sein.
+     *
+     * Scope-Logik:
+     *   INTL = Athlet hat SDMS/IPC-ID → international gültig (World Para Swimming)
+     *   NAT  = kein SDMS → nur national gültig (ÖBSV)
+     *
+     * Status-Werte (gleich für INTL und NAT):
+     *   NEW       = Erstklassifizierung, noch nicht bestätigt
+     *   CONFIRMED = Bestätigt / gültig
+     *   REVIEW    = Überprüfung ohne fixen Datum
+     *   FRD       = Fixed Review Date → frd_year gibt das Jahr an
+     *   NE        = Not Eligible (nicht klassifizierbar)
      */
     public function up(): void
     {
@@ -37,11 +47,22 @@ return new class extends Migration
 
             // Wann und wo
             $table->date('classified_at');
-            $table->string('location')->nullable(); // Stadt / Wettkampfstätte
+            $table->string('location')->nullable();
 
-            // Ergebnis / Sportklasse nach dieser Klassifikation
-            $table->string('sport_class_result')->nullable(); // z.B. "S4", "SB3", "SM4"
-            $table->enum('status', ['CONFIRMED', 'NEW', 'REVIEW', 'OBSERVATION'])->nullable();
+            // Ergebnis Sportklassen nach dieser Klassifikation (analog zu athlete_sport_classes)
+            // jede Kategorie kann null sein, wenn der Athlet diese nicht schwimmt
+            $table->string('result_s', 15)->nullable();  // z.B. "S4", "S14"
+            $table->string('result_sb', 15)->nullable();  // z.B. "SB3", "SB14"
+            $table->string('result_sm', 15)->nullable();  // z.B. "SM4", "SM14"
+
+            // Gültigkeitsbereich: INTL (mit SDMS) oder NAT (nur national)
+            $table->enum('classification_scope', ['INTL', 'NAT'])->default('INTL');
+
+            // Klassifikationsstatus
+            $table->enum('classification_status', ['NEW', 'CONFIRMED', 'REVIEW', 'FRD', 'NE'])->nullable();
+
+            // Nur bei FRD: das Jahr des nächsten Review-Termins
+            $table->smallInteger('frd_year')->nullable()->unsigned();
 
             $table->text('notes')->nullable();
 

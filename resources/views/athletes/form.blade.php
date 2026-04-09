@@ -292,32 +292,68 @@
                     @php
                         $existing   = isset($athlete) ? $athlete->sportClasses->firstWhere('category', $cat) : null;
                         $loop_index = $loop->index;
+                        $defaultScope = isset($athlete) && $athlete->license_ipc ? 'INTL' : 'NAT';
                     @endphp
-                    <div class="flex items-end gap-3 mb-3">
-                        <div class="w-48">
-                            <label
-                                class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">{{ $label }}</label>
-                            <input type="hidden" name="sport_classes[{{ $loop_index }}][category]" value="{{ $cat }}">
-                        </div>
-                        <flux:field class="w-28">
-                            <flux:label>Klassen-Nr.</flux:label>
-                            <flux:input
-                                name="sport_classes[{{ $loop_index }}][class_number]"
-                                value="{{ old('sport_classes.' . $loop_index . '.class_number', $existing?->class_number ?? '') }}"
-                                placeholder="z.B. 4"/>
-                        </flux:field>
-                        <flux:field class="flex-1">
-                            <flux:label>Status</flux:label>
-                            <flux:select name="sport_classes[{{ $loop_index }}][status]">
-                                <option value="">Nicht angegeben</option>
-                                @foreach(['CONFIRMED' => 'Bestätigt', 'NATIONAL' => 'Nur national', 'NEW' => 'Neu', 'REVIEW' => 'Überprüfung', 'OBSERVATION' => 'Beobachtung'] as $val => $statusLabel)
+                    <div class="mb-4 pb-4 border-b border-zinc-100 dark:border-zinc-700 last:border-0"
+                         x-data="{ status: @js(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '')) }">
+                        <input type="hidden" name="sport_classes[{{ $loop_index }}][category]" value="{{ $cat }}">
+                        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{{ $label }}</p>
+                        <div class="grid grid-cols-4 gap-3">
+                            <flux:field>
+                                <flux:label>Klassen-Nr.</flux:label>
+                                <flux:input
+                                    name="sport_classes[{{ $loop_index }}][class_number]"
+                                    value="{{ old('sport_classes.' . $loop_index . '.class_number', $existing?->class_number ?? '') }}"
+                                    placeholder="z.B. 4"/>
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Gültigkeit</flux:label>
+                                <flux:select name="sport_classes[{{ $loop_index }}][classification_scope]">
                                     <option
-                                        value="{{ $val }}" @selected(old('sport_classes.' . $loop_index . '.status', $existing?->status ?? '') === $val)>
-                                        {{ $statusLabel }}
+                                        value="INTL" @selected(old('sport_classes.' . $loop_index . '.classification_scope', $existing?->classification_scope ?? $defaultScope) === 'INTL')>
+                                        🌍 International
                                     </option>
-                                @endforeach
-                            </flux:select>
-                        </flux:field>
+                                    <option
+                                        value="NAT" @selected(old('sport_classes.' . $loop_index . '.classification_scope', $existing?->classification_scope ?? $defaultScope) === 'NAT')>
+                                        🇦🇹 National
+                                    </option>
+                                </flux:select>
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Status</flux:label>
+                                <flux:select name="sport_classes[{{ $loop_index }}][classification_status]"
+                                             x-model="status">
+                                    <option value="">–</option>
+                                    <option
+                                        value="NEW" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'NEW')>
+                                        New
+                                    </option>
+                                    <option
+                                        value="CONFIRMED" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'CONFIRMED')>
+                                        Confirmed
+                                    </option>
+                                    <option
+                                        value="REVIEW" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'REVIEW')>
+                                        Review
+                                    </option>
+                                    <option
+                                        value="FRD" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'FRD')>
+                                        Fixed Review Date (FRD)
+                                    </option>
+                                    <option
+                                        value="NE" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'NE')>
+                                        Not Eligible (NE)
+                                    </option>
+                                </flux:select>
+                            </flux:field>
+                            <flux:field x-show="status === 'FRD'" x-cloak>
+                                @php $frdDefault = (int) date('Y') + 2; @endphp
+                                <flux:label>FRD Jahr</flux:label>
+                                <flux:input name="sport_classes[{{ $loop_index }}][frd_year]"
+                                            type="number" min="2000" max="2100"
+                                            value="{{ old('sport_classes.' . $loop_index . '.frd_year', $existing?->frd_year ?? $frdDefault) }}"/>
+                            </flux:field>
+                        </div>
                     </div>
                 @endforeach
                 <flux:description>Klassen-Nr. leer lassen wenn nicht zutreffend.</flux:description>

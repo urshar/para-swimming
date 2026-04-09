@@ -24,14 +24,28 @@ return new class extends Migration
             // Vollständiger Display-String: "S4", "SB3", "SM14", "GER.AB"
             $table->string('sport_class', 15);
 
-            // LENEX 3.0 *status Attribute (freestatus / breaststatus / medleystatus)
-            $table->enum('status', [
-                'NATIONAL',     // Nur national gültig
-                'NEW',          // Noch nicht gültig
-                'REVIEW',       // Muss dieses Jahr überprüft werden, bis Jahresende gültig
-                'OBSERVATION',  // Muss beim Wettkampf beobachtet werden
-                'CONFIRMED',    // Bestätigt für internationale Wettkämpfe
+            // Gültigkeitsbereich:
+            //   INTL = international gültig (Athlet hat SDMS/IPC-ID)
+            //   NAT  = nur national gültig (ÖBSV)
+            $table->enum('classification_scope', ['INTL', 'NAT'])->default('INTL');
+
+            // Klassifikationsstatus — entspricht LENEX 3.0 *status Attributen,
+            // erweitert um FRD und NE:
+            //   NEW       = Erstklassifizierung, noch nicht bestätigt
+            //   CONFIRMED = Bestätigt (international: LENEX CONFIRMED)
+            //   REVIEW    = Muss überprüft werden (LENEX REVIEW / OBSERVATION)
+            //   FRD       = Fixed Review Date → frd_year gibt das Jahr an
+            //   NE        = Not Eligible (nicht klassifizierbar)
+            $table->enum('classification_status', [
+                'NEW',
+                'CONFIRMED',
+                'REVIEW',
+                'FRD',
+                'NE',
             ])->nullable();
+
+            // Nur bei classification_status = FRD: Jahr des nächsten Review-Termins
+            $table->smallInteger('frd_year')->nullable()->unsigned();
 
             $table->timestamps();
 
@@ -42,9 +56,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('athlete_sport_classes');

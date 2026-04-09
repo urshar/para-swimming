@@ -31,8 +31,8 @@ class ClassifierController extends Controller
             $query->where('type', $type);
         }
 
-        if ($nation = $request->query('nation')) {
-            $query->where('nation', $nation);
+        if ($nationId = $request->query('nation_id')) {
+            $query->where('nation_id', $nationId);
         }
 
         if ($request->query('active_only', '1') === '1') {
@@ -41,8 +41,7 @@ class ClassifierController extends Controller
 
         $classifiers = $query->paginate(25)->withQueryString();
 
-        // Alle verwendeten Nationen für den Filter
-        $nations = Classifier::distinct()->orderBy('nation')->pluck('nation')->filter();
+        $nations = Nation::active()->orderBy('name_de')->get();
 
         return view('classifiers.index', compact('classifiers', 'nations'));
     }
@@ -121,7 +120,7 @@ class ClassifierController extends Controller
             'type' => 'required|in:MED,TECH',
             'email' => 'nullable|email|max:200',
             'phone' => 'nullable|string|max:50',
-            'nation' => 'nullable|string|max:10',
+            'nation_id' => 'nullable|exists:nations,id',
             'gender' => 'nullable|in:M,F,N',
             'is_active' => 'boolean',
             'notes' => 'nullable|string|max:2000',

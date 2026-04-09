@@ -17,13 +17,15 @@
                     icon="magnifying-glass" class="w-64"/>
         <flux:select name="type" placeholder="Typ" class="w-48">
             <option value="">Alle Typen</option>
-            <option value="MED" @selected(request('type') === 'MED')>Medizinisch</option>
+            <option value="MED"  @selected(request('type') === 'MED')>Medizinisch</option>
             <option value="TECH" @selected(request('type') === 'TECH')>Technisch</option>
         </flux:select>
-        <flux:select name="nation" placeholder="Nation" class="w-32">
+        <flux:select name="nation_id" placeholder="Nation" class="w-40">
             <option value="">Alle Nationen</option>
             @foreach($nations as $nation)
-                <option value="{{ $nation }}" @selected(request('nation') === $nation)>{{ $nation }}</option>
+                <option value="{{ $nation->id }}" @selected(request('nation_id') == $nation->id)>
+                    {{ $nation->code }} – {{ $nation->name_de }}
+                </option>
             @endforeach
         </flux:select>
         <flux:select name="active_only" class="w-40">
@@ -31,9 +33,8 @@
             <option value="0" @selected(request('active_only') === '0')>Alle</option>
         </flux:select>
         <flux:button type="submit" icon="funnel">Filtern</flux:button>
-        @if(request()->hasAny(['search', 'type', 'nation', 'active_only']))
-            <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="x-mark">Zurücksetzen
-            </flux:button>
+        @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
+            <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
         @endif
     </form>
 
@@ -67,7 +68,7 @@
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
-                        {{ $classifier->nation ?? '–' }}
+                        {{ $classifier->nation?->code ?? '–' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                         @if($classifier->email)
@@ -88,10 +89,8 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
-                            <flux:button href="{{ route('classifiers.show', $classifier) }}" size="sm" variant="ghost"
-                                         icon="eye"/>
-                            <flux:button href="{{ route('classifiers.edit', $classifier) }}" size="sm" variant="ghost"
-                                         icon="pencil"/>
+                            <flux:button href="{{ route('classifiers.show', $classifier) }}" size="sm" variant="ghost" icon="eye"/>
+                            <flux:button href="{{ route('classifiers.edit', $classifier) }}" size="sm" variant="ghost" icon="pencil"/>
                             <form method="POST" action="{{ route('classifiers.destroy', $classifier) }}"
                                   x-data="{ del() { if(confirm('Klassifizierer wirklich löschen?')) this.$el.submit() } }"
                                   @submit.prevent="del()">

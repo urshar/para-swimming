@@ -19,7 +19,9 @@
                 </div>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                     {{ match($classifier->gender ?? '') { 'M' => 'Herr', 'F' => 'Dame', 'N' => 'Nicht binär', default => '' } }}
-                    @if($classifier->nation) · {{ $classifier->nation }} @endif
+                    @if($classifier->nation)
+                        · {{ $classifier->nation->code }}
+                    @endif
                 </p>
             </div>
         </div>
@@ -40,7 +42,8 @@
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Nation</dt>
-                    <dd class="font-medium mt-0.5">{{ $classifier->nation ?? '–' }}</dd>
+                    <dd class="font-medium mt-0.5">{{ $classifier->nation?->code ?? '–' }}
+                        – {{ $classifier->nation?->name_de ?? '' }}</dd>
                 </div>
                 @if($classifier->email)
                     <div>
@@ -62,7 +65,9 @@
 
             @if($classifier->notes)
                 <div class="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-700">
-                    <dt class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Notizen</dt>
+                    <dt class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
+                        Notizen
+                    </dt>
                     <p class="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-line">{{ $classifier->notes }}</p>
                 </div>
             @endif
