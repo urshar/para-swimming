@@ -184,7 +184,7 @@
                             <option value="">Kein Verein / unbekannt</option>
                             @foreach($clubs as $club)
                                 <option value="{{ $club->id }}"
-                                    @selected(old('club_id', $rec->club_id ?? '') == $club->id)>
+                                    @selected(old('club_id', $rec?->club_id) == $club->id)>
                                     {{ $club->name }}
                                     @if($club->code)
                                         ({{ $club->code }})

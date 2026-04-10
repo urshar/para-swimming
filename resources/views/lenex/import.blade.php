@@ -28,6 +28,7 @@
              handleSubmit() {
                  if (!this.filename) return;
                  this.importing = true;
+                 document.getElementById('lenex-import-form').submit();
              }
          }">
 
@@ -37,8 +38,6 @@
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
                  class="text-center py-8">
-
-                {{-- Spinner --}}
                 <svg class="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400 animate-spin"
                      fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10"
@@ -46,10 +45,7 @@
                     <path class="opacity-75" fill="currentColor"
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
-
-                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-                    Import läuft…
-                </p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Import läuft…</p>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-1">
                     <span x-text="filename" class="font-mono"></span>
                 </p>
@@ -59,19 +55,20 @@
             </div>
 
             {{-- Import-Formular --}}
-            <form method="POST"
+            <form id="lenex-import-form"
+                  method="POST"
                   action="{{ route('lenex.import.store') }}"
                   enctype="multipart/form-data"
                   x-show="!importing"
-                  @submit.prevent="handleSubmit(); $el.submit()">
+                  @submit.prevent="handleSubmit()">
                 @csrf
 
                 {{-- Drop Zone --}}
                 <div
                     class="border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer"
                     :class="dragging
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
-                    : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'"
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
+                        : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'"
                     @dragover.prevent="dragging = true"
                     @dragleave.prevent="dragging = false"
                     @drop.prevent="handleDrop($event)"
@@ -103,18 +100,33 @@
 
                 <flux:error name="lenex_file" class="mt-2"/>
 
-                {{-- Info-Typen --}}
+                {{-- Import-Typen --}}
                 <div class="mt-5 space-y-2">
                     <p class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Erkannte Import-Typen
                     </p>
-                    <div class="grid grid-cols-3 gap-3">
-                        @foreach(['Struktur' => 'Meet + Sessions + Events', 'Meldungen' => '+ Clubs, Athleten, Meldungen', 'Ergebnisse' => '+ Ergebnisse, Splits'] as $type => $desc)
-                            <div class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
-                                <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $type }}</div>
-                                <div class="text-xs text-zinc-400 mt-0.5">{{ $desc }}</div>
-                            </div>
-                        @endforeach
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
+                            <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Struktur</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">Meet + Sessions + Events</div>
+                        </div>
+                        <div class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
+                            <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Meldungen</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">+ Clubs, Athleten, Meldungen</div>
+                        </div>
+                        <div class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3">
+                            <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Ergebnisse</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">+ Ergebnisse, Splits, Plätze</div>
+                        </div>
+                        <div
+                            class="bg-zinc-50 dark:bg-zinc-700/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-600">
+                            <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Rekorde</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">Separater Import</div>
+                            <a href="{{ route('records.import') }}"
+                               class="inline-block mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                                Zu Rekorde importieren →
+                            </a>
+                        </div>
                     </div>
                 </div>
 

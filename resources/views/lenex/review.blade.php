@@ -26,26 +26,21 @@
                 <div
                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700 mb-6">
                     @foreach($unresolvedClubs as $i => $club)
-                        <div class="p-4" x-data="{ action: 'skip' }">
-                            <div class="flex items-start gap-4">
+                        <div class="p-4">
+                            <div class="flex items-center gap-4">
                                 <div class="flex-1">
                                     <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $club['name'] }}</div>
                                     <div class="text-xs text-zinc-400 mt-0.5">
                                         Code: {{ $club['code'] ?: '–' }} · Nation: {{ $club['nation_code'] }}
+                                        @if($club['regional_association'] ?? null)
+                                            · Verband: {{ $club['regional_association'] }}
+                                        @endif
                                     </div>
                                 </div>
-                                <div class="flex gap-2">
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" :name="'clubs[{{ $i }}][action]'" value="create"
-                                               x-model="action" class="text-blue-600">
-                                        <span class="text-sm">Anlegen</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" :name="'clubs[{{ $i }}][action]'" value="skip"
-                                               x-model="action" checked class="text-zinc-400">
-                                        <span class="text-sm">Überspringen</span>
-                                    </label>
-                                </div>
+                                <flux:select name="clubs[{{ $i }}][action]" class="w-40">
+                                    <option value="create" selected>Anlegen</option>
+                                    <option value="skip">Überspringen</option>
+                                </flux:select>
                             </div>
                             <input type="hidden" name="clubs[{{ $i }}][name]" value="{{ $club['name'] }}">
                             <input type="hidden" name="clubs[{{ $i }}][code]" value="{{ $club['code'] }}">
@@ -53,6 +48,8 @@
                             <input type="hidden" name="clubs[{{ $i }}][lenex_id]" value="{{ $club['lenex_id'] }}">
                             <input type="hidden" name="clubs[{{ $i }}][cache_key]"
                                    value="{{ $club['cache_key'] ?? '' }}">
+                            <input type="hidden" name="clubs[{{ $i }}][regional_association]"
+                                   value="{{ $club['regional_association'] ?? '' }}">
                         </div>
                     @endforeach
                 </div>
@@ -80,8 +77,8 @@
                 <div
                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700 mb-6">
                     @foreach($unresolvedAthletes as $i => $athlete)
-                        <div class="p-4" x-data="{ action: 'skip' }">
-                            <div class="flex items-start gap-4">
+                        <div class="p-4">
+                            <div class="flex items-center gap-4">
                                 <div class="flex-1">
                                     <div class="font-medium text-zinc-900 dark:text-zinc-100">
                                         {{ $athlete['last_name'] }}, {{ $athlete['first_name'] }}
@@ -95,18 +92,10 @@
                                         @endif
                                     </div>
                                 </div>
-                                <div class="flex gap-2">
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" :name="'athletes[{{ $i }}][action]'" value="create"
-                                               x-model="action" class="text-blue-600">
-                                        <span class="text-sm">Anlegen</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" :name="'athletes[{{ $i }}][action]'" value="skip"
-                                               x-model="action" checked class="text-zinc-400">
-                                        <span class="text-sm">Überspringen</span>
-                                    </label>
-                                </div>
+                                <flux:select name="athletes[{{ $i }}][action]" class="w-40">
+                                    <option value="create" selected>Anlegen</option>
+                                    <option value="skip">Überspringen</option>
+                                </flux:select>
                             </div>
                             <input type="hidden" name="athletes[{{ $i }}][first_name]"
                                    value="{{ $athlete['first_name'] }}">

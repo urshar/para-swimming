@@ -19,7 +19,9 @@
                 </div>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                     {{ match($athlete->gender) { 'M' => 'Herr', 'F' => 'Dame', default => 'Nicht binär' } }}
-                    @if($athlete->birth_date) · *{{ $athlete->birth_date->format('d.m.Y') }} @endif
+                    @if($athlete->birth_date)
+                        · *{{ $athlete->birth_date->format('d.m.Y') }}
+                    @endif
                     · {{ $athlete->nation?->code }}
                 </p>
             </div>
@@ -37,9 +39,10 @@
             <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
-                    <dd class="font-medium mt-0.5">
+                    <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">
                         @if($athlete->club)
-                            <a href="{{ route('clubs.show', $athlete->club) }}" class="hover:text-blue-600 transition-colors">
+                            <a href="{{ route('clubs.show', $athlete->club) }}"
+                               class="hover:text-blue-600 transition-colors">
                                 {{ $athlete->club->display_name }}
                             </a>
                         @else
@@ -49,20 +52,20 @@
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Nation</dt>
-                    <dd class="font-medium mt-0.5">{{ $athlete->nation?->name_de ?? '–' }}</dd>
+                    <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ $athlete->nation?->name_de ?? '–' }}</dd>
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Lizenznummer</dt>
-                    <dd class="font-medium mt-0.5 font-mono">{{ $athlete->license ?? '–' }}</dd>
+                    <dd class="font-medium mt-0.5 font-mono text-slate-700 dark:text-slate-300">{{ $athlete->license ?? '–' }}</dd>
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">SDMS ID</dt>
-                    <dd class="font-medium mt-0.5 font-mono">{{ $athlete->license_ipc ?? '–' }}</dd>
+                    <dd class="font-medium mt-0.5 font-mono text-slate-700 dark:text-slate-300">{{ $athlete->license_ipc ?? '–' }}</dd>
                 </div>
                 @if($athlete->disability_type)
                     <div>
                         <dt class="text-zinc-500 dark:text-zinc-400">Behinderungsart</dt>
-                        <dd class="font-medium mt-0.5">{{ ucfirst($athlete->disability_type) }}</dd>
+                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ ucfirst($athlete->disability_type) }}</dd>
                     </div>
                 @endif
                 @if($athlete->email)
@@ -86,9 +89,13 @@
                         <dt class="text-zinc-500 dark:text-zinc-400">Adresse</dt>
                         <dd class="font-medium mt-0.5">
                             {{ $athlete->address_street }}
-                            @if($athlete->address_street && $athlete->address_city), @endif
+                            @if($athlete->address_street && $athlete->address_city)
+                                ,
+                            @endif
                             {{ $athlete->address_zip }} {{ $athlete->address_city }}
-                            @if($athlete->address_country) · {{ $athlete->address_country }} @endif
+                            @if($athlete->address_country)
+                                · {{ $athlete->address_country }}
+                            @endif
                         </dd>
                     </div>
                 @endif
@@ -96,7 +103,9 @@
 
             @if($athlete->notes)
                 <div class="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-700">
-                    <dt class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Notizen</dt>
+                    <dt class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
+                        Notizen
+                    </dt>
                     <p class="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-line">{{ $athlete->notes }}</p>
                 </div>
             @endif
@@ -113,7 +122,8 @@
                         </span>
                         <div class="flex items-center gap-1.5">
                             {{-- Scope: INTL oder NAT --}}
-                            <flux:badge size="sm" color="{{ $sc->classification_scope === 'INTL' ? 'violet' : 'zinc' }}">
+                            <flux:badge size="sm"
+                                        color="{{ $sc->classification_scope === 'INTL' ? 'violet' : 'zinc' }}">
                                 {{ $sc->classification_scope }}
                             </flux:badge>
                             {{-- Status inkl. FRD-Jahr --}}
@@ -186,7 +196,8 @@
                 </flux:field>
                 <div class="flex gap-2 mt-3">
                     <flux:button type="submit" variant="primary" size="sm">Ummeldung speichern</flux:button>
-                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openTransfer = false">Abbrechen</flux:button>
+                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openTransfer = false">Abbrechen
+                    </flux:button>
                 </div>
             </form>
         </div>
@@ -211,8 +222,10 @@
                         </div>
                         <div class="text-zinc-500 dark:text-zinc-400 text-xs text-right">
                             {{ $entry->joined_at->format('d.m.Y') }}
-                            @if($entry->left_at) – {{ $entry->left_at->format('d.m.Y') }}
-                            @elseif($entry->is_active) – heute
+                            @if($entry->left_at)
+                                – {{ $entry->left_at->format('d.m.Y') }}
+                            @elseif($entry->is_active)
+                                – heute
                             @endif
                         </div>
                     </div>
@@ -253,7 +266,8 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Ort</flux:label>
-                        <flux:input name="location" value="{{ old('location') }}" placeholder="Stadt / Veranstaltungsort"/>
+                        <flux:input name="location" value="{{ old('location') }}"
+                                    placeholder="Stadt / Veranstaltungsort"/>
                         <flux:error name="location"/>
                     </flux:field>
                 </div>
@@ -267,7 +281,7 @@
                             <option value="INTL" @selected(old('classification_scope', $defaultScope) === 'INTL')>
                                 🌍 International (SDMS)
                             </option>
-                            <option value="NAT"  @selected(old('classification_scope', $defaultScope) === 'NAT')>
+                            <option value="NAT" @selected(old('classification_scope', $defaultScope) === 'NAT')>
                                 🇦🇹 Nur national (ÖBSV)
                             </option>
                         </flux:select>
@@ -277,11 +291,16 @@
                         <flux:label>Status</flux:label>
                         <flux:select name="classification_status" x-model="status">
                             <option value="">–</option>
-                            <option value="NEW"       @selected(old('classification_status') === 'NEW')>New</option>
-                            <option value="CONFIRMED" @selected(old('classification_status') === 'CONFIRMED')>Confirmed</option>
-                            <option value="REVIEW"    @selected(old('classification_status') === 'REVIEW')>Review</option>
-                            <option value="FRD"       @selected(old('classification_status') === 'FRD')>Fixed Review Date (FRD)</option>
-                            <option value="NE"        @selected(old('classification_status') === 'NE')>Not Eligible (NE)</option>
+                            <option value="NEW" @selected(old('classification_status') === 'NEW')>New</option>
+                            <option value="CONFIRMED" @selected(old('classification_status') === 'CONFIRMED')>
+                                Confirmed
+                            </option>
+                            <option value="REVIEW" @selected(old('classification_status') === 'REVIEW')>Review</option>
+                            <option value="FRD" @selected(old('classification_status') === 'FRD')>Fixed Review Date
+                                (FRD)
+                            </option>
+                            <option value="NE" @selected(old('classification_status') === 'NE')>Not Eligible (NE)
+                            </option>
                         </flux:select>
                         <flux:error name="classification_status"/>
                     </flux:field>
@@ -357,7 +376,8 @@
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS Exceptions</p>
                     <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
                         @foreach($exceptionCodes as $code)
-                            <div class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                            <div
+                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
                                 <input type="checkbox"
                                        name="exceptions[{{ $loop->index }}][code_id]"
                                        value="{{ $code->id }}"
@@ -366,7 +386,8 @@
                                 <label for="new_exc_{{ $code->id }}"
                                        class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                     {{ $code->code }}
-                                    <span class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
+                                    <span
+                                        class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                 </label>
                                 <flux:select name="exceptions[{{ $loop->index }}][category]" class="w-24 text-xs">
                                     <option value="">–</option>
@@ -384,7 +405,9 @@
                 </flux:field>
                 <div class="flex gap-2 mt-3">
                     <flux:button type="submit" variant="primary" size="sm">Speichern</flux:button>
-                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openClassification = false">Abbrechen</flux:button>
+                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openClassification = false">
+                        Abbrechen
+                    </flux:button>
                 </div>
             </form>
         </div>
@@ -407,10 +430,12 @@
                                             <span class="text-zinc-500">· {{ $cl->location }}</span>
                                         @endif
                                         @if($cl->result_s || $cl->result_sb || $cl->result_sm)
-                                            <flux:badge size="sm" color="blue">{{ $cl->sport_class_results_display }}</flux:badge>
+                                            <flux:badge size="sm"
+                                                        color="blue">{{ $cl->sport_class_results_display }}</flux:badge>
                                         @endif
                                         {{-- Scope-Badge: INTL oder NAT --}}
-                                        <flux:badge size="sm" color="{{ $cl->classification_scope === 'INTL' ? 'violet' : 'zinc' }}">
+                                        <flux:badge size="sm"
+                                                    color="{{ $cl->classification_scope === 'INTL' ? 'violet' : 'zinc' }}">
                                             {{ $cl->classification_scope }}
                                         </flux:badge>
                                         {{-- Status inkl. FRD-Jahr --}}
@@ -429,13 +454,15 @@
                                         @endif
                                         @if($cl->tech1Classifier)
                                             <span>
-                                                <span class="font-medium text-zinc-600 dark:text-zinc-300">Tech 1:</span>
+                                                <span
+                                                    class="font-medium text-zinc-600 dark:text-zinc-300">Tech 1:</span>
                                                 {{ $cl->tech1Classifier->full_name }}
                                             </span>
                                         @endif
                                         @if($cl->tech2Classifier)
                                             <span>
-                                                <span class="font-medium text-zinc-600 dark:text-zinc-300">Tech 2:</span>
+                                                <span
+                                                    class="font-medium text-zinc-600 dark:text-zinc-300">Tech 2:</span>
                                                 {{ $cl->tech2Classifier->full_name }}
                                             </span>
                                         @endif
@@ -474,7 +501,8 @@
                         {{-- Bearbeitungsmodus --}}
                         <div x-show="editing" x-cloak
                              class="p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600">
-                            <h4 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Klassifikation bearbeiten</h4>
+                            <h4 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Klassifikation
+                                bearbeiten</h4>
                             <form method="POST"
                                   action="{{ route('athletes.classifications.update', [$athlete, $cl]) }}">
                                 @csrf @method('PUT')
@@ -501,7 +529,7 @@
                                             <option value="INTL" @selected($cl->classification_scope === 'INTL')>
                                                 🌍 International (SDMS)
                                             </option>
-                                            <option value="NAT"  @selected($cl->classification_scope === 'NAT')>
+                                            <option value="NAT" @selected($cl->classification_scope === 'NAT')>
                                                 🇦🇹 Nur national (ÖBSV)
                                             </option>
                                         </flux:select>
@@ -511,11 +539,21 @@
                                         <flux:label>Status</flux:label>
                                         <flux:select name="classification_status" x-model="status">
                                             <option value="">–</option>
-                                            <option value="NEW"       @selected($cl->classification_status === 'NEW')>New</option>
-                                            <option value="CONFIRMED" @selected($cl->classification_status === 'CONFIRMED')>Confirmed</option>
-                                            <option value="REVIEW"    @selected($cl->classification_status === 'REVIEW')>Review</option>
-                                            <option value="FRD"       @selected($cl->classification_status === 'FRD')>Fixed Review Date (FRD)</option>
-                                            <option value="NE"        @selected($cl->classification_status === 'NE')>Not Eligible (NE)</option>
+                                            <option value="NEW" @selected($cl->classification_status === 'NEW')>New
+                                            </option>
+                                            <option
+                                                value="CONFIRMED" @selected($cl->classification_status === 'CONFIRMED')>
+                                                Confirmed
+                                            </option>
+                                            <option value="REVIEW" @selected($cl->classification_status === 'REVIEW')>
+                                                Review
+                                            </option>
+                                            <option value="FRD" @selected($cl->classification_status === 'FRD')>Fixed
+                                                Review Date (FRD)
+                                            </option>
+                                            <option value="NE" @selected($cl->classification_status === 'NE')>Not
+                                                Eligible (NE)
+                                            </option>
                                         </flux:select>
                                         <flux:error name="classification_status"/>
                                     </flux:field>
@@ -533,7 +571,8 @@
                                         <flux:select name="med_classifier_id">
                                             <option value="">–</option>
                                             @foreach($medClassifiers as $c)
-                                                <option value="{{ $c->id }}" @selected($cl->med_classifier_id == $c->id)>
+                                                <option
+                                                    value="{{ $c->id }}" @selected($cl->med_classifier_id == $c->id)>
                                                     {{ $c->full_name }}
                                                 </option>
                                             @endforeach
@@ -544,7 +583,8 @@
                                         <flux:select name="tech1_classifier_id">
                                             <option value="">–</option>
                                             @foreach($techClassifiers as $c)
-                                                <option value="{{ $c->id }}" @selected($cl->tech1_classifier_id == $c->id)>
+                                                <option
+                                                    value="{{ $c->id }}" @selected($cl->tech1_classifier_id == $c->id)>
                                                     {{ $c->full_name }}
                                                 </option>
                                             @endforeach
@@ -555,7 +595,8 @@
                                         <flux:select name="tech2_classifier_id">
                                             <option value="">–</option>
                                             @foreach($techClassifiers as $c)
-                                                <option value="{{ $c->id }}" @selected($cl->tech2_classifier_id == $c->id)>
+                                                <option
+                                                    value="{{ $c->id }}" @selected($cl->tech2_classifier_id == $c->id)>
                                                     {{ $c->full_name }}
                                                 </option>
                                             @endforeach
@@ -563,34 +604,41 @@
                                     </flux:field>
                                 </div>
                                 <div class="mt-3">
-                                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Ergebnis Sportklassen</p>
+                                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Ergebnis
+                                        Sportklassen</p>
                                     <div class="grid grid-cols-3 gap-3">
                                         <flux:field>
                                             <flux:label>S (Freistil/Rücken/Fly)</flux:label>
-                                            <flux:input name="result_s" value="{{ $cl->result_s }}" placeholder="z.B. 4"/>
+                                            <flux:input name="result_s" value="{{ $cl->result_s }}"
+                                                        placeholder="z.B. 4"/>
                                             <flux:error name="result_s"/>
                                         </flux:field>
                                         <flux:field>
                                             <flux:label>SB (Brust)</flux:label>
-                                            <flux:input name="result_sb" value="{{ $cl->result_sb }}" placeholder="z.B. 3"/>
+                                            <flux:input name="result_sb" value="{{ $cl->result_sb }}"
+                                                        placeholder="z.B. 3"/>
                                             <flux:error name="result_sb"/>
                                         </flux:field>
                                         <flux:field>
                                             <flux:label>SM (Lagen)</flux:label>
-                                            <flux:input name="result_sm" value="{{ $cl->result_sm }}" placeholder="z.B. 4"/>
+                                            <flux:input name="result_sm" value="{{ $cl->result_sm }}"
+                                                        placeholder="z.B. 4"/>
                                             <flux:error name="result_sm"/>
                                         </flux:field>
                                     </div>
-                                    <flux:description>Leer lassen wenn der Athlet diese Kategorie nicht schwimmt.</flux:description>
+                                    <flux:description>Leer lassen wenn der Athlet diese Kategorie nicht schwimmt.
+                                    </flux:description>
                                 </div>
 
                                 {{-- Exceptions --}}
                                 <div class="mt-3">
-                                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS Exceptions</p>
+                                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS
+                                        Exceptions</p>
                                     <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
                                         @foreach($exceptionCodes as $code)
                                             @php $excExisting = $cl->exceptions->firstWhere('id', $code->id); @endphp
-                                            <div class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                                            <div
+                                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
                                                 <input type="checkbox"
                                                        name="exceptions[{{ $loop->index }}][code_id]"
                                                        value="{{ $code->id }}"
@@ -600,13 +648,23 @@
                                                 <label for="edit_exc_{{ $cl->id }}_{{ $code->id }}"
                                                        class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                                     {{ $code->code }}
-                                                    <span class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
+                                                    <span
+                                                        class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                                 </label>
-                                                <flux:select name="exceptions[{{ $loop->index }}][category]" class="w-24 text-xs">
+                                                <flux:select name="exceptions[{{ $loop->index }}][category]"
+                                                             class="w-24 text-xs">
                                                     <option value="">–</option>
-                                                    <option value="S"  @selected($excExisting?->pivot?->category === 'S')>S</option>
-                                                    <option value="SB" @selected($excExisting?->pivot?->category === 'SB')>SB</option>
-                                                    <option value="SM" @selected($excExisting?->pivot?->category === 'SM')>SM</option>
+                                                    <option
+                                                        value="S" @selected($excExisting?->pivot?->category === 'S')>S
+                                                    </option>
+                                                    <option
+                                                        value="SB" @selected($excExisting?->pivot?->category === 'SB')>
+                                                        SB
+                                                    </option>
+                                                    <option
+                                                        value="SM" @selected($excExisting?->pivot?->category === 'SM')>
+                                                        SM
+                                                    </option>
                                                 </flux:select>
                                             </div>
                                         @endforeach
@@ -619,7 +677,8 @@
                                 <div class="flex gap-2 mt-3">
                                     <flux:button type="submit" variant="primary" size="sm">Speichern</flux:button>
                                     <flux:button type="button" variant="ghost" size="sm"
-                                                 x-on:click="editing = false">Abbrechen</flux:button>
+                                                 x-on:click="editing = false">Abbrechen
+                                    </flux:button>
                                 </div>
                             </form>
                         </div>
@@ -642,7 +701,8 @@
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">
                 Level-History
                 @if($athlete->level)
-                    <span class="text-zinc-500 font-normal text-sm ml-1">— aktuell: <strong class="text-zinc-800 dark:text-zinc-200">{{ $athlete->level }}</strong></span>
+                    <span class="text-zinc-500 font-normal text-sm ml-1">— aktuell: <strong
+                            class="text-zinc-800 dark:text-zinc-200">{{ $athlete->level }}</strong></span>
                 @endif
             </h2>
             <flux:button size="sm" variant="ghost" icon="plus"
@@ -677,7 +737,8 @@
                 </flux:field>
                 <div class="flex gap-2 mt-3">
                     <flux:button type="submit" variant="primary" size="sm">Speichern</flux:button>
-                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openLevel = false">Abbrechen</flux:button>
+                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openLevel = false">Abbrechen
+                    </flux:button>
                 </div>
             </form>
         </div>
@@ -730,7 +791,8 @@
             @forelse($results as $result)
                 <flux:table.row>
                     <flux:table.cell class="text-sm">
-                        <a href="{{ route('meets.show', $result->meet) }}" class="hover:text-blue-600 transition-colors">
+                        <a href="{{ route('meets.show', $result->meet) }}"
+                           class="hover:text-blue-600 transition-colors">
                             {{ $result->meet?->name }}
                         </a>
                         <div class="text-xs text-zinc-400">{{ $result->meet?->start_date?->format('d.m.Y') }}</div>
@@ -753,9 +815,15 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex gap-1">
-                            @if($result->is_world_record)    <flux:badge size="sm" color="yellow">WR</flux:badge> @endif
-                            @if($result->is_european_record) <flux:badge size="sm" color="blue">ER</flux:badge> @endif
-                            @if($result->is_national_record) <flux:badge size="sm" color="emerald">NR</flux:badge> @endif
+                            @if($result->is_world_record)
+                                <flux:badge size="sm" color="yellow">WR</flux:badge>
+                            @endif
+                            @if($result->is_european_record)
+                                <flux:badge size="sm" color="blue">ER</flux:badge>
+                            @endif
+                            @if($result->is_national_record)
+                                <flux:badge size="sm" color="emerald">NR</flux:badge>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

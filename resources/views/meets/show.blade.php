@@ -20,7 +20,8 @@
                 LENEX Export
             </flux:button>
             <form method="POST" action="{{ route('records.check', $meet) }}"
-                  x-data @submit.prevent="if(confirm('Alle Ergebnisse auf Rekorde prüfen?')) $el.submit()">
+                  x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
+                  @submit.prevent="submit()">
                 @csrf
                 <flux:button type="submit" variant="ghost" icon="star" size="sm">
                     Rekorde prüfen
@@ -31,6 +32,26 @@
             </flux:button>
         </div>
     </div>
+
+    {{-- Flash-Messages --}}
+    @if(session('success'))
+        <div
+            class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->has('check'))
+        <div
+            class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+            {{ $errors->first('check') }}
+        </div>
+    @endif
+
+    {{-- Rekord-Check Ergebnis (neue/ausstehende Rekorde als Liste) --}}
+    @if(session('record_check_result'))
+        @include('records.check-result', ['checkResult' => session('record_check_result')])
+    @endif
 
     {{-- Stats --}}
     <div class="grid grid-cols-3 gap-4 mb-6">
@@ -105,7 +126,8 @@
                                         <flux:button href="{{ route('events.edit', $event) }}" size="sm" variant="ghost"
                                                      icon="pencil"/>
                                         <form method="POST" action="{{ route('events.destroy', $event) }}"
-                                              x-data @submit.prevent="if(confirm('Disziplin löschen?')) $el.submit()">
+                                              x-data="{ submit() { if (confirm('Disziplin löschen?')) this.$el.submit() } }"
+                                              @submit.prevent="submit()">
                                             @csrf @method('DELETE')
                                             <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                                          class="text-red-500"/>

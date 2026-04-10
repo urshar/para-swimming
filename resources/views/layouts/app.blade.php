@@ -22,8 +22,6 @@
 </head>
 <body class="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
 
-{{-- flux:sidebar und flux:main müssen direkte Kinder von body sein --}}
-
 <flux:sidebar sticky stashable class="bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800">
 
     <flux:sidebar.toggle class="lg:hidden" icon="x-mark"/>
@@ -44,42 +42,62 @@
     <flux:navlist>
 
         <flux:navlist.group heading="Wettkämpfe">
-            <flux:navlist.item icon="trophy" href="{{ route('meets.index') }}" :current="request()->routeIs('meets.*')">
+            <flux:navlist.item icon="trophy" href="{{ route('meets.index') }}"
+                               :current="request()->routeIs('meets.*')">
                 Wettkämpfe
             </flux:navlist.item>
             <flux:navlist.item icon="list-bullet" href="{{ route('entries.index') }}"
-                               :current="request()->routeIs('entries.*')">Meldungen
+                               :current="request()->routeIs('entries.*')">
+                Meldungen
             </flux:navlist.item>
             <flux:navlist.item icon="chart-bar" href="{{ route('results.index') }}"
-                               :current="request()->routeIs('results.*')">Ergebnisse
+                               :current="request()->routeIs('results.*')">
+                Ergebnisse
             </flux:navlist.item>
         </flux:navlist.group>
 
         <flux:navlist.group heading="Stammdaten">
             <flux:navlist.item icon="user-group" href="{{ route('athletes.index') }}"
-                               :current="request()->routeIs('athletes.*')">Athleten
+                               :current="request()->routeIs('athletes.*')">
+                Athleten
             </flux:navlist.item>
             <flux:navlist.item icon="building-office" href="{{ route('clubs.index') }}"
-                               :current="request()->routeIs('clubs.*')">Vereine
+                               :current="request()->routeIs('clubs.*')">
+                Vereine
             </flux:navlist.item>
             <flux:navlist.item icon="flag" href="{{ route('nations.index') }}"
-                               :current="request()->routeIs('nations.*')">Nationen
+                               :current="request()->routeIs('nations.*')">
+                Nationen
+            </flux:navlist.item>
+            <flux:navlist.item icon="identification" href="{{ route('classifiers.index') }}"
+                               :current="request()->routeIs('classifiers.*')">
+                Klassifizierer
             </flux:navlist.item>
         </flux:navlist.group>
 
-        <flux:navlist.group heading="Rekorde & LENEX">
+        <flux:navlist.group heading="Rekorde">
             <flux:navlist.item icon="star" href="{{ route('records.index') }}"
                                :current="request()->routeIs('records.index') || request()->routeIs('records.show') || request()->routeIs('records.create') || request()->routeIs('records.edit')">
                 Rekorde
             </flux:navlist.item>
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('records.import') }}"
-                               :current="request()->routeIs('records.import*')">Rekorde importieren
+                               :current="request()->routeIs('records.import*')">
+                Rekorde importieren
             </flux:navlist.item>
+            <flux:navlist.item icon="arrow-down-tray" href="{{ route('records.export') }}"
+                               :current="request()->routeIs('records.export*')">
+                Rekorde exportieren
+            </flux:navlist.item>
+        </flux:navlist.group>
+
+        <flux:navlist.group heading="LENEX">
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
-                               :current="request()->routeIs('lenex.import*')">LENEX Import
+                               :current="request()->routeIs('lenex.import*')">
+                Import
             </flux:navlist.item>
             <flux:navlist.item icon="arrow-down-tray" href="{{ route('lenex.export') }}"
-                               :current="request()->routeIs('lenex.export*')">LENEX Export
+                               :current="request()->routeIs('lenex.export*')">
+                Export
             </flux:navlist.item>
         </flux:navlist.group>
 
@@ -109,7 +127,6 @@
 
 </flux:sidebar>
 
-{{-- flux:main übernimmt automatisch den verbleibenden Platz neben flux:sidebar --}}
 <flux:main class="p-6">
 
     @if(session('success'))

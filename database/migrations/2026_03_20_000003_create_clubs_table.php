@@ -30,7 +30,7 @@ return new class extends Migration
                 'BBSV',
                 'KLSV',
                 'NOEVSV',
-                'OBSV',
+                'OOEBSV',
                 'SBSV',
                 'STBSV',
                 'TBSV',

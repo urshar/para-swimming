@@ -55,6 +55,7 @@ class LenexResolverService
         $lenexId = (string) ($clubXml['clubid'] ?? $clubXml['id'] ?? '');
         $code = (string) ($clubXml['code'] ?? '');
         $name = (string) ($clubXml['name'] ?? '');
+        $region = $this->mapRegionalAssociation((string) ($clubXml['region'] ?? ''));
 
         // Stabiler Cache-Key: lenex_id wenn vorhanden, sonst "code:BSRO" als Fallback
         $cacheKey = $lenexId ?: ('code:'.$code);
@@ -82,19 +83,28 @@ class LenexResolverService
         }
 
         if ($club) {
+            $updates = [];
+            // Regional-Zuordnung ergänzen, wenn noch nicht gesetzt
+            if ($region && ! $club->getAttribute('regional_association')) {
+                $updates['regional_association'] = $region;
+            }
+            if (! empty($updates)) {
+                $club->update($updates);
+            }
             $this->clubCache[$cacheKey] = $club->id;
 
             return $club;
         }
 
-        // Nicht gefunden → vormerken — cache_key mitgeben für resolveClubs()
+        // Nicht gefunden → vormerken — cache_key und region mitgeben
         $this->unresolvedClubs[] = [
-            'cache_key' => $cacheKey,   // stabiler Key für extractAthletesForClubs
+            'cache_key' => $cacheKey,
             'lenex_id' => $lenexId,
             'code' => $code,
             'name' => $name,
             'nation_id' => $nationId,
             'nation_code' => Nation::find($nationId)?->code ?? '',
+            'regional_association' => $region,
         ];
 
         return null;
@@ -102,16 +112,21 @@ class LenexResolverService
 
     public function createClub(array $data): Club
     {
-        return Club::create([
+        $club = Club::create([
             'name' => $data['name'],
             'short_name' => $data['short_name'] ?? null,
             'code' => $data['code'] ?? null,
             'nation_id' => $data['nation_id'],
             'type' => $data['type'] ?? 'CLUB',
+            'regional_association' => $data['regional_association'] ?? null,
         ]);
-    }
 
-    // ── Athleten ──────────────────────────────────────────────────────────────
+        if ($data['cache_key'] ?? null) {
+            $this->clubCache[$data['cache_key']] = $club->id;
+        }
+
+        return $club;
+    }
 
     public function resolveAthlete(
         SimpleXMLElement $athleteXml,
@@ -209,6 +224,8 @@ class LenexResolverService
         return $athlete;
     }
 
+    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
+
     public function addToEventCache(string $lenexEventId, int $swimEventId): void
     {
         $this->eventCache[$lenexEventId] = $swimEventId;
@@ -218,8 +235,6 @@ class LenexResolverService
     {
         return $this->eventCache[$lenexEventId] ?? null;
     }
-
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     public function addToClubCache(string $lenexId, int $clubId): void
     {
@@ -231,12 +246,12 @@ class LenexResolverService
         $this->athleteCache[$lenexId] = $athleteId;
     }
 
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
     public function getClubIdFromCache(string $lenexId): ?int
     {
         return $this->clubCache[$lenexId] ?? null;
     }
-
-    // ── Cache-Methoden ────────────────────────────────────────────────────────
 
     public function getAthleteIdFromCache(string $lenexId): ?int
     {
@@ -253,6 +268,8 @@ class LenexResolverService
         return $this->unresolvedAthletes;
     }
 
+    // ── Cache-Methoden ────────────────────────────────────────────────────────
+
     public function hasUnresolved(): bool
     {
         return ! empty($this->unresolvedClubs) || ! empty($this->unresolvedAthletes);
@@ -261,6 +278,46 @@ class LenexResolverService
     public function unresolvedCount(): int
     {
         return count($this->unresolvedClubs) + count($this->unresolvedAthletes);
+    }
+
+    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
+
+    /**
+     * Mappt LENEX region-Codes auf Club.REGIONAL_ASSOCIATIONS Keys.
+     *
+     * LENEX verwendet Landessportverband-Codes (LSV), die App verwendet
+     * Behindertensportverband-Codes (BSV). Das Mapping gilt nur für AUT.
+     *
+     * LENEX → App:
+     *   TLSV   → TBSV   (Tirol)
+     *   SLSV   → SBSV   (Salzburg)
+     *   KLSV   → KLSV   (Kärnten — identisch)
+     *   WLSV   → WBSV   (Wien)
+     *   OOELSV → OOEBSV   (Oberösterreich)
+     *   STLSV  → STBSV  (Steiermark)
+     *   BLSV   → BBSV   (Burgenland)
+     *   NOELSV → NOEVSV (Niederösterreich)
+     *   VLSV   → VBSV   (Vorarlberg)
+     */
+    private function mapRegionalAssociation(string $region): ?string
+    {
+        if ($region === '') {
+            return null;
+        }
+
+        $map = [
+            'TLSV' => 'TBSV',
+            'SLSV' => 'SBSV',
+            'KLSV' => 'KLSV',
+            'WLSV' => 'WBSV',
+            'OOELSV' => 'OOEBSV',
+            'STLSV' => 'STBSV',
+            'BLSV' => 'BBSV',
+            'NOELSV' => 'NOEVSV',
+            'VLSV' => 'VBSV',
+        ];
+
+        return $map[strtoupper(trim($region))] ?? null;
     }
 
     /**
@@ -279,8 +336,6 @@ class LenexResolverService
         $this->syncSportClasses($athlete, $handicapXml);
         $this->syncExceptions($athlete, $handicapXml);
     }
-
-    // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
 
     /**
      * Sport-Klassen S / SB / SM aus HANDICAP-Attributen synchronisieren.
@@ -306,7 +361,7 @@ class LenexResolverService
                 [
                     'class_number' => $classNumber,
                     'sport_class' => $category.$classNumber,
-                    'status' => $status,
+                    'classification_status' => $status,
                 ]
             );
         }
@@ -314,11 +369,20 @@ class LenexResolverService
 
     private function mapHandicapStatus(string $status): ?string
     {
-        $valid = ['NATIONAL', 'NEW', 'REVIEW', 'OBSERVATION', 'CONFIRMED'];
+        // Mapping LENEX → classification_status Enum
+        $map = [
+            'NEW' => 'NEW',
+            'CONFIRMED' => 'CONFIRMED',
+            'REVIEW' => 'REVIEW',
+            'OBSERVATION' => 'REVIEW',   // OBSERVATION → REVIEW (kein eigener Wert)
+            'NATIONAL' => 'NEW',      // national-only → NEW als Fallback
+        ];
         $upper = strtoupper(trim($status));
 
-        return in_array($upper, $valid) ? $upper : null;
+        return $map[$upper] ?? null;
     }
+
+    // ── Athleten ──────────────────────────────────────────────────────────────
 
     /**
      * WPS Exceptions aus dem exception-Attribut des HANDICAP-Elements synchronisieren.
@@ -378,8 +442,6 @@ class LenexResolverService
 
         return $this->exceptionCodeCache;
     }
-
-    // ── HANDICAP: Sport-Klassen + Exceptions ──────────────────────────────────
 
     private function extractPrimarySportClass(SimpleXMLElement $handicapXml): ?string
     {

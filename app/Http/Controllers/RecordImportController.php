@@ -31,7 +31,8 @@ class RecordImportController extends Controller
 
     /**
      * Datei hochladen, analysieren und Vorschau anzeigen.
-     * Unbekannte Clubs und Athleten werden zur manuellen Bestätigung angezeigt.
+     * Unbekannte Clubs, Athleten und Rekorde mit ungeklärter Nationalität
+     * werden zur manuellen Bestätigung angezeigt.
      */
     public function preview(Request $request): View|RedirectResponse
     {
@@ -40,7 +41,6 @@ class RecordImportController extends Controller
         ]);
 
         $file = $request->file('lenex_file');
-        // Datei mit originaler Extension speichern damit ZipArchive sie korrekt öffnen kann
         $path = $file->storeAs('record-imports', uniqid('rec_').'.'.$file->getClientOriginalExtension(), 'local');
 
         try {
@@ -50,7 +50,6 @@ class RecordImportController extends Controller
                 ->withErrors(['lenex_file' => 'Datei konnte nicht gelesen werden: '.$e->getMessage()]);
         }
 
-        // Pfad in Session speichern für den Import-Schritt
         Session::put('record_import_path', $path);
 
         return view('records.import-preview', [
@@ -61,7 +60,8 @@ class RecordImportController extends Controller
 
     /**
      * Import nach Bestätigung durchführen.
-     * Nimmt die Entscheidungen für unbekannte Clubs/Athleten entgegen.
+     * Nimmt die Entscheidungen für unbekannte Clubs/Athleten,
+     * regionale Rekorde und ausstehende (Nationalität unklar) Rekorde entgegen.
      */
     public function run(Request $request): RedirectResponse
     {
@@ -71,14 +71,12 @@ class RecordImportController extends Controller
                 ->withErrors(['lenex_file' => 'Session abgelaufen. Bitte Datei erneut hochladen.']);
         }
 
-        // clubs[key] = 'new' | 'skip' | club_id
         $approvedClubs = $request->input('clubs', []);
-        // athletes[key] = 'new' | 'skip' | athlete_id
         $approvedAthletes = $request->input('athletes', []);
         $newClubData = $request->input('new_clubs', []);
         $newAthleteData = $request->input('new_athletes', []);
-        // regional[WBSV] = 'import' | 'skip'
         $approvedRegional = $request->input('regional', []);
+        $approvedPending = $request->input('pending', []);   // ['pending_key' => 'import'|'skip']
 
         try {
             $result = $this->importService->import(
@@ -88,6 +86,7 @@ class RecordImportController extends Controller
                 $newClubData,
                 $newAthleteData,
                 $approvedRegional,
+                $approvedPending,
             );
         } catch (Throwable $e) {
             return redirect()->route('records.import')
@@ -96,8 +95,13 @@ class RecordImportController extends Controller
 
         Session::forget('record_import_path');
 
+        $msg = "{$result['imported']} Rekord(e) importiert, {$result['skipped']} übersprungen";
+        if (($result['regional_auto'] ?? 0) > 0) {
+            $msg .= ", {$result['regional_auto']} Regionalrekord(e) automatisch gesetzt";
+        }
+
         return redirect()
             ->route('records.index')
-            ->with('success', "{$result['imported']} Rekord(e) importiert, {$result['skipped']} übersprungen.");
+            ->with('success', $msg.'.');
     }
 }

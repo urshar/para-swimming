@@ -199,7 +199,8 @@ class LenexImportController extends Controller
                     'code' => $clubData['code'] ?? null,
                     'nation_id' => $clubData['nation_id'],
                     'type' => $clubData['type'] ?? 'CLUB',
-                    'lenex_club_id' => $clubData['lenex_id'] ?? null,
+                    'cache_key' => $clubData['cache_key'] ?? null,
+                    'regional_association' => $clubData['regional_association'] ?? null,
                 ]);
                 // cache_key ist der stabile Schlüssel (lenex_id oder "code:BSRO")
                 // Er muss mit dem übereinstimmen der in resolveClub() berechnet wurde

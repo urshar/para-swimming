@@ -36,6 +36,12 @@ use ZipArchive;
  *   - Staffeln: RELAY > CLUB + RELAYPOSITIONS > RELAYPOSITION > ATHLETE
  *   - Staffelteam in relay_team_members, club_id = Verein zum Zeitpunkt des Rekords
  *
+ * Nationalitätsprüfung beim Import:
+ *   - Club-Nation aus LENEX <CLUB nation="AUT"> als Indikator für Athleten-Nationalität
+ *   - nation="AUT"  → normaler Import mit status=APPROVED
+ *   - nation fehlt/leer → Import mit status=PENDING, in pending_records gelistet
+ *   - nation != "AUT" → Rekord wird übersprungen (nicht importiert)
+ *
  * Stroke-Mapping (LENEX → internal code):
  *   FREE → FREE, BACK → BACK, BREAST → BREAST, FLY → FLY, MEDLEY → MEDLEY
  */
@@ -70,6 +76,8 @@ class RecordImportService
      * $approvedAthletes: ['athlete_key' => athlete_id|'new'|'skip']
      * $newClubData:      ['club_key' => ['name'=>...,'code'=>...,'nation'=>...]]
      * $newAthleteData:   ['athlete_key' => ['first_name'=>...,'last_name'=>...,...]]
+     * $approvedRegional: ['WBSV' => 'import'|'skip', ...]
+     * $approvedPending:  ['rec_key' => 'import'|'skip']  — ausstehende Rekorde (Nationalität unklar)
      *
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann
      * @throws Exception wenn der XML-Inhalt ungültig ist
@@ -81,7 +89,8 @@ class RecordImportService
         array $approvedAthletes,
         array $newClubData,
         array $newAthleteData,
-        array $approvedRegional = [], // ['WBSV' => 'import'|'skip', 'TBSV' => ...]
+        array $approvedRegional = [],
+        array $approvedPending = [],   // ['pending_key' => 'import'|'skip']
     ): array {
         $preview = $this->preview($filePath);
 
@@ -92,9 +101,9 @@ class RecordImportService
         $athleteIdMap = $this->resolveAthletes($preview['unknown_athletes'], $approvedAthletes, $newAthleteData,
             $clubIdMap);
 
-        // Rekorde importieren
         $imported = 0;
         $skipped = 0;
+        $regionalImported = 0;
 
         // Regionale Rekorde die importiert werden sollen zu records[] mergen
         $allRecords = $preview['records'];
@@ -107,10 +116,31 @@ class RecordImportService
             }
         }
 
-        DB::transaction(function () use ($allRecords, $clubIdMap, $athleteIdMap, &$imported, &$skipped) {
+        // Ausstehende Rekorde (Nationalität unklar) nach User-Entscheidung hinzufügen
+        foreach ($preview['pending_records'] as $pendingRec) {
+            $key = $pendingRec['pending_key'];
+            $decision = $approvedPending[$key] ?? 'skip';
+            if ($decision === 'import') {
+                // Als PENDING-Rekord importieren (Status bleibt PENDING)
+                $pendingRec['force_status'] = 'PENDING';
+                $allRecords[] = $pendingRec;
+            } else {
+                $skipped++;
+            }
+        }
+
+        DB::transaction(function () use (
+            $allRecords,
+            $clubIdMap,
+            $athleteIdMap,
+            &$imported,
+            &$skipped,
+            &$regionalImported
+        ) {
             foreach ($allRecords as $rec) {
                 $athleteId = null;
                 $nationId = $this->getNationId('AUT');
+                $recordStatus = $rec['force_status'] ?? 'APPROVED';
 
                 // Athlet auflösen
                 if ($rec['athlete']) {
@@ -147,11 +177,13 @@ class RecordImportService
                     continue;
                 }
 
+                $clubId = $this->resolveClubId($rec['club'] ?? null, $clubIdMap);
+
                 $newRecord = SwimRecord::create([
                     'stroke_type_id' => $rec['stroke_type_id'],
                     'nation_id' => $nationId,
                     'athlete_id' => $athleteId,
-                    'club_id' => $this->resolveClubId($rec['club'] ?? null, $clubIdMap),
+                    'club_id' => $clubId,
                     'supersedes_id' => $current?->id,
                     'record_type' => $rec['record_type'],
                     'sport_class' => $rec['sport_class'],
@@ -160,7 +192,7 @@ class RecordImportService
                     'distance' => $rec['distance'],
                     'relay_count' => $rec['relay_count'],
                     'swim_time' => $rec['swim_time'],
-                    'record_status' => 'APPROVED',
+                    'record_status' => $recordStatus,
                     'is_current' => true,
                     'set_date' => TimeParser::sanitizeDate($rec['set_date']),
                     'meet_name' => $rec['meet_name'],
@@ -168,8 +200,23 @@ class RecordImportService
                     'meet_course' => $rec['meet_course'],
                 ]);
 
-                // Alten Rekord auf historisch setzen
-                $current?->markAsSupersededBy($newRecord);
+                // Alten Rekord nur bei APPROVED auf historisch setzen
+                if ($recordStatus === 'APPROVED') {
+                    $current?->markAsSupersededBy($newRecord);
+                }
+
+                // ── Regionalrekord automatisch prüfen ────────────────────────
+                // nur bei nationalen APPROVED-Einzelrekorden mit bekanntem Athleten.
+                // Regionale Rekorde (record_type enthält Verbandscode) selbst
+                // lösen keine weitere Prüfung aus.
+                if (
+                    $recordStatus === 'APPROVED'
+                    && $athleteId
+                    && $rec['relay_count'] === 1
+                    && $this->isNationalRecordType($rec['record_type'])
+                ) {
+                    $regionalImported += $this->checkAndImportRegionalRecord($rec, $athleteId, $clubId, $nationId);
+                }
 
                 // Staffelmitglieder speichern
                 foreach ($rec['relay_members'] ?? [] as $member) {
@@ -197,7 +244,7 @@ class RecordImportService
             }
         });
 
-        return ['imported' => $imported, 'skipped' => $skipped];
+        return ['imported' => $imported, 'skipped' => $skipped, 'regional_auto' => $regionalImported];
     }
 
     /**
@@ -206,6 +253,7 @@ class RecordImportService
      * @return array{
      *     records: array,
      *     regional_records: array,
+     *     pending_records: array,
      *     unknown_clubs: array,
      *     unknown_athletes: array,
      *     skipped: int,
@@ -262,6 +310,7 @@ class RecordImportService
                 $athleteData = null;
                 $clubData = null;
                 $relayMembers = [];
+                $clubNation = null;   // Nationalität des Clubs aus LENEX (Indikator)
                 $athleteXml = $rec->ATHLETE ?? null;
                 $relayXml = $rec->RELAY ?? null;
 
@@ -269,6 +318,7 @@ class RecordImportService
                     $clubXml = $athleteXml->CLUB ?? null;
 
                     if ($clubXml !== null) {
+                        $clubNation = (string) ($clubXml['nation'] ?? '');
                         $clubData = $this->parseClubXml($clubXml, $seenClubKeys, $unknownClubs);
                     }
 
@@ -313,9 +363,9 @@ class RecordImportService
                     // ── Staffel: RELAY > CLUB + RELAYPOSITIONS ───────────────
                     $relayClubXml = $relayXml->CLUB ?? null;
                     if ($relayClubXml !== null) {
+                        $clubNation = (string) ($relayClubXml['nation'] ?? '');
                         $clubData = $this->parseClubXml($relayClubXml, $seenClubKeys, $unknownClubs);
                     }
-                    // Staffelmitglieder aus RELAYPOSITIONS
                     foreach ($relayXml->RELAYPOSITIONS->RELAYPOSITION ?? [] as $pos) {
                         $posAthXml = $pos->ATHLETE ?? null;
                         if ($posAthXml !== null) {
@@ -346,7 +396,18 @@ class RecordImportService
                     ];
                 }
 
-                $records[] = [
+                // ── Nationalitätsprüfung anhand Club-Nation (Indikator) ──────
+                // Staffeln (kein Athlet) erhalten immer APPROVED
+                if ($athleteData !== null) {
+                    if ($clubNation !== '' && $clubNation !== 'AUT') {
+                        // Explizit nicht-österreichische Nation → überspringen
+                        $skipped++;
+
+                        continue;
+                    }
+                }
+
+                $recordRow = [
                     'record_type' => $recordType,
                     'course' => $course,
                     'gender' => $gender,
@@ -361,17 +422,33 @@ class RecordImportService
                     'meet_course' => $course,
                     'athlete' => $athleteData,
                     'club' => $clubData,
+                    'club_nation' => $clubNation,
                     'relay_members' => $relayMembers,
                     'splits' => $splits,
                 ];
+
+                // Athleten-Rekorde ohne Nation-Info → pending_key setzen
+                if ($athleteData !== null && $clubNation === '') {
+                    $recordRow['pending_key'] = md5($recordType.'|'.$sportClass.'|'.$gender.'|'.$course.'|'.$distance.'|'.$relayCount.'|'.($athleteData['key'] ?? ''));
+                }
+
+                $records[] = $recordRow;
             }
         }
 
-        // Regionale Rekorde aus records herausfiltern und nach Verband gruppieren
+        // ── Rekorde klassifizieren: standard / regional / pending ────────────
         $regionalRecords = [];
         $standardRecords = [];
+        $pendingRecords = [];
 
         foreach ($records as $rec) {
+            // Ausstehend (Club-Nation unbekannt, Athlet-Rekord)
+            if (isset($rec['pending_key'])) {
+                $pendingRecords[] = $rec;
+
+                continue;
+            }
+
             $assocCode = $this->regionalAssociationCode($rec['record_type']);
             if ($assocCode) {
                 $regionalRecords[$assocCode][] = $rec;
@@ -382,7 +459,8 @@ class RecordImportService
 
         return [
             'records' => $standardRecords,
-            'regional_records' => $regionalRecords, // ['WBSV' => [...recs], 'TBSV' => [...]]
+            'regional_records' => $regionalRecords,   // ['WBSV' => [...recs], ...]
+            'pending_records' => $pendingRecords,     // Rekorde mit unbekannter Nationalität
             'unknown_clubs' => array_values($unknownClubs),
             'unknown_athletes' => array_values($unknownAthletes),
             'skipped' => $skipped,
@@ -397,7 +475,6 @@ class RecordImportService
      */
     private function loadXml(string $filePath): SimpleXMLElement
     {
-        // LXF ist ein ZIP mit einer XML-Datei darin
         $zip = new ZipArchive;
         if ($zip->open($filePath) === true) {
             $xmlContent = $zip->getFromIndex(0);
@@ -410,7 +487,6 @@ class RecordImportService
             return new SimpleXMLElement($xmlContent);
         }
 
-        // Fallback: direkte XML-Datei
         $xmlContent = file_get_contents($filePath);
         if ($xmlContent === false) {
             throw new RuntimeException('Konnte Datei nicht lesen: '.$filePath);
@@ -589,10 +665,8 @@ class RecordImportService
      */
     private function regionalAssociationCode(string $type): ?string
     {
-        // AUT.WBSV oder AUT.WBSV.JR → WBSV
         if (preg_match('/^AUT\.([A-Z]+)(\.JR)?$/', $type, $m)) {
             $code = $m[1];
-            // Nur wenn der Code ein bekannter Regionalverband ist
             if (isset(Club::REGIONAL_ASSOCIATIONS[$code])) {
                 return $code;
             }
@@ -602,7 +676,7 @@ class RecordImportService
     }
 
     /**
-     * Löst unbekannte Clubs auf: legt neue an oder mappt auf bestehende IDs.
+     * Löst unbekannte Clubs auf: legt neue an oder mapped auf bestehende IDs.
      * Gibt ['club_key' ⇒ club_id|null] zurück.
      */
     private function resolveClubs(array $unknownClubs, array $approvedClubs, array $newClubData): array
@@ -636,7 +710,7 @@ class RecordImportService
     }
 
     /**
-     * Löst unbekannte Athleten auf: legt neue an oder mappt auf bestehende IDs.
+     * Löst unbekannte Athleten auf: legt neue an oder mapped auf bestehende IDs.
      * Gibt ['athlete_key' ⇒ athlete_id|null] zurück.
      */
     private function resolveAthletes(
@@ -669,9 +743,7 @@ class RecordImportService
                     'license' => $athlete['license'] ?: null,
                 ]);
 
-                // Sportklasse aus dem Rekord übernehmen (z.B. "S12" → S / 12)
                 $this->createSportClass($newAthlete, $athlete['sport_class'] ?? null);
-
                 $athleteIdMap[$key] = $newAthlete->id;
             } else {
                 $athleteIdMap[$key] = (int) $decision;
@@ -687,8 +759,6 @@ class RecordImportService
      * Format: "S12" → category=S, class_number=12
      *         "SB9" → category=SB, class_number=9
      *         "SM14"→ category=SM, class_number=14
-     *
-     * Wird nur angelegt, wenn die Klasse noch nicht existiert (updateOrCreate).
      */
     private function createSportClass(Athlete $athlete, ?string $sportClass): void
     {
@@ -696,14 +766,12 @@ class RecordImportService
             return;
         }
 
-        // Kategorie-Prefix (SB/SM vor S prüfen) und Nummer trennen
         if (preg_match('/^(SB|SM|S)(\d+)$/', $sportClass, $m)) {
             AthleteSportClass::updateOrCreate(
                 ['athlete_id' => $athlete->id, 'category' => $m[1]],
                 [
                     'class_number' => $m[2],
                     'sport_class' => $sportClass,
-                    'status' => null,
                 ]
             );
         }
@@ -724,5 +792,107 @@ class RecordImportService
         $key = $clubData['key'] ?? null;
 
         return $key ? ($clubIdMap[$key] ?? null) : null;
+    }
+
+    /**
+     * Prüft, ob ein record_type ein reiner nationaler Typ ist (AUT oder AUT.JR).
+     * Gibt false für regionale Typen (AUT.WBSV etc.) zurück.
+     */
+    private function isNationalRecordType(string $type): bool
+    {
+        return in_array($type, ['AUT', 'AUT.JR'], true);
+    }
+
+    /**
+     * Prüft, ob ein importierter nationaler Rekord auch einen Regionalrekord
+     * darstellt und legt diesen automatisch an, wenn er besser ist.
+     *
+     * Ablauf:
+     *   1. Athleten mit Club laden → regional_association prüfen
+     *   2. Regionalen record_type ableiten (z.B. "AUT.WBSV")
+     *   3. Jugendrekord prüfen: Rekordjahr − Geburtsjahr ≤ 18
+     *   4. Für jeden zutreffenden Typ: bestehenden Rekord suchen + ggf. anlegen
+     *
+     * Gibt die Anzahl neu angelegter Regionalrekorde zurück.
+     */
+    private function checkAndImportRegionalRecord(
+        array $rec,
+        int $athleteId,
+        ?int $clubId,
+        ?int $nationId,
+    ): int {
+        $athlete = Athlete::with('club')->find($athleteId);
+        if (! $athlete) {
+            return 0;
+        }
+
+        // Club aus Rekord bevorzugen (club_id auf SwimRecord), Fallback auf aktuellen Club
+        $club = $clubId
+            ? Club::find($clubId)
+            : $athlete->club;
+
+        if (! $club || ! $club->regional_association) {
+            return 0;
+        }
+
+        $regionalBase = 'AUT.'.$club->regional_association;
+        $created = 0;
+
+        // Jugend-Check: Rekordjahr aus set_date, Geburtsjahr aus Athleten
+        $isJunior = false;
+        if ($rec['set_date'] && $athlete->birth_date) {
+            $recordYear = (int) substr($rec['set_date'], 0, 4);
+            $birthYear = (int) $athlete->birth_date->format('Y');
+            $isJunior = ($recordYear - $birthYear) <= 18;
+        }
+
+        // Typen die geprüft werden sollen
+        $typesToCheck = [$regionalBase];
+        if ($isJunior) {
+            $typesToCheck[] = $regionalBase.'.JR';
+        }
+
+        foreach ($typesToCheck as $regionalType) {
+            $current = SwimRecord::where('record_type', $regionalType)
+                ->where('stroke_type_id', $rec['stroke_type_id'])
+                ->where('sport_class', $rec['sport_class'])
+                ->where('gender', $rec['gender'])
+                ->where('course', $rec['course'])
+                ->where('distance', $rec['distance'])
+                ->where('relay_count', $rec['relay_count'])
+                ->where('is_current', true)
+                ->first();
+
+            // Nur anlegen, wenn besser als bestehender Regionalrekord
+            if ($current && $current->swim_time <= $rec['swim_time']) {
+                continue;
+            }
+
+            $regionalRecord = SwimRecord::create([
+                'stroke_type_id' => $rec['stroke_type_id'],
+                'nation_id' => $nationId,
+                'athlete_id' => $athleteId,
+                'club_id' => $clubId,
+                'supersedes_id' => $current?->id,
+                'record_type' => $regionalType,
+                'sport_class' => $rec['sport_class'],
+                'gender' => $rec['gender'],
+                'course' => $rec['course'],
+                'distance' => $rec['distance'],
+                'relay_count' => $rec['relay_count'],
+                'swim_time' => $rec['swim_time'],
+                'record_status' => 'APPROVED',
+                'is_current' => true,
+                'set_date' => TimeParser::sanitizeDate($rec['set_date']),
+                'meet_name' => $rec['meet_name'],
+                'meet_city' => $rec['meet_city'],
+                'meet_course' => $rec['meet_course'],
+            ]);
+
+            $current?->markAsSupersededBy($regionalRecord);
+            $created++;
+        }
+
+        return $created;
     }
 }

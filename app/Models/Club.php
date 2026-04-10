@@ -18,7 +18,7 @@ class Club extends Model
         'BBSV' => 'Burgenländischer Behindertensportverband',
         'KLSV' => 'Kärntner Behindertensportverband',
         'NOEVSV' => 'Niederösterreichischer Versehrtensportverband',
-        'OBSV' => 'Oberösterreichsicher Behindertensportverband',
+        'OOEBSV' => 'Oberösterreichsicher Behindertensportverband',
         'SBSV' => 'Salzburger Behindertensportverband',
         'STBSV' => 'Steirischer Behindertensportverband',
         'TBSV' => 'Tiroler Behindertensportverband',

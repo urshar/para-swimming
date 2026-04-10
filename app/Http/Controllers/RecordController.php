@@ -148,19 +148,40 @@ class RecordController extends Controller
             ->with('success', 'Rekord aktualisiert.');
     }
 
+    /**
+     * Prüft alle Ergebnisse eines Wettkampfs auf neue Rekorde.
+     *
+     * Neue und ausstehende Rekorde werden als Liste in der Session gespeichert
+     * und in der meets/show View über das Partial records.check-result angezeigt.
+     */
     public function checkMeet(Meet $meet): RedirectResponse
     {
         try {
-            $checked = $this->checker->checkMeetResults($meet);
+            $result = $this->checker->checkMeet($meet);
         } catch (Throwable $e) {
             return back()->withErrors([
                 'check' => 'Rekord-Check fehlgeschlagen: '.$e->getMessage(),
             ]);
         }
 
+        $newCount = count($result['new_records']);
+        $pendingCount = count($result['pending_records']);
+
+        $message = $result['checked'].' Ergebnis(se) geprüft';
+        if ($newCount > 0) {
+            $message .= ', '.$newCount.' neuer '.($newCount === 1 ? 'Rekord' : 'Rekorde');
+        }
+        if ($pendingCount > 0) {
+            $message .= ', '.$pendingCount.' ausstehend (Nationalität unklar)';
+        }
+        if ($newCount === 0 && $pendingCount === 0) {
+            $message .= ' — keine neuen Rekorde';
+        }
+
         return redirect()
             ->route('meets.show', $meet)
-            ->with('success', $checked.' Ergebnis(se) auf Rekorde geprüft.');
+            ->with('success', $message)
+            ->with('record_check_result', $result);
     }
 
     public function importForm(): View
@@ -200,7 +221,12 @@ class RecordController extends Controller
 
     public function edit(SwimRecord $record): View
     {
-        $record->load(['splits', 'relayTeam']);
+        $record->load(['splits', 'relayTeam', 'club', 'athlete.club']);
+
+        // club_id vorausfüllen, wenn leer aber Athlet einen Verein hat
+        if (! $record->club_id && $record->athlete?->club_id) {
+            $record->club_id = $record->athlete->club_id;
+        }
 
         return view('records.form', array_merge($this->formData(), compact('record')));
     }
