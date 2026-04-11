@@ -1,25 +1,38 @@
 {{--
     Partial: records/check-result.blade.php
-    Einbinden in meets/show.blade.php nach dem "Rekorde prüfen"-Button:
+    Einbinden in meets/show.blade.php:
 
         @if(session('record_check_result'))
             @include('records.check-result', ['checkResult' => session('record_check_result')])
         @endif
 
-    Erwartet $checkResult:
+    Erwartet $checkResult (serialisierte IDs aus dem Controller):
         [
-            'new_records'     => [['record' => SwimRecord, 'types' => ['AUT', 'AUT.WBSV']], ...],
-            'pending_records' => [['record' => SwimRecord, 'athlete_name' => '...', 'type' => 'AUT'], ...],
-            'checked'         => 42,
+            'checked'            => 42,
+            'new_record_ids'     => [['id' => 1, 'types' => ['AUT', 'AUT.WBSV']], ...],
+            'pending_record_ids' => [['id' => 5, 'athlete_name' => '...'], ...],
         ]
 --}}
 
 @php
-    $newRecords     = $checkResult['new_records'] ?? [];
-    $pendingRecords = $checkResult['pending_records'] ?? [];
-    $checked        = $checkResult['checked'] ?? 0;
-    $totalNew       = count($newRecords);
-    $totalPending   = count($pendingRecords);
+    use App\Models\SwimRecord;
+
+    $newRecordIds     = $checkResult['new_record_ids'] ?? [];
+    $pendingRecordIds = $checkResult['pending_record_ids'] ?? [];
+    $checked          = $checkResult['checked'] ?? 0;
+
+    // Alle benötigten Rekorde in einer Query laden
+    $allIds     = array_merge(
+        array_column($newRecordIds, 'id'),
+        array_column($pendingRecordIds, 'id'),
+    );
+    $recordsMap = SwimRecord::with(['strokeType', 'athlete'])
+        ->whereIn('id', $allIds)
+        ->get()
+        ->keyBy('id');
+
+    $totalNew     = count($newRecordIds);
+    $totalPending = count($pendingRecordIds);
 @endphp
 
 <div class="mt-6 space-y-4">
@@ -51,35 +64,40 @@
             </div>
 
             <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
-                @foreach($newRecords as $item)
-                    @php $record = $item['record']; $types = $item['types']; @endphp
-                    <div class="flex items-center justify-between px-4 py-3 text-sm">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            @foreach($types as $type)
-                                <flux:badge size="sm"
-                                            color="{{ str_contains($type, '.JR') ? 'violet' : (str_contains($type, 'AUT.') && strlen($type) > 5 ? 'teal' : 'blue') }}">
-                                    {{ $type }}
-                                </flux:badge>
-                            @endforeach
-                            <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
-                            <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
-                            <span class="text-zinc-700 dark:text-zinc-300">
-                                {{ $record->distance }}m
-                                {{ $record->strokeType?->name_de }}
-                                <span class="text-zinc-400">· {{ $record->course }}</span>
-                            </span>
+                @foreach($newRecordIds as $item)
+                    @php
+                        $record = $recordsMap[$item['id']] ?? null;
+                        $types  = $item['types'];
+                    @endphp
+                    @if($record)
+                        <div class="flex items-center justify-between px-4 py-3 text-sm">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                @foreach($types as $type)
+                                    <flux:badge size="sm"
+                                                color="{{ str_contains($type, '.JR') ? 'violet' : (str_contains($type, 'AUT.') && strlen($type) > 5 ? 'teal' : 'blue') }}">
+                                        {{ $type }}
+                                    </flux:badge>
+                                @endforeach
+                                <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
+                                <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
+                                <span class="text-zinc-700 dark:text-zinc-300">
+                                    {{ $record->distance }}m
+                                    {{ $record->strokeType?->name_de }}
+                                    <span class="text-zinc-400">· {{ $record->course }}</span>
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0 ml-4">
+                                <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                                    {{ $record->formatted_swim_time }}
+                                </span>
+                                <span class="text-zinc-500 text-xs">
+                                    {{ $record->athlete?->display_name ?? 'Staffel' }}
+                                </span>
+                                <flux:button href="{{ route('records.show', $record) }}"
+                                             size="sm" variant="ghost" icon="eye"/>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3 shrink-0 ml-4">
-                            <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                                {{ $record->formatted_swim_time }}
-                            </span>
-                            <span class="text-zinc-500 text-xs">
-                                {{ $record->athlete?->display_name ?? 'Staffel' }}
-                            </span>
-                            <flux:button href="{{ route('records.show', $record) }}"
-                                         size="sm" variant="ghost" icon="eye"/>
-                        </div>
-                    </div>
+                    @endif
                 @endforeach
             </div>
         </div>
@@ -96,29 +114,31 @@
             </div>
 
             <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
-                @foreach($pendingRecords as $item)
-                    @php $record = $item['record']; @endphp
-                    <div class="flex items-center justify-between px-4 py-3 text-sm">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <flux:badge size="sm" color="amber">PENDING</flux:badge>
-                            <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
-                            <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
-                            <span class="text-zinc-700 dark:text-zinc-300">
-                                {{ $record->distance }}m
-                                {{ $record->strokeType?->name_de }}
-                                <span class="text-zinc-400">· {{ $record->course }}</span>
-                            </span>
+                @foreach($pendingRecordIds as $item)
+                    @php $record = $recordsMap[$item['id']] ?? null; @endphp
+                    @if($record)
+                        <div class="flex items-center justify-between px-4 py-3 text-sm">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <flux:badge size="sm" color="amber">PENDING</flux:badge>
+                                <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
+                                <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
+                                <span class="text-zinc-700 dark:text-zinc-300">
+                                    {{ $record->distance }}m
+                                    {{ $record->strokeType?->name_de }}
+                                    <span class="text-zinc-400">· {{ $record->course }}</span>
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0 ml-4">
+                                <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                                    {{ $record->formatted_swim_time }}
+                                </span>
+                                <span class="text-zinc-500 text-xs">{{ $item['athlete_name'] }}</span>
+                                <flux:button href="{{ route('records.edit', $record) }}"
+                                             size="sm" variant="ghost" icon="pencil"
+                                             title="Athleten-Nationalität hinterlegen"/>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3 shrink-0 ml-4">
-                            <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                                {{ $record->formatted_swim_time }}
-                            </span>
-                            <span class="text-zinc-500 text-xs">{{ $item['athlete_name'] }}</span>
-                            <flux:button href="{{ route('records.edit', $record) }}"
-                                         size="sm" variant="ghost" icon="pencil"
-                                         title="Athleten-Nationalität hinterlegen"/>
-                        </div>
-                    </div>
+                    @endif
                 @endforeach
             </div>
 

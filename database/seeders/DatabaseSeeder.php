@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             StrokeTypesSeeder::class,
             ExceptionCodesSeeder::class,
             ClubsSeeder::class,
+            ClassifiersSeeder::class,
         ]);
 
         $this->command->info('');

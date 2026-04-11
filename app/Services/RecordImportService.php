@@ -206,16 +206,23 @@ class RecordImportService
                 }
 
                 // ── Regionalrekord automatisch prüfen ────────────────────────
-                // nur bei nationalen APPROVED-Einzelrekorden mit bekanntem Athleten.
-                // Regionale Rekorde (record_type enthält Verbandscode) selbst
-                // lösen keine weitere Prüfung aus.
+                // bei nationalen APPROVED-Rekorden (Einzel + Staffel).
+                // Regionale Rekorde selbst lösen keine weitere Prüfung aus.
                 if (
                     $recordStatus === 'APPROVED'
-                    && $athleteId
-                    && $rec['relay_count'] === 1
                     && $this->isNationalRecordType($rec['record_type'])
                 ) {
-                    $regionalImported += $this->checkAndImportRegionalRecord($rec, $athleteId, $clubId, $nationId);
+                    if ($rec['relay_count'] === 1 && $athleteId) {
+                        // Einzelrekord: Club über Athleten oder club_id ermitteln
+                        $regionalImported += $this->checkAndImportRegionalRecord(
+                            $rec, $athleteId, $clubId, $nationId
+                        );
+                    } elseif ($rec['relay_count'] > 1 && $clubId) {
+                        // Staffelrekord: Club direkt bekannt, Jugend-Check über relay_members
+                        $regionalImported += $this->checkAndImportRegionalRecordForRelay(
+                            $rec, $clubId, $nationId
+                        );
+                    }
                 }
 
                 // Staffelmitglieder speichern
@@ -344,6 +351,7 @@ class RecordImportService
                                 'license' => $license,
                                 'club_key' => $clubData['key'] ?? null,
                                 'club_name' => $clubData['name'] ?? null,
+                                'club_db_id' => $clubData['db_id'] ?? null,  // bereits bekannte DB-ID
                                 'sport_class' => $sportClass,
                                 'db_id' => null,
                             ];
@@ -405,6 +413,15 @@ class RecordImportService
 
                         continue;
                     }
+                }
+
+                // ── S21 nur national gültig ──────────────────────────────────
+                // S21 (Trisomie) existiert international nicht (World Para Swimming).
+                // WR/ER/OR Rekorde mit Sportklasse S21 werden übersprungen.
+                if ($sportClass === 'S21' && in_array($recordType, ['WR', 'ER', 'OR'], true)) {
+                    $skipped++;
+
+                    continue;
                 }
 
                 $recordRow = [
@@ -733,13 +750,20 @@ class RecordImportService
             if ($decision === 'new') {
                 $data = $newAthleteData[$key] ?? $athlete;
                 $clubKey = $athlete['club_key'];
+
+                // Club-ID auflösen:
+                // 1. Direkte DB-ID, wenn Club bereits bekannt war (club_db_id)
+                // 2. Aus clubIdMap, wenn Club neu angelegt wurde
+                $clubId = $athlete['club_db_id']
+                    ?? ($clubKey ? ($clubIdMap[$clubKey] ?? null) : null);
+
                 $newAthlete = Athlete::create([
                     'first_name' => $data['first_name'] ?? $athlete['first_name'],
                     'last_name' => $data['last_name'] ?? $athlete['last_name'],
                     'birth_date' => $athlete['birth_date'] ?: null,
                     'gender' => $athlete['gender'] ?: 'M',
                     'nation_id' => $this->getNationId('AUT'),
-                    'club_id' => $clubKey ? ($clubIdMap[$clubKey] ?? null) : null,
+                    'club_id' => $clubId,
                     'license' => $athlete['license'] ?: null,
                 ]);
 
@@ -853,44 +877,128 @@ class RecordImportService
         }
 
         foreach ($typesToCheck as $regionalType) {
-            $current = SwimRecord::where('record_type', $regionalType)
-                ->where('stroke_type_id', $rec['stroke_type_id'])
-                ->where('sport_class', $rec['sport_class'])
-                ->where('gender', $rec['gender'])
-                ->where('course', $rec['course'])
-                ->where('distance', $rec['distance'])
-                ->where('relay_count', $rec['relay_count'])
-                ->where('is_current', true)
-                ->first();
+            $created += $this->createRegionalRecord($rec, $regionalType, $athleteId, $clubId, $nationId, []);
+        }
 
-            // Nur anlegen, wenn besser als bestehender Regionalrekord
-            if ($current && $current->swim_time <= $rec['swim_time']) {
-                continue;
-            }
+        return $created;
+    }
 
-            $regionalRecord = SwimRecord::create([
-                'stroke_type_id' => $rec['stroke_type_id'],
-                'nation_id' => $nationId,
-                'athlete_id' => $athleteId,
-                'club_id' => $clubId,
-                'supersedes_id' => $current?->id,
-                'record_type' => $regionalType,
-                'sport_class' => $rec['sport_class'],
-                'gender' => $rec['gender'],
-                'course' => $rec['course'],
-                'distance' => $rec['distance'],
-                'relay_count' => $rec['relay_count'],
-                'swim_time' => $rec['swim_time'],
-                'record_status' => 'APPROVED',
-                'is_current' => true,
-                'set_date' => TimeParser::sanitizeDate($rec['set_date']),
-                'meet_name' => $rec['meet_name'],
-                'meet_city' => $rec['meet_city'],
-                'meet_course' => $rec['meet_course'],
+    /**
+     * Legt einen einzelnen Regionalrekord an, wenn die neue Zeit besser ist.
+     * Übernimmt Staffelmitglieder, wenn $relayMembers nicht leer ist.
+     * Gibt 1 zurück, wenn ein Rekord angelegt wurde, sonst 0.
+     */
+    private function createRegionalRecord(
+        array $rec,
+        string $regionalType,
+        ?int $athleteId,
+        ?int $clubId,
+        ?int $nationId,
+        array $relayMembers,
+    ): int {
+        $current = SwimRecord::where('record_type', $regionalType)
+            ->where('stroke_type_id', $rec['stroke_type_id'])
+            ->where('sport_class', $rec['sport_class'])
+            ->where('gender', $rec['gender'])
+            ->where('course', $rec['course'])
+            ->where('distance', $rec['distance'])
+            ->where('relay_count', $rec['relay_count'])
+            ->where('is_current', true)
+            ->first();
+
+        if ($current && $current->swim_time <= $rec['swim_time']) {
+            return 0;
+        }
+
+        $regionalRecord = SwimRecord::create([
+            'stroke_type_id' => $rec['stroke_type_id'],
+            'nation_id' => $nationId,
+            'athlete_id' => $athleteId,
+            'club_id' => $clubId,
+            'supersedes_id' => $current?->id,
+            'record_type' => $regionalType,
+            'sport_class' => $rec['sport_class'],
+            'gender' => $rec['gender'],
+            'course' => $rec['course'],
+            'distance' => $rec['distance'],
+            'relay_count' => $rec['relay_count'],
+            'swim_time' => $rec['swim_time'],
+            'record_status' => 'APPROVED',
+            'is_current' => true,
+            'set_date' => TimeParser::sanitizeDate($rec['set_date']),
+            'meet_name' => $rec['meet_name'],
+            'meet_city' => $rec['meet_city'],
+            'meet_course' => $rec['meet_course'],
+        ]);
+
+        foreach ($relayMembers as $member) {
+            RelayTeamMember::create([
+                'swim_record_id' => $regionalRecord->id,
+                'position' => $member['position'],
+                'first_name' => $member['first_name'],
+                'last_name' => $member['last_name'],
+                'birth_date' => TimeParser::sanitizeDate($member['birth_date']),
+                'gender' => $member['gender'] ?: null,
+                'athlete_id' => $member['db_id'] ?? null,
             ]);
+        }
 
-            $current?->markAsSupersededBy($regionalRecord);
-            $created++;
+        $current?->markAsSupersededBy($regionalRecord);
+
+        return 1;
+    }
+
+    /**
+     * Prüft und legt Regionalrekord(e) für eine Staffel an.
+     *
+     * Bei Staffeln gibt es keinen einzelnen Athleten — der Club ist direkt bekannt
+     * (club_id auf dem Rekord). Der Jugend-Check erfolgt über die relay_members:
+     * Alle Mitglieder mit bekanntem Geburtsdatum müssen Jahrgangsalter ≤ 18 haben
+     * damit es als Jugendrekord gilt.
+     *
+     * Gibt die Anzahl neu angelegter Regionalrekorde zurück.
+     */
+    private function checkAndImportRegionalRecordForRelay(
+        array $rec,
+        int $clubId,
+        ?int $nationId,
+    ): int {
+        $club = Club::find($clubId);
+        if (! $club || ! $club->regional_association) {
+            return 0;
+        }
+
+        $regionalBase = 'AUT.'.$club->regional_association;
+        $created = 0;
+
+        // Jugend-Check über relay_members:
+        // Alle Mitglieder mit Geburtsdatum müssen Jahrgangsalter ≤ 18 haben.
+        // Wenn kein Mitglied ein Geburtsdatum hat → kein Jugendrekord.
+        $isJunior = false;
+        $recordYear = $rec['set_date'] ? (int) substr($rec['set_date'], 0, 4) : null;
+        $members = $rec['relay_members'] ?? [];
+        $datedMembers = array_filter($members, fn ($m) => ! empty($m['birth_date']));
+
+        if ($recordYear && count($datedMembers) > 0) {
+            $allJunior = true;
+            foreach ($datedMembers as $member) {
+                $birthYear = (int) substr($member['birth_date'], 0, 4);
+                if (($recordYear - $birthYear) > 18) {
+                    $allJunior = false;
+                    break;
+                }
+            }
+            $isJunior = $allJunior;
+        }
+
+        // Typen die geprüft werden sollen
+        $typesToCheck = [$regionalBase];
+        if ($isJunior) {
+            $typesToCheck[] = $regionalBase.'.JR';
+        }
+
+        foreach ($typesToCheck as $regionalType) {
+            $created += $this->createRegionalRecord($rec, $regionalType, null, $clubId, $nationId, $members);
         }
 
         return $created;

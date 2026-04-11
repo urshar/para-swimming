@@ -81,6 +81,8 @@ class RecordController extends Controller
         ]);
     }
 
+    // ── Rekord-Check eines gesamten Meets ────────────────────────────────────
+
     public function show(SwimRecord $record): View
     {
         $record->load([
@@ -92,7 +94,7 @@ class RecordController extends Controller
         return view('records.show', compact('record', 'history'));
     }
 
-    // ── Rekord-Check eines gesamten Meets ────────────────────────────────────
+    // ── LENEX Import ──────────────────────────────────────────────────────────
 
     public function destroy(SwimRecord $record): RedirectResponse
     {
@@ -123,8 +125,6 @@ class RecordController extends Controller
 
         return redirect()->route('records.index')->with('success', $message);
     }
-
-    // ── LENEX Import ──────────────────────────────────────────────────────────
 
     /**
      * @throws Throwable
@@ -178,18 +178,34 @@ class RecordController extends Controller
             $message .= ' — keine neuen Rekorde';
         }
 
+        // SwimRecord-Objekte können nicht direkt in der Session gespeichert werden.
+        // Nur die IDs serialisieren und in der View per eager load nachladen.
+        $sessionData = [
+            'checked' => $result['checked'],
+            'new_record_ids' => collect($result['new_records'])
+                ->map(fn ($item) => [
+                    'id' => $item['record']->id,
+                    'types' => $item['types'],
+                ])
+                ->all(),
+            'pending_record_ids' => collect($result['pending_records'])
+                ->map(fn ($item) => [
+                    'id' => $item['record']->id,
+                    'athlete_name' => $item['athlete_name'],
+                ])
+                ->all(),
+        ];
+
         return redirect()
             ->route('meets.show', $meet)
             ->with('success', $message)
-            ->with('record_check_result', $result);
+            ->with('record_check_result', $sessionData);
     }
 
     public function importForm(): View
     {
         return view('records.import');
     }
-
-    // ── historischen Rekord wiederherstellen ──────────────────────────────────
 
     public function import(Request $request): RedirectResponse
     {
@@ -202,8 +218,6 @@ class RecordController extends Controller
             ->route('records.index')
             ->with('success', 'Rekorde erfolgreich importiert.');
     }
-
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     public function export(Request $request): RedirectResponse
     {
@@ -218,6 +232,8 @@ class RecordController extends Controller
     {
         return view('records.form', $this->formData());
     }
+
+    // ── manuell einen Rekord anlegen / bearbeiten ─────────────────────────────
 
     public function edit(SwimRecord $record): View
     {
@@ -352,7 +368,7 @@ class RecordController extends Controller
         ];
     }
 
-    // ── LENEX Export ──────────────────────────────────────────────────────────
+    // ── historischen Rekord wiederherstellen ──────────────────────────────────
 
     /**
      * Konvertiert swim_time und split_time von MM:SS.cs in Hundertstelsekunden.
@@ -375,7 +391,7 @@ class RecordController extends Controller
         return $data;
     }
 
-    // ── manuell einen Rekord anlegen / bearbeiten ─────────────────────────────
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
      * Filtert leere Split-Zeilen heraus und entfernt 'splits' aus $data.
@@ -404,6 +420,8 @@ class RecordController extends Controller
             ]);
         }
     }
+
+    // ── LENEX Export ──────────────────────────────────────────────────────────
 
     /** Gemeinsame View-Daten für create und edit */
     private function formData(): array

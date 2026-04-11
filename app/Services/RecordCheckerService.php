@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\RecordSplit;
+use App\Models\RelayTeamMember;
 use App\Models\Result;
 use App\Models\SwimRecord;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -22,28 +25,24 @@ use Throwable;
  *   AUT.WBSV.JR     → Wiener BehindertenSportVerband Jugend
  *   ... (alle 9 Landesverbände, jeweils altersunabhängig + JR)
  *
- * NICHT geprüft (internationale Rekorde):
- *   WR, ER, OR — werden nicht automatisch gesetzt
+ * NICHT geprüft: WR, ER, OR
  *
- * Nationalitätsprüfung:
- *   - nation.code == 'AUT'  → normale Rekordprüfung, status = APPROVED
- *   - nation == null        → PENDING-Rekord anlegen (Nationalität ungeklärt)
- *   - nation.code != 'AUT'  → überspringen, kein Rekord
+ * Nationalitätsprüfung (Einzelrekorde):
+ *   nation == 'AUT' → APPROVED | nation == null → PENDING | sonst → skip
  *
- * Altersregel Jugendrekord:
- *   Alter = Wettkampfjahr − Geburtsjahr (Jahrgangs-Regel, Stand 31.12.)
- *   Jugend = Alter ≤ 18
+ * Staffelrekorde (via RelayClassValidator):
+ *   Alle Athleten vom selben Verein, Sportklassen-Kombination muss
+ *   S20 / S34 / S49 / S21 / S14 / S15 ergeben (sonst kein Rekord).
  *
- * Ablauf pro Result:
- *   1. Nationalität prüfen → skip / PENDING / normal
- *   2. Nationalrekord (AUT) prüfen
- *   3. Jugendrekord (AUT.JR) prüfen wenn Alter ≤ 18
- *   4. Regionalrekord (AUT.XXXX) prüfen, wenn Club einem Verband zugeordnet ist
- *   5. Regionalen Jugendrekord (AUT.XXXX.JR) prüfen wenn Alter ≤ 18 + Regionalverband
- *   6. Result Rekord-Flags aktualisieren
+ * Jugend: Einzeln Wettkampfjahr − Geburtsjahr ≤ 18 |
+ *         Staffeln: alle Mitglieder mit Geburtsdatum ≤ 18
  */
-class RecordCheckerService
+readonly class RecordCheckerService
 {
+    public function __construct(
+        private RelayClassValidator $relayValidator,
+    ) {}
+
     /**
      * Prüft alle gültigen Results eines Meets auf neue Rekorde.
      *
@@ -61,10 +60,11 @@ class RecordCheckerService
             ->with([
                 'athlete.nation',
                 'athlete.club',
+                'club',
                 'swimEvent.strokeType',
                 'splits',
             ])
-            ->whereNull('status') // nur gültige Ergebnisse
+            ->whereNull('status')
             ->whereNotNull('swim_time')
             ->get();
 
@@ -73,7 +73,12 @@ class RecordCheckerService
         $checked = 0;
 
         foreach ($results as $result) {
-            ['new' => $new, 'pending' => $pending] = $this->checkResult($result, $meet);
+            $isRelay = ($result->swimEvent?->relay_count ?? 1) > 1;
+
+            ['new' => $new, 'pending' => $pending] = $isRelay
+                ? $this->checkRelayResult($result, $meet)
+                : $this->checkResult($result, $meet);
+
             $newRecords = array_merge($newRecords, $new);
             $pendingRecords = array_merge($pendingRecords, $pending);
             $checked++;
@@ -86,8 +91,125 @@ class RecordCheckerService
         ];
     }
 
+    // ── Einzelrekord-Prüfung ──────────────────────────────────────────────────
+
     /**
-     * Prüft ein einzelnes Result auf alle relevanten Rekord-Typen.
+     * Prüft ein Staffel-Result auf neue Rekorde.
+     *
+     * @return array{new: array, pending: array}
+     *
+     * @throws Throwable
+     */
+    public function checkRelayResult(Result $result, Meet $meet): array
+    {
+        $new = [];
+        $pending = [];
+
+        $event = $result->swimEvent;
+        if (! $event || ! $result->swim_time || ! $result->club_id) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        // Entries = Staffelmitglieder (selber Club + Event)
+        $entries = Entry::where('swim_event_id', $event->id)
+            ->where('club_id', $result->club_id)
+            ->with(['athlete.nation', 'athlete.club', 'athlete.sportClasses'])
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        // Staffelklasse validieren
+        $memberClasses = $this->relayValidator->extractMemberClasses($entries, $event);
+        $resolvedClass = $this->relayValidator->resolveRelayClass($memberClasses);
+
+        if ($resolvedClass === null) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        // Nationalitätsprüfung: alle Athleten müssen AUT sein
+        foreach ($entries as $entry) {
+            $code = $entry->athlete?->nation?->code;
+            if ($code !== null && $code !== 'AUT') {
+                return ['new' => $new, 'pending' => $pending];
+            }
+        }
+
+        $strokeTypeId = $event->stroke_type_id;
+        $course = $meet->course;
+        $distance = $event->distance;
+        $relayCount = $event->relay_count;
+        $gender = $event->gender === 'F' ? 'F' : 'M';
+        $meetYear = (int) $meet->start_date->format('Y');
+        $isJunior = $this->relayValidator->isJuniorRelay($entries, $meetYear);
+
+        // sport_class im Result auf validierte Klasse setzen
+        if ($result->sport_class !== $resolvedClass) {
+            $result->update(['sport_class' => $resolvedClass]);
+        }
+
+        // ── 1. Nationalrekord ─────────────────────────────────────────────────
+        [$isNr, $newRecord] = $this->checkRecordType(
+            'AUT', $strokeTypeId, $resolvedClass, $gender,
+            $course, $distance, $relayCount, $result, null
+        );
+        if ($newRecord) {
+            $this->saveRelayMembers($newRecord, $entries);
+            $new[] = ['record' => $newRecord, 'types' => ['AUT']];
+        }
+
+        // ── 2. Jugendrekord ───────────────────────────────────────────────────
+        if ($isJunior) {
+            [$isJr, $newRecord] = $this->checkRecordType(
+                'AUT.JR', $strokeTypeId, $resolvedClass, $gender,
+                $course, $distance, $relayCount, $result, null
+            );
+            if ($newRecord) {
+                $this->saveRelayMembers($newRecord, $entries);
+                $new[] = ['record' => $newRecord, 'types' => ['AUT.JR']];
+            }
+        }
+
+        // ── 3. Regionalrekord + 4. Regionaler Jugendrekord ───────────────────
+        $regionalBase = $result->club?->regional_record_type;
+
+        if ($regionalBase) {
+            [$isRr, $newRecord] = $this->checkRecordType(
+                $regionalBase, $strokeTypeId, $resolvedClass, $gender,
+                $course, $distance, $relayCount, $result, null
+            );
+            if ($newRecord) {
+                $this->saveRelayMembers($newRecord, $entries);
+                $new[] = ['record' => $newRecord, 'types' => [$regionalBase]];
+            }
+
+            if ($isJunior) {
+                [$isRjr, $newRecord] = $this->checkRecordType(
+                    $regionalBase.'.JR', $strokeTypeId, $resolvedClass, $gender,
+                    $course, $distance, $relayCount, $result, null
+                );
+                if ($newRecord) {
+                    $this->saveRelayMembers($newRecord, $entries);
+                    $new[] = ['record' => $newRecord, 'types' => [$regionalBase.'.JR']];
+                }
+            }
+        }
+
+        // ── Result-Flags aktualisieren ────────────────────────────────────────
+        $this->updateResultFlags(
+            $result,
+            $isNr ?? false,
+            $isJr ?? false,
+            $isRr ?? false,
+            $isRjr ?? false,
+        );
+
+        return ['new' => $new, 'pending' => $pending];
+    }
+
+    /**
+     * Prüft ein einzelnes (Nicht-Staffel) Result auf alle relevanten Rekord-Typen.
      *
      * @return array{new: array, pending: array}
      *
@@ -103,11 +225,9 @@ class RecordCheckerService
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // ── Nationalitätsprüfung ──────────────────────────────────────────────
         $nationCode = $result->athlete?->nation?->code;
 
         if ($nationCode !== 'AUT' && $nationCode !== null) {
-            // Explizit nicht österreichisch → kein Rekord
             return ['new' => $new, 'pending' => $pending];
         }
 
@@ -120,72 +240,56 @@ class RecordCheckerService
         $gender = $result->athlete?->gender === 'F' ? 'F' : 'M';
         $nationId = $result->athlete?->nation?->id;
         $isJunior = ! $isPending && $this->isJunior($result, $meet);
-
         $recordStatus = $isPending ? 'PENDING' : 'APPROVED';
 
-        // ── 1. Österreichischer Nationalrekord ────────────────────────────────
+        // ── 1. Nationalrekord ─────────────────────────────────────────────────
         [$isNr, $newRecord] = $this->checkRecordType(
-            'AUT',
-            $strokeTypeId, $sportClass, $gender,
-            $course, $distance, $relayCount,
-            $result, $nationId, $recordStatus
+            'AUT', $strokeTypeId, $sportClass, $gender,
+            $course, $distance, $relayCount, $result, $nationId, $recordStatus, $result->athlete_id
         );
 
         if ($newRecord) {
             if ($isPending) {
                 $pending[] = [
-                    'record' => $newRecord,
-                    'athlete_name' => $result->athlete?->display_name ?? '–',
-                    'type' => 'AUT',
+                    'record' => $newRecord, 'athlete_name' => $result->athlete?->display_name ?? '–', 'type' => 'AUT',
                 ];
             } else {
                 $new[] = ['record' => $newRecord, 'types' => ['AUT']];
             }
         }
 
-        // Wenn PENDING → keine weiteren Rekord-Typen prüfen
         if ($isPending) {
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // ── 2. Österreichischer Jugendrekord ──────────────────────────────────
+        // ── 2. Jugendrekord ───────────────────────────────────────────────────
         if ($isJunior) {
             [$isJr, $newRecord] = $this->checkRecordType(
-                'AUT.JR',
-                $strokeTypeId, $sportClass, $gender,
-                $course, $distance, $relayCount,
-                $result, $nationId
+                'AUT.JR', $strokeTypeId, $sportClass, $gender,
+                $course, $distance, $relayCount, $result, $nationId, 'APPROVED', $result->athlete_id
             );
-
             if ($newRecord) {
                 $new[] = ['record' => $newRecord, 'types' => ['AUT.JR']];
             }
         }
 
         // ── 3. Regionalrekord + 4. Regionaler Jugendrekord ───────────────────
-        // regional_record_type liefert z.B. "AUT.WBSV" (siehe Club Model Accessor)
         $regionalBase = $result->athlete?->club?->regional_record_type;
 
         if ($regionalBase) {
             [$isRr, $newRecord] = $this->checkRecordType(
-                $regionalBase,
-                $strokeTypeId, $sportClass, $gender,
-                $course, $distance, $relayCount,
-                $result, $nationId
+                $regionalBase, $strokeTypeId, $sportClass, $gender,
+                $course, $distance, $relayCount, $result, $nationId, 'APPROVED', $result->athlete_id
             );
-
             if ($newRecord) {
                 $new[] = ['record' => $newRecord, 'types' => [$regionalBase]];
             }
 
             if ($isJunior) {
                 [$isRjr, $newRecord] = $this->checkRecordType(
-                    $regionalBase.'.JR',
-                    $strokeTypeId, $sportClass, $gender,
-                    $course, $distance, $relayCount,
-                    $result, $nationId
+                    $regionalBase.'.JR', $strokeTypeId, $sportClass, $gender,
+                    $course, $distance, $relayCount, $result, $nationId, 'APPROVED', $result->athlete_id
                 );
-
                 if ($newRecord) {
                     $new[] = ['record' => $newRecord, 'types' => [$regionalBase.'.JR']];
                 }
@@ -193,53 +297,24 @@ class RecordCheckerService
         }
 
         // ── 5. Result-Flags aktualisieren ─────────────────────────────────────
-        $isNr = $isNr ?? false;
-        $isJr = $isJr ?? false;
-        $isRr = $isRr ?? false;
-        $isRjr = $isRjr ?? false;
-
-        if ($isNr || $isJr || $isRr || $isRjr) {
-            $result->update([
-                'is_national_record' => $isNr,
-                'is_junior_record' => $isJr,
-                'is_regional_record' => $isRr,
-                'is_regional_junior_record' => $isRjr,
-            ]);
-        }
+        $this->updateResultFlags(
+            $result,
+            $isNr ?? false,
+            $isJr ?? false,
+            $isRr ?? false,
+            $isRjr ?? false,
+        );
 
         return ['new' => $new, 'pending' => $pending];
     }
 
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
-
-    /**
-     * Prüft, ob ein Athlet beim Wettkampf als Jugendlicher gilt.
-     *
-     * Regel: Jahrgangs-Alter = Wettkampfjahr − Geburtsjahr ≤ 18
-     * (Stichtag 31.12. des Wettkampfjahres)
-     *
-     * Gibt false zurück, wenn Geburtsdatum fehlt oder Meet kein Datum hat.
-     */
-    private function isJunior(Result $result, Meet $meet): bool
-    {
-        $birthDate = $result->athlete?->birth_date;
-        $meetDate = $meet->start_date;
-
-        if (! $birthDate || ! $meetDate) {
-            return false;
-        }
-
-        $meetYear = (int) $meetDate->format('Y');
-        $birthYear = (int) $birthDate->format('Y');
-
-        return ($meetYear - $birthYear) <= 18;
-    }
+    // ── Staffelrekord-Prüfung ─────────────────────────────────────────────────
 
     /**
      * Prüft, ob das Result einen Rekord eines bestimmten Typs bricht.
      * Legt bei Bedarf einen neuen SwimRecord an.
      *
-     * @return array{0: bool, 1: SwimRecord|null} [isNewRecord, createdRecord]
+     * @return array{0: bool, 1: SwimRecord|null}
      *
      * @throws Throwable
      */
@@ -254,6 +329,7 @@ class RecordCheckerService
         Result $result,
         ?int $nationId,
         string $recordStatus = 'APPROVED',
+        ?int $athleteId = null,
     ): array {
         $current = SwimRecord::where('record_type', $recordType)
             ->where('stroke_type_id', $strokeTypeId)
@@ -265,65 +341,119 @@ class RecordCheckerService
             ->where('is_current', true)
             ->first();
 
-        // Kein bestehender Rekord → automatisch neuer Rekord
-        $isNewRecord = ! $current || $result->swim_time < $current->swim_time;
+        if (! $current || $result->swim_time < $current->swim_time) {
+            $createdRecord = null;
 
-        if (! $isNewRecord) {
-            return [false, null];
+            DB::transaction(function () use (
+                $recordType,
+                $strokeTypeId,
+                $sportClass,
+                $gender,
+                $course,
+                $distance,
+                $relayCount,
+                $result,
+                $nationId,
+                $current,
+                $recordStatus,
+                $athleteId,
+                &$createdRecord
+            ) {
+                $createdRecord = SwimRecord::create([
+                    'stroke_type_id' => $strokeTypeId,
+                    'nation_id' => $nationId,
+                    'athlete_id' => $athleteId,
+                    'club_id' => $result->club_id,
+                    'result_id' => $result->id,
+                    'supersedes_id' => $current?->id,
+                    'record_type' => $recordType,
+                    'sport_class' => $sportClass,
+                    'gender' => $gender,
+                    'course' => $course,
+                    'distance' => $distance,
+                    'relay_count' => $relayCount,
+                    'swim_time' => $result->swim_time,
+                    'record_status' => $recordStatus,
+                    'is_current' => true,
+                    'set_date' => $result->meet?->start_date,
+                    'meet_name' => $result->meet?->name,
+                    'meet_city' => $result->meet?->city,
+                    'meet_course' => $result->meet?->course,
+                ]);
+
+                foreach ($result->splits as $split) {
+                    RecordSplit::create([
+                        'swim_record_id' => $createdRecord->id,
+                        'distance' => $split->distance,
+                        'split_time' => $split->split_time,
+                    ]);
+                }
+
+                if ($recordStatus === 'APPROVED') {
+                    $current?->markAsSupersededBy($createdRecord);
+                }
+            });
+
+            return [true, $createdRecord];
         }
 
-        $createdRecord = null;
+        return [false, null];
+    }
 
-        DB::transaction(function () use (
-            $recordType,
-            $strokeTypeId,
-            $sportClass,
-            $gender,
-            $course,
-            $distance,
-            $relayCount,
-            $result,
-            $nationId,
-            $current,
-            $recordStatus,
-            &$createdRecord
-        ) {
-            $createdRecord = SwimRecord::create([
-                'stroke_type_id' => $strokeTypeId,
-                'nation_id' => $nationId,
-                'athlete_id' => $result->athlete_id,
-                'result_id' => $result->id,
-                'supersedes_id' => $current?->id,
-                'record_type' => $recordType,
-                'sport_class' => $sportClass,
-                'gender' => $gender,
-                'course' => $course,
-                'distance' => $distance,
-                'relay_count' => $relayCount,
-                'swim_time' => $result->swim_time,
-                'record_status' => $recordStatus,
-                'is_current' => true,
-                'set_date' => $result->meet?->start_date,
-                'meet_name' => $result->meet?->name,
-                'meet_city' => $result->meet?->city,
-                'meet_course' => $result->meet?->course,
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Speichert Staffelmitglieder (aus Entries) für einen neuen SwimRecord.
+     */
+    private function saveRelayMembers(SwimRecord $record, Collection $entries): void
+    {
+        $position = 1;
+        foreach ($entries as $entry) {
+            $athlete = $entry->athlete;
+            RelayTeamMember::create([
+                'swim_record_id' => $record->id,
+                'position' => $position++,
+                'first_name' => $athlete?->first_name ?? '',
+                'last_name' => $athlete?->last_name ?? '',
+                'birth_date' => $athlete?->birth_date,
+                'gender' => $athlete?->gender,
+                'athlete_id' => $athlete?->id,
             ]);
+        }
+    }
 
-            // Splits übernehmen
-            foreach ($result->splits as $split) {
-                RecordSplit::create([
-                    'swim_record_id' => $createdRecord->id,
-                    'distance' => $split->distance,
-                    'split_time' => $split->split_time,
-                ]);
-            }
+    /**
+     * Aktualisiert die Rekord-Flags am Result — extrahiert, um Duplikation zu vermeiden.
+     */
+    private function updateResultFlags(
+        Result $result,
+        bool $isNr,
+        bool $isJr,
+        bool $isRr,
+        bool $isRjr,
+    ): void {
+        if ($isNr || $isJr || $isRr || $isRjr) {
+            $result->update([
+                'is_national_record' => $isNr,
+                'is_junior_record' => $isJr,
+                'is_regional_record' => $isRr,
+                'is_regional_junior_record' => $isRjr,
+            ]);
+        }
+    }
 
-            // Alten Rekord auf historisch setzen (nur wenn APPROVED, nicht wenn PENDING)
-            if ($recordStatus === 'APPROVED') {
-                $current?->markAsSupersededBy($createdRecord);
-            }
-        });
+    /**
+     * Prüft, ob ein Einzelathlet beim Wettkampf als Jugendlicher gilt.
+     */
+    private function isJunior(Result $result, Meet $meet): bool
+    {
+        $birthDate = $result->athlete?->birth_date;
+        $meetDate = $meet->start_date;
 
-        return [true, $createdRecord];
+        if (! $birthDate || ! $meetDate) {
+            return false;
+        }
+
+        return ((int) $meetDate->format('Y') - (int) $birthDate->format('Y')) <= 18;
     }
 }
