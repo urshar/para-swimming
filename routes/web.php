@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
@@ -13,10 +14,16 @@ use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SwimEventController;
+use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
 // Startseite → Wettkampf-Übersicht
-Route::redirect('/', '/meets');
+Route::redirect('/', '/meets')->name('home');
+Route::redirect('/dashboard', '/meets')->name('dashboard');
+
+Route::middleware(['auth', RequireAdmin::class])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+});
 
 // ── Stammdaten ────────────────────────────────────────────────────────────────
 Route::resource('nations', NationController::class)

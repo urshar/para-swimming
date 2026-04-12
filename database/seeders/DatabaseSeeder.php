@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->command->info('');
 
         $this->call([
+            AdminUserSeeder::class,
             NationsSeeder::class,
             StrokeTypesSeeder::class,
             ExceptionCodesSeeder::class,
