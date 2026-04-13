@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Meet extends Model
 {
@@ -27,12 +28,14 @@ class Meet extends Model
         'is_open',
         'swrid',
         'lenex_meet_id',
+        'entries_deadline',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_open' => 'boolean',
+        'entries_deadline' => 'date',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -71,5 +74,19 @@ class Meet extends Model
         }
 
         return $this->start_date->format('d.m.Y').' – '.$this->end_date->format('d.m.Y');
+    }
+
+    public function isDeadlinePassed(): bool
+    {
+        if (! $this->entries_deadline) {
+            return false;
+        }
+
+        return Carbon::today()->gt($this->entries_deadline);
+    }
+
+    public function hasDeadline(): bool
+    {
+        return $this->entries_deadline !== null;
     }
 }

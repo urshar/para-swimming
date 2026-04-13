@@ -15,7 +15,7 @@ return new class extends Migration
      * timing-Werte:
      *   AUTOMATIC, SEMIAUTOMATIC, MANUAL3, MANUAL2, MANUAL1
      *
-     * entrytype-Werte:
+     * entry type-Werte:
      *   OPEN (für alle Clubs), INVITATION (nur eingeladene Clubs)
      *
      * status-Werte (ab 2025):
@@ -46,6 +46,11 @@ return new class extends Migration
 
             $table->date('start_date');
             $table->date('end_date')->nullable();
+            // Meldeschluss: nach diesem Datum dürfen Vereins-User keine
+            // Meldungen mehr anlegen, bearbeiten oder löschen.
+            // Admins sind ausgenommen.
+            // NULL = kein Meldeschluss gesetzt.
+            $table->date('entries_deadline')->nullable();
             $table->string('organizer')->nullable();
             $table->integer('altitude')->default(0);
 
@@ -70,7 +75,7 @@ return new class extends Migration
             ])->nullable();
 
             // Applikations-Flag: Clubs können Athleten melden
-            // Entspricht MEET.entrytype = OPEN in LENEX
+            // entspricht MEET.entrytype = OPEN in LENEX
             $table->boolean('is_open')->default(false);
 
             // Global unique ID von swimrankings.net
