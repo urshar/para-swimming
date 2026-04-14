@@ -15,6 +15,15 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
+
+            {{-- Vereinsmeldungen — für Club-User und Admins, nur wenn Meet offen --}}
+            @if(auth()->check() && (auth()->user()->is_admin || (auth()->user()->club_id && $meet->is_open)))
+                <flux:button href="{{ route('club-entries.index', $meet) }}" variant="ghost"
+                             icon="pencil-square" size="sm">
+                    Meldungen
+                </flux:button>
+            @endif
+
             <flux:button href="{{ route('lenex.export') }}?meet_id={{ $meet->id }}" variant="ghost"
                          icon="arrow-down-tray" size="sm">
                 LENEX Export
@@ -48,7 +57,7 @@
         </div>
     @endif
 
-    {{-- Rekord-Check Ergebnis (neue/ausstehende Rekorde als Liste) --}}
+    {{-- Rekord-Check Ergebnis --}}
     @if(session('record_check_result'))
         @include('records.check-result', ['checkResult' => session('record_check_result')])
     @endif
@@ -85,7 +94,6 @@
             </flux:button>
         </div>
     @else
-        {{-- Gruppiert nach Session --}}
         @foreach($swimEvents->groupBy('session_number') as $session => $events)
             <div class="mb-4">
                 <div class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
@@ -123,8 +131,8 @@
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <div class="flex items-center gap-1 justify-end">
-                                        <flux:button href="{{ route('events.edit', $event) }}" size="sm" variant="ghost"
-                                                     icon="pencil"/>
+                                        <flux:button href="{{ route('events.edit', $event) }}" size="sm"
+                                                     variant="ghost" icon="pencil"/>
                                         <form method="POST" action="{{ route('events.destroy', $event) }}"
                                               x-data="{ submit() { if (confirm('Disziplin löschen?')) this.$el.submit() } }"
                                               @submit.prevent="submit()">
