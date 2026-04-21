@@ -17,13 +17,14 @@
         </div>
 
         @php
-            $eligibleUrl  = route('club-entries.eligible-athletes', $meet);
-            $bestTimesUrl = route('club-entries.best-times', $meet);
+            $clubParams   = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : [];
+            $eligibleUrl  = route('club-entries.eligible-athletes', array_merge(['meet' => $meet], $clubParams));
+            $bestTimesUrl = route('club-entries.best-times', array_merge(['meet' => $meet], $clubParams));
             $oldCourse    = old('entry_course', $meet->course);
         @endphp
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6"
-             x-data="{
+             x-data="singleEntryForm({
                  eligibleUrl:       '{{ $eligibleUrl }}',
                  bestTimesUrl:      '{{ $bestTimesUrl }}',
                  meetCourse:        '{{ $meet->course }}',
@@ -31,57 +32,13 @@
                  selectedAthleteId: '{{ old('athlete_id', '') }}',
                  entryTime:         '{{ old('entry_time', '') }}',
                  entryCourse:       '{{ $oldCourse }}',
-                 eligibleAthletes:  [],
-                 bestTimes:         { LCM: null, SCM: null },
-                 loadingAthletes:   false,
-                 loadingTimes:      false,
-                 submitting:        false,
-                 async onEventChange() {
-                     this.selectedAthleteId = '';
-                     this.eligibleAthletes  = [];
-                     this.bestTimes         = { LCM: null, SCM: null };
-                     if (!this.selectedEventId) return;
-                     this.loadingAthletes = true;
-                     try {
-                         const res = await fetch(this.eligibleUrl + '?event_id=' + this.selectedEventId);
-                         this.eligibleAthletes = await res.json();
-                     } catch (e) {
-                         console.error('Fehler beim Laden der Athleten', e);
-                     } finally {
-                         this.loadingAthletes = false;
-                     }
-                 },
-                 async onAthleteChange() {
-                     this.bestTimes = { LCM: null, SCM: null };
-                     if (!this.selectedAthleteId || !this.selectedEventId) return;
-                     this.loadingTimes = true;
-                     try {
-                         const res = await fetch(
-                             this.bestTimesUrl +
-                             '?event_id=' + this.selectedEventId +
-                             '&athlete_id=' + this.selectedAthleteId
-                         );
-                         this.bestTimes = await res.json();
-                     } catch (e) {
-                         console.error('Fehler beim Laden der Bestzeiten', e);
-                     } finally {
-                         this.loadingTimes = false;
-                     }
-                 },
-                 applyBestTime() {
-                     const bt = this.bestTimes[this.meetCourse];
-                     if (bt && bt.formatted && bt.formatted !== 'NT') {
-                         this.entryTime   = bt.formatted;
-                         this.entryCourse = this.meetCourse;
-                     }
-                 },
-                 onSubmit() {
-                     this.submitting = true;
-                 },
-             }">
+             })">
 
             <form method="POST" action="{{ route('club-entries.store', $meet) }}" @submit="onSubmit()">
                 @csrf
+                @if(auth()->user()->is_admin && request('club_id'))
+                    <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
+                @endif
 
                 {{-- Event-Auswahl --}}
                 <flux:field class="mb-5">
@@ -163,16 +120,27 @@
                     </div>
                 </div>
 
-                {{-- Meldezeit --}}
-                <div class="grid grid-cols-2 gap-4 mb-5">
+                {{-- Meldezeit + Kurs --}}
+                <div class="grid grid-cols-2 gap-4 mb-5 items-start">
                     <flux:field>
                         <flux:label>Meldezeit</flux:label>
                         <flux:input
                             name="entry_time"
+                            type="text"
                             x-model="entryTime"
-                            placeholder="MM:SS.hh oder NT"
-                            autocomplete="off"/>
-                        <flux:description>Format: 01:23.45 oder NT</flux:description>
+                            placeholder="00:00.00"
+                            autocomplete="off"
+                            x-init="
+                                const mask = IMask($el.querySelector('input') ?? $el, {
+                                    mask: '00:00.00',
+                                    lazy: false,
+                                    placeholderChar: '0'
+                                });
+                                mask.on('accept', () => { entryTime = mask.value; });
+                                $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
+                            "
+                        />
+                        <flux:description class="mt-1">MM:SS.hh — z.B. 01:23.45</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

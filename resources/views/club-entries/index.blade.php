@@ -7,12 +7,16 @@
 @section('title', 'Meldungen – ' . $meet->name)
 
 @section('content')
+    @php $clubParam = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-5xl">
 
         {{-- Header --}}
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
                 <flux:button href="{{ route('meets.show', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
+                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
+                             variant="ghost" size="sm">Staffelmeldungen
+                </flux:button>
                 <div>
                     <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Einzelmeldungen</h1>
                     <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -24,7 +28,8 @@
             </div>
 
             @if($canManage)
-                <flux:button href="{{ route('club-entries.create', $meet) }}" variant="primary" icon="plus">
+                <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                             variant="primary" icon="plus">
                     Neue Meldung
                 </flux:button>
             @endif
@@ -53,7 +58,8 @@
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-10 text-center">
                 <p class="text-zinc-400 dark:text-zinc-500 text-sm">Noch keine Meldungen vorhanden.</p>
                 @if($canManage)
-                    <flux:button href="{{ route('club-entries.create', $meet) }}" variant="ghost" icon="plus"
+                    <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                                 variant="ghost" icon="plus"
                                  class="mt-3">
                         Erste Meldung anlegen
                     </flux:button>
@@ -107,12 +113,12 @@
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2 justify-end">
                                         <flux:button
-                                            href="{{ route('club-entries.edit', [$meet, $entry]) }}"
+                                            href="{{ route('club-entries.edit', array_merge(['meet' => $meet, 'entry' => $entry], $clubParam)) }}"
                                             variant="ghost"
                                             icon="pencil"
                                             size="sm"/>
                                         <form method="POST"
-                                              action="{{ route('club-entries.destroy', [$meet, $entry]) }}"
+                                              action="{{ route('club-entries.destroy', array_merge(['meet' => $meet, 'entry' => $entry], $clubParam)) }}"
                                               x-data="{ submit(f){ if(confirm('Meldung wirklich löschen?')) f.submit() } }"
                                               @submit.prevent="submit($el)">
                                             @csrf

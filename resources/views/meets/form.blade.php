@@ -120,9 +120,25 @@
                 </div>
 
                 <flux:field>
-                    <flux:checkbox name="is_open" value="1" :checked="old('is_open', $meet->is_open ?? false)">
-                        Offen für Club-Meldungen
-                    </flux:checkbox>
+                    <flux:label>Meldeschluss</flux:label>
+                    <flux:input name="entries_deadline" type="date"
+                                value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}"/>
+                    <flux:description>Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
+                    <flux:error name="entries_deadline"/>
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Vereinsmeldungen freigegeben</flux:label>
+                    <div class="flex items-center gap-3 mt-1">
+                        <input type="checkbox" name="is_open" value="1" id="is_open"
+                               class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
+                                      text-blue-600 bg-white dark:bg-zinc-800
+                                      focus:ring-blue-500 focus:ring-2"
+                            {{ old('is_open', $meet->is_open ?? false) ? 'checked' : '' }}>
+                        <label for="is_open" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                            Österreichische Vereine können sich für diesen Wettkampf anmelden
+                        </label>
+                    </div>
                 </flux:field>
 
             </div>

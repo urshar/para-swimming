@@ -41,6 +41,23 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/eligible-athletes', [ClubEntryController::class, 'eligibleAthletes'])->name('eligible-athletes');
         Route::get('/best-times', [ClubEntryController::class, 'bestTimes'])->name('best-times');
     });
+    Route::get('/club-entries/pick-meet',
+        [ClubEntryController::class, 'pickMeet'])->name('club-entries.pick-meet');
+
+    // ── Staffelmeldungen ──────────────────────────────────────────────────────
+    Route::prefix('meets/{meet}/relay-entries')->name('club-entries.relay.')->group(function () {
+        // AJAX zuerst (vor {relayEntry}-Platzhalter, sonst wird 'relay-athletes' als ID interpretiert)
+        Route::get('/relay-athletes', [ClubEntryController::class, 'eligibleRelayAthletes'])->name('relay-athletes');
+
+        Route::get('/', [ClubEntryController::class, 'indexRelay'])->name('index');
+        Route::get('/create', [ClubEntryController::class, 'createRelay'])->name('create');
+        Route::post('/', [ClubEntryController::class, 'storeRelay'])->name('store');
+        Route::get('/{relayEntry}/edit', [ClubEntryController::class, 'editRelay'])->name('edit');
+        Route::put('/{relayEntry}', [ClubEntryController::class, 'updateRelay'])->name('update');
+        Route::delete('/{relayEntry}', [ClubEntryController::class, 'destroyRelay'])->name('destroy');
+    });
+    Route::get('/relay-entries/pick-meet',
+        [ClubEntryController::class, 'pickMeetRelay'])->name('club-entries.relay.pick-meet');
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
     Route::resource('nations', NationController::class)
@@ -95,8 +112,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/import/confirm-meet', [LenexImportController::class, 'confirmMeet'])->name('import.confirm-meet');
         Route::post('/import/run', [LenexImportController::class, 'runImport'])->name('import.run');
         Route::get('/import/review', [LenexImportController::class, 'review'])->name('import.review');
-        Route::post('/import/resolve-clubs', [LenexImportController::class, 'resolveClubs'])->name('import.resolve-clubs');
-        Route::post('/import/resolve-athletes', [LenexImportController::class, 'resolveAthletes'])->name('import.resolve-athletes');
+        Route::post('/import/resolve-clubs',
+            [LenexImportController::class, 'resolveClubs'])->name('import.resolve-clubs');
+        Route::post('/import/resolve-athletes',
+            [LenexImportController::class, 'resolveAthletes'])->name('import.resolve-athletes');
 
         Route::get('export', [LenexExportController::class, 'showForm'])->name('export');
         Route::post('export/download', [LenexExportController::class, 'download'])->name('export.download');

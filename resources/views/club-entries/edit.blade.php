@@ -75,9 +75,16 @@
 
             {{-- Formular --}}
             <form method="POST" action="{{ route('club-entries.update', [$meet, $entry]) }}"
-                  x-data="{ entryTime: '{{ old('entry_time', $entry->formatted_entry_time !== 'NT' ? $entry->formatted_entry_time : '') }}' }">
+                  x-data="singleEntryForm({
+                 meetCourse:  '{{ $meet->course }}',
+                 entryTime:   '{{ old('entry_time', $entry->formatted_entry_time !== 'NT' ? $entry->formatted_entry_time : '') }}',
+                 entryCourse: '{{ old('entry_course', $entry->entry_course ?? $meet->course) }}',
+             })">
                 @csrf
                 @method('PUT')
+                @if(auth()->user()->is_admin && request('club_id'))
+                    <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
+                @endif
 
                 @if($errors->any())
                     <div class="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800
@@ -88,31 +95,42 @@
                     </div>
                 @endif
 
-                <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="grid grid-cols-2 gap-4 mb-6 items-start">
                     <flux:field>
                         <flux:label>Meldezeit</flux:label>
                         <flux:input
                             name="entry_time"
+                            type="text"
                             x-model="entryTime"
-                            placeholder="MM:SS.hh oder NT"
-                            autocomplete="off"/>
-                        <flux:description>Format: 01:23.45 oder NT</flux:description>
+                            placeholder="00:00.00"
+                            autocomplete="off"
+                            x-init="
+                                const mask = IMask($el.querySelector('input') ?? $el, {
+                                    mask: '00:00.00',
+                                    lazy: false,
+                                    placeholderChar: '0'
+                                });
+                                mask.on('accept', () => { entryTime = mask.value; });
+                                $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
+                            "
+                        />
+                        <flux:description class="mt-1">MM:SS.hh — z.B. 01:23.45</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 
                     <flux:field>
                         <flux:label>Kurs</flux:label>
                         <flux:select name="entry_course">
-                            <option
-                                value="LCM" @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'LCM')>
+                            <option value="LCM"
+                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'LCM')>
                                 LCM (50m)
                             </option>
-                            <option
-                                value="SCM" @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCM')>
+                            <option value="SCM"
+                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCM')>
                                 SCM (25m)
                             </option>
-                            <option
-                                value="SCY" @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCY')>
+                            <option value="SCY"
+                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCY')>
                                 SCY (Yards)
                             </option>
                         </flux:select>

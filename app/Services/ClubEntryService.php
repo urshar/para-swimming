@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
+use App\Models\RelayEntryMember;
 use App\Models\Result;
 use App\Models\SwimEvent;
 use App\Support\TimeParser;
@@ -66,18 +67,34 @@ readonly class ClubEntryService
 
     /**
      * Gibt alle Athleten eines Clubs zurück, die für ein Staffel-Event geeignet sind.
-     * Logik analog zu eligibleAthletes — Staffelklassen-Validierung obliegt RelayClassValidator.
+     *
+     * Ausgeschlossen werden Athleten die im selben Meet bereits in einer anderen
+     * Staffelmeldung desselben Events gemeldet sind (gleiche swim_event_id).
+     * Beim Bearbeiten einer bestehenden Staffel ($excludeRelayEntryId) bleiben
+     * die eigenen Mitglieder dieser Staffel weiterhin wählbar.
      *
      * @return Collection<Athlete>
      */
-    public function eligibleRelayAthletes(SwimEvent $event, Club $club): Collection
-    {
-        // Für Staffeln: gleiche Logik, aber ohne Sportklassen-Filter
-        // (RelayClassValidator prüft Teamzusammenstellung separat)
+    public function eligibleRelayAthletes(
+        SwimEvent $event,
+        Club $club,
+        ?int $excludeRelayEntryId = null,
+    ): Collection {
+        // Athleten-IDs die bereits in einer anderen Staffelmeldung desselben Events gemeldet sind
+        $bookedAthleteIds = RelayEntryMember::query()
+            ->whereHas('relayEntry', function ($q) use ($event, $excludeRelayEntryId) {
+                $q->where('meet_id', $event->meet_id)
+                    ->where('swim_event_id', $event->id)
+                    ->when($excludeRelayEntryId, fn ($q) => $q->where('id', '!=', $excludeRelayEntryId));
+            })
+            ->pluck('athlete_id');
+
         return $club->athletes()
             ->with('sportClasses')
             ->get()
-            ->filter(fn (Athlete $athlete) => $this->genderMatches($event->gender, $athlete->gender))
+            ->filter(fn (Athlete $athlete) => $this->genderMatches($event->gender, $athlete->gender)
+                && ! $bookedAthleteIds->contains($athlete->id)
+            )
             ->sortBy([['last_name', 'asc'], ['first_name', 'asc']])
             ->values();
     }

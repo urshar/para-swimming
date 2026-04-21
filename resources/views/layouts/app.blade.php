@@ -56,13 +56,16 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
-        {{-- Vereinsmeldungen — nur für Club-User und Admins --}}
         @auth
             @if(auth()->user()->club_id || auth()->user()->is_admin)
-                <flux:navlist.group heading="Mein Verein">
-                    <flux:navlist.item icon="pencil-square" href="{{ route('meets.index') }}"
-                                       :current="request()->routeIs('club-entries.*')">
-                        Meldungen erfassen
+                <flux:navlist.group heading="Vereinsmeldungen">
+                    <flux:navlist.item icon="pencil-square" href="{{ route('club-entries.pick-meet') }}"
+                                       :current="request()->routeIs('club-entries.*') && !request()->routeIs('club-entries.relay.*')">
+                        Einzelmeldungen
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="user-group" href="{{ route('club-entries.relay.pick-meet') }}"
+                                       :current="request()->routeIs('club-entries.relay.*')">
+                        Staffelmeldungen
                     </flux:navlist.item>
                 </flux:navlist.group>
             @endif
@@ -113,24 +116,12 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
-        {{-- Administration — nur für Admins sichtbar --}}
-        @auth
-            @if(auth()->user()->is_admin)
-                <flux:navlist.group heading="Administration">
-                    <flux:navlist.item icon="users" href="{{ route('admin.users.index') }}"
-                                       :current="request()->routeIs('admin.users.*')">
-                        Benutzer
-                    </flux:navlist.item>
-                </flux:navlist.group>
-            @endif
-        @endauth
-
     </flux:navlist>
 
     <flux:spacer/>
 
     {{-- Dark Mode Toggle --}}
-    <div class="px-2 pb-1 border-t border-zinc-200 dark:border-zinc-800 pt-3">
+    <div class="px-2 py-3 border-t border-zinc-200 dark:border-zinc-800">
         <button
             @click="darkMode = !darkMode"
             class="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -147,57 +138,6 @@
             </svg>
             <span x-text="darkMode ? 'Hell-Modus' : 'Dunkel-Modus'"></span>
         </button>
-    </div>
-
-    {{-- User-Bereich --}}
-    <div class="px-2 pb-3 border-zinc-200 dark:border-zinc-800">
-
-        @auth
-            <div class="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/60">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                        <span class="text-xs font-semibold text-blue-700 dark:text-blue-300">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                        </span>
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                            {{ auth()->user()->name }}
-                        </p>
-                        <p class="text-xs text-zinc-400 truncate">
-                            @if(auth()->user()->is_admin)
-                                Administrator
-                            @elseif(auth()->user()->club)
-                                {{ auth()->user()->club->short_name ?? auth()->user()->club->name }}
-                            @else
-                                Kein Verein
-                            @endif
-                        </p>
-                    </div>
-                </div>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit"
-                            class="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
-                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        Abmelden
-                    </button>
-                </form>
-            </div>
-        @else
-            <a href="{{ route('login') }}"
-               class="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
-                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
-                Anmelden
-            </a>
-        @endauth
-
     </div>
 
 </flux:sidebar>
