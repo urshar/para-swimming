@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use ZipArchive;
 
 class LenexExportController extends Controller
 {
@@ -19,9 +20,7 @@ class LenexExportController extends Controller
 
     public function showForm(): View
     {
-        $meets = Meet::with('nation')
-            ->orderByDesc('start_date')
-            ->get();
+        $meets = Meet::with('nation')->orderByDesc('start_date')->get();
 
         return view('lenex.export', [
             'meets' => $meets,
@@ -29,12 +28,6 @@ class LenexExportController extends Controller
         ]);
     }
 
-    /**
-     * Export-Typen:
-     *   structure → Nur Meet, Sessions, Events
-     *   entries   → Structure + Clubs, Athletes, Entries
-     *   results   → Structure + Clubs, Athletes, Results (+ Entries falls vorhanden)
-     */
     public function download(Request $request): Response|RedirectResponse
     {
         $request->validate([
@@ -48,26 +41,35 @@ class LenexExportController extends Controller
         try {
             $xml = $this->exportService->build($meet, $exportType);
         } catch (DOMException $e) {
-            return back()->withErrors([
-                'export' => 'LENEX Export fehlgeschlagen: '.$e->getMessage(),
-            ]);
+            return back()->withErrors(['export' => 'LENEX Export fehlgeschlagen: '.$e->getMessage()]);
         }
 
-        $filename = $this->buildFilename($meet, $exportType);
+        $innerFilename = $this->buildInnerFilename($meet, $exportType);
+        $tmpFile = tempnam(sys_get_temp_dir(), 'lxf_');
 
-        return response($xml, 200, [
-            'Content-Type' => 'application/xml',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        $zip = new ZipArchive;
+        $zip->open($tmpFile, ZipArchive::OVERWRITE);
+        $zip->addFromString($innerFilename, $xml);
+        $zip->close();
+
+        $zipContent = file_get_contents($tmpFile);
+        unlink($tmpFile);
+
+        return response($zipContent, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$this->buildFilename($meet, $exportType).'"',
         ]);
     }
 
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
-
     private function buildFilename(Meet $meet, string $type): string
     {
-        $name = preg_replace('/[^a-zA-Z0-9_-]/', '_', $meet->name);
-        $date = $meet->start_date->format('Y-m-d');
+        return preg_replace('/[^a-zA-Z0-9_-]/', '_', $meet->name)
+            .'_'.$meet->start_date->format('Y-m-d').'_'.$type.'.lxf';
+    }
 
-        return $name.'_'.$date.'_'.$type.'.lxf';
+    private function buildInnerFilename(Meet $meet, string $type): string
+    {
+        return preg_replace('/[^a-zA-Z0-9_-]/', '_', $meet->name)
+            .'_'.$meet->start_date->format('Y-m-d').'_'.$type.'.lef';
     }
 }

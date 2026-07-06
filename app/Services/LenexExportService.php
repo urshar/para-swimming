@@ -2,20 +2,19 @@
 
 namespace App\Services;
 
+use App\Models\Athlete;
+use App\Models\Club;
+use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\RelayEntry;
+use App\Models\RelayEntryMember;
+use App\Models\Result;
 use App\Models\SwimEvent;
 use DOMDocument;
 use DOMElement;
 use DOMException;
+use Illuminate\Support\Collection;
 
-/**
- * LenexExportService
- *
- * Baut eine LENEX 3.0 konforme XML-Datei für drei Export-Typen:
- *   structure → Meet + Sessions + Events
- *   entries   → Structure + Clubs + Athletes + Entries
- *   results   → Structure + Clubs + Athletes + Results + Splits
- */
 class LenexExportService
 {
     private DOMDocument $dom;
@@ -40,8 +39,6 @@ class LenexExportService
         return $this->dom->saveXML();
     }
 
-    // ── Root + Constructor ────────────────────────────────────────────────────
-
     /**
      * @throws DOMException
      */
@@ -62,22 +59,18 @@ class LenexExportService
         $constructor = $this->dom->createElement('CONSTRUCTOR');
         $constructor->setAttribute('name', 'Para Swimming NatDB');
         $constructor->setAttribute('version', '1.0');
-
         $contact = $this->dom->createElement('CONTACT');
         $contact->setAttribute('email', 'admin@paraswimming.at');
         $constructor->appendChild($contact);
-
         $parent->appendChild($constructor);
     }
-
-    // ── Meet ──────────────────────────────────────────────────────────────────
 
     /**
      * @throws DOMException
      */
     private function buildMeet(Meet $meet): DOMElement
     {
-        $meet->load(['nation', 'clubs.athletes.sportClasses', 'swimEvents.strokeType']);
+        $meet->load(['nation', 'clubs.nation', 'swimEvents.strokeType']);
 
         $el = $this->dom->createElement('MEET');
         $el->setAttribute('name', $meet->name);
@@ -102,10 +95,8 @@ class LenexExportService
             $el->setAttribute('meetid', $meet->lenex_meet_id);
         }
 
-        // Sessions + Events
         $el->appendChild($this->buildSessions($meet));
 
-        // Clubs + Athletes + Entries/Results
         if (in_array($this->exportType, ['entries', 'results'])) {
             $clubsEl = $this->buildClubs($meet);
             if ($clubsEl->hasChildNodes()) {
@@ -116,8 +107,6 @@ class LenexExportService
         return $el;
     }
 
-    // ── Sessions ──────────────────────────────────────────────────────────────
-
     /**
      * @throws DOMException
      */
@@ -125,17 +114,12 @@ class LenexExportService
     {
         $sessionsEl = $this->dom->createElement('SESSIONS');
 
-        $events = $meet->swimEvents->groupBy('session_number');
-
-        foreach ($events as $sessionNumber => $sessionEvents) {
+        foreach ($meet->swimEvents->groupBy('session_number') as $sessionNumber => $sessionEvents) {
             $sessionEl = $this->dom->createElement('SESSION');
             $sessionEl->setAttribute('number', (string) $sessionNumber);
-
-            // Datum aus dem Meet nehmen (vereinfacht)
             $sessionEl->setAttribute('date', $meet->start_date->format('Y-m-d'));
 
             $eventsEl = $this->dom->createElement('EVENTS');
-
             foreach ($sessionEvents->sortBy('event_number') as $event) {
                 $eventsEl->appendChild($this->buildEvent($event));
             }
@@ -147,8 +131,6 @@ class LenexExportService
         return $sessionsEl;
     }
 
-    // ── Event ─────────────────────────────────────────────────────────────────
-
     /**
      * @throws DOMException
      */
@@ -156,44 +138,58 @@ class LenexExportService
     {
         $el = $this->dom->createElement('EVENT');
 
+        $lenexEventId = $event->lenex_event_id ?? (string) $event->id;
+        $el->setAttribute('eventid', $lenexEventId);
         if ($event->event_number) {
             $el->setAttribute('number', (string) $event->event_number);
         }
-        $el->setAttribute('gender', $event->gender === 'A' ? 'A' : $event->gender);
+        $el->setAttribute('gender', $event->gender);
         $el->setAttribute('round', $event->round);
 
-        if ($event->lenex_event_id) {
-            $el->setAttribute('eventid', $event->lenex_event_id);
-        } else {
-            $el->setAttribute('eventid', (string) $event->id);
-        }
-
-        if ($event->sport_classes) {
-            $el->setAttribute('sportclasses', $event->sport_classes);
-        }
-
-        // SWIMSTYLE
         $styleEl = $this->dom->createElement('SWIMSTYLE');
         $styleEl->setAttribute('distance', (string) $event->distance);
         $styleEl->setAttribute('relaycount', (string) $event->relay_count);
-        $styleEl->setAttribute('stroke', $event->strokeType?->lenex_code ?? 'UNKNOWN');
-
-        if ($event->technique) {
-            $styleEl->setAttribute('technique', $event->technique);
-        }
-        if ($event->style_code) {
-            $styleEl->setAttribute('code', $event->style_code);
-        }
-        if ($event->style_name) {
-            $styleEl->setAttribute('name', $event->style_name);
-        }
-
+        $styleEl->setAttribute('stroke', $event->strokeType?->lenex_code ?? 'FREE');
         $el->appendChild($styleEl);
+
+        $ageGroupsEl = $this->buildAgeGroups($event);
+        if ($ageGroupsEl->hasChildNodes()) {
+            $el->appendChild($ageGroupsEl);
+        }
 
         return $el;
     }
 
-    // ── Clubs ─────────────────────────────────────────────────────────────────
+    /**
+     * Baut AGEGROUPS aus den sport_classes des Events.
+     * Pro Sportklasse eine AGEGROUP mit agegroupid, agemax/agemin=-1, handicap.
+     *
+     * @throws DOMException
+     */
+    private function buildAgeGroups(SwimEvent $event): DOMElement
+    {
+        $ageGroupsEl = $this->dom->createElement('AGEGROUPS');
+
+        if (! $event->sport_classes || trim($event->sport_classes) === '') {
+            return $ageGroupsEl;
+        }
+
+        $lenexEventId = $event->lenex_event_id ?? (string) $event->id;
+        $classes = collect(preg_split('/[\s,]+/', trim($event->sport_classes)))
+            ->filter(fn ($c) => $c !== '')
+            ->values();
+
+        foreach ($classes as $classNum) {
+            $ag = $this->dom->createElement('AGEGROUP');
+            $ag->setAttribute('agegroupid', $lenexEventId.'_'.$classNum);
+            $ag->setAttribute('agemax', '-1');
+            $ag->setAttribute('agemin', '-1');
+            $ag->setAttribute('handicap', $classNum);
+            $ageGroupsEl->appendChild($ag);
+        }
+
+        return $ageGroupsEl;
+    }
 
     /**
      * @throws DOMException
@@ -201,61 +197,90 @@ class LenexExportService
     private function buildClubs(Meet $meet): DOMElement
     {
         $clubsEl = $this->dom->createElement('CLUBS');
-
         foreach ($meet->clubs as $club) {
-            $clubEl = $this->dom->createElement('CLUB');
-            $clubEl->setAttribute('name', $club->name);
-
-            if ($club->code) {
-                $clubEl->setAttribute('code', $club->code);
-            }
-            if ($club->nation) {
-                $clubEl->setAttribute('nation', $club->nation->code);
-            }
-            if ($club->type !== 'CLUB') {
-                $clubEl->setAttribute('type', $club->type);
-            }
-            if ($club->lenex_club_id) {
-                $clubEl->setAttribute('id', $club->lenex_club_id);
-            }
-
-            // Athletes
-            $athletes = $this->exportType === 'entries'
-                ? $meet->entries()->where('club_id', $club->id)
-                    ->with('athlete.sportClasses')->get()
-                    ->pluck('athlete')->unique('id')
-                : $meet->results()->where('club_id', $club->id)
-                    ->with('athlete.sportClasses')->get()
-                    ->pluck('athlete')->unique('id');
-
-            if ($athletes->isNotEmpty()) {
-                $athletesEl = $this->dom->createElement('ATHLETES');
-                foreach ($athletes as $athlete) {
-                    if (! $athlete) {
-                        continue;
-                    }
-                    $athletesEl->appendChild(
-                        $this->buildAthlete($athlete, $club, $meet)
-                    );
-                }
-                $clubEl->appendChild($athletesEl);
-            }
-
-            $clubsEl->appendChild($clubEl);
+            $clubsEl->appendChild($this->buildClub($club, $meet));
         }
 
         return $clubsEl;
     }
 
-    // ── Athlete ───────────────────────────────────────────────────────────────
+    /**
+     * @throws DOMException
+     */
+    private function buildClub(Club $club, Meet $meet): DOMElement
+    {
+        $el = $this->dom->createElement('CLUB');
+        $el->setAttribute('name', $club->name);
+        if ($club->code) {
+            $el->setAttribute('code', $club->code);
+        }
+        if ($club->nation) {
+            $el->setAttribute('nation', $club->nation->code);
+        }
+        if ($club->type && $club->type !== 'CLUB') {
+            $el->setAttribute('type', $club->type);
+        }
+        if ($club->lenex_club_id) {
+            $el->setAttribute('clubid', $club->lenex_club_id);
+        }
+
+        $athletes = $this->collectAthletes($club, $meet);
+
+        if ($athletes->isNotEmpty()) {
+            $athletesEl = $this->dom->createElement('ATHLETES');
+            foreach ($athletes as $athlete) {
+                $athletesEl->appendChild($this->buildAthlete($athlete, $club, $meet));
+            }
+            $el->appendChild($athletesEl);
+        }
+
+        if ($this->exportType === 'entries') {
+            $relaysEl = $this->buildRelays($club, $meet);
+            if ($relaysEl->hasChildNodes()) {
+                $el->appendChild($relaysEl);
+            }
+        }
+
+        return $el;
+    }
+
+    /**
+     * Sammelt alle Athleten des Clubs für dieses Meet (Einzel + Staffel, dedupliziert).
+     *
+     * @return Collection<Athlete>
+     */
+    private function collectAthletes(Club $club, Meet $meet): Collection
+    {
+        if ($this->exportType === 'entries') {
+            $entryAthletes = Entry::where('meet_id', $meet->id)
+                ->where('club_id', $club->id)
+                ->with('athlete.sportClasses')
+                ->get()->pluck('athlete')->filter();
+
+            $relayEntryIds = RelayEntry::where('meet_id', $meet->id)
+                ->where('club_id', $club->id)
+                ->pluck('id');
+
+            $relayAthletes = $relayEntryIds->isNotEmpty()
+                ? RelayEntryMember::whereIn('relay_entry_id', $relayEntryIds)
+                    ->with('athlete.sportClasses')->get()->pluck('athlete')->filter()
+                : collect();
+
+            return $entryAthletes->merge($relayAthletes)->unique('id')->values();
+        }
+
+        return Result::where('meet_id', $meet->id)
+            ->where('club_id', $club->id)
+            ->with('athlete.sportClasses')->get()
+            ->pluck('athlete')->filter()->unique('id')->values();
+    }
 
     /**
      * @throws DOMException
      */
-    private function buildAthlete($athlete, $club, Meet $meet): DOMElement
+    private function buildAthlete($athlete, Club $club, Meet $meet): DOMElement
     {
         $el = $this->dom->createElement('ATHLETE');
-
         $el->setAttribute('athleteid', $athlete->lenex_athlete_id ?? (string) $athlete->id);
         $el->setAttribute('lastname', $athlete->last_name);
         $el->setAttribute('firstname', $athlete->first_name);
@@ -268,7 +293,7 @@ class LenexExportService
             $el->setAttribute('license', $athlete->license);
         }
         if ($athlete->license_ipc) {
-            $el->setAttribute('license_ipc', $athlete->license_ipc);
+            $el->setAttribute('license_ipc', (string) $athlete->license_ipc);
         }
         if ($athlete->nation) {
             $el->setAttribute('nation', $athlete->nation->code);
@@ -276,18 +301,22 @@ class LenexExportService
         if ($athlete->name_prefix) {
             $el->setAttribute('nameprefix', $athlete->name_prefix);
         }
+        if ($athlete->level) {
+            $el->setAttribute('level', $athlete->level);
+        }
+        if ($athlete->swrid) {
+            $el->setAttribute('swrid', (string) $athlete->swrid);
+        }
 
-        // HANDICAP
         if ($athlete->sportClasses->isNotEmpty()) {
             $el->appendChild($this->buildHandicap($athlete));
         }
 
-        // Entries oder Results
         if ($this->exportType === 'entries') {
-            $entries = $meet->entries()
+            $entries = Entry::where('meet_id', $meet->id)
                 ->where('athlete_id', $athlete->id)
                 ->where('club_id', $club->id)
-                ->get();
+                ->with('swimEvent')->get();
 
             if ($entries->isNotEmpty()) {
                 $entriesEl = $this->dom->createElement('ENTRIES');
@@ -297,11 +326,10 @@ class LenexExportService
                 $el->appendChild($entriesEl);
             }
         } else {
-            $results = $meet->results()
+            $results = Result::where('meet_id', $meet->id)
                 ->where('athlete_id', $athlete->id)
                 ->where('club_id', $club->id)
-                ->with('splits')
-                ->get();
+                ->with(['splits', 'swimEvent'])->get();
 
             if ($results->isNotEmpty()) {
                 $resultsEl = $this->dom->createElement('RESULTS');
@@ -315,43 +343,28 @@ class LenexExportService
         return $el;
     }
 
-    // ── Handicap ──────────────────────────────────────────────────────────────
-
     /**
      * @throws DOMException
      */
     private function buildHandicap($athlete): DOMElement
     {
         $el = $this->dom->createElement('HANDICAP');
-
         $classes = $athlete->sportClasses->keyBy('category');
-
-        // LENEX erwartet alle drei Attribute als Pflichtfeld
         $el->setAttribute('free', $classes->get('S')?->class_number ?? '0');
         $el->setAttribute('breast', $classes->get('SB')?->class_number ?? '0');
         $el->setAttribute('medley', $classes->get('SM')?->class_number ?? '0');
-
-        // Status-Attribute (optional, neu in LENEX 3.0)
-        if ($s = $classes->get('S')) {
-            if ($s->status) {
-                $el->setAttribute('freestatus', $s->status);
-            }
+        if (($s = $classes->get('S')) && $s->status) {
+            $el->setAttribute('freestatus', $s->status);
         }
-        if ($sb = $classes->get('SB')) {
-            if ($sb->status) {
-                $el->setAttribute('breaststatus', $sb->status);
-            }
+        if (($sb = $classes->get('SB')) && $sb->status) {
+            $el->setAttribute('breaststatus', $sb->status);
         }
-        if ($sm = $classes->get('SM')) {
-            if ($sm->status) {
-                $el->setAttribute('medleystatus', $sm->status);
-            }
+        if (($sm = $classes->get('SM')) && $sm->status) {
+            $el->setAttribute('medleystatus', $sm->status);
         }
 
         return $el;
     }
-
-    // ── Entry ─────────────────────────────────────────────────────────────────
 
     /**
      * @throws DOMException
@@ -359,16 +372,9 @@ class LenexExportService
     private function buildEntry($entry): DOMElement
     {
         $el = $this->dom->createElement('ENTRY');
-
         $lenexEventId = $entry->swimEvent?->lenex_event_id ?? (string) $entry->swim_event_id;
         $el->setAttribute('eventid', $lenexEventId);
-
-        if ($entry->entry_time) {
-            $el->setAttribute('entrytime', $this->formatTime($entry->entry_time));
-        } else {
-            $el->setAttribute('entrytime', 'NT');
-        }
-
+        $el->setAttribute('entrytime', $entry->entry_time ? $this->formatTime($entry->entry_time) : 'NT');
         if ($entry->entry_course) {
             $el->setAttribute('entrycourse', $entry->entry_course);
         }
@@ -388,7 +394,18 @@ class LenexExportService
         return $el;
     }
 
-    // ── Result ────────────────────────────────────────────────────────────────
+    /**
+     * Hundertstelsekunden → LENEX Zeitformat "HH:MM:SS.ss"
+     */
+    private function formatTime(int $centiseconds): string
+    {
+        return sprintf('%02d:%02d:%02d.%02d',
+            intdiv($centiseconds, 360000),
+            intdiv($centiseconds % 360000, 6000),
+            intdiv($centiseconds % 6000, 100),
+            $centiseconds % 100
+        );
+    }
 
     /**
      * @throws DOMException
@@ -396,17 +413,10 @@ class LenexExportService
     private function buildResult($result): DOMElement
     {
         $el = $this->dom->createElement('RESULT');
-
         $lenexEventId = $result->swimEvent?->lenex_event_id ?? (string) $result->swim_event_id;
         $el->setAttribute('eventid', $lenexEventId);
         $el->setAttribute('resultid', $result->lenex_result_id ?? (string) $result->id);
-
-        if ($result->swim_time) {
-            $el->setAttribute('swimtime', $this->formatTime($result->swim_time));
-        } else {
-            $el->setAttribute('swimtime', 'NT');
-        }
-
+        $el->setAttribute('swimtime', $result->swim_time ? $this->formatTime($result->swim_time) : 'NT');
         if ($result->status) {
             $el->setAttribute('status', $result->status);
         }
@@ -426,14 +436,12 @@ class LenexExportService
             $el->setAttribute('lane', (string) $result->lane);
         }
         if ($result->reaction_time !== null) {
-            $sign = $result->reaction_time >= 0 ? '+' : '';
-            $el->setAttribute('reactiontime', $sign.$result->reaction_time);
+            $el->setAttribute('reactiontime', ($result->reaction_time >= 0 ? '+' : '').$result->reaction_time);
         }
         if ($result->comment) {
             $el->setAttribute('comment', $result->comment);
         }
 
-        // Rekord-Flags
         $records = [];
         if ($result->is_world_record) {
             $records[] = 'WR';
@@ -448,7 +456,6 @@ class LenexExportService
             $el->setAttribute('recordtype', implode(' ', $records));
         }
 
-        // Splits
         if ($result->splits->isNotEmpty()) {
             $splitsEl = $this->dom->createElement('SPLITS');
             foreach ($result->splits as $split) {
@@ -463,18 +470,87 @@ class LenexExportService
         return $el;
     }
 
-    // ── Zeit-Formatierung ─────────────────────────────────────────────────────
+    /**
+     * @throws DOMException
+     */
+    private function buildRelays(Club $club, Meet $meet): DOMElement
+    {
+        $relaysEl = $this->dom->createElement('RELAYS');
+        $relayEntries = RelayEntry::where('meet_id', $meet->id)
+            ->where('club_id', $club->id)
+            ->with(['swimEvent', 'members.athlete'])
+            ->orderBy('swim_event_id')->orderBy('id')->get();
+
+        $eventCounters = [];
+        foreach ($relayEntries as $relayEntry) {
+            $eid = $relayEntry->swim_event_id;
+            $eventCounters[$eid] = ($eventCounters[$eid] ?? 0) + 1;
+            $relaysEl->appendChild($this->buildRelay($relayEntry, $eventCounters[$eid]));
+        }
+
+        return $relaysEl;
+    }
 
     /**
-     * Hundertstelsekunden → LENEX Zeitformat "HH:MM:SS.ss"
+     * @throws DOMException
      */
-    private function formatTime(int $centiseconds): string
+    private function buildRelay(RelayEntry $relayEntry, int $number): DOMElement
     {
-        $hours = intdiv($centiseconds, 360000);
-        $minutes = intdiv($centiseconds % 360000, 6000);
-        $seconds = intdiv($centiseconds % 6000, 100);
-        $cs = $centiseconds % 100;
+        $el = $this->dom->createElement('RELAY');
+        $el->setAttribute('number', (string) $number);
+        $el->setAttribute('agemax', '-1');
+        $el->setAttribute('agemin', '-1');
+        $el->setAttribute('agetotalmax', '-1');
+        $el->setAttribute('agetotalmin', '-1');
 
-        return sprintf('%02d:%02d:%02d.%02d', $hours, $minutes, $seconds, $cs);
+        if ($relayEntry->swimEvent?->gender) {
+            $el->setAttribute('gender', $relayEntry->swimEvent->gender);
+        }
+
+        $lenexEventId = $relayEntry->swimEvent?->lenex_event_id
+            ?? (string) $relayEntry->swim_event_id;
+
+        $entryEl = $this->dom->createElement('ENTRY');
+        $entryEl->setAttribute('eventid', $lenexEventId);
+        $entryEl->setAttribute('entrytime',
+            $relayEntry->entry_time ? $this->formatTime($relayEntry->entry_time) : 'NT'
+        );
+        if ($relayEntry->entry_course) {
+            $entryEl->setAttribute('entrycourse', $relayEntry->entry_course);
+        }
+
+        $members = $relayEntry->members;
+        if ($members->isNotEmpty()) {
+            $positionsEl = $this->dom->createElement('RELAYPOSITIONS');
+            foreach ($members as $index => $member) {
+                $positionsEl->appendChild(
+                    $this->buildRelayPosition($member, $member->position ?? ($index + 1))
+                );
+            }
+            $entryEl->appendChild($positionsEl);
+        }
+
+        $entriesEl = $this->dom->createElement('ENTRIES');
+        $entriesEl->appendChild($entryEl);
+        $el->appendChild($entriesEl);
+
+        return $el;
+    }
+
+    /**
+     * @throws DOMException
+     */
+    private function buildRelayPosition(RelayEntryMember $member, int $position): DOMElement
+    {
+        $el = $this->dom->createElement('RELAYPOSITION');
+        $el->setAttribute('number', (string) $position);
+        $el->setAttribute('athleteid',
+            $member->athlete?->lenex_athlete_id ?? (string) $member->athlete_id
+        );
+        if ($member->sport_class) {
+            $el->setAttribute('handicap', $member->sport_class);
+        }
+
+        return $el;
     }
 }
