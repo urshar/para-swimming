@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\BaseTimeCategoryController;
+use App\Http\Controllers\BaseTimeExportController;
 use App\Http\Controllers\BaseTimeImportController;
 use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ClassifierController;
@@ -45,6 +46,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{version}/categories', [BaseTimeCategoryController::class, 'index'])->name('categories.index');
         Route::get('{version}/categories/{category}',
             [BaseTimeCategoryController::class, 'show'])->name('categories.show');
+
+        Route::get('{version}/export', [BaseTimeExportController::class, 'export'])->name('export');
     });
 
     // ── Club-Einzelmeldungen ──────────────────────────────────────────────────

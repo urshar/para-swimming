@@ -46,6 +46,8 @@
                             <flux:table.cell>{{ $version->base_times_count }}</flux:table.cell>
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
+                                    <flux:button href="{{ route('base-times.export', $version) }}"
+                                                 variant="ghost" size="sm" icon="arrow-down-tray"/>
                                     <flux:button href="{{ route('base-times.versions.edit', $version) }}"
                                                  variant="ghost" size="sm" icon="pencil"/>
                                     <form method="POST" action="{{ route('base-times.versions.destroy', $version) }}"
