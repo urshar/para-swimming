@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\BaseTimeCategoryController;
+use App\Http\Controllers\BaseTimeImportController;
+use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
@@ -29,6 +32,20 @@ Route::middleware(['auth', RequireAdmin::class])->prefix('admin')->name('admin.'
 
 // ── Authentifizierte Routen ───────────────────────────────────────────────────
 Route::middleware(['auth'])->group(function () {
+
+    // ── BaseTimes tools ──────────────────────────────────────────────────
+    Route::prefix('base-times')->name('base-times.')->group(function () {
+        Route::get('import', [BaseTimeImportController::class, 'showForm'])->name('import');
+        Route::post('import/preview', [BaseTimeImportController::class, 'preview'])->name('import.preview');
+        Route::post('import/run', [BaseTimeImportController::class, 'run'])->name('import.run');
+
+        Route::resource('versions', BaseTimeVersionController::class)
+            ->except(['show'])->names('versions');
+
+        Route::get('{version}/categories', [BaseTimeCategoryController::class, 'index'])->name('categories.index');
+        Route::get('{version}/categories/{category}',
+            [BaseTimeCategoryController::class, 'show'])->name('categories.show');
+    });
 
     // ── Club-Einzelmeldungen ──────────────────────────────────────────────────
     Route::prefix('meets/{meet}/club-entries')->name('club-entries.')->group(function () {
