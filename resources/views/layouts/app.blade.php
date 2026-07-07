@@ -116,6 +116,19 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
+        @if(auth()->user()?->is_admin)
+            <flux:navlist.group heading="Basiswerte">
+                <flux:navlist.item icon="calculator" href="{{ route('base-times.versions.index') }}"
+                                   :current="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*')">
+                    Basiswerte
+                </flux:navlist.item>
+                <flux:navlist.item icon="arrow-up-tray" href="{{ route('base-times.import') }}"
+                                   :current="request()->routeIs('base-times.import*')">
+                    Basiswerte importieren
+                </flux:navlist.item>
+            </flux:navlist.group>
+        @endif
+        
     </flux:navlist>
 
     <flux:spacer/>
