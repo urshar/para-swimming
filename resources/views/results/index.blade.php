@@ -4,6 +4,59 @@
 
 @section('content')
 
+    @if($selectedMeet)
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
+            <form method="POST" action="{{ route('meets.recalculate-points', $selectedMeet) }}"
+                  class="flex flex-wrap items-center gap-3">
+                @csrf
+                <span class="text-sm text-zinc-500 dark:text-zinc-400">
+                    World-Aquatics-Punkte für <strong
+                        class="text-zinc-700 dark:text-zinc-300">{{ $selectedMeet->name }}</strong>:
+                </span>
+                <flux:select name="version_id" class="w-64" size="sm">
+                    @forelse($baseTimeVersions as $version)
+                        <option value="{{ $version->id }}" @selected($automaticVersion?->id === $version->id)>
+                            {{ $version->label }}
+                            @if($automaticVersion?->id === $version->id)
+                                (automatisch ermittelt)
+                            @endif
+                        </option>
+                    @empty
+                        <option value="">— keine Basiswert-Version vorhanden —</option>
+                    @endforelse
+                </flux:select>
+                <flux:button type="submit" variant="primary" size="sm" icon="calculator"
+                             :disabled="$baseTimeVersions->isEmpty()">
+                    Punkte neu berechnen
+                </flux:button>
+            </form>
+        </div>
+    @endif
+
+    @if($skippedResults->isNotEmpty())
+        <div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4"
+             x-data="{ open: false }">
+            <button type="button" x-on:click="open = !open"
+                    class="flex items-center justify-between w-full text-sm font-medium text-amber-800 dark:text-amber-400">
+                <span>{{ $skippedResults->count() }} übersprungene(s) Ergebnis(se) bei der letzten Punkte-Neuberechnung</span>
+                <span x-text="open ? '▲' : '▼'"></span>
+            </button>
+            <div x-show="open" x-cloak class="mt-3 divide-y divide-amber-200 dark:divide-amber-800">
+                @foreach($skippedResults as $entry)
+                    <div class="py-2 text-sm flex items-center justify-between gap-3">
+                        <a href="{{ route('results.show', $entry['result']) }}"
+                           class="text-amber-900 dark:text-amber-300 hover:underline">
+                            {{ $entry['result']->athlete?->display_name }}
+                            — {{ $entry['result']->swimEvent?->display_name }}
+                        </a>
+                        <span
+                            class="text-amber-600 dark:text-amber-500 text-xs text-right">{{ $entry['reason'] }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         <form method="GET" class="flex flex-wrap gap-3">
             <flux:select name="meet_id" placeholder="Wettkampf wählen…" class="flex-1 min-w-48">
@@ -38,6 +91,7 @@
                 <flux:table.column>Disziplin</flux:table.column>
                 <flux:table.column>Klasse</flux:table.column>
                 <flux:table.column>Zeit</flux:table.column>
+                <flux:table.column>Punkte</flux:table.column>
                 <flux:table.column>Platz</flux:table.column>
                 <flux:table.column>Rekorde</flux:table.column>
                 <flux:table.column>Status</flux:table.column>
@@ -62,6 +116,9 @@
                         </flux:table.cell>
                         <flux:table.cell class="font-mono text-sm font-semibold text-zinc-900 dark:text-white">
                             {{ $result->formatted_swim_time }}
+                        </flux:table.cell>
+                        <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
+                            {{ $result->points ?? '–' }}
                         </flux:table.cell>
                         <flux:table.cell class="text-zinc-500 dark:text-zinc-400 text-sm">
                             {{ $result->place ? '#' . $result->place : '–' }}
@@ -96,7 +153,7 @@
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="8" class="text-center text-zinc-400 py-12">
+                        <flux:table.cell colspan="9" class="text-center text-zinc-400 py-12">
                             Keine Ergebnisse gefunden.
                         </flux:table.cell>
                     </flux:table.row>

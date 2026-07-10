@@ -5,6 +5,7 @@ use App\Models\BaseTimeCategory;
 use App\Models\BaseTimeDerivationRule;
 use App\Models\BaseTimeDiscipline;
 use App\Models\BaseTimeSportClass;
+use App\Models\BaseTimeVersion;
 use App\Models\StrokeType;
 use App\Services\BaseTimeImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,7 @@ function makeBaseTimeWorkbook_bt(): string
 
     $men = $spreadsheet->getActiveSheet();
     $men->setTitle('LC Men');
-    $men->fromArray([null, 'S15', 'S14', 'R20'], null, 'A1');
+    $men->fromArray([null, 'S15', 'S14', 'R20']);
     // Explizite setCellValue()-Aufrufe statt fromArray(): fromArray() vergleicht Werte standardmäßig
     // per loser Gleichheit gegen $nullValue (Default: null) und würde eine literale 0 (0 == null ist
     // in PHP true!) fälschlich als "leer" behandeln und gar nicht erst schreiben.
@@ -51,8 +52,8 @@ function makeBaseTimeWorkbook_bt(): string
 
     $women = $spreadsheet->createSheet();
     $women->setTitle('LC Women');
-    $women->fromArray([null, 'S15'], null, 'A1');
-    $women->fromArray(['100FR', 70.0], null, 'A2');
+    $women->fromArray([null, 'S15']);
+    $women->fromArray(['100FR', 70.0], startCell: 'A2');
     $women->setCellValue('A3', '200FR');
     $women->setCellValue('B3', "=B2*(1+'LC Men'!\$B\$6)");
 
@@ -196,11 +197,10 @@ describe('BaseTimeImportService::import', function () {
         expect($result['categories'])->toBe(2)
             ->and($result['disciplines'])->toBe(3)
             ->and($result['sport_classes'])->toBe(3) // S15, S14, S20
-            ->and($result['base_times'])->toBe(9);
-
-        expect(BaseTimeCategory::where('code', 'LC_MEN')->exists())->toBeTrue();
-        expect(BaseTimeDiscipline::where('code', '400FR')->exists())->toBeTrue();
-        expect(BaseTimeSportClass::where('code', 'S20')->exists())->toBeTrue();
+            ->and($result['base_times'])->toBe(9)
+            ->and(BaseTimeCategory::where('code', 'LC_MEN')->exists())->toBeTrue()
+            ->and(BaseTimeDiscipline::where('code', '400FR')->exists())->toBeTrue()
+            ->and(BaseTimeSportClass::where('code', 'S20')->exists())->toBeTrue();
 
         $rule = BaseTimeDerivationRule::whereHas(
             'shorterDiscipline', fn ($q) => $q->where('code', '200FR')
@@ -221,5 +221,40 @@ describe('BaseTimeImportService::import', function () {
         expect(fn () => $this->service->import($this->path, [
             'label' => 'V2', 'valid_from' => '2025-01-01', 'valid_until' => null,
         ]))->toThrow(RuntimeException::class);
+    })->group('base-time-import');
+});
+
+// ── importIntoExistingVersion() ────────────────────────────────────────────────
+
+describe('BaseTimeImportService::importIntoExistingVersion', function () {
+    beforeEach(function () {
+        makeFreeStrokeType_bt();
+        $this->path = makeBaseTimeWorkbook_bt();
+        $this->service = new BaseTimeImportService;
+    })->group('base-time-import');
+
+    it('importiert in eine bereits bestehende Version, ohne eine neue anzulegen', function () {
+        $version = BaseTimeVersion::create([
+            'label' => 'Bereits angelegt', 'valid_from' => '2021-01-01', 'valid_until' => null,
+        ]);
+
+        $result = $this->service->importIntoExistingVersion($this->path, $version);
+
+        expect($result['version_id'])->toBe($version->id)
+            ->and(BaseTimeVersion::count())->toBe(1) // keine zusätzliche Version angelegt
+            ->and($result['base_times'])->toBe(9);
+    })->group('base-time-import');
+
+    it('ersetzt vorhandene Basiswerte bei einem erneuten Import derselben Version', function () {
+        $version = BaseTimeVersion::create([
+            'label' => 'V1', 'valid_from' => '2021-01-01', 'valid_until' => null,
+        ]);
+
+        $this->service->importIntoExistingVersion($this->path, $version);
+        // Zweiter Durchlauf mit derselben Datei darf nicht an der Unique-Constraint scheitern.
+        $result = $this->service->importIntoExistingVersion($this->path, $version);
+
+        expect($result['base_times'])->toBe(9)
+            ->and(BaseTime::where('base_time_version_id', $version->id)->count())->toBe(9);
     })->group('base-time-import');
 });

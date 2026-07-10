@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\SearchesAthletes;
+use App\Models\BaseTimeVersion;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimEvent;
+use App\Services\WorldAquaticsPointsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,10 @@ use Throwable;
 class ResultController extends Controller
 {
     use SearchesAthletes;
+
+    public function __construct(
+        private readonly WorldAquaticsPointsService $pointsService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -40,7 +46,23 @@ class ResultController extends Controller
         $results = $query->paginate(25)->withQueryString();
         $meets = Meet::orderByDesc('start_date')->get();
 
-        return view('results.index', compact('results', 'meets'));
+        // Für die "Punkte neu berechnen"-Aktion: nur relevant, wenn nach einem Meet gefiltert wird.
+        $selectedMeet = $meetId ? $meets->firstWhere('id', (int) $meetId) : null;
+        $baseTimeVersions = $selectedMeet ? BaseTimeVersion::orderByDesc('valid_from')->get() : collect();
+        $automaticVersion = $selectedMeet ? $this->pointsService->resolveAutomaticVersion($selectedMeet) : null;
+
+        $skippedResultIds = session('points_skipped_results', []);
+        $skippedResults = collect();
+        if (! empty($skippedResultIds)) {
+            $skippedResults = Result::with(['athlete', 'swimEvent'])
+                ->whereIn('id', array_keys($skippedResultIds))
+                ->get()
+                ->map(fn (Result $r) => ['result' => $r, 'reason' => $skippedResultIds[$r->id]]);
+        }
+
+        return view('results.index', compact(
+            'results', 'meets', 'selectedMeet', 'baseTimeVersions', 'automaticVersion', 'skippedResults'
+        ));
     }
 
     public function show(Result $result): View

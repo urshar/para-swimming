@@ -77,7 +77,7 @@ describe('WorldAquaticsPointsService', function () {
 
         $points = (new WorldAquaticsPointsService)->calculatePoints($result, $fixture['meet']);
 
-        // P = 1000 * (60/65)^3 = 1000 × 0.851599... = 851.599 … → gerundet 852
+        // P = 1000 * (60/65)^3 = 1000 × 0.851599... = 851.599... → gerundet 852
         expect($points)->toBe((int) round(1000 * (60 / 65) ** 3));
     })->group('wa-points');
 
@@ -126,5 +126,61 @@ describe('WorldAquaticsPointsService', function () {
         expect($summary['updated'])->toBe(1)
             ->and($summary['skipped'])->toBe(1)
             ->and($unresolvable->fresh()->points)->toBeNull();
+    })->group('wa-points');
+
+    it('verwendet eine explizit übergebene Version statt der automatischen Zuordnung', function () {
+        $fixture = makeWaBase_wa();
+
+        // Zweite Version mit abweichendem Basiswert (70.00s statt 60.00s), ebenfalls gültig zum Meet-Datum...
+        // ... wird hier aber bewusst NICHT über den Zeitraum, sondern per Parameter ausgewählt.
+        $version2 = BaseTimeVersion::create([
+            'label' => 'Alternative', 'valid_from' => '2030-01-01', 'valid_until' => null,
+        ]);
+        BaseTime::create([
+            'base_time_version_id' => $version2->id, 'base_time_category_id' => $fixture['category']->id,
+            'base_time_discipline_id' => $fixture['discipline']->id,
+            'base_time_sport_class_id' => $fixture['sportClass']->id,
+            'value_centiseconds' => 7000, 'value_type' => BaseTime::TYPE_MANUAL,
+        ]);
+
+        $result = Result::create([
+            'meet_id' => $fixture['meet']->id, 'swim_event_id' => $fixture['event']->id,
+            'athlete_id' => $fixture['athlete']->id, 'club_id' => $fixture['club']->id,
+            'swim_time' => 6500, 'sport_class' => 'S9',
+        ]);
+
+        $automatic = (new WorldAquaticsPointsService)->calculatePoints($result, $fixture['meet']);
+        $overridden = (new WorldAquaticsPointsService)->calculatePoints($result, $fixture['meet'], $version2);
+
+        expect($automatic)->toBe((int) round(1000 * (60 / 65) ** 3))
+            ->and($overridden)->toBe((int) round(1000 * (70 / 65) ** 3))
+            ->and($overridden)->not->toBe($automatic);
+    })->group('wa-points');
+
+    it('resolveAutomaticVersion liefert die zum Meet-Datum passende Version', function () {
+        $fixture = makeWaBase_wa();
+
+        $resolved = (new WorldAquaticsPointsService)->resolveAutomaticVersion($fixture['meet']);
+
+        expect($resolved->id)->toBe($fixture['version']->id);
+    })->group('wa-points');
+
+    it('verwendet bei Einzelbewerben mit gender=X das Geschlecht des Athleten statt "Mixed"', function () {
+        $fixture = makeWaBase_wa();
+
+        // Event ist organisatorisch als "Mixed" gelistet, obwohl es ein Einzelbewerb ist
+        // (kommt bei manchen Meets vor) — der Athlet selbst ist aber eindeutig männlich.
+        $fixture['event']->update(['gender' => 'X']);
+
+        $result = Result::create([
+            'meet_id' => $fixture['meet']->id, 'swim_event_id' => $fixture['event']->id,
+            'athlete_id' => $fixture['athlete']->id, 'club_id' => $fixture['club']->id,
+            'swim_time' => 6500, 'sport_class' => 'S9',
+        ]);
+
+        $points = (new WorldAquaticsPointsService)->calculatePoints($result, $fixture['meet']);
+
+        // Muss trotz gender=X am Event über den Athleten (M) auf LC_MEN auflösen, nicht fehlschlagen.
+        expect($points)->toBe((int) round(1000 * (60 / 65) ** 3));
     })->group('wa-points');
 });

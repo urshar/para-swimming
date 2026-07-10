@@ -88,23 +88,7 @@ class BaseTimeImportService
 
             $version = BaseTimeVersion::create($versionData);
 
-            $categoryIds = $this->importCategories($parsed['categories']);
-            $disciplineIds = $this->importDisciplines($parsed['disciplines'], $parsed['warnings']);
-            $sportClassIds = $this->importSportClasses($parsed['sportClasses']);
-            $rulesImported = $this->importDerivationRules($parsed['cells'], $categoryIds, $disciplineIds);
-            $baseTimesImported = $this->importBaseTimes(
-                $parsed['cells'], $version->id, $categoryIds, $disciplineIds, $sportClassIds
-            );
-
-            return [
-                'version_id' => $version->id,
-                'categories' => count($categoryIds),
-                'disciplines' => count($disciplineIds),
-                'sport_classes' => count($sportClassIds),
-                'derivation_rules' => $rulesImported,
-                'base_times' => $baseTimesImported,
-                'warnings' => $parsed['warnings'],
-            ];
+            return $this->importParsedData($parsed, $version);
         });
     }
 
@@ -205,7 +189,20 @@ class BaseTimeImportService
         return compact('categories', 'disciplines', 'sportClasses', 'cells', 'warnings');
     }
 
-    // ── Sheet-Struktur lesen ──────────────────────────────────────────────────
+    /**
+     * Importiert die Datei in eine bereits bestehende Basiswert-Version — z.B. wenn die Version
+     * zuvor separat angelegt wurde und nun (erstmalig) mit Daten befüllt werden soll. Es wird
+     * keine Überlappungsprüfung durchgeführt, da die Version bereits existiert.
+     *
+     * @throws Exception wenn die Datei nicht gelesen werden kann
+     * @throws Throwable
+     */
+    public function importIntoExistingVersion(string $filePath, BaseTimeVersion $version): array
+    {
+        $parsed = $this->parse($filePath);
+
+        return DB::transaction(fn () => $this->importParsedData($parsed, $version));
+    }
 
     private function categoryCode(string $sheetName): string
     {
@@ -232,6 +229,8 @@ class BaseTimeImportService
             'label' => $sheetName,
         ];
     }
+
+    // ── Sheet-Struktur lesen ──────────────────────────────────────────────────
 
     /** Liest Spalte A ab Zeile 2, bis zur ersten leeren Zeile. Gibt [row ⇒ Bewerbs-Code] zurück. */
     private function readMainTableRows(Worksheet $sheet): array
@@ -267,8 +266,6 @@ class BaseTimeImportService
         return $columns;
     }
 
-    // ── Kategorie / Bewerb parsen ─────────────────────────────────────────────
-
     /**
      * Liest den Hilfsbereich unterhalb der Haupttabelle: Zeilen, deren Spalte A
      * ein "X to Y"-Label enthält (z.B. "400FR to 800FR"). Gibt [row ⇒ [shorterCode, longerCode]] zurück.
@@ -299,6 +296,8 @@ class BaseTimeImportService
     {
         return preg_replace('/\s+/', '', $code);
     }
+
+    // ── Kategorie / Bewerb parsen ─────────────────────────────────────────────
 
     /** Parst einen Bewerbs-Code wie "50FR" oder "4x100ME" in Distanz/Staffel-Anzahl/Schwimmart. */
     private function disciplineAttributes(string $code, array &$warnings): ?array
@@ -447,8 +446,6 @@ class BaseTimeImportService
         ]);
     }
 
-    // ── Zellen parsen ─────────────────────────────────────────────────────────
-
     private function sortByDistance(string $codeA, string $codeB, array $disciplines): array
     {
         $distA = $this->totalDistance($codeA, $disciplines);
@@ -469,6 +466,8 @@ class BaseTimeImportService
 
         return $disciplines[$code]['distance'] * $disciplines[$code]['relay_count'];
     }
+
+    // ── Zellen parsen ─────────────────────────────────────────────────────────
 
     /**
      * Löst einen Bewerbs-Code auf, inkl. Fallback für die IM/ME-Verwechslung
@@ -497,8 +496,6 @@ class BaseTimeImportService
         return null;
     }
 
-    // ── Datenbank-Import ──────────────────────────────────────────────────────
-
     private function assertNoOverlap(array $versionData): void
     {
         if (BaseTimeVersion::overlapsExisting($versionData['valid_from'], $versionData['valid_until'] ?? null)) {
@@ -507,6 +504,30 @@ class BaseTimeImportService
             );
         }
     }
+
+    /** Gemeinsamer Kern von import() und importIntoExistingVersion() — Version existiert bereits. */
+    private function importParsedData(array $parsed, BaseTimeVersion $version): array
+    {
+        $categoryIds = $this->importCategories($parsed['categories']);
+        $disciplineIds = $this->importDisciplines($parsed['disciplines'], $parsed['warnings']);
+        $sportClassIds = $this->importSportClasses($parsed['sportClasses']);
+        $rulesImported = $this->importDerivationRules($parsed['cells'], $categoryIds, $disciplineIds);
+        $baseTimesImported = $this->importBaseTimes(
+            $parsed['cells'], $version->id, $categoryIds, $disciplineIds, $sportClassIds
+        );
+
+        return [
+            'version_id' => $version->id,
+            'categories' => count($categoryIds),
+            'disciplines' => count($disciplineIds),
+            'sport_classes' => count($sportClassIds),
+            'derivation_rules' => $rulesImported,
+            'base_times' => $baseTimesImported,
+            'warnings' => $parsed['warnings'],
+        ];
+    }
+
+    // ── Datenbank-Import ──────────────────────────────────────────────────────
 
     private function importCategories(array $categories): array
     {
@@ -645,6 +666,13 @@ class BaseTimeImportService
                 'updated_at' => $now,
             ];
         }
+
+        // Ersetzt statt zu duplizieren: falls für diese Version/Kategorien bereits Basiswerte
+        // existieren (z.B. bei einem versehentlichen zweiten Import derselben Datei), werden sie
+        // vorher entfernt, statt an der Unique-Constraint zu scheitern.
+        BaseTime::where('base_time_version_id', $versionId)
+            ->whereIn('base_time_category_id', array_values($categoryIds))
+            ->delete();
 
         foreach (array_chunk($rows, 500) as $chunk) {
             BaseTime::insert($chunk);

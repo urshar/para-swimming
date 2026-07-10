@@ -49,9 +49,6 @@ Route::middleware(['auth'])->group(function () {
             [BaseTimeCategoryController::class, 'show'])->name('categories.show');
 
         Route::get('{version}/export', [BaseTimeExportController::class, 'export'])->name('export');
-
-        Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
-            ->name('meets.recalculate-points');
     });
 
     // ── Club-Einzelmeldungen ──────────────────────────────────────────────────
@@ -128,6 +125,9 @@ Route::middleware(['auth'])->group(function () {
         ->shallow()
         ->except(['index'])
         ->parameters(['results' => 'result']);
+
+    Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
+        ->name('meets.recalculate-points');
 
     // ── LENEX ─────────────────────────────────────────────────────────────────
     Route::prefix('lenex')->name('lenex.')->group(function () {

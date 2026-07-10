@@ -11,6 +11,12 @@
 
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
             Datei: <span class="font-mono">{{ $fileName }}</span>
+            @if($targetVersion)
+                <br>Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $targetVersion->label }}</span>
+                <span class="text-xs">(vorhandene Basiswerte betroffener Kategorien werden ersetzt)</span>
+            @else
+                <br>Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">neu anzulegen</span>
+            @endif
         </p>
 
         {{-- ── Zusammenfassung ──────────────────────────────────────────────── --}}

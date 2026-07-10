@@ -3,9 +3,9 @@
 @section('title', 'Basiswerte importieren')
 
 @section('content')
-    <div class="max-w-xl">
+    <div class="max-w-xl" x-data="{ mode: @js($selectedVersionId ? 'existing' : 'new') }">
         <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('base-times.import') }}" variant="ghost" icon="arrow-left" size="sm"/>
+            <flux:button href="{{ route('base-times.versions.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Basiswerte importieren</h1>
         </div>
 
@@ -30,25 +30,63 @@
 
             <div
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
-                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Version</h2>
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Ziel-Version</h2>
 
-                <flux:field>
-                    <flux:label>Bezeichnung *</flux:label>
-                    <flux:input name="label" placeholder="z.B. 2021–2026" value="{{ old('label') }}" required/>
-                    <flux:error name="label"/>
-                </flux:field>
+                <div class="flex gap-4 text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" value="new" x-model="mode" class="accent-blue-600">
+                        <span class="text-zinc-700 dark:text-zinc-300">Neue Version anlegen</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" value="existing" x-model="mode" class="accent-blue-600"
+                            {{ $versions->isEmpty() ? 'disabled' : '' }}>
+                        <span class="text-zinc-700 dark:text-zinc-300">Bestehende Version verwenden</span>
+                    </label>
+                </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                {{-- Bestehende Version wählen --}}
+                <div x-show="mode === 'existing'" x-cloak>
                     <flux:field>
-                        <flux:label>Gültig ab *</flux:label>
-                        <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}" required/>
-                        <flux:error name="valid_from"/>
+                        <flux:label>Version *</flux:label>
+                        <flux:select name="version_id">
+                            <option value="">— wählen —</option>
+                            @foreach($versions as $version)
+                                <option value="{{ $version->id }}"
+                                    @selected((string) $selectedVersionId === (string) $version->id)>
+                                    {{ $version->label }}
+                                    ({{ $version->valid_from->format('d.m.Y') }} –
+                                    {{ $version->valid_until?->format('d.m.Y') ?? '∞' }})
+                                </option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="version_id"/>
+                        <flux:description>
+                            Vorhandene Basiswerte dieser Version werden pro importiertem Arbeitsblatt ersetzt.
+                        </flux:description>
                     </flux:field>
+                </div>
+
+                {{-- Neue Version anlegen --}}
+                <div x-show="mode === 'new'" x-cloak class="space-y-4">
                     <flux:field>
-                        <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
-                        <flux:error name="valid_until"/>
+                        <flux:label>Bezeichnung *</flux:label>
+                        <flux:input name="label" placeholder="z.B. 2021–2026" value="{{ old('label') }}"/>
+                        <flux:error name="label"/>
                     </flux:field>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Gültig ab *</flux:label>
+                            <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}"/>
+                            <flux:error name="valid_from"/>
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span>
+                            </flux:label>
+                            <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
+                            <flux:error name="valid_until"/>
+                        </flux:field>
+                    </div>
                 </div>
             </div>
 
