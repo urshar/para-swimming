@@ -127,6 +127,25 @@
                     Basiswerte importieren
                 </flux:navlist.item>
             </flux:navlist.group>
+
+            <flux:navlist.group heading="ÖBSV Cup Wertung">
+                <flux:navlist.item icon="trophy" href="{{ route('cups.index') }}"
+                                   :current="request()->routeIs('cups.*')">
+                    Cup-Konfiguration
+                </flux:navlist.item>
+                <flux:navlist.item icon="star" href="{{ route('kader-types.index') }}"
+                                   :current="request()->routeIs('kader-types.*')">
+                    Kaderarten
+                </flux:navlist.item>
+                <flux:navlist.item icon="users" href="{{ route('age-groups.index') }}"
+                                   :current="request()->routeIs('age-groups.*')">
+                    Altersgruppen
+                </flux:navlist.item>
+                <flux:navlist.item icon="squares-2x2" href="{{ route('sport-class-groups.index') }}"
+                                   :current="request()->routeIs('sport-class-groups.*')">
+                    Sportklassengruppen
+                </flux:navlist.item>
+            </flux:navlist.group>
         @endif
         
     </flux:navlist>

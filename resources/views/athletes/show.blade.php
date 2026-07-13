@@ -774,6 +774,92 @@
     </div>
 
     {{-- ═══════════════════════════════════════════════════════════════════════
+         NATIONALKADER
+    ════════════════════════════════════════════════════════════════════════ --}}
+    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
+         x-data="{ openKader: false }">
+
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Nationalkader</h2>
+            <flux:button size="sm" variant="ghost" icon="plus"
+                         x-on:click="openKader = !openKader">
+                Kaderzugehörigkeit eintragen
+            </flux:button>
+        </div>
+
+        {{-- Kader-Formular --}}
+        <div x-show="openKader" x-cloak
+             class="mb-5 p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600">
+            <h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Neue Kaderzugehörigkeit</h3>
+            <form method="POST" action="{{ route('athletes.kader-memberships.store', $athlete) }}">
+                @csrf
+                <flux:field>
+                    <flux:label>Kaderart *</flux:label>
+                    <flux:select name="kader_type_id" required>
+                        <option value="">– auswählen –</option>
+                        @foreach($kaderTypes as $kaderType)
+                            <option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</option>
+                        @endforeach
+                    </flux:select>
+                    <flux:error name="kader_type_id"/>
+                </flux:field>
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <flux:field>
+                        <flux:label>Gültig ab <span class="font-normal text-zinc-400">(optional)</span></flux:label>
+                        <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}"/>
+                        <flux:error name="valid_from"/>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span></flux:label>
+                        <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
+                        <flux:error name="valid_until"/>
+                    </flux:field>
+                </div>
+                <flux:field class="mt-3">
+                    <flux:label>Bemerkung</flux:label>
+                    <flux:input name="notes" value="{{ old('notes') }}" placeholder="Begründung…"/>
+                </flux:field>
+                <div class="flex gap-2 mt-3">
+                    <flux:button type="submit" variant="primary" size="sm">Speichern</flux:button>
+                    <flux:button type="button" variant="ghost" size="sm" x-on:click="openKader = false">Abbrechen
+                    </flux:button>
+                </div>
+            </form>
+        </div>
+
+        {{-- Kader-Tabelle --}}
+        @if($athlete->kaderMemberships->isNotEmpty())
+            <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
+                @foreach($athlete->kaderMemberships as $km)
+                    <div class="flex items-center justify-between py-2.5 text-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="font-medium text-zinc-900 dark:text-zinc-100">
+                                {{ $km->kaderType->name_de }}
+                            </span>
+                            <span class="text-xs text-zinc-400">
+                                {{ $km->valid_from?->format('d.m.Y') ?? '—' }}
+                                bis {{ $km->valid_until?->format('d.m.Y') ?? 'laufend' }}
+                            </span>
+                            @if($km->notes)
+                                <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
+                            @endif
+                        </div>
+                        <form method="POST"
+                              action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
+                              onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
+                            @csrf
+                            @method('DELETE')
+                            <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                        </form>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="text-sm text-zinc-400">Kein Nationalkader-Eintrag vorhanden.</p>
+        @endif
+    </div>
+
+    {{-- ═══════════════════════════════════════════════════════════════════════
          ERGEBNISSE
     ════════════════════════════════════════════════════════════════════════ --}}
     <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Ergebnisse</h2>

@@ -118,6 +118,20 @@ class Athlete extends Model
         return $this->hasMany(AthleteLevelHistory::class)->orderByDesc('changed_at');
     }
 
+    /**
+     * Nationalkader-Zugehörigkeiten (neueste zuerst).
+     */
+    public function kaderMemberships(): HasMany
+    {
+        return $this->hasMany(AthleteKaderMembership::class)->orderByDesc('valid_from');
+    }
+
+    /** Ist der Athlet an einem bestimmten Stichtag Mitglied eines Nationalkaders? */
+    public function isInKaderOn(Carbon|string $date): bool
+    {
+        return $this->kaderMemberships()->activeOn($date)->exists();
+    }
+
     public function getFullNameAttribute(): string
     {
         $parts = array_filter([

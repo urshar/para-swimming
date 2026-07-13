@@ -28,6 +28,9 @@ class DatabaseSeeder extends Seeder
             ExceptionCodesSeeder::class,
             ClubsSeeder::class,
             ClassifiersSeeder::class,
+            KaderTypesSeeder::class,
+            AgeGroupsSeeder::class,
+            SportClassGroupsSeeder::class,
         ]);
 
         $this->command->info('');

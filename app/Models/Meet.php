@@ -29,6 +29,7 @@ class Meet extends Model
         'swrid',
         'lenex_meet_id',
         'entries_deadline',
+        'cup_id',
     ];
 
     protected $casts = [
@@ -43,6 +44,11 @@ class Meet extends Model
     public function nation(): BelongsTo
     {
         return $this->belongsTo(Nation::class);
+    }
+
+    public function cup(): BelongsTo
+    {
+        return $this->belongsTo(Cup::class);
     }
 
     public function clubs(): BelongsToMany

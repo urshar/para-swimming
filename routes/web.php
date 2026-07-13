@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AgeGroupController;
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\BaseTimeCategoryController;
 use App\Http\Controllers\BaseTimeExportController;
@@ -9,7 +10,9 @@ use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
+use App\Http\Controllers\CupController;
 use App\Http\Controllers\EntryController;
+use App\Http\Controllers\KaderTypeController;
 use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
@@ -18,6 +21,7 @@ use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\ResultController;
+use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
 use App\Http\Middleware\RequireAdmin;
@@ -100,6 +104,24 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('athletes/{athlete}/levels',
         [AthleteController::class, 'storeLevel'])->name('athletes.levels.store');
+
+    Route::post('athletes/{athlete}/kader-memberships',
+        [AthleteController::class, 'storeKaderMembership'])->name('athletes.kader-memberships.store');
+    Route::delete('athletes/{athlete}/kader-memberships/{kaderMembership}',
+        [AthleteController::class, 'destroyKaderMembership'])->name('athletes.kader-memberships.destroy');
+
+    // ── ÖBSV Cup Wertung — Stammdaten (Phase 1, admin-only) ────────────────────
+    Route::resource('cups', CupController::class)->except(['show']);
+
+    Route::resource('kader-types', KaderTypeController::class)->except(['show']);
+
+    Route::resource('age-groups', AgeGroupController::class)->except(['show']);
+
+    Route::resource('sport-class-groups', SportClassGroupController::class)->except(['show']);
+    Route::post('sport-class-groups/{sportClassGroup}/members',
+        [SportClassGroupController::class, 'storeMember'])->name('sport-class-groups.members.store');
+    Route::delete('sport-class-groups/{sportClassGroup}/members/{member}',
+        [SportClassGroupController::class, 'destroyMember'])->name('sport-class-groups.members.destroy');
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);

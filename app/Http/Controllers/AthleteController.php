@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Athlete;
 use App\Models\AthleteClassification;
 use App\Models\AthleteClubHistory;
+use App\Models\AthleteKaderMembership;
 use App\Models\AthleteLevelHistory;
 use App\Models\Classifier;
 use App\Models\Club;
 use App\Models\ExceptionCode;
+use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
 use Carbon\Carbon;
@@ -128,6 +130,7 @@ class AthleteController extends Controller
             'classifications.tech2Classifier',
             'classifications.exceptions',
             'levelHistory.user',
+            'kaderMemberships.kaderType',
         ]);
 
         $results = $athlete->results()
@@ -140,10 +143,11 @@ class AthleteController extends Controller
         $techClassifiers = Classifier::active()->technical()->orderBy('last_name')->get();
         $users = User::orderBy('name')->get();
         $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
+        $kaderTypes = KaderType::active()->orderBy('sort_order')->get();
 
         return view('athletes.show', compact(
             'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes'
+            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes'
         ));
     }
 
@@ -360,6 +364,50 @@ class AthleteController extends Controller
         return redirect()
             ->route('athletes.show', $athlete)
             ->with('success', 'Level aktualisiert.');
+    }
+
+    /**
+     * POST /athletes/{athlete}/kader-memberships
+     *
+     * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur für
+     * Admins — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
+     *
+     * @used-by web.php (Route::post athletes.kader-memberships.store)
+     */
+    public function storeKaderMembership(Request $request, Athlete $athlete): RedirectResponse
+    {
+        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+
+        $validated = $request->validate([
+            'kader_type_id' => 'required|exists:kader_types,id',
+            'valid_from' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:valid_from',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $athlete->kaderMemberships()->create($validated);
+
+        return redirect()
+            ->route('athletes.show', $athlete)
+            ->with('success', 'Kaderzugehörigkeit eingetragen.');
+    }
+
+    /**
+     * DELETE /athletes/{athlete}/kader-memberships/{kaderMembership}
+     *
+     * @used-by web.php (Route::delete athletes.kader-memberships.destroy)
+     */
+    public function destroyKaderMembership(Athlete $athlete, AthleteKaderMembership $kaderMembership): RedirectResponse
+    {
+        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+
+        abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
+
+        $kaderMembership->delete();
+
+        return redirect()
+            ->route('athletes.show', $athlete)
+            ->with('success', 'Kaderzugehörigkeit gelöscht.');
     }
 
     private function validateAthlete(Request $request): array
