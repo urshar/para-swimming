@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * @property int $id
@@ -17,11 +18,15 @@ use Illuminate\Support\Carbon;
  * @property int|null $age_group_id
  * @property int $total_points
  * @property int $rounds_counted
- * @property array<int, int> $counted_daily_result_ids
+ * @property array<int, int> $counted_meet_ids
  * @property Carbon $calculated_at
  * @property int|null $rank Rang innerhalb einer Wertungskategorie — wird zur
- *     Laufzeit von OverallRankingService::rankedBracket() gesetzt, ist KEIN
- *     Datenbank-Feld und wird nicht persistiert.
+ *                          Laufzeit von OverallRankingService::rankedBracket() gesetzt, ist KEIN
+ *                          Datenbank-Feld und wird nicht persistiert.
+ * @property Collection|null $rounds Runden-Aufschlüsselung
+ *                                   (Punkte/Sportklasse je Meet) — wird zur Laufzeit von
+ *                                   CupOverallRankingController::attachRoundBreakdown() gesetzt, ist KEIN
+ *                                   Datenbank-Feld und wird nicht persistiert.
  */
 class CupOverallResult extends Model
 {
@@ -34,14 +39,14 @@ class CupOverallResult extends Model
         'age_group_id',
         'total_points',
         'rounds_counted',
-        'counted_daily_result_ids',
+        'counted_meet_ids',
         'calculated_at',
     ];
 
     protected $casts = [
         'total_points' => 'integer',
         'rounds_counted' => 'integer',
-        'counted_daily_result_ids' => 'array',
+        'counted_meet_ids' => 'array',
         'calculated_at' => 'datetime',
     ];
 

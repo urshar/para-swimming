@@ -77,7 +77,7 @@
                                         {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
                                     </a>
                                 </flux:table.cell>
-                                <flux:table.cell>{{ $row->club?->name }}</flux:table.cell>
+                                <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
                                 <flux:table.cell class="font-mono">{{ $row->points }}</flux:table.cell>
                             </flux:table.row>
                         @endforeach

@@ -4,7 +4,7 @@
 @section('title', 'Gesamtwertung — '.$cup->name)
 
 @section('content')
-    <div class="max-w-4xl">
+    <div class="max-w-6xl">
         <div class="flex items-start justify-between mb-6">
             <div class="flex items-center gap-3">
                 <flux:button href="{{ route('cups.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
@@ -44,6 +44,13 @@
             </div>
         @endif
 
+        @if($meets->isNotEmpty())
+            <p class="text-xs text-zinc-400 mb-4">
+                <span class="text-emerald-700 dark:text-emerald-400 font-semibold">Grün/fett</span> = zählt zu den
+                besten {{ $cup->best_of_count }} Runden. Sportklassen je Runde, sofern nicht überall identisch.
+            </p>
+        @endif
+
         @forelse($brackets as $bracket)
             <div
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
@@ -58,31 +65,51 @@
                     <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
                 </div>
 
-                <flux:table
-                    class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                    <flux:table.columns>
-                        <flux:table.column>Rang</flux:table.column>
-                        <flux:table.column>Athlet</flux:table.column>
-                        <flux:table.column>Verein</flux:table.column>
-                        <flux:table.column>Runden</flux:table.column>
-                        <flux:table.column>Gesamtpunkte</flux:table.column>
-                    </flux:table.columns>
-                    <flux:table.rows>
-                        @foreach($bracket['results'] as $row)
-                            <flux:table.row>
-                                <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
-                                <flux:table.cell>
-                                    <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
-                                        {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
-                                    </a>
-                                </flux:table.cell>
-                                <flux:table.cell>{{ $row->club?->name }}</flux:table.cell>
-                                <flux:table.cell>{{ $row->rounds_counted }}</flux:table.cell>
-                                <flux:table.cell class="font-mono">{{ $row->total_points }}</flux:table.cell>
-                            </flux:table.row>
-                        @endforeach
-                    </flux:table.rows>
-                </flux:table>
+                <div class="overflow-x-auto">
+                    <flux:table
+                        class="table-fixed w-full min-w-180 [&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                        <flux:table.columns>
+                            <flux:table.column class="w-12">Rang</flux:table.column>
+                            <flux:table.column class="w-56">Athlet</flux:table.column>
+                            <flux:table.column class="w-48">Verein</flux:table.column>
+                            <flux:table.column class="w-32">Sportklassen</flux:table.column>
+                            @foreach($meets as $index => $meet)
+                                <flux:table.column class="w-14">
+                                    <span title="{{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})">
+                                        R.{{ $index + 1 }}
+                                    </span>
+                                </flux:table.column>
+                            @endforeach
+                            <flux:table.column class="w-28">Gesamtpunkte</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach($bracket['results'] as $row)
+                                <flux:table.row>
+                                    <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
+                                    <flux:table.cell>
+                                        <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
+                                            {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
+                                        </a>
+                                    </flux:table.cell>
+                                    <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
+                                    <flux:table.cell class="font-mono text-xs">
+                                        {{ $row->rounds->pluck('sport_class')->filter()->implode('/') ?: '—' }}
+                                    </flux:table.cell>
+                                    @foreach($row->rounds as $round)
+                                        <flux:table.cell class="font-mono">
+                                            <span
+                                                style="{{ $round['counted'] ? 'color: #047857; font-weight: 600;' : 'color: #a1a1aa;' }}">
+                                                {{ $round['points'] ?? '—' }}
+                                            </span>
+                                        </flux:table.cell>
+                                    @endforeach
+                                    <flux:table.cell
+                                        class="font-mono font-semibold">{{ $row->total_points }}</flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                        </flux:table.rows>
+                    </flux:table>
+                </div>
             </div>
         @empty
             <div

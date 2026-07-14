@@ -38,9 +38,11 @@ function makeNation_cup6(string $code = 'AUT'): Nation
     );
 }
 
-function makeClub_cup6(): Club
+function makeClub_cup6(?string $shortName = null): Club
 {
-    return Club::create(['name' => 'Testclub', 'nation_id' => makeNation_cup6()->id]);
+    return Club::create([
+        'name' => 'Testclub', 'short_name' => $shortName, 'nation_id' => makeNation_cup6()->id,
+    ]);
 }
 
 function makeAthlete_cup6(array $attrs = []): Athlete
@@ -120,6 +122,63 @@ describe('show', function () {
             ->assertOk()
             ->assertSee('Mustermann, Max')
             ->assertSee('420');
+    })->group('cup-wertung-p6');
+
+    it('zeigt die Rundenpunkte und Sportklassen je Runde', function () {
+        $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
+        $cup = makeCup_cup6(); // best_of_count = 3
+        $club = makeClub_cup6();
+        $athlete = makeAthlete_cup6();
+        makeDailyResult_cup6($cup, makeMeet_cup6($cup), $athlete, $club, $group, 420);
+        makeDailyResult_cup6($cup, makeMeet_cup6($cup), $athlete, $club, $group, 380);
+
+        app(OverallRankingService::class)->calculateForCup($cup);
+
+        $this->actingAs(makeClubUser_cup6())
+            ->get(route('cups.overall-ranking.show', $cup))
+            ->assertOk()
+            ->assertSee('420')
+            ->assertSee('380')
+            ->assertSee('S9/S9') // Sportklassen-Spalte, beide Runden
+            ->assertSee('R.1')
+            ->assertSee('R.2');
+    })->group('cup-wertung-p6');
+
+    it('markiert eine Runde weiterhin korrekt als gezählt, nachdem die Tageswertung neu berechnet wurde (neue IDs)', function () {
+        $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
+        $cup = makeCup_cup6();
+        $club = makeClub_cup6();
+        $athlete = makeAthlete_cup6();
+        $meet = makeMeet_cup6($cup);
+        $daily = makeDailyResult_cup6($cup, $meet, $athlete, $club, $group, 420);
+
+        app(OverallRankingService::class)->calculateForCup($cup);
+
+        // Simuliert eine erneute Tageswertungs-Berechnung: alte Zeile weg, neue ID.
+        $daily->delete();
+        makeDailyResult_cup6($cup, $meet, $athlete, $club, $group, 420);
+
+        $response = $this->actingAs(makeClubUser_cup6())
+            ->get(route('cups.overall-ranking.show', $cup));
+
+        $response->assertOk()
+            ->assertSee('text-emerald-700', false); // grüne "gezählt"-Markierung greift trotz neuer Daily-Result-ID
+    })->group('cup-wertung-p6');
+
+    it('zeigt den Vereins-Kurznamen, falls hinterlegt', function () {
+        $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
+        $cup = makeCup_cup6();
+        $club = makeClub_cup6('TSC'); // Kurzname
+        $athlete = makeAthlete_cup6();
+        makeDailyResult_cup6($cup, makeMeet_cup6($cup), $athlete, $club, $group, 420);
+
+        app(OverallRankingService::class)->calculateForCup($cup);
+
+        $this->actingAs(makeClubUser_cup6())
+            ->get(route('cups.overall-ranking.show', $cup))
+            ->assertOk()
+            ->assertSee('TSC')
+            ->assertDontSee('Testclub');
     })->group('cup-wertung-p6');
 });
 

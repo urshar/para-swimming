@@ -106,7 +106,7 @@ readonly class OverallRankingService
             'age_group_id' => $ageGroup?->id,
             'total_points' => $counted->sum('points'),
             'rounds_counted' => $counted->count(),
-            'counted_daily_result_ids' => $counted->pluck('id')->all(),
+            'counted_meet_ids' => $counted->pluck('meet_id')->all(),
             'calculated_at' => $calculatedAt,
         ]);
     }
@@ -121,11 +121,7 @@ readonly class OverallRankingService
         $position = 0;
         $previousPoints = null;
 
-        return $rowsSortedByPointsDesc->map(function (CupOverallResult $row) use (
-            &$rank,
-            &$position,
-            &$previousPoints
-        ) {
+        return $rowsSortedByPointsDesc->map(function (CupOverallResult $row) use (&$rank, &$position, &$previousPoints) {
             $position++;
 
             if ($previousPoints === null || $row->total_points < $previousPoints) {
