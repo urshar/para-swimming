@@ -6,10 +6,12 @@ use App\Models\CupDailyResult;
 use App\Models\Meet;
 use App\Models\SportClassGroup;
 use App\Services\DailyRankingService;
+use App\Services\PdfExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -17,13 +19,14 @@ use Throwable;
  *
  * Zeigt die Tageswertung (Punkt 9 der Spec) für ein Cup-Meet an und löst die
  * (Neu-)Berechnung aus. Die Anzeige ist für alle angemeldeten Nutzer offen
- * (wie Ergebnisse/Meldungen generell); das Neuberechnen ist admin-only, da es
+ * (wie Ergebnisse/Meldungen generell); das Neu berechnen ist admin-only, da es
  * den persistierten Cup-Wertungs-Snapshot verändert.
  */
 class CupDailyRankingController extends Controller
 {
     public function __construct(
         private readonly DailyRankingService $dailyRankingService,
+        private readonly PdfExportService $pdfExportService,
     ) {}
 
     /**
@@ -50,10 +53,28 @@ class CupDailyRankingController extends Controller
     }
 
     /**
+     * GET /meets/{meet}/cup-daily-ranking/pdf
+     *
+     * Öffnet die Tageswertung als PDF im Browser (Punkt 11/12 der Spec).
+     */
+    public function pdf(Meet $meet): Response
+    {
+        abort_unless($meet->cup_id, 404, 'Dieses Meet ist keinem Cup zugeordnet.');
+
+        $meet->load('cup');
+
+        return $this->pdfExportService->stream('pdf.cup-daily-ranking', [
+            'meet' => $meet,
+            'brackets' => $this->resolveBrackets($meet),
+            'calculatedAt' => CupDailyResult::where('meet_id', $meet->id)->max('calculated_at'),
+        ], "cup-tageswertung-$meet->id.pdf");
+    }
+
+    /**
      * POST /meets/{meet}/cup-daily-ranking/calculate
      *
      * @throws Throwable bei einem unerwarteten Fehler innerhalb der Berechnung
-     *         (eine fehlende Cup-Zuordnung wird separat abgefangen, siehe unten)
+     *                   (eine fehlende Cup-Zuordnung wird separat abgefangen, siehe unten)
      */
     public function calculate(Meet $meet): RedirectResponse
     {

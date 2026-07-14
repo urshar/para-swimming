@@ -6,9 +6,11 @@ use App\Models\BaseTimeVersion;
 use App\Models\Cup;
 use App\Models\CupGroupSetting;
 use App\Models\SportClassGroup;
+use App\Services\TopGroupClassificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * CupController
@@ -18,6 +20,10 @@ use Illuminate\View\View;
  */
 class CupController extends Controller
 {
+    public function __construct(
+        private readonly TopGroupClassificationService $topGroupClassificationService,
+    ) {}
+
     public function index(): View
     {
         $this->authorizeAdmin();
@@ -133,6 +139,26 @@ class CupController extends Controller
                 ['is_active' => $selectedGroupIds->contains($group->id)]
             );
         }
+    }
+
+    /**
+     * POST /cups/{cup}/classify-top-group
+     *
+     * Löst die saisonale Top-Gruppen-Klassifizierung aus (siehe
+     * TopGroupClassificationService). MUSS vor der Tageswertungs-Berechnung
+     * für dieses Cup-Jahr laufen.
+     *
+     * @throws Throwable bei einem Fehler innerhalb der Berechnung
+     */
+    public function classifyTopGroup(Cup $cup): RedirectResponse
+    {
+        $this->authorizeAdmin();
+
+        $this->topGroupClassificationService->calculateForCup($cup);
+
+        return redirect()
+            ->route('cups.index')
+            ->with('success', "Top-Gruppen-Klassifizierung für \"$cup->name\" berechnet.");
     }
 
     private function authorizeAdmin(): void

@@ -51,6 +51,14 @@
                                                  variant="ghost" size="sm" icon="trophy">
                                         Gesamtwertung
                                     </flux:button>
+                                    <form method="POST" action="{{ route('cups.classify-top-group', $cup) }}"
+                                          x-data="{ submit() { if (confirm('Top-Gruppen-Klassifizierung berechnen? Sollte zu Saisonbeginn und vor der Tageswertung laufen.')) this.$el.submit() } }"
+                                          @submit.prevent="submit()">
+                                        @csrf
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="arrow-trending-up">
+                                            Top-Gruppe klassifizieren
+                                        </flux:button>
+                                    </form>
                                     <flux:button href="{{ route('cups.edit', $cup) }}"
                                                  variant="ghost" size="sm" icon="pencil"/>
                                     <form method="POST" action="{{ route('cups.destroy', $cup) }}"

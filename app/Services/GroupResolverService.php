@@ -16,9 +16,16 @@ use Illuminate\Support\Collection;
  * GroupResolverService
  *
  * Ordnet ein Cup-Ergebnis (Athlet + Result) für die Cupwertung einer
- * Sportklassengruppe zu — inklusive der Top-Gruppen-Logik (Punkt 8 der Spec:
- * Nationalkader zum Wettkampfdatum, Punktgrenze, ausländischer Verein) —
- * sowie einer Altersgruppe nach der 31.12.-Stichtagsregel.
+ * Sportklassengruppe zu — inklusive der Top-Gruppen-Logik (Punkt 8 der Spec)
+ * — sowie einer Altersgruppe nach der 31.12.-Stichtagsregel.
+ *
+ * Top-Gruppen-Kriterien:
+ *   - Ausländischer Verein (Punkt 6) — sofortige, ergebnisbezogene Prüfung.
+ *   - Nationalkader ODER Punkte-Historie der letzten zwei Kalenderjahre —
+ *     saisonale Klassifizierung, siehe TopGroupClassificationService. MUSS
+ *     vorab per calculateForCup() berechnet worden sein; ohne geladene
+ *     Klassifizierungs-Map (siehe resolveSportClassGroup()) gilt ein Athlet
+ *     über dieses Kriterium NICHT als Top-Gruppe.
  *
  * Reine Zuordnungslogik, keine Wertungsberechnung (siehe DailyRankingService /
  * OverallRankingService für die eigentliche Tages-/Gesamtwertung).
@@ -34,13 +41,20 @@ readonly class GroupResolverService
      *   - die Sportklasse keiner Gruppe zugeordnet ist (z.B. Staffel-Klassen), oder
      *   - die zuständige Gruppe für dieses Cup-Jahr deaktiviert ist.
      *
-     * @param  Collection<string, SportClassGroup>|null  $sportClassMap  optionale, vorab
-     *         geladene Zuordnung sport_class => SportClassGroup (siehe loadSportClassMap()),
-     *         um bei Massenverarbeitung (Tageswertung) N+1-Abfragen zu vermeiden.
+     * @param Collection<string, SportClassGroup>|null $sportClassMap optionale, vorab
+     *        geladene Zuordnung sport_class => SportClassGroup (siehe loadSportClassMap()),
+     *        um bei Massenverarbeitung (Tageswertung) N+1-Abfragen zu vermeiden.
+     * @param Collection<int, bool>|null $topGroupClassificationMap optionale, vorab
+     *        geladene Saison-Klassifizierung athlete_id => is_top_group (siehe
+     *        TopGroupClassificationService::loadClassificationMap()).
      */
-    public function resolveSportClassGroup(Result $result, Cup $cup, ?Collection $sportClassMap = null): ?SportClassGroup
-    {
-        if ($this->isTopGroup($result, $cup)) {
+    public function resolveSportClassGroup(
+        Result $result,
+        Cup $cup,
+        ?Collection $sportClassMap = null,
+        ?Collection $topGroupClassificationMap = null
+    ): ?SportClassGroup {
+        if ($this->isTopGroup($result, $topGroupClassificationMap)) {
             $topGroup = $this->topGroup();
 
             if ($topGroup && $cup->isGroupActive($topGroup)) {
@@ -58,14 +72,23 @@ readonly class GroupResolverService
     }
 
     /**
-     * Prüft die drei Top-Gruppen-Kriterien aus Punkt 8 der Spec. Ein einziges
-     * zutreffendes Kriterium genügt.
+     * Top-Gruppen-Zugehörigkeit für ein einzelnes Ergebnis (Punkt 8 der Spec).
+     *
+     * @param Collection<int, bool>|null $topGroupClassificationMap siehe resolveSportClassGroup().
+     *        Fehlt sie, zählt nur das "ausländischer Verein"-Kriterium (die
+     *        saisonale Klassifizierung kann dann nicht geprüft werden).
      */
-    public function isTopGroup(Result $result, Cup $cup): bool
+    public function isTopGroup(Result $result, ?Collection $topGroupClassificationMap = null): bool
     {
-        return $this->isNationalKaderAthlete($result)
-            || $this->exceedsTopGroupThreshold($result, $cup)
-            || $this->isForeignClub($result);
+        if ($this->isForeignClub($result)) {
+            return true;
+        }
+
+        if ($topGroupClassificationMap === null) {
+            return false;
+        }
+
+        return $topGroupClassificationMap->get($result->athlete_id, false);
     }
 
     /**
@@ -101,24 +124,7 @@ readonly class GroupResolverService
             ->mapWithKeys(fn (SportClassGroupMember $member) => [$member->sport_class => $member->sportClassGroup]);
     }
 
-    // ── Top-Gruppen-Kriterien (Punkt 8 der Spec) ─────────────────────────────
-
-    private function isNationalKaderAthlete(Result $result): bool
-    {
-        $athlete = $result->athlete;
-
-        if (! $athlete) {
-            return false;
-        }
-
-        return $athlete->isInKaderOn($result->meet?->start_date ?? now());
-    }
-
-    /** "mehr als" die konfigurierte Punktgrenze → strikt größer, nicht größer-gleich. */
-    private function exceedsTopGroupThreshold(Result $result, Cup $cup): bool
-    {
-        return $result->points !== null && $result->points > $cup->top_group_points_threshold;
-    }
+    // ── Top-Gruppen-Kriterien ─────────────────────────────────────────────────
 
     private function isForeignClub(Result $result): bool
     {

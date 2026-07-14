@@ -34,6 +34,7 @@ readonly class DailyRankingService
 {
     public function __construct(
         private GroupResolverService $groupResolver,
+        private TopGroupClassificationService $topGroupClassificationService,
     ) {}
 
     /**
@@ -87,6 +88,7 @@ readonly class DailyRankingService
     private function resolveBestResultsPerAthlete(Meet $meet, Cup $cup): array
     {
         $sportClassMap = $this->groupResolver->loadSportClassMap();
+        $topGroupClassificationMap = $this->topGroupClassificationService->loadClassificationMap($cup);
 
         $results = $meet->results()
             ->with(['athlete', 'club.nation'])
@@ -100,7 +102,7 @@ readonly class DailyRankingService
                 continue;
             }
 
-            $group = $this->groupResolver->resolveSportClassGroup($result, $cup, $sportClassMap);
+            $group = $this->groupResolver->resolveSportClassGroup($result, $cup, $sportClassMap, $topGroupClassificationMap);
 
             if (! $group) {
                 continue; // Sportklasse keiner aktiven Gruppe zugeordnet (z.B. Staffel)

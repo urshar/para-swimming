@@ -7,9 +7,11 @@ use App\Models\Cup;
 use App\Models\CupOverallResult;
 use App\Models\SportClassGroup;
 use App\Services\OverallRankingService;
+use App\Services\PdfExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -23,6 +25,7 @@ class CupOverallRankingController extends Controller
 {
     public function __construct(
         private readonly OverallRankingService $overallRankingService,
+        private readonly PdfExportService $pdfExportService,
     ) {}
 
     /**
@@ -43,6 +46,20 @@ class CupOverallRankingController extends Controller
             'brackets' => $brackets,
             'calculatedAt' => $calculatedAt,
         ]);
+    }
+
+    /**
+     * GET /cups/{cup}/overall-ranking/pdf
+     *
+     * Öffnet die Gesamtwertung als PDF im Browser (Punkt 11/12 der Spec).
+     */
+    public function pdf(Cup $cup): Response
+    {
+        return $this->pdfExportService->stream('pdf.cup-overall-ranking', [
+            'cup' => $cup,
+            'brackets' => $this->resolveBrackets($cup),
+            'calculatedAt' => CupOverallResult::where('cup_id', $cup->id)->max('calculated_at'),
+        ], "cup-gesamtwertung-$cup->id.pdf");
     }
 
     /**

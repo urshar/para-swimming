@@ -1,5 +1,7 @@
 <?php
 
+/** @noinspection PhpUnhandledExceptionInspection Pest-Test-Closures fangen Exceptions selbst ab. */
+
 use App\Models\Athlete;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
@@ -14,6 +16,7 @@ use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Services\DailyRankingService;
 use App\Services\GroupResolverService;
+use App\Services\TopGroupClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,7 +26,7 @@ uses(TestCase::class, RefreshDatabase::class);
 
 function service_cup3(): DailyRankingService
 {
-    return new DailyRankingService(new GroupResolverService);
+    return new DailyRankingService(new GroupResolverService, new TopGroupClassificationService);
 }
 
 function makeNation_cup3(string $code = 'AUT'): Nation

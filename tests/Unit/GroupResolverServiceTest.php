@@ -2,11 +2,9 @@
 
 use App\Models\AgeGroup;
 use App\Models\Athlete;
-use App\Models\AthleteKaderMembership;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
 use App\Models\Cup;
-use App\Models\KaderType;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
@@ -83,14 +81,19 @@ function makeSportClassGroup_cup2(string $code, array $sportClasses = []): Sport
 
 function makeTopGroup_cup2(): SportClassGroup
 {
-    return SportClassGroup::create(['code' => 'TOP', 'name_de' => 'Top-Gruppe', 'is_virtual' => true, 'is_active' => true]);
+    return SportClassGroup::create([
+        'code' => 'TOP', 'name_de' => 'Top-Gruppe', 'is_virtual' => true, 'is_active' => true,
+    ]);
 }
 
 function makeStrokeType_cup2(): StrokeType
 {
     return StrokeType::firstOrCreate(
         ['code' => 'FREE'],
-        ['lenex_code' => 'FREE', 'name_de' => 'Freistil', 'name_en' => 'Freestyle', 'category' => 'standard', 'is_active' => true]
+        [
+            'lenex_code' => 'FREE', 'name_de' => 'Freistil', 'name_en' => 'Freestyle', 'category' => 'standard',
+            'is_active' => true,
+        ]
     );
 }
 
@@ -145,57 +148,50 @@ describe('resolveBaseSportClassGroup', function () {
     })->group('cup-wertung-p2');
 });
 
-// ── isTopGroup: Nationalkader ─────────────────────────────────────────────────
+// ── isTopGroup: Saison-Klassifizierung (Nationalkader / Punkte-Historie) ────
 
-describe('isTopGroup — Nationalkader', function () {
-    it('Athlet mit aktiver Kaderzugehörigkeit ist in der Top-Gruppe', function () {
-        $athlete = makeAthlete_cup2();
-        $club = makeClub_cup2();
-        $meet = makeMeet_cup2(['start_date' => '2026-06-01']);
-        $cup = makeCup_cup2();
-        $kaderType = KaderType::create(['code' => 'WELTKLASSE', 'name_de' => 'Weltklasse']);
-        AthleteKaderMembership::create(['athlete_id' => $athlete->id, 'kader_type_id' => $kaderType->id]);
-
-        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 300]); // unter Punktgrenze
-
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeTrue();
-    })->group('cup-wertung-p2');
-
-    it('Athlet ohne Kaderzugehörigkeit und unter der Punktgrenze ist NICHT in der Top-Gruppe', function () {
+describe('isTopGroup — Saison-Klassifizierung', function () {
+    it('Athlet mit is_top_group=true in der Klassifizierungs-Map ist in der Top-Gruppe', function () {
         $athlete = makeAthlete_cup2();
         $club = makeClub_cup2();
         $meet = makeMeet_cup2();
-        $cup = makeCup_cup2();
+        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 100]); // Punkte selbst spielen keine Rolle mehr
 
-        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 300]);
+        $map = collect([$athlete->id => true]);
 
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeFalse();
+        expect((new GroupResolverService)->isTopGroup($result, $map))->toBeTrue();
     })->group('cup-wertung-p2');
-});
 
-// ── isTopGroup: Punktgrenze ───────────────────────────────────────────────────
-
-describe('isTopGroup — Punktgrenze', function () {
-    it('mehr als die Punktgrenze → Top-Gruppe', function () {
+    it('Athlet mit is_top_group=false in der Klassifizierungs-Map ist NICHT in der Top-Gruppe', function () {
         $athlete = makeAthlete_cup2();
         $club = makeClub_cup2();
         $meet = makeMeet_cup2();
-        $cup = makeCup_cup2(['top_group_points_threshold' => 450]);
+        $result = makeResult_cup2($athlete, $club, $meet);
 
-        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 451]);
+        $map = collect([$athlete->id => false]);
 
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeTrue();
+        expect((new GroupResolverService)->isTopGroup($result, $map))->toBeFalse();
     })->group('cup-wertung-p2');
 
-    it('genau die Punktgrenze → NICHT Top-Gruppe (strikt "mehr als")', function () {
+    it('ohne Klassifizierungs-Map (noch nicht berechnet) gilt niemand über dieses Kriterium als Top-Gruppe',
+        function () {
+            $athlete = makeAthlete_cup2();
+            $club = makeClub_cup2();
+            $meet = makeMeet_cup2();
+            $result = makeResult_cup2($athlete, $club, $meet);
+
+            expect((new GroupResolverService)->isTopGroup($result))->toBeFalse();
+        })->group('cup-wertung-p2');
+
+    it('Athlet fehlt in der Map (kein Eintrag) → NICHT Top-Gruppe', function () {
         $athlete = makeAthlete_cup2();
         $club = makeClub_cup2();
         $meet = makeMeet_cup2();
-        $cup = makeCup_cup2(['top_group_points_threshold' => 450]);
+        $result = makeResult_cup2($athlete, $club, $meet);
 
-        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 450]);
+        $map = collect(); // leer
 
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeFalse();
+        expect((new GroupResolverService)->isTopGroup($result, $map))->toBeFalse();
     })->group('cup-wertung-p2');
 });
 
@@ -206,22 +202,20 @@ describe('isTopGroup — Ausländischer Verein', function () {
         $athlete = makeAthlete_cup2();
         $club = makeClub_cup2('GER');
         $meet = makeMeet_cup2();
-        $cup = makeCup_cup2();
 
         $result = makeResult_cup2($athlete, $club, $meet, ['points' => 300]);
 
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeTrue();
+        expect((new GroupResolverService)->isTopGroup($result))->toBeTrue();
     })->group('cup-wertung-p2');
 
     it('österreichischer Verein → kein automatischer Top-Gruppen-Grund', function () {
         $athlete = makeAthlete_cup2();
-        $club = makeClub_cup2('AUT');
+        $club = makeClub_cup2();
         $meet = makeMeet_cup2();
-        $cup = makeCup_cup2();
 
         $result = makeResult_cup2($athlete, $club, $meet, ['points' => 300]);
 
-        expect((new GroupResolverService)->isTopGroup($result, $cup))->toBeFalse();
+        expect((new GroupResolverService)->isTopGroup($result))->toBeFalse();
     })->group('cup-wertung-p2');
 });
 
@@ -262,7 +256,7 @@ describe('resolveSportClassGroup', function () {
     it('gibt null zurück, wenn die zuständige Basisgruppe für den Cup deaktiviert ist', function () {
         $baseGroup = makeSportClassGroup_cup2('PI', ['S9']);
         $athlete = makeAthlete_cup2();
-        $club = makeClub_cup2('AUT');
+        $club = makeClub_cup2();
         $meet = makeMeet_cup2();
         $cup = makeCup_cup2();
         $cup->groupSettings()->create(['sport_class_group_id' => $baseGroup->id, 'is_active' => false]);
@@ -276,7 +270,7 @@ describe('resolveSportClassGroup', function () {
 
     it('gibt null zurück für eine nicht zugeordnete Sportklasse ohne Top-Kriterium', function () {
         $athlete = makeAthlete_cup2();
-        $club = makeClub_cup2('AUT');
+        $club = makeClub_cup2();
         $meet = makeMeet_cup2();
         $cup = makeCup_cup2();
 
@@ -285,6 +279,22 @@ describe('resolveSportClassGroup', function () {
         $resolved = (new GroupResolverService)->resolveSportClassGroup($result, $cup);
 
         expect($resolved)->toBeNull();
+    })->group('cup-wertung-p2');
+
+    it('ordnet über die Klassifizierungs-Map (Saison-Klassifizierung) der Top-Gruppe zu', function () {
+        makeSportClassGroup_cup2('PI', ['S9']);
+        $topGroup = makeTopGroup_cup2();
+        $athlete = makeAthlete_cup2();
+        $club = makeClub_cup2(); // kein Ausland-Kriterium
+        $meet = makeMeet_cup2();
+        $cup = makeCup_cup2();
+
+        $result = makeResult_cup2($athlete, $club, $meet, ['points' => 100]); // Punkte irrelevant, nur Map zählt
+
+        $classificationMap = collect([$athlete->id => true]);
+        $resolved = (new GroupResolverService)->resolveSportClassGroup($result, $cup, null, $classificationMap);
+
+        expect($resolved?->id)->toBe($topGroup->id);
     })->group('cup-wertung-p2');
 });
 

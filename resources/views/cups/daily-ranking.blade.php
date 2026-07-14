@@ -19,16 +19,22 @@
                 </div>
             </div>
 
-            @if(auth()->user()?->is_admin)
-                <form method="POST" action="{{ route('meets.cup-daily-ranking.calculate', $meet) }}"
-                      x-data="{ submit() { if (confirm('Tageswertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
-                      @submit.prevent="submit()">
-                    @csrf
-                    <flux:button type="submit" variant="primary" icon="arrow-path" size="sm">
-                        Neu berechnen
-                    </flux:button>
-                </form>
-            @endif
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.cup-daily-ranking.pdf', $meet) }}" variant="ghost"
+                             icon="printer" size="sm" target="_blank">
+                    PDF / Drucken
+                </flux:button>
+                @if(auth()->user()?->is_admin)
+                    <form method="POST" action="{{ route('meets.cup-daily-ranking.calculate', $meet) }}"
+                          x-data="{ submit() { if (confirm('Tageswertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
+                          @submit.prevent="submit()">
+                        @csrf
+                        <flux:button type="submit" variant="primary" icon="arrow-path" size="sm">
+                            Neu berechnen
+                        </flux:button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         @if(session('success'))

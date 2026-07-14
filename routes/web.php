@@ -114,9 +114,13 @@ Route::middleware(['auth'])->group(function () {
 
     // ── ÖBSV Cup Wertung — Stammdaten (Phase 1, admin-only) ────────────────────
     Route::resource('cups', CupController::class)->except(['show']);
+    Route::post('cups/{cup}/classify-top-group',
+        [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
 
     Route::get('cups/{cup}/overall-ranking',
         [CupOverallRankingController::class, 'show'])->name('cups.overall-ranking.show');
+    Route::get('cups/{cup}/overall-ranking/pdf',
+        [CupOverallRankingController::class, 'pdf'])->name('cups.overall-ranking.pdf');
     Route::post('cups/{cup}/overall-ranking/calculate',
         [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
 
@@ -138,6 +142,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('meets/{meet}/cup-daily-ranking',
         [CupDailyRankingController::class, 'show'])->name('meets.cup-daily-ranking.show');
+    Route::get('meets/{meet}/cup-daily-ranking/pdf',
+        [CupDailyRankingController::class, 'pdf'])->name('meets.cup-daily-ranking.pdf');
     Route::post('meets/{meet}/cup-daily-ranking/calculate',
         [CupDailyRankingController::class, 'calculate'])->name('meets.cup-daily-ranking.calculate');
 
