@@ -11,6 +11,7 @@ use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
 use App\Http\Controllers\CupController;
+use App\Http\Controllers\CupDailyRankingController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\KaderTypeController;
 use App\Http\Controllers\LenexExportController;
@@ -128,6 +129,11 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
     Route::resource('meets', MeetController::class);
+
+    Route::get('meets/{meet}/cup-daily-ranking',
+        [CupDailyRankingController::class, 'show'])->name('meets.cup-daily-ranking.show');
+    Route::post('meets/{meet}/cup-daily-ranking/calculate',
+        [CupDailyRankingController::class, 'calculate'])->name('meets.cup-daily-ranking.calculate');
 
     Route::resource('meets.events', SwimEventController::class)
         ->shallow()

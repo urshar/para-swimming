@@ -24,6 +24,13 @@
                 </flux:button>
             @endif
 
+            @if($meet->cup_id)
+                <flux:button href="{{ route('meets.cup-daily-ranking.show', $meet) }}" variant="ghost"
+                             icon="trophy" size="sm">
+                    Cup-Tageswertung
+                </flux:button>
+            @endif
+
             <flux:button href="{{ route('lenex.export') }}?meet_id={{ $meet->id }}" variant="ghost"
                          icon="arrow-down-tray" size="sm">
                 LENEX Export
