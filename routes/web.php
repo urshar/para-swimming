@@ -117,6 +117,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('cups/{cup}/classify-top-group',
         [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
 
+    Route::get('cup-wertung',
+        [CupOverallRankingController::class, 'index'])->name('cups.overall-ranking.index');
+
     Route::get('cups/{cup}/overall-ranking',
         [CupOverallRankingController::class, 'show'])->name('cups.overall-ranking.show');
     Route::get('cups/{cup}/overall-ranking/pdf',

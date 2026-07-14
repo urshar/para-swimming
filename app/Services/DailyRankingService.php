@@ -24,17 +24,25 @@ use Throwable;
  * Wertungskategorie = Geschlecht + Sportklassengruppe (KEINE Altersgruppe —
  * die kommt laut Erik erst bei der Gesamtwertung dazu, siehe OverallRankingService).
  *
- * Gewertet wird pro Athlet nur das beste gültige Ergebnis des Tages
- * (Punkt 9), unter Wiederverwendung der bereits vorhandenen Punkteberechnung
- * (results.points) sowie der Sportklassengruppen-Zuordnung aus
- * GroupResolverService. Ergebnisse ohne zugeordnete Gruppe (z.B. künftige
- * Staffel-Klassen) und ungültige Ergebnisse (DSQ/DNS/DNF/WDR) fließen nicht ein.
+ * Gewertet wird pro Athlet nur das beste gültige Ergebnis des Tages (Punkt 9).
+ * Die Punkte werden dabei NICHT ungeprüft aus results.points übernommen,
+ * sondern über WorldAquaticsPointsService gegen die im Cup konfigurierte
+ * Basiswert-Version neu berechnet (Erik: das beim Speichern/Import gesetzte
+ * results.points könnte auf einer anderen — z.B. älteren — Basiswert-Version
+ * beruhen als der, die für diese Cup-Saison gilt). results.points selbst wird
+ * dabei NICHT überschrieben; die neu berechneten Punkte fließen ausschließlich
+ * in den Cup-Wertungs-Snapshot ein. Ergebnisse, für die sich mit der
+ * Cup-Basiswert-Version keine Punkte berechnen lassen (z.B. fehlender
+ * Basiswert-Eintrag), fließen nicht ein — ebenso wie Ergebnisse ohne
+ * zugeordnete Sportklassengruppe (z.B. künftige Staffel-Klassen) und
+ * ungültige Ergebnisse (DSQ/DNS/DNF/WDR).
  */
 readonly class DailyRankingService
 {
     public function __construct(
         private GroupResolverService $groupResolver,
         private TopGroupClassificationService $topGroupClassificationService,
+        private WorldAquaticsPointsService $pointsService,
     ) {}
 
     /**
@@ -70,7 +78,7 @@ readonly class DailyRankingService
                     'result_id' => $entry['result']->id,
                     'sport_class_group_id' => $entry['group']->id,
                     'gender' => $entry['gender'],
-                    'points' => $entry['result']->points,
+                    'points' => $entry['points'],
                     'calculated_at' => $calculatedAt,
                 ]);
             }
@@ -81,18 +89,18 @@ readonly class DailyRankingService
 
     /**
      * Für jeden Athleten das punktbeste gültige, einer Gruppe zugeordnete
-     * Ergebnis des Meets.
+     * Ergebnis des Meets — Punkte neu berechnet gegen die Cup-Basiswert-Version.
      *
-     * @return array<int, array{result: Result, group: SportClassGroup, gender: string}>
+     * @return array<int, array{result: Result, group: SportClassGroup, gender: string, points: int}>
      */
     private function resolveBestResultsPerAthlete(Meet $meet, Cup $cup): array
     {
         $sportClassMap = $this->groupResolver->loadSportClassMap();
         $topGroupClassificationMap = $this->topGroupClassificationService->loadClassificationMap($cup);
+        $cupVersion = $cup->baseTimeVersion;
 
         $results = $meet->results()
-            ->with(['athlete', 'club.nation'])
-            ->whereNotNull('points')
+            ->with(['athlete', 'club.nation', 'swimEvent.strokeType'])
             ->get();
 
         $best = [];
@@ -100,6 +108,12 @@ readonly class DailyRankingService
         foreach ($results as $result) {
             if (! $result->isValid() || ! $result->athlete || ! $result->athlete->gender) {
                 continue;
+            }
+
+            $cupPoints = $this->pointsService->calculatePoints($result, $meet, $cupVersion);
+
+            if ($cupPoints === null) {
+                continue; // z.B. kein Basiswert-Eintrag für diese Sportklasse/Bewerb in der Cup-Version
             }
 
             $group = $this->groupResolver->resolveSportClassGroup($result, $cup, $sportClassMap, $topGroupClassificationMap);
@@ -111,11 +125,12 @@ readonly class DailyRankingService
             $athleteId = $result->athlete_id;
             $current = $best[$athleteId] ?? null;
 
-            if (! $current || $result->points > $current['result']->points) {
+            if (! $current || $cupPoints > $current['points']) {
                 $best[$athleteId] = [
                     'result' => $result,
                     'group' => $group,
                     'gender' => $result->athlete->gender,
+                    'points' => $cupPoints,
                 ];
             }
         }

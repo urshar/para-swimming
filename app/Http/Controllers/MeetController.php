@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Athlete;
 use App\Models\Club;
+use App\Models\Cup;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
@@ -46,14 +47,19 @@ class MeetController extends Controller
     public function create(): View
     {
         $nations = Nation::active()->orderBy('name_de')->get();
+        $cups = Cup::orderByDesc('year')->get();
 
-        return view('meets.form', compact('nations'));
+        return view('meets.form', compact('nations', 'cups'));
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateMeet($request);
         $data['is_open'] = $request->boolean('is_open');
+
+        if (! auth()->user()?->is_admin) {
+            unset($data['cup_id']);
+        }
 
         $meet = Meet::create($data);
 
@@ -64,7 +70,7 @@ class MeetController extends Controller
 
     public function show(Meet $meet): View
     {
-        $meet->load(['nation', 'clubs.nation']);
+        $meet->load(['nation', 'cup', 'clubs.nation']);
         $meet->loadCount(['swimEvents', 'entries', 'results']);
 
         $swimEvents = $meet->swimEvents()
@@ -79,14 +85,19 @@ class MeetController extends Controller
     public function edit(Meet $meet): View
     {
         $nations = Nation::active()->orderBy('name_de')->get();
+        $cups = Cup::orderByDesc('year')->get();
 
-        return view('meets.form', compact('meet', 'nations'));
+        return view('meets.form', compact('meet', 'nations', 'cups'));
     }
 
     public function update(Request $request, Meet $meet): RedirectResponse
     {
         $data = $this->validateMeet($request);
         $data['is_open'] = $request->boolean('is_open');
+
+        if (! auth()->user()?->is_admin) {
+            unset($data['cup_id']);
+        }
 
         $meet->update($data);
 
@@ -120,6 +131,7 @@ class MeetController extends Controller
             'timing' => 'nullable|in:AUTOMATIC,SEMIAUTOMATIC,MANUAL3,MANUAL2,MANUAL1',
             'entry_type' => 'nullable|in:OPEN,INVITATION',
             'is_open' => 'boolean',
+            'cup_id' => 'nullable|exists:cups,id',
         ]);
     }
 }

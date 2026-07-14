@@ -56,6 +56,13 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
+        <flux:navlist.group heading="Cup Wertung">
+            <flux:navlist.item icon="trophy" href="{{ route('cups.overall-ranking.index') }}"
+                               :current="request()->routeIs('cups.overall-ranking.*')">
+                Gesamtwertung
+            </flux:navlist.item>
+        </flux:navlist.group>
+
         @auth
             @if(auth()->user()->club_id || auth()->user()->is_admin)
                 <flux:navlist.group heading="Vereinsmeldungen">
@@ -147,7 +154,7 @@
                 </flux:navlist.item>
             </flux:navlist.group>
         @endif
-        
+
     </flux:navlist>
 
     <flux:spacer/>
@@ -175,22 +182,6 @@
 </flux:sidebar>
 
 <flux:main class="p-6">
-
-    @if(session('success'))
-        <flux:callout variant="success" icon="check-circle" class="mb-6">
-            {{ session('success') }}
-        </flux:callout>
-    @endif
-
-    @if($errors->any())
-        <flux:callout variant="danger" icon="exclamation-circle" class="mb-6">
-            <ul class="list-disc list-inside space-y-1 text-sm">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </flux:callout>
-    @endif
 
     @yield('content')
 

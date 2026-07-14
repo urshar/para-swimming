@@ -141,6 +141,25 @@
                     </div>
                 </flux:field>
 
+                @if(auth()->user()?->is_admin)
+                    <flux:field>
+                        <flux:label>ÖBSV Cup</flux:label>
+                        <flux:select name="cup_id">
+                            <option value="">Kein Cup</option>
+                            @foreach($cups as $cup)
+                                <option value="{{ $cup->id }}"
+                                    @selected(old('cup_id', $meet->cup_id ?? '') == $cup->id)>
+                                    {{ $cup->name }}
+                                </option>
+                            @endforeach
+                        </flux:select>
+                        <flux:description>
+                            Ein Wettkampf kann keinem oder genau einem Cup angehören.
+                        </flux:description>
+                        <flux:error name="cup_id"/>
+                    </flux:field>
+                @endif
+
             </div>
 
             <div class="flex gap-3 mt-6">

@@ -148,3 +148,16 @@ describe('calculate', function () {
         expect(CupOverallResult::where('cup_id', $cup->id)->count())->toBe(1);
     })->group('cup-wertung-p6');
 });
+
+// ── index (öffentliche Cup-Übersicht) ────────────────────────────────────────
+
+describe('index', function () {
+    it('ist für Club-User zugänglich und listet Cups mit Link zur Gesamtwertung', function () {
+        $cup = makeCup_cup6();
+
+        $this->actingAs(makeClubUser_cup6())
+            ->get(route('cups.overall-ranking.index'))
+            ->assertOk()
+            ->assertSee($cup->name);
+    })->group('cup-wertung-p10');
+});

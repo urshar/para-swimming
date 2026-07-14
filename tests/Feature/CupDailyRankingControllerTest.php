@@ -1,6 +1,10 @@
 <?php
 
 use App\Models\Athlete;
+use App\Models\BaseTime;
+use App\Models\BaseTimeCategory;
+use App\Models\BaseTimeDiscipline;
+use App\Models\BaseTimeSportClass;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
 use App\Models\Cup;
@@ -58,6 +62,23 @@ function makeCup_cup4(): Cup
 {
     $version = BaseTimeVersion::create(['label' => 'V1', 'valid_from' => '2021-01-01']);
 
+    $category = BaseTimeCategory::firstOrCreate(
+        ['course' => 'LCM', 'gender' => 'M'],
+        ['code' => 'LCM_M', 'label' => 'LCM Männer']
+    );
+    $discipline = BaseTimeDiscipline::firstOrCreate(
+        ['stroke_type_id' => makeStrokeType_cup4()->id, 'distance' => 100, 'relay_count' => 1],
+        ['code' => 'FREE_100']
+    );
+    $sportClass = BaseTimeSportClass::firstOrCreate(['code' => 'S9'], ['sort_order' => 1]);
+    BaseTime::create([
+        'base_time_version_id' => $version->id,
+        'base_time_category_id' => $category->id,
+        'base_time_discipline_id' => $discipline->id,
+        'base_time_sport_class_id' => $sportClass->id,
+        'value_centiseconds' => 10000, // 100,00s — identisch zur Schwimmzeit in makeResult_cup4() → 1000 Punkte
+    ]);
+
     return Cup::create([
         'year' => 2026, 'name' => 'ÖBSV Cup 2026', 'base_time_version_id' => $version->id,
         'rounds_count' => 1, 'best_of_count' => 3, 'top_group_points_threshold' => 450,
@@ -88,7 +109,7 @@ function makeResult_cup4(Athlete $athlete, Club $club, Meet $meet, array $attrs 
 
     return Result::create(array_merge([
         'meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id, 'club_id' => $club->id,
-        'sport_class' => 'S9', 'swim_time' => 60000, 'points' => 400,
+        'sport_class' => 'S9', 'swim_time' => 10000, 'points' => 999999, // 'points' bewusst falsch — wird ignoriert
     ], $attrs));
 }
 
@@ -123,7 +144,7 @@ describe('show', function () {
         $meet = makeMeet_cup4($cup);
         $club = makeClub_cup4();
         $athlete = makeAthlete_cup4();
-        makeResult_cup4($athlete, $club, $meet, ['points' => 420]);
+        makeResult_cup4($athlete, $club, $meet);
 
         app(DailyRankingService::class)->calculateForMeet($meet);
 
@@ -131,7 +152,7 @@ describe('show', function () {
             ->get(route('meets.cup-daily-ranking.show', $meet))
             ->assertOk()
             ->assertSee('Mustermann, Max')
-            ->assertSee('420');
+            ->assertSee('1000');
     })->group('cup-wertung-p4');
 });
 
@@ -157,7 +178,7 @@ describe('calculate', function () {
         $meet = makeMeet_cup4($cup);
         $club = makeClub_cup4();
         $athlete = makeAthlete_cup4();
-        makeResult_cup4($athlete, $club, $meet, ['points' => 420]);
+        makeResult_cup4($athlete, $club, $meet);
 
         $this->actingAs(makeAdmin_cup4())
             ->post(route('meets.cup-daily-ranking.calculate', $meet))

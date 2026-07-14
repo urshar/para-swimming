@@ -11,6 +11,9 @@
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->name }}</h1>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                     {{ $meet->date_range }} · {{ $meet->city }}, {{ $meet->nation?->code }} · {{ $meet->course }}
+                    @if($meet->cup)
+                        · <flux:badge color="amber" size="sm">{{ $meet->cup->name }}</flux:badge>
+                    @endif
                 </p>
             </div>
         </div>

@@ -29,6 +29,20 @@ class CupOverallRankingController extends Controller
     ) {}
 
     /**
+     * GET /cup-wertung
+     *
+     * Öffentliche Cup-Übersicht (für alle angemeldeten Nutzer) als Einstieg
+     * zur Gesamtwertung — im Unterschied zu cups.index (CupController), das
+     * die admin-only Konfigurations-CRUD-Liste ist.
+     */
+    public function index(): View
+    {
+        $cups = Cup::orderByDesc('year')->get();
+
+        return view('cups.overall-ranking-index', compact('cups'));
+    }
+
+    /**
      * GET /cups/{cup}/overall-ranking
      *
      * Zeigt eine Rangliste pro vorhandener Wertungskategorie (Geschlecht +
