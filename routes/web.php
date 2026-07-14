@@ -12,6 +12,7 @@ use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
 use App\Http\Controllers\CupController;
 use App\Http\Controllers\CupDailyRankingController;
+use App\Http\Controllers\CupOverallRankingController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\KaderTypeController;
 use App\Http\Controllers\LenexExportController;
@@ -113,6 +114,11 @@ Route::middleware(['auth'])->group(function () {
 
     // ── ÖBSV Cup Wertung — Stammdaten (Phase 1, admin-only) ────────────────────
     Route::resource('cups', CupController::class)->except(['show']);
+
+    Route::get('cups/{cup}/overall-ranking',
+        [CupOverallRankingController::class, 'show'])->name('cups.overall-ranking.show');
+    Route::post('cups/{cup}/overall-ranking/calculate',
+        [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
 
     Route::resource('kader-types', KaderTypeController::class)->except(['show']);
 

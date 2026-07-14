@@ -47,6 +47,10 @@
                             </flux:table.cell>
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
+                                    <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
+                                                 variant="ghost" size="sm" icon="trophy">
+                                        Gesamtwertung
+                                    </flux:button>
                                     <flux:button href="{{ route('cups.edit', $cup) }}"
                                                  variant="ghost" size="sm" icon="pencil"/>
                                     <form method="POST" action="{{ route('cups.destroy', $cup) }}"
