@@ -30,6 +30,17 @@
                     Punkte neu berechnen
                 </flux:button>
             </form>
+
+            @if($outdatedResultsCount > 0)
+                <p class="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                    <flux:icon name="exclamation-triangle" class="w-4 h-4 mt-0.5 shrink-0"/>
+                    <span>
+                        {{ $outdatedResultsCount }} {{ $outdatedResultsCount === 1 ? 'Ergebnis weicht' : 'Ergebnisse weichen' }}
+                        von den aktuell hinterlegten Basiswerten ab — z.B. weil sich ein Basiswert nachträglich
+                        geändert hat, seit die Punkte zuletzt berechnet wurden. Bitte neu berechnen.
+                    </span>
+                </p>
+            @endif
         </div>
     @endif
 

@@ -9,6 +9,7 @@ use App\Models\BaseTimeSportClass;
 use App\Models\BaseTimeVersion;
 use App\Models\Meet;
 use App\Models\Result;
+use Illuminate\Support\Collection;
 
 /**
  * WorldAquaticsPointsService
@@ -74,6 +75,28 @@ class WorldAquaticsPointsService
         }
 
         return BaseTimeVersion::validOn($meet->start_date->toDateString())->first();
+    }
+
+    /**
+     * Ergebnisse eines Meets, deren gespeicherte Punkte vom aktuell neu
+     * berechneten Wert abweichen (z.B. weil sich eine Basiszeit nachträglich
+     * geändert hat, seit die Punkte zuletzt berechnet wurden — vgl. den Fall
+     * bei Result #964). Rein lesend, speichert nichts.
+     *
+     * @return Collection<int, Result>
+     */
+    public function findOutdatedResults(Meet $meet, ?BaseTimeVersion $version = null): Collection
+    {
+        return Result::query()
+            ->with(['swimEvent.strokeType', 'athlete'])
+            ->where('meet_id', $meet->id)
+            ->get()
+            ->filter(function (Result $result) use ($meet, $version) {
+                $recalculated = $this->calculatePoints($result, $meet, $version);
+
+                return $recalculated !== null && $recalculated !== $result->points;
+            })
+            ->values();
     }
 
     /** Berechnet die Punkte für ein einzelnes Result, ohne zu speichern. */

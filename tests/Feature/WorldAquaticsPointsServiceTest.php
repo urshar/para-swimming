@@ -184,3 +184,54 @@ describe('WorldAquaticsPointsService', function () {
         expect($points)->toBe((int) round(1000 * (60 / 65) ** 3));
     })->group('wa-points');
 });
+
+// ── findOutdatedResults ────────────────────────────────────────────────────────
+
+describe('findOutdatedResults', function () {
+    it('findet ein Ergebnis, dessen gespeicherte Punkte nicht mehr zur aktuellen Basiszeit passen', function () {
+        $fixture = makeWaBase_wa();
+
+        // Punkte wurden mit der ALTEN Basiszeit (z.B. 61.00s) berechnet und gespeichert...
+        $result = Result::create([
+            'meet_id' => $fixture['meet']->id, 'swim_event_id' => $fixture['event']->id,
+            'athlete_id' => $fixture['athlete']->id, 'club_id' => $fixture['club']->id,
+            'swim_time' => 6500, 'sport_class' => 'S9',
+            'points' => (int) round(1000 * (61 / 65) ** 3), // veralteter Wert
+        ]);
+
+        // ...aber die Basiszeit wurde inzwischen auf 60.00s korrigiert (siehe makeWaBase_wa()).
+        $outdated = (new WorldAquaticsPointsService)->findOutdatedResults($fixture['meet']);
+
+        expect($outdated->pluck('id')->all())->toBe([$result->id]);
+    })->group('wa-points');
+
+    it('findet kein Ergebnis, dessen Punkte bereits korrekt sind', function () {
+        $fixture = makeWaBase_wa();
+
+        Result::create([
+            'meet_id' => $fixture['meet']->id, 'swim_event_id' => $fixture['event']->id,
+            'athlete_id' => $fixture['athlete']->id, 'club_id' => $fixture['club']->id,
+            'swim_time' => 6500, 'sport_class' => 'S9',
+            'points' => (int) round(1000 * (60 / 65) ** 3), // bereits aktuell
+        ]);
+
+        $outdated = (new WorldAquaticsPointsService)->findOutdatedResults($fixture['meet']);
+
+        expect($outdated)->toHaveCount(0);
+    })->group('wa-points');
+
+    it('ignoriert Ergebnisse, für die sich gar keine Punkte berechnen lassen (kein falsch-positiver Treffer)', function () {
+        $fixture = makeWaBase_wa();
+
+        Result::create([
+            'meet_id' => $fixture['meet']->id, 'swim_event_id' => $fixture['event']->id,
+            'athlete_id' => $fixture['athlete']->id, 'club_id' => $fixture['club']->id,
+            'swim_time' => 6500, 'sport_class' => 'S99', // keine Basiswert-Sportklasse vorhanden
+            'points' => 999,
+        ]);
+
+        $outdated = (new WorldAquaticsPointsService)->findOutdatedResults($fixture['meet']);
+
+        expect($outdated)->toHaveCount(0);
+    })->group('wa-points');
+});

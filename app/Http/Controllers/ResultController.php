@@ -51,6 +51,12 @@ class ResultController extends Controller
         $baseTimeVersions = $selectedMeet ? BaseTimeVersion::orderByDesc('valid_from')->get() : collect();
         $automaticVersion = $selectedMeet ? $this->pointsService->resolveAutomaticVersion($selectedMeet) : null;
 
+        // Punkte, die von der aktuellen Basiswert-Tabelle abweichen (z.B. weil sich ein Basiswert
+        // nachträglich geändert hat, seit die Punkte zuletzt berechnet wurden).
+        $outdatedResultsCount = $selectedMeet
+            ? $this->pointsService->findOutdatedResults($selectedMeet, $automaticVersion)->count()
+            : 0;
+
         $skippedResultIds = session('points_skipped_results', []);
         $skippedResults = collect();
         if (! empty($skippedResultIds)) {
@@ -61,7 +67,8 @@ class ResultController extends Controller
         }
 
         return view('results.index', compact(
-            'results', 'meets', 'selectedMeet', 'baseTimeVersions', 'automaticVersion', 'skippedResults'
+            'results', 'meets', 'selectedMeet', 'baseTimeVersions', 'automaticVersion', 'skippedResults',
+            'outdatedResultsCount'
         ));
     }
 
