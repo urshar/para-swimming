@@ -19,6 +19,7 @@ use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\NationController;
+use App\Http\Controllers\QualifyingTimeListController;
 use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
@@ -136,6 +137,17 @@ Route::middleware(['auth'])->group(function () {
         [SportClassGroupController::class, 'storeMember'])->name('sport-class-groups.members.store');
     Route::delete('sport-class-groups/{sportClassGroup}/members/{member}',
         [SportClassGroupController::class, 'destroyMember'])->name('sport-class-groups.members.destroy');
+
+    // ── Richtzeiten ÖSTM & ÖM (Phase 1: Verwaltung) ─────────────────────────────
+    Route::resource('qualifying-time-lists', QualifyingTimeListController::class);
+    Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
+        [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
+    Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',
+        [QualifyingTimeListController::class, 'destroyTargetPoint'])->name('qualifying-time-lists.target-points.destroy');
+    Route::post('qualifying-time-lists/{qualifyingTimeList}/times',
+        [QualifyingTimeListController::class, 'storeTime'])->name('qualifying-time-lists.times.store');
+    Route::delete('qualifying-time-lists/{qualifyingTimeList}/times/{time}',
+        [QualifyingTimeListController::class, 'destroyTime'])->name('qualifying-time-lists.times.destroy');
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);

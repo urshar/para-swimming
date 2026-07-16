@@ -30,6 +30,7 @@ class Meet extends Model
         'lenex_meet_id',
         'entries_deadline',
         'cup_id',
+        'qualifying_time_list_id',
     ];
 
     protected $casts = [
@@ -49,6 +50,15 @@ class Meet extends Model
     public function cup(): BelongsTo
     {
         return $this->belongsTo(Cup::class);
+    }
+
+    /**
+     * Richtzeitenliste, falls dieses Meet als ÖSTM & ÖM-Veranstaltung des
+     * jeweiligen Wettkampfjahres markiert ist (Modul "Richtzeiten ÖSTM & ÖM").
+     */
+    public function qualifyingTimeList(): BelongsTo
+    {
+        return $this->belongsTo(QualifyingTimeList::class);
     }
 
     public function clubs(): BelongsToMany

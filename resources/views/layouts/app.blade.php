@@ -112,6 +112,13 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
+        <flux:navlist.group heading="Richtzeiten ÖSTM & ÖM">
+            <flux:navlist.item icon="flag" href="{{ route('qualifying-time-lists.index') }}"
+                               :current="request()->routeIs('qualifying-time-lists.*')">
+                Richtzeitenlisten
+            </flux:navlist.item>
+        </flux:navlist.group>
+
         <flux:navlist.group heading="LENEX">
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
                                :current="request()->routeIs('lenex.import*')">
