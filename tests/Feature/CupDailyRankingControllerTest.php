@@ -187,3 +187,29 @@ describe('calculate', function () {
         expect(CupDailyResult::where('meet_id', $meet->id)->count())->toBe(1);
     })->group('cup-wertung-p4');
 });
+
+// ── Damen/Herren gemeinsam (Schritt: Jugend-/Gender-Einstellung) ────────────
+
+describe('gemeinsame Damen/Herren-Wertung', function () {
+    it('zeigt eine gemeinsame Bracket "Damen & Herren", wenn für die Gruppe aktiviert', function () {
+        $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
+        $cup = makeCup_cup4();
+        $cup->groupSettings()->create(['sport_class_group_id' => $group->id, 'gender_combined' => true]);
+        $meet = makeMeet_cup4($cup);
+        $club = makeClub_cup4();
+
+        $man = makeAthlete_cup4(['gender' => 'M', 'first_name' => 'Herr']);
+        $woman = makeAthlete_cup4(['gender' => 'F', 'first_name' => 'Frau']);
+        makeResult_cup4($man, $club, $meet);
+        makeResult_cup4($woman, $club, $meet);
+
+        app(DailyRankingService::class)->calculateForMeet($meet);
+
+        $this->actingAs(makeClubUser_cup4())
+            ->get(route('meets.cup-daily-ranking.show', $meet))
+            ->assertOk()
+            ->assertSee('Damen & Herren')
+            ->assertSee('Mustermann, Herr')
+            ->assertSee('Mustermann, Frau');
+    })->group('cup-wertung-p4');
+});

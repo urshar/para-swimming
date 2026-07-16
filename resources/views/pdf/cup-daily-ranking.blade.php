@@ -80,7 +80,8 @@
 </p>
 
 @forelse($brackets as $bracket)
-    <h2>{{ $bracket['gender'] === 'F' ? 'Damen' : 'Herren' }} — {{ $bracket['group']->name_de }}</h2>
+    <h2>{{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }}
+        — {{ $bracket['group']->name_de }}</h2>
     <table>
         <thead>
         <tr>

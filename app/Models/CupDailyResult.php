@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int|null $rank Rang innerhalb einer Wertungskategorie — wird
- *     zur Laufzeit von DailyRankingService::rankedBracket() gesetzt, ist KEIN
- *     Datenbank-Feld und wird nicht persistiert.
+ *                          zur Laufzeit von DailyRankingService::rankedBracket() gesetzt, ist KEIN
+ *                          Datenbank-Feld und wird nicht persistiert.
  */
 class CupDailyResult extends Model
 {
@@ -64,12 +64,15 @@ class CupDailyResult extends Model
 
     // ── Scopes ────────────────────────────────────────────────────────────────
 
-    /** Eine Wertungskategorie (z.B. "Damen PI") innerhalb eines Meets. */
-    public function scopeForBracket(Builder $query, int $meetId, string $gender, int $sportClassGroupId): Builder
+    /**
+     * Eine Wertungskategorie (z.B. "Damen PI") innerhalb eines Meets.
+     * $gender = null bedeutet: Damen und Herren gemeinsam gewertet (Erik).
+     */
+    public function scopeForBracket(Builder $query, int $meetId, ?string $gender, int $sportClassGroupId): Builder
     {
         return $query
             ->where('meet_id', $meetId)
-            ->where('gender', $gender)
+            ->when($gender !== null, fn (Builder $q) => $q->where('gender', $gender))
             ->where('sport_class_group_id', $sportClassGroupId)
             ->orderByDesc('points');
     }

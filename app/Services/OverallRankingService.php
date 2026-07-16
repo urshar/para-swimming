@@ -59,9 +59,12 @@ readonly class OverallRankingService
      * überspringt entsprechend). Der Rang wird beim Lesen aus den
      * gespeicherten Gesamtpunkten abgeleitet, nicht separat gespeichert.
      *
+     * $gender = null bedeutet: Damen und Herren gemeinsam gewertet (Erik) —
+     * eine gemeinsame Rangliste statt zweier getrennter.
+     *
      * @return Collection<int, CupOverallResult>
      */
-    public function rankedBracket(int $cupId, string $gender, int $sportClassGroupId, ?int $ageGroupId): Collection
+    public function rankedBracket(int $cupId, ?string $gender, int $sportClassGroupId, ?int $ageGroupId): Collection
     {
         $rows = CupOverallResult::forBracket($cupId, $gender, $sportClassGroupId, $ageGroupId)
             ->with(['athlete', 'club', 'sportClassGroup', 'ageGroup'])
@@ -95,7 +98,7 @@ readonly class OverallRankingService
         $counted = $bucketRows->sortByDesc('points')->take($cup->best_of_count)->values();
 
         // resolveAgeGroup() wertet nur das Jahr aus (31.12.-Stichtagsregel) — Monat/Tag sind irrelevant.
-        $ageGroup = $this->groupResolver->resolveAgeGroup($athlete, "$cup->year-01-01");
+        $ageGroup = $this->groupResolver->resolveAgeGroup($athlete, "$cup->year-01-01", $cup);
 
         CupOverallResult::create([
             'cup_id' => $cup->id,

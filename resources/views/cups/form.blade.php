@@ -91,17 +91,49 @@
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Aktive Sportklassengruppen</h2>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
                     Nicht angehakte Gruppen werden für dieses Cup-Jahr bei der Wertung übersprungen.
+                    "Gemeinsam" wertet Damen und Herren in einer Rangliste statt zweier getrennter.
                 </p>
                 @forelse($sportClassGroups as $group)
-                    <flux:field>
-                        <flux:checkbox name="active_group_ids[]" value="{{ $group->id }}"
-                                       :checked="in_array($group->id, old('active_group_ids', $activeGroupIds))"
-                                       label="{{ $group->name_de }} ({{ $group->code }})"/>
-                    </flux:field>
+                    <div class="flex items-center justify-between gap-4 py-1">
+                        <flux:field class="mb-0">
+                            <flux:checkbox name="active_group_ids[]" value="{{ $group->id }}"
+                                           :checked="in_array($group->id, old('active_group_ids', $activeGroupIds))"
+                                           label="{{ $group->name_de }} ({{ $group->code }})"/>
+                        </flux:field>
+                        <flux:field class="mb-0">
+                            <flux:checkbox name="gender_combined_group_ids[]" value="{{ $group->id }}"
+                                           :checked="in_array($group->id, old('gender_combined_group_ids', $genderCombinedGroupIds))"
+                                           label="Damen & Herren gemeinsam"/>
+                        </flux:field>
+                    </div>
                 @empty
                     <p class="text-sm text-zinc-400">
                         Noch keine Sportklassengruppen angelegt —
                         <a href="{{ route('sport-class-groups.create') }}" class="text-blue-600 hover:underline">
+                            jetzt anlegen
+                        </a>.
+                    </p>
+                @endforelse
+            </div>
+
+            <div
+                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-3 mb-4">
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Aktive Altersgruppen</h2>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    Gilt nur für die Gesamtwertung (Punkt 5 der Spec). Nicht angehakte Altersgruppen werden nicht
+                    separat gewertet — betroffene Athleten landen in einer gemeinsamen, altersgruppen-übergreifenden
+                    Wertung statt in einer eigenen Alters-Kategorie.
+                </p>
+                @forelse($ageGroups as $ageGroup)
+                    <flux:field>
+                        <flux:checkbox name="active_age_group_ids[]" value="{{ $ageGroup->id }}"
+                                       :checked="in_array($ageGroup->id, old('active_age_group_ids', $activeAgeGroupIds))"
+                                       label="{{ $ageGroup->name_de }}"/>
+                    </flux:field>
+                @empty
+                    <p class="text-sm text-zinc-400">
+                        Noch keine Altersgruppen angelegt —
+                        <a href="{{ route('age-groups.create') }}" class="text-blue-600 hover:underline">
                             jetzt anlegen
                         </a>.
                     </p>

@@ -5,13 +5,17 @@
     <meta charset="utf-8">
     <title>Gesamtwertung — {{ $cup->name }}</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         @page {
-            margin: 25px 30px;
+            margin: 20px 25px;
         }
 
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 11px;
+            font-size: 10px;
             color: #1a1a1a;
         }
 
@@ -27,6 +31,7 @@
         }
 
         h2 {
+            width: 100%;
             font-size: 13px;
             margin: 18px 0 6px 0;
             padding: 6px 8px;
@@ -36,34 +41,36 @@
 
         table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin-bottom: 4px;
         }
 
         th, td {
-            padding: 4px 8px;
+            padding: 4px 6px;
             text-align: left;
             border-bottom: 1px solid #eee;
+            overflow: hidden;
         }
 
         th {
             background-color: #fafafa;
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
             color: #666;
         }
 
         td.rank, th.rank {
-            width: 40px;
+            width: 35px;
         }
 
         td.rounds, th.rounds {
-            width: 60px;
+            width: 68px;
             text-align: right;
         }
 
         td.points, th.points {
-            width: 90px;
+            width: 80px;
             text-align: right;
             font-family: Courier, monospace;
         }
@@ -86,7 +93,8 @@
 
 @forelse($brackets as $bracket)
     <h2>
-        {{ $bracket['gender'] === 'F' ? 'Damen' : 'Herren' }} — {{ $bracket['group']->name_de }}
+        {{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }}
+        — {{ $bracket['group']->name_de }}
         @if($bracket['ageGroup'])
             — {{ $bracket['ageGroup']->name_de }}
         @endif
@@ -97,7 +105,6 @@
             <th class="rank">Rang</th>
             <th>Athlet</th>
             <th>Verein</th>
-            <th>Sportklassen</th>
             @foreach($meets as $index => $meet)
                 <th class="rounds">R.{{ $index + 1 }}</th>
             @endforeach
@@ -110,11 +117,10 @@
                 <td class="rank">{{ $row->rank }}</td>
                 <td>{{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}</td>
                 <td>{{ $row->club?->display_name }}</td>
-                <td>{{ $row->rounds->pluck('sport_class')->filter()->implode('/') ?: '—' }}</td>
                 @foreach($row->rounds as $round)
                     <td class="rounds"
                         style="{{ $round['counted'] ? 'font-weight: bold; color: #047857;' : 'color: #999;' }}">
-                        {{ $round['points'] ?? '—' }}
+                        {{ $round['points'] ?? '—' }}{{ $round['sport_class'] ? '/'.$round['sport_class'] : '' }}
                     </td>
                 @endforeach
                 <td class="points">{{ $row->total_points }}</td>
@@ -126,6 +132,7 @@
     <p>Für diesen Cup wurde noch keine Gesamtwertung berechnet.</p>
 @endforelse
 
-<p class="footer">Para Swimming NatDB · erzeugt am {{ now()->format('d.m.Y H:i') }} Uhr</p>
+<p class="footer">Para Swimming NatDB · erzeugt am {{ now()->format('d.m.Y H:i') }} Uhr · Format je Runde:
+    Punkte/Sportklasse</p>
 </body>
 </html>

@@ -41,12 +41,12 @@ readonly class GroupResolverService
      *   - die Sportklasse keiner Gruppe zugeordnet ist (z.B. Staffel-Klassen), oder
      *   - die zuständige Gruppe für dieses Cup-Jahr deaktiviert ist.
      *
-     * @param Collection<string, SportClassGroup>|null $sportClassMap optionale, vorab
-     *        geladene Zuordnung sport_class => SportClassGroup (siehe loadSportClassMap()),
-     *        um bei Massenverarbeitung (Tageswertung) N+1-Abfragen zu vermeiden.
-     * @param Collection<int, bool>|null $topGroupClassificationMap optionale, vorab
-     *        geladene Saison-Klassifizierung athlete_id => is_top_group (siehe
-     *        TopGroupClassificationService::loadClassificationMap()).
+     * @param  Collection<string, SportClassGroup>|null  $sportClassMap  optionale, vorab
+     *                                                                   geladene Zuordnung sport_class => SportClassGroup (siehe loadSportClassMap()),
+     *                                                                   um bei Massenverarbeitung (Tageswertung) N+1-Abfragen zu vermeiden.
+     * @param  Collection<int, bool>|null  $topGroupClassificationMap  optionale, vorab
+     *                                                                 geladene Saison-Klassifizierung athlete_id => is_top_group (siehe
+     *                                                                 TopGroupClassificationService::loadClassificationMap()).
      */
     public function resolveSportClassGroup(
         Result $result,
@@ -74,9 +74,9 @@ readonly class GroupResolverService
     /**
      * Top-Gruppen-Zugehörigkeit für ein einzelnes Ergebnis (Punkt 8 der Spec).
      *
-     * @param Collection<int, bool>|null $topGroupClassificationMap siehe resolveSportClassGroup().
-     *        Fehlt sie, zählt nur das "ausländischer Verein"-Kriterium (die
-     *        saisonale Klassifizierung kann dann nicht geprüft werden).
+     * @param  Collection<int, bool>|null  $topGroupClassificationMap  siehe resolveSportClassGroup().
+     *                                                                 Fehlt sie, zählt nur das "ausländischer Verein"-Kriterium (die
+     *                                                                 saisonale Klassifizierung kann dann nicht geprüft werden).
      */
     public function isTopGroup(Result $result, ?Collection $topGroupClassificationMap = null): bool
     {
@@ -124,6 +124,46 @@ readonly class GroupResolverService
             ->mapWithKeys(fn (SportClassGroupMember $member) => [$member->sport_class => $member->sportClassGroup]);
     }
 
+    // ── Altersgruppe (Punkt 5 der Spec) ──────────────────────────────────────
+
+    /**
+     * Ordnet einen Athleten einer Altersgruppe zu — nach der im Schwimmsport
+     * üblichen Stichtagsregel: maßgeblich ist das Alter, das der Athlet am
+     * 31.12. des Wettkampfjahres erreicht (nicht das exakte Alter am
+     * Wettkampftag selbst). Ein Athlet, der z.B. am 31.12. eines Jahres
+     * Geburtstag hat, zählt das ganze Jahr über bereits als ein Jahr älter.
+     *
+     * Ist die passende Altersgruppe für den übergebenen Cup deaktiviert
+     * (Erik: z.B. Jugendwertung für dieses Jahr ausgeschaltet), wird null
+     * zurückgegeben — der Athlet landet dadurch in der Gesamtwertung in
+     * einer gemeinsamen, altersgruppen-übergreifenden Wertung statt in einer
+     * eigenen Alters-Kategorie.
+     *
+     * Gibt null zurück, wenn kein Geburtsdatum hinterlegt ist oder keine
+     * aktive Altersgruppe passt.
+     */
+    public function resolveAgeGroup(Athlete $athlete, CarbonInterface|string $meetDate, ?Cup $cup = null): ?AgeGroup
+    {
+        if (! $athlete->birth_date) {
+            return null;
+        }
+
+        $meetDate = $meetDate instanceof CarbonInterface ? $meetDate : Carbon::parse($meetDate);
+        $yearEnd = Carbon::create($meetDate->year, 12, 31);
+        $age = $athlete->birth_date->diffInYears($yearEnd);
+
+        $group = AgeGroup::active()
+            ->orderBy('sort_order')
+            ->get()
+            ->first(fn (AgeGroup $group) => $group->matchesAge($age));
+
+        if ($group && $cup && ! $cup->isAgeGroupActive($group)) {
+            return null;
+        }
+
+        return $group;
+    }
+
     // ── Top-Gruppen-Kriterien ─────────────────────────────────────────────────
 
     private function isForeignClub(Result $result): bool
@@ -136,33 +176,5 @@ readonly class GroupResolverService
     private function topGroup(): ?SportClassGroup
     {
         return SportClassGroup::where('code', 'TOP')->where('is_virtual', true)->first();
-    }
-
-    // ── Altersgruppe (Punkt 5 der Spec) ──────────────────────────────────────
-
-    /**
-     * Ordnet einen Athleten einer Altersgruppe zu — nach der im Schwimmsport
-     * üblichen Stichtagsregel: maßgeblich ist das Alter, das der Athlet am
-     * 31.12. des Wettkampfjahres erreicht (nicht das exakte Alter am
-     * Wettkampftag selbst). Ein Athlet, der z.B. am 31.12. eines Jahres
-     * Geburtstag hat, zählt das ganze Jahr über bereits als ein Jahr älter.
-     *
-     * Gibt null zurück, wenn kein Geburtsdatum hinterlegt ist oder keine
-     * aktive Altersgruppe passt.
-     */
-    public function resolveAgeGroup(Athlete $athlete, CarbonInterface|string $meetDate): ?AgeGroup
-    {
-        if (! $athlete->birth_date) {
-            return null;
-        }
-
-        $meetDate = $meetDate instanceof CarbonInterface ? $meetDate : Carbon::parse($meetDate);
-        $yearEnd = Carbon::create($meetDate->year, 12, 31);
-        $age = $athlete->birth_date->diffInYears($yearEnd);
-
-        return AgeGroup::active()
-            ->orderBy('sort_order')
-            ->get()
-            ->first(fn (AgeGroup $group) => $group->matchesAge($age));
     }
 }

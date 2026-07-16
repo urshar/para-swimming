@@ -124,7 +124,7 @@ describe('show', function () {
             ->assertSee('420');
     })->group('cup-wertung-p6');
 
-    it('zeigt die Rundenpunkte und Sportklassen je Runde', function () {
+    it('zeigt die Rundenpunkte inkl. Sportklasse je Runde im Format Punkte/Sportklasse', function () {
         $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
         $cup = makeCup_cup6(); // best_of_count = 3
         $club = makeClub_cup6();
@@ -137,9 +137,8 @@ describe('show', function () {
         $this->actingAs(makeClubUser_cup6())
             ->get(route('cups.overall-ranking.show', $cup))
             ->assertOk()
-            ->assertSee('420')
-            ->assertSee('380')
-            ->assertSee('S9/S9') // Sportklassen-Spalte, beide Runden
+            ->assertSee('420/S9')
+            ->assertSee('380/S9')
             ->assertSee('R.1')
             ->assertSee('R.2');
     })->group('cup-wertung-p6');
@@ -162,7 +161,7 @@ describe('show', function () {
             ->get(route('cups.overall-ranking.show', $cup));
 
         $response->assertOk()
-            ->assertSee('text-emerald-700', false); // grüne "gezählt"-Markierung greift trotz neuer Daily-Result-ID
+            ->assertSee('#047857', false); // grüne "gezählt"-Markierung greift trotz neuer Daily-Result-ID
     })->group('cup-wertung-p6');
 
     it('zeigt den Vereins-Kurznamen, falls hinterlegt', function () {

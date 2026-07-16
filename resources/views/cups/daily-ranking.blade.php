@@ -1,4 +1,3 @@
-@php use Illuminate\Support\Carbon; @endphp
 @extends('layouts.app')
 
 @section('title', 'Cup-Tageswertung — '.$meet->name)
@@ -13,7 +12,7 @@
                     <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                         {{ $meet->name }} · {{ $meet->cup?->name }}
                         @if($calculatedAt)
-                            · berechnet am {{ Carbon::parse($calculatedAt)->format('d.m.Y H:i') }} Uhr
+                            · berechnet am {{ $calculatedAt->format('d.m.Y H:i') }} Uhr
                         @endif
                     </p>
                 </div>
@@ -37,6 +36,14 @@
             </div>
         </div>
 
+        @if($isStale)
+            <div
+                class="mb-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2">
+                <flux:icon name="exclamation-triangle" class="w-4 h-4 mt-0.5 shrink-0"/>
+                <span>{{ $staleReason }} Bitte neu berechnen.</span>
+            </div>
+        @endif
+
         @if(session('success'))
             <div
                 class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
@@ -51,11 +58,10 @@
         @endif
 
         @forelse($brackets as $bracket)
-            <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
                 <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
                     <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {{ $bracket['gender'] === 'F' ? 'Damen' : 'Herren' }} — {{ $bracket['group']->name_de }}
+                        {{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }} — {{ $bracket['group']->name_de }}
                     </h2>
                     <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
                 </div>
@@ -85,8 +91,7 @@
                 </flux:table>
             </div>
         @empty
-            <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
                 <p class="text-sm text-zinc-400">
                     Für dieses Meet wurde noch keine Tageswertung berechnet.
                 </p>

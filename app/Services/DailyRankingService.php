@@ -88,6 +88,26 @@ readonly class DailyRankingService
     }
 
     /**
+     * Rangliste einer Wertungskategorie ("Damen PI" etc.) innerhalb eines Meets,
+     * inklusive Rang (Sportwertung: gleiche Punkte = gleicher Rang, nächster
+     * Rang überspringt entsprechend). Der Rang wird beim Lesen aus den
+     * gespeicherten Punkten abgeleitet, nicht separat gespeichert.
+     *
+     * $gender = null bedeutet: Damen und Herren gemeinsam gewertet (Erik) —
+     * eine gemeinsame Rangliste statt zweier getrennter.
+     *
+     * @return Collection<int, CupDailyResult>
+     */
+    public function rankedBracket(int $meetId, ?string $gender, int $sportClassGroupId): Collection
+    {
+        $rows = CupDailyResult::forBracket($meetId, $gender, $sportClassGroupId)
+            ->with(['athlete', 'club'])
+            ->get();
+
+        return $this->assignRanks($rows);
+    }
+
+    /**
      * Für jeden Athleten das punktbeste gültige, einer Gruppe zugeordnete
      * Ergebnis des Meets — Punkte neu berechnet gegen die Cup-Basiswert-Version.
      *
@@ -139,25 +159,8 @@ readonly class DailyRankingService
     }
 
     /**
-     * Rangliste einer Wertungskategorie ("Damen PI" etc.) innerhalb eines Meets,
-     * inklusive Rang (Sportwertung: gleiche Punkte = gleicher Rang, nächster
-     * Rang überspringt entsprechend). Der Rang wird beim Lesen aus den
-     * gespeicherten Punkten abgeleitet, nicht separat gespeichert.
-     *
-     * @return Collection<int, CupDailyResult>
-     */
-    public function rankedBracket(int $meetId, string $gender, int $sportClassGroupId): Collection
-    {
-        $rows = CupDailyResult::forBracket($meetId, $gender, $sportClassGroupId)
-            ->with(['athlete', 'club'])
-            ->get();
-
-        return $this->assignRanks($rows);
-    }
-
-    /**
      * @param  Collection<int, CupDailyResult>  $rowsSortedByPointsDesc  absteigend nach points sortiert
-     * @return Collection<int, CupDailyResult>  dieselben Zeilen, jeweils mit dynamischem rank-Attribut
+     * @return Collection<int, CupDailyResult> dieselben Zeilen, jeweils mit dynamischem rank-Attribut
      */
     private function assignRanks(Collection $rowsSortedByPointsDesc): Collection
     {

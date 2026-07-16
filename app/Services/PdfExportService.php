@@ -22,14 +22,14 @@ readonly class PdfExportService
      * Browsers — deckt damit sowohl "druckbar" als auch "als PDF exportiert"
      * aus Punkt 11 der Spec ab, ohne zwei getrennte Ausgabewege zu pflegen).
      */
-    public function stream(string $view, array $data, string $filename): Response
+    public function stream(string $view, array $data, string $filename, string $orientation = 'portrait'): Response
     {
-        return Pdf::loadView($view, $data)->stream($filename);
+        return Pdf::loadView($view, $data)->setPaper('a4', $orientation)->stream($filename);
     }
 
     /** Erzwingt den Download statt der Inline-Anzeige im Browser. */
-    public function download(string $view, array $data, string $filename): Response
+    public function download(string $view, array $data, string $filename, string $orientation = 'portrait'): Response
     {
-        return Pdf::loadView($view, $data)->download($filename);
+        return Pdf::loadView($view, $data)->setPaper('a4', $orientation)->download($filename);
     }
 }

@@ -28,10 +28,12 @@
                     <flux:table.column>Beste X</flux:table.column>
                     <flux:table.column>Meets</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
+                    <flux:table.column>Klassifizierung</flux:table.column>
                     <flux:table.column></flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @forelse($cups as $cup)
+                        @php($classification = $classificationStatus[$cup->id])
                         <flux:table.row>
                             <flux:table.cell class="font-medium">{{ $cup->year }}</flux:table.cell>
                             <flux:table.cell>{{ $cup->name }}</flux:table.cell>
@@ -43,6 +45,18 @@
                                     <flux:badge color="emerald">Aktiv</flux:badge>
                                 @else
                                     <flux:badge color="zinc">Inaktiv</flux:badge>
+                                @endif
+                            </flux:table.cell>
+                            <flux:table.cell>
+                                @if(! $classification['calculatedAt'])
+                                    <flux:badge color="zinc">Noch nicht berechnet</flux:badge>
+                                @elseif($classification['isStale'])
+                                    <flux:badge color="amber" title="{{ $classification['reason'] }}">Veraltet</flux:badge>
+                                @else
+                                    <flux:badge color="emerald"
+                                                title="Berechnet am {{ $classification['calculatedAt']->format('d.m.Y H:i') }} Uhr">
+                                        Aktuell
+                                    </flux:badge>
                                 @endif
                             </flux:table.cell>
                             <flux:table.cell>
@@ -72,7 +86,7 @@
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="7">
+                            <flux:table.cell colspan="8">
                                 <p class="text-sm text-zinc-400 py-4 text-center">
                                     Noch kein Cup-Jahr konfiguriert.
                                 </p>

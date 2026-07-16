@@ -79,17 +79,20 @@ class CupOverallResult extends Model
 
     // ── Scopes ────────────────────────────────────────────────────────────────
 
-    /** Eine Wertungskategorie (z.B. "Damen PI Jugend") innerhalb eines Cups. */
+    /**
+     * Eine Wertungskategorie (z.B. "Damen PI Jugend") innerhalb eines Cups.
+     * $gender = null bedeutet: Damen und Herren gemeinsam gewertet (Erik).
+     */
     public function scopeForBracket(
         Builder $query,
         int $cupId,
-        string $gender,
+        ?string $gender,
         int $sportClassGroupId,
         ?int $ageGroupId
     ): Builder {
         return $query
             ->where('cup_id', $cupId)
-            ->where('gender', $gender)
+            ->when($gender !== null, fn (Builder $q) => $q->where('gender', $gender))
             ->where('sport_class_group_id', $sportClassGroupId)
             ->when(
                 $ageGroupId === null,

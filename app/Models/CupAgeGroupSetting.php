@@ -5,18 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class CupGroupSetting extends Model
+class CupAgeGroupSetting extends Model
 {
     protected $fillable = [
         'cup_id',
-        'sport_class_group_id',
+        'age_group_id',
         'is_active',
-        'gender_combined',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'gender_combined' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -26,8 +24,8 @@ class CupGroupSetting extends Model
         return $this->belongsTo(Cup::class);
     }
 
-    public function sportClassGroup(): BelongsTo
+    public function ageGroup(): BelongsTo
     {
-        return $this->belongsTo(SportClassGroup::class);
+        return $this->belongsTo(AgeGroup::class);
     }
 }

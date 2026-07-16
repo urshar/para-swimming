@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CupDailyResult;
 use App\Models\Meet;
 use App\Models\SportClassGroup;
+use App\Services\CupStalenessService;
 use App\Services\DailyRankingService;
 use App\Services\PdfExportService;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +28,7 @@ class CupDailyRankingController extends Controller
     public function __construct(
         private readonly DailyRankingService $dailyRankingService,
         private readonly PdfExportService $pdfExportService,
+        private readonly CupStalenessService $stalenessService,
     ) {}
 
     /**
@@ -43,12 +45,14 @@ class CupDailyRankingController extends Controller
 
         $brackets = $this->resolveBrackets($meet);
 
-        $calculatedAt = CupDailyResult::where('meet_id', $meet->id)->max('calculated_at');
+        $status = $this->stalenessService->dailyRankingStatus($meet);
 
         return view('cups.daily-ranking', [
             'meet' => $meet,
             'brackets' => $brackets,
-            'calculatedAt' => $calculatedAt,
+            'calculatedAt' => $status['calculatedAt'],
+            'isStale' => $status['isStale'],
+            'staleReason' => $status['reason'],
         ]);
     }
 
@@ -94,23 +98,46 @@ class CupDailyRankingController extends Controller
     }
 
     /**
-     * Liefert je vorhandener Wertungskategorie (Geschlecht + Sportklassengruppe,
-     * sortiert nach Gruppen-Reihenfolge) die gerankte Athletenliste.
+     * Liefert je vorhandener Wertungskategorie (Sportklassengruppe, ggf. nach
+     * Geschlecht getrennt oder gemeinsam laut Cup::isGenderCombined())
+     * die gerankte Athletenliste, sortiert nach Gruppen-Reihenfolge.
      *
-     * @return Collection<int, array{gender: string, group: SportClassGroup, results: Collection<int, CupDailyResult>}>
+     * @return Collection<int, array{gender: ?string, group: SportClassGroup, results: Collection<int, CupDailyResult>}>
      */
     private function resolveBrackets(Meet $meet): Collection
     {
-        $combinations = CupDailyResult::where('meet_id', $meet->id)
-            ->with('sportClassGroup')
-            ->get(['gender', 'sport_class_group_id'])
-            ->unique(fn (CupDailyResult $row) => $row->gender.'-'.$row->sport_class_group_id)
-            ->sortBy(fn (CupDailyResult $row) => sprintf('%03d-%s', $row->sportClassGroup->sort_order, $row->gender));
+        $cup = $meet->cup;
 
-        return $combinations->map(fn (CupDailyResult $row) => [
-            'gender' => $row->gender,
-            'group' => $row->sportClassGroup,
-            'results' => $this->dailyRankingService->rankedBracket($meet->id, $row->gender, $row->sport_class_group_id),
-        ])->values();
+        $rows = CupDailyResult::where('meet_id', $meet->id)
+            ->with('sportClassGroup')
+            ->get(['gender', 'sport_class_group_id']);
+
+        $byGroup = $rows->groupBy('sport_class_group_id');
+
+        $brackets = collect();
+
+        foreach ($byGroup as $groupRows) {
+            $group = $groupRows->first()->sportClassGroup;
+
+            if ($cup && $cup->isGenderCombined($group)) {
+                $brackets->push(['gender' => null, 'group' => $group]);
+
+                continue;
+            }
+
+            foreach ($groupRows->pluck('gender')->unique() as $gender) {
+                $brackets->push(['gender' => $gender, 'group' => $group]);
+            }
+        }
+
+        return $brackets
+            ->sortBy(fn (array $bracket) => sprintf('%03d-%s', $bracket['group']->sort_order, $bracket['gender'] ?? ''))
+            ->map(fn (array $bracket) => [
+                'gender' => $bracket['gender'],
+                'group' => $bracket['group'],
+                'results' => $this->dailyRankingService->rankedBracket($meet->id, $bracket['gender'],
+                    $bracket['group']->id),
+            ])
+            ->values();
     }
 }

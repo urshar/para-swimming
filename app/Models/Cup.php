@@ -43,6 +43,11 @@ class Cup extends Model
         return $this->hasMany(CupGroupSetting::class);
     }
 
+    public function ageGroupSettings(): HasMany
+    {
+        return $this->hasMany(CupAgeGroupSetting::class);
+    }
+
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     /**
@@ -52,6 +57,29 @@ class Cup extends Model
     public function isGroupActive(SportClassGroup $group): bool
     {
         $setting = $this->groupSettings->firstWhere('sport_class_group_id', $group->id);
+
+        return $setting?->is_active ?? true;
+    }
+
+    /**
+     * Werden Damen und Herren in dieser Sportklassengruppe gemeinsam gewertet
+     * (eine Rangliste statt zweier getrennter)? Default: getrennt (false).
+     */
+    public function isGenderCombined(SportClassGroup $group): bool
+    {
+        $setting = $this->groupSettings->firstWhere('sport_class_group_id', $group->id);
+
+        return $setting?->gender_combined ?? false;
+    }
+
+    /**
+     * Ist eine Altersgruppe für dieses Cup-Jahr aktiv (Punkt 5 der Spec,
+     * konkretisiert durch Erik — generisch über alle Altersgruppen, nicht
+     * nur "Jugend")? Fehlt ein expliziter Eintrag, gilt sie als aktiv (Default).
+     */
+    public function isAgeGroupActive(AgeGroup $ageGroup): bool
+    {
+        $setting = $this->ageGroupSettings->firstWhere('age_group_id', $ageGroup->id);
 
         return $setting?->is_active ?? true;
     }
