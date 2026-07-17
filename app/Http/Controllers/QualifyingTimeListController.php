@@ -68,7 +68,7 @@ class QualifyingTimeListController extends Controller
 
     public function edit(QualifyingTimeList $qualifyingTimeList): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $qualifyingTimeList->load(['targetPoints', 'times.strokeType']);
 
@@ -82,7 +82,7 @@ class QualifyingTimeListController extends Controller
 
     public function update(Request $request, QualifyingTimeList $qualifyingTimeList): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $validated = $this->validateList($request, $qualifyingTimeList->id);
 
@@ -95,7 +95,7 @@ class QualifyingTimeListController extends Controller
 
     public function destroy(QualifyingTimeList $qualifyingTimeList): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $year = $qualifyingTimeList->year;
         $this->qualifyingTimeService->deleteList($qualifyingTimeList);
@@ -114,7 +114,7 @@ class QualifyingTimeListController extends Controller
      */
     public function calculate(Request $request, QualifyingTimeList $qualifyingTimeList): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $overwriteManual = $request->boolean('overwrite_manual');
 
@@ -141,7 +141,7 @@ class QualifyingTimeListController extends Controller
 
     public function storeTargetPoint(Request $request, QualifyingTimeList $qualifyingTimeList): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $validated = $request->validate([
             'sport_class' => 'required|string|max:15',
@@ -163,7 +163,7 @@ class QualifyingTimeListController extends Controller
         QualifyingTimeList $qualifyingTimeList,
         QualifyingTargetPoint $targetPoint
     ): RedirectResponse {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         abort_unless($targetPoint->qualifying_time_list_id === $qualifyingTimeList->id, 404);
 
@@ -179,7 +179,7 @@ class QualifyingTimeListController extends Controller
 
     public function storeTime(Request $request, QualifyingTimeList $qualifyingTimeList): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         $validated = $request->validate([
             'stroke_type_id' => 'required|integer|exists:stroke_types,id',
@@ -205,7 +205,7 @@ class QualifyingTimeListController extends Controller
 
     public function destroyTime(QualifyingTimeList $qualifyingTimeList, QualifyingTime $time): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeEditableList($qualifyingTimeList);
 
         abort_unless($time->qualifying_time_list_id === $qualifyingTimeList->id, 404);
 
@@ -221,6 +221,23 @@ class QualifyingTimeListController extends Controller
     private function authorizeAdmin(): void
     {
         abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+    }
+
+    /**
+     * Admin-Check plus Historisierungsregel (Phase 3): nur die aktuellste
+     * Richtzeitenliste (höchstes Jahr) darf bearbeitet, berechnet oder
+     * gelöscht werden. Ältere Jahre bleiben dauerhaft abrufbar, aber
+     * schreibgeschützt.
+     */
+    private function authorizeEditableList(QualifyingTimeList $list): void
+    {
+        $this->authorizeAdmin();
+
+        abort_unless(
+            $list->isLatest(),
+            403,
+            "Richtzeitenliste $list->year ist historisiert und kann nicht mehr geändert werden — nur die aktuellste Liste ist bearbeitbar."
+        );
     }
 
     private function validateList(Request $request, ?int $excludeId = null): array

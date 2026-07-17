@@ -12,6 +12,11 @@
             @else
                 <flux:badge color="zinc">Inaktiv</flux:badge>
             @endif
+            @if($list->isLatest())
+                <flux:badge color="blue">Aktuell</flux:badge>
+            @else
+                <flux:badge color="zinc">Historisiert — schreibgeschützt</flux:badge>
+            @endif
         </div>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-6">

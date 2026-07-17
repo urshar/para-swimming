@@ -33,7 +33,12 @@
                 <flux:table.rows>
                     @forelse($lists as $list)
                         <flux:table.row>
-                            <flux:table.cell class="font-mono font-medium">{{ $list->year }}</flux:table.cell>
+                            <flux:table.cell class="font-mono font-medium">
+                                {{ $list->year }}
+                                @if($list->isLatest())
+                                    <flux:badge color="blue" size="sm">Aktuell</flux:badge>
+                                @endif
+                            </flux:table.cell>
                             <flux:table.cell>{{ $list->target_points_count }}</flux:table.cell>
                             <flux:table.cell>{{ $list->times_count }}</flux:table.cell>
                             <flux:table.cell>
@@ -47,7 +52,7 @@
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('qualifying-time-lists.show', $list) }}"
                                                  variant="ghost" size="sm" icon="eye"/>
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->is_admin && $list->isLatest())
                                         <flux:button href="{{ route('qualifying-time-lists.edit', $list) }}"
                                                      variant="ghost" size="sm" icon="pencil"/>
                                         <form method="POST"

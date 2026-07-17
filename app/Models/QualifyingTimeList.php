@@ -42,4 +42,14 @@ class QualifyingTimeList extends Model
     {
         return $this->targetPoints->firstWhere('sport_class', strtoupper($sportClass))?->points ?? 100;
     }
+
+    /**
+     * Nur die Liste mit dem höchsten Wettkampfjahr darf bearbeitet/gelöscht
+     * werden (Phase 3 — Historisierung: frühere Jahre bleiben unverändert
+     * und dauerhaft abrufbar, aber schreibgeschützt).
+     */
+    public function isLatest(): bool
+    {
+        return $this->year === (static::max('year') ?? $this->year);
+    }
 }
