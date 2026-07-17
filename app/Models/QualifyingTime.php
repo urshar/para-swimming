@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QualifyingTime extends Model
 {
+    public const string SOURCE_MANUAL = 'MANUAL';
+
+    public const string SOURCE_CALCULATED = 'CALCULATED';
+
     protected $fillable = [
         'qualifying_time_list_id',
         'stroke_type_id',
@@ -15,6 +19,11 @@ class QualifyingTime extends Model
         'gender',
         'sport_class',
         'value_centiseconds',
+        'source',
+    ];
+
+    protected $attributes = [
+        'source' => self::SOURCE_MANUAL,
     ];
 
     protected $casts = [
@@ -50,5 +59,10 @@ class QualifyingTime extends Model
         $stroke = $this->strokeType?->name_de ?? '';
 
         return "{$this->distance}m $stroke ($this->gender/$this->sport_class)";
+    }
+
+    public function isManual(): bool
+    {
+        return $this->source === self::SOURCE_MANUAL;
     }
 }

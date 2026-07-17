@@ -7,6 +7,7 @@ use App\Models\Club;
 use App\Models\Cup;
 use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\QualifyingTimeList;
 use App\Models\Result;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,8 +49,9 @@ class MeetController extends Controller
     {
         $nations = Nation::active()->orderBy('name_de')->get();
         $cups = Cup::orderByDesc('year')->get();
+        $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
-        return view('meets.form', compact('nations', 'cups'));
+        return view('meets.form', compact('nations', 'cups', 'qualifyingTimeLists'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,7 +60,7 @@ class MeetController extends Controller
         $data['is_open'] = $request->boolean('is_open');
 
         if (! auth()->user()?->is_admin) {
-            unset($data['cup_id']);
+            unset($data['cup_id'], $data['qualifying_time_list_id']);
         }
 
         $meet = Meet::create($data);
@@ -86,8 +88,9 @@ class MeetController extends Controller
     {
         $nations = Nation::active()->orderBy('name_de')->get();
         $cups = Cup::orderByDesc('year')->get();
+        $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
-        return view('meets.form', compact('meet', 'nations', 'cups'));
+        return view('meets.form', compact('meet', 'nations', 'cups', 'qualifyingTimeLists'));
     }
 
     public function update(Request $request, Meet $meet): RedirectResponse
@@ -96,7 +99,7 @@ class MeetController extends Controller
         $data['is_open'] = $request->boolean('is_open');
 
         if (! auth()->user()?->is_admin) {
-            unset($data['cup_id']);
+            unset($data['cup_id'], $data['qualifying_time_list_id']);
         }
 
         $meet->update($data);
@@ -132,6 +135,7 @@ class MeetController extends Controller
             'entry_type' => 'nullable|in:OPEN,INVITATION',
             'is_open' => 'boolean',
             'cup_id' => 'nullable|exists:cups,id',
+            'qualifying_time_list_id' => 'nullable|exists:qualifying_time_lists,id',
         ]);
     }
 }

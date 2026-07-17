@@ -93,7 +93,10 @@ class QualifyingTimeService
                 'gender' => strtoupper($gender),
                 'sport_class' => $sportClass,
             ],
-            ['value_centiseconds' => $valueCentiseconds]
+            [
+                'value_centiseconds' => $valueCentiseconds,
+                'source' => QualifyingTime::SOURCE_MANUAL,
+            ]
         );
     }
 

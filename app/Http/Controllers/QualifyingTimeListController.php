@@ -6,6 +6,7 @@ use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
 use App\Models\StrokeType;
+use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class QualifyingTimeListController extends Controller
 {
     public function __construct(
         private readonly QualifyingTimeService $qualifyingTimeService,
+        private readonly QualifyingTimeCalculationService $qualifyingTimeCalculationService,
     ) {}
 
     // ── Richtzeitenliste ──────────────────────────────────────────────────────
@@ -101,6 +103,38 @@ class QualifyingTimeListController extends Controller
         return redirect()
             ->route('qualifying-time-lists.index')
             ->with('success', "Richtzeitenliste $year gelöscht.");
+    }
+
+    /**
+     * POST /qualifying-time-lists/{qualifyingTimeList}/calculate
+     *
+     * Löst die automatische Berechnung der Richtzeiten aus den bestehenden
+     * Basiswerten aus (Phase 2 der Spec). Manuell gesetzte Zeiten werden nur
+     * mit explizit gesetzter Checkbox "overwrite_manual" überschrieben.
+     */
+    public function calculate(Request $request, QualifyingTimeList $qualifyingTimeList): RedirectResponse
+    {
+        $this->authorizeAdmin();
+
+        $overwriteManual = $request->boolean('overwrite_manual');
+
+        $result = $this->qualifyingTimeCalculationService->calculateForList($qualifyingTimeList, $overwriteManual);
+
+        if (isset($result['error'])) {
+            return redirect()
+                ->route('qualifying-time-lists.edit', $qualifyingTimeList)
+                ->with('error', $result['error']);
+        }
+
+        $message = "{$result['calculated']} Richtzeiten berechnet, {$result['skipped']} übersprungen (kein Basiswert)";
+        if ($result['skipped_manual_protected'] > 0) {
+            $message .= ", {$result['skipped_manual_protected']} manuell gesetzte Zeiten unverändert gelassen";
+        }
+        $message .= ". (Basiswert-Version: {$result['version']}, Meet: {$result['reference_meet']})";
+
+        return redirect()
+            ->route('qualifying-time-lists.edit', $qualifyingTimeList)
+            ->with('success', $message);
     }
 
     // ── Zielpunkte ────────────────────────────────────────────────────────────

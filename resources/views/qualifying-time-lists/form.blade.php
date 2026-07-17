@@ -27,6 +27,13 @@
             </div>
         @endif
 
+        @if(session('error'))
+            <div
+                class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <form method="POST"
               action="{{ $list ? route('qualifying-time-lists.update', $list) : route('qualifying-time-lists.store') }}">
             @csrf
@@ -97,11 +104,31 @@
                 @endif
             </div>
 
+            {{-- ── Automatische Berechnung ───────────────────────────────────── --}}
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6">
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Automatische Berechnung</h2>
+                <p class="text-xs text-zinc-400 mb-4">
+                    Berechnet alle Richtzeiten aus den bestehenden Basiswerten und den oben hinterlegten
+                    Zielpunkten, für den Kurs und das Datum des dieser Liste zugeordneten ÖSTM & ÖM-Meets.
+                    Bewerbe/Sportklassen ohne passenden Basiswert-Eintrag werden übersprungen.
+                </p>
+                <form method="POST" action="{{ route('qualifying-time-lists.calculate', $list) }}"
+                      class="flex items-center gap-4">
+                    @csrf
+                    <flux:checkbox name="overwrite_manual" value="1"
+                                   label="Auch manuell gesetzte Zeiten überschreiben"/>
+                    <flux:button type="submit" variant="primary" icon="calculator">
+                        Richtzeiten berechnen
+                    </flux:button>
+                </form>
+            </div>
+
             {{-- ── Richtzeiten-Zeilen ─────────────────────────────────────────── --}}
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Richtzeiten</h2>
                 <p class="text-xs text-zinc-400 mb-4">
-                    Manuelle Pflege in Phase 1. Die automatische Berechnung aus den Basiswerten folgt in Phase 2.
+                    Automatisch berechnete Zeilen sind blau markiert, manuell gesetzte/überschriebene amber.
+                    Eine manuelle Eingabe hier überschreibt eine automatisch berechnete Zeile dauerhaft.
                 </p>
 
                 <form method="POST" action="{{ route('qualifying-time-lists.times.store', $list) }}"
@@ -131,6 +158,7 @@
                         <flux:table.column>Geschlecht</flux:table.column>
                         <flux:table.column>Sportklasse</flux:table.column>
                         <flux:table.column>Richtzeit</flux:table.column>
+                        <flux:table.column>Quelle</flux:table.column>
                         <flux:table.column></flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
@@ -140,6 +168,13 @@
                                 <flux:table.cell>{{ $time->gender }}</flux:table.cell>
                                 <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
                                 <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
+                                <flux:table.cell>
+                                    @if($time->isManual())
+                                        <flux:badge color="amber">Manuell</flux:badge>
+                                    @else
+                                        <flux:badge color="blue">Berechnet</flux:badge>
+                                    @endif
+                                </flux:table.cell>
                                 <flux:table.cell>
                                     <form method="POST"
                                           action="{{ route('qualifying-time-lists.times.destroy', [$list, $time]) }}"
@@ -152,7 +187,7 @@
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell colspan="5">
+                                <flux:table.cell colspan="6">
                                     <p class="text-sm text-zinc-400 py-4 text-center">Noch keine Richtzeiten hinterlegt.</p>
                                 </flux:table.cell>
                             </flux:table.row>

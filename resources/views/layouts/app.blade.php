@@ -117,6 +117,12 @@
                                :current="request()->routeIs('qualifying-time-lists.*')">
                 Richtzeitenlisten
             </flux:navlist.item>
+            @if(auth()->user()?->is_admin)
+                <flux:navlist.item icon="no-symbol" href="{{ route('qualifying-excluded-disciplines.index') }}"
+                                   :current="request()->routeIs('qualifying-excluded-disciplines.*')">
+                    Ausgeschlossene Bewerbe
+                </flux:navlist.item>
+            @endif
         </flux:navlist.group>
 
         <flux:navlist.group heading="LENEX">

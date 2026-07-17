@@ -14,6 +14,9 @@
                     @if($meet->cup)
                         · <flux:badge color="amber" size="sm">{{ $meet->cup->name }}</flux:badge>
                     @endif
+                    @if($meet->qualifyingTimeList)
+                        · <flux:badge color="blue" size="sm">Richtzeiten {{ $meet->qualifyingTimeList->year }}</flux:badge>
+                    @endif
                 </p>
             </div>
         </div>
@@ -31,6 +34,13 @@
                 <flux:button href="{{ route('meets.cup-daily-ranking.show', $meet) }}" variant="ghost"
                              icon="trophy" size="sm">
                     Cup-Tageswertung
+                </flux:button>
+            @endif
+
+            @if($meet->qualifying_time_list_id)
+                <flux:button href="{{ route('qualifying-time-lists.show', $meet->qualifying_time_list_id) }}"
+                             variant="ghost" icon="flag" size="sm">
+                    Richtzeiten
                 </flux:button>
             @endif
 

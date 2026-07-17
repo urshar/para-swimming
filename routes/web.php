@@ -19,6 +19,7 @@ use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\NationController;
+use App\Http\Controllers\QualifyingExcludedDisciplineController;
 use App\Http\Controllers\QualifyingTimeListController;
 use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
@@ -148,6 +149,16 @@ Route::middleware(['auth'])->group(function () {
         [QualifyingTimeListController::class, 'storeTime'])->name('qualifying-time-lists.times.store');
     Route::delete('qualifying-time-lists/{qualifyingTimeList}/times/{time}',
         [QualifyingTimeListController::class, 'destroyTime'])->name('qualifying-time-lists.times.destroy');
+    Route::post('qualifying-time-lists/{qualifyingTimeList}/calculate',
+        [QualifyingTimeListController::class, 'calculate'])->name('qualifying-time-lists.calculate');
+
+    // ── Richtzeiten ÖSTM & ÖM: Ausgeschlossene Bewerbe (z.B. 25m, 800m/1500m Frei) ──
+    Route::get('qualifying-excluded-disciplines',
+        [QualifyingExcludedDisciplineController::class, 'index'])->name('qualifying-excluded-disciplines.index');
+    Route::post('qualifying-excluded-disciplines/{discipline}',
+        [QualifyingExcludedDisciplineController::class, 'store'])->name('qualifying-excluded-disciplines.store');
+    Route::delete('qualifying-excluded-disciplines/{discipline}',
+        [QualifyingExcludedDisciplineController::class, 'destroy'])->name('qualifying-excluded-disciplines.destroy');
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);

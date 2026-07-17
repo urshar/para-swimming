@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class BaseTimeDiscipline extends Model
 {
@@ -40,6 +41,15 @@ class BaseTimeDiscipline extends Model
     public function longerInRules(): HasMany
     {
         return $this->hasMany(BaseTimeDerivationRule::class, 'longer_discipline_id');
+    }
+
+    /**
+     * Markierung, dass dieser Bewerb bei ÖSTM & ÖM nicht ausgetragen wird
+     * (Modul "Richtzeiten ÖSTM & ÖM") — z.B. 25m-Bewerbe, 800m/1500m Freistil.
+     */
+    public function qualifyingExclusion(): HasOne
+    {
+        return $this->hasOne(QualifyingExcludedDiscipline::class);
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

@@ -43,6 +43,7 @@
                     <flux:table.column>Geschlecht</flux:table.column>
                     <flux:table.column>Sportklasse</flux:table.column>
                     <flux:table.column>Richtzeit</flux:table.column>
+                    <flux:table.column>Quelle</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
                     @forelse($list->times->sortBy(['distance', 'gender', 'sport_class']) as $time)
@@ -51,10 +52,17 @@
                             <flux:table.cell>{{ $time->gender }}</flux:table.cell>
                             <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
                             <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
+                            <flux:table.cell>
+                                @if($time->isManual())
+                                    <flux:badge color="amber">Manuell</flux:badge>
+                                @else
+                                    <flux:badge color="blue">Berechnet</flux:badge>
+                                @endif
+                            </flux:table.cell>
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="4">
+                            <flux:table.cell colspan="5">
                                 <p class="text-sm text-zinc-400 py-4 text-center">Noch keine Richtzeiten hinterlegt.</p>
                             </flux:table.cell>
                         </flux:table.row>

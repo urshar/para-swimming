@@ -158,6 +158,25 @@
                         </flux:description>
                         <flux:error name="cup_id"/>
                     </flux:field>
+
+                    <flux:field>
+                        <flux:label>Richtzeitenliste (ÖSTM & ÖM)</flux:label>
+                        <flux:select name="qualifying_time_list_id">
+                            <option value="">Keine Richtzeitenliste</option>
+                            @foreach($qualifyingTimeLists as $qtl)
+                                <option value="{{ $qtl->id }}"
+                                    @selected(old('qualifying_time_list_id', $meet->qualifying_time_list_id ?? '') == $qtl->id)>
+                                    {{ $qtl->year }}
+                                </option>
+                            @endforeach
+                        </flux:select>
+                        <flux:description>
+                            Markiert diesen Wettkampf als die ÖSTM & ÖM-Veranstaltung des jeweiligen Jahres —
+                            Grundlage für die automatische Richtzeiten-Berechnung (Kurs/Datum) und später die
+                            Qualifikationsermittlung.
+                        </flux:description>
+                        <flux:error name="qualifying_time_list_id"/>
+                    </flux:field>
                 @endif
 
             </div>
