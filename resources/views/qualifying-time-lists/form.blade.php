@@ -242,12 +242,16 @@
 
                 <form method="POST" action="{{ route('qualifying-time-lists.qualifications.calculate', $list) }}"
                       x-data="{ submit() { if (confirm('Qualifikation neu ermitteln? Eine bestehende Liste wird dabei vollständig ersetzt.')) this.$el.submit() } }"
-                      @submit.prevent="submit()">
+                      @submit.prevent="submit()" class="inline">
                     @csrf
                     <flux:button type="submit" variant="primary" icon="check-badge">
                         Qualifikation ermitteln
                     </flux:button>
                 </form>
+                <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="ghost"
+                             icon="eye">
+                    Ergebnisliste anzeigen
+                </flux:button>
             </div>
         @endif
     </div>

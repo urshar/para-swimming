@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
@@ -67,6 +68,74 @@ class QualifyingTimeListController extends Controller
         $qualifyingTimeList->load(['targetPoints', 'times.strokeType']);
 
         return view('qualifying-time-lists.show', ['list' => $qualifyingTimeList]);
+    }
+
+    /**
+     * GET /qualifying-time-lists/{qualifyingTimeList}/qualifications
+     *
+     * Anzeige der ermittelten Qualifikationen mit Filtern (Phase 6 der Spec).
+     * Lesezugriff für alle authentifizierten User. Zeigt ausschließlich die
+     * zum Berechnungszeitpunkt eingefrorenen Snapshot-Werte (sport_class,
+     * club_id, points, swim_time) — keine Live-Nachladung aus Result/Athlete.
+     */
+    public function qualifications(Request $request, QualifyingTimeList $qualifyingTimeList): View
+    {
+        $base = Qualification::where('qualifying_time_list_id', $qualifyingTimeList->id)
+            ->with(['athlete', 'club', 'qualifyingTime.strokeType']);
+
+        // Filteroptionen aus dem ungefilterten Gesamtbestand ableiten, damit
+        // sie beim Filtern nicht verschwinden.
+        $all = (clone $base)->get();
+
+        $events = $all->map(fn (Qualification $q) => [
+            'stroke_type_id' => $q->qualifyingTime->stroke_type_id,
+            'distance' => $q->qualifyingTime->distance,
+            'label' => "{$q->qualifyingTime->distance}m {$q->qualifyingTime->strokeType?->name_de}",
+        ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('distance')->values();
+
+        $genders = $all->pluck('qualifyingTime.gender')->unique()->sort()->values();
+        $sportClasses = $all->pluck('sport_class')->unique()->sort()->values();
+        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
+
+        $filtered = $base;
+
+        if ($request->filled('stroke_type_id') && $request->filled('distance')) {
+            $filtered->whereHas('qualifyingTime', fn ($q) => $q
+                ->where('stroke_type_id', $request->integer('stroke_type_id'))
+                ->where('distance', $request->integer('distance')));
+        }
+        if ($request->filled('gender')) {
+            $filtered->whereHas('qualifyingTime', fn ($q) => $q->where('gender', $request->string('gender')));
+        }
+        if ($request->filled('sport_class')) {
+            $filtered->where('sport_class', strtoupper($request->string('sport_class')));
+        }
+        if ($request->filled('club_id')) {
+            $filtered->where('club_id', $request->integer('club_id'));
+        }
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $filtered->where(function ($q) use ($search) {
+                $q->whereHas('athlete', fn ($a) => $a
+                    ->where('first_name', 'like', "%$search%")
+                    ->orWhere('last_name', 'like', "%$search%"))
+                    ->orWhereHas('club', fn ($c) => $c->where('name', 'like', "%$search%"));
+            });
+        }
+
+        $qualifications = $filtered->get()->sortBy([
+            fn (Qualification $q) => $q->athlete?->last_name,
+            fn (Qualification $q) => $q->athlete?->first_name,
+        ]);
+
+        return view('qualifying-time-lists.qualifications', [
+            'list' => $qualifyingTimeList,
+            'qualifications' => $qualifications,
+            'events' => $events,
+            'genders' => $genders,
+            'sportClasses' => $sportClasses,
+            'clubs' => $clubs,
+        ]);
     }
 
     public function edit(QualifyingTimeList $qualifyingTimeList): View

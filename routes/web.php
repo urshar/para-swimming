@@ -141,6 +141,8 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Richtzeiten ÖSTM & ÖM (Phase 1: Verwaltung) ─────────────────────────────
     Route::resource('qualifying-time-lists', QualifyingTimeListController::class);
+    Route::get('qualifying-time-lists/{qualifyingTimeList}/qualifications',
+        [QualifyingTimeListController::class, 'qualifications'])->name('qualifying-time-lists.qualifications');
     Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
         [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
     Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',
