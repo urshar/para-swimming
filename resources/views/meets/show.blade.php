@@ -40,7 +40,7 @@
             @if($meet->qualifying_time_list_id)
                 <flux:button href="{{ route('qualifying-time-lists.show', $meet->qualifying_time_list_id) }}"
                              variant="ghost" icon="flag" size="sm">
-                    Richtzeiten
+                    Richtzeiten anzeigen
                 </flux:button>
             @endif
 
@@ -67,6 +67,13 @@
         <div
             class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div
+            class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+            {{ session('error') }}
         </div>
     @endif
 

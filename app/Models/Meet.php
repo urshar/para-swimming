@@ -61,6 +61,12 @@ class Meet extends Model
         return $this->belongsTo(QualifyingTimeList::class);
     }
 
+    /** Ermittelte Qualifikationen für dieses ÖSTM & ÖM-Meet (Phase 4/5/6). */
+    public function qualifications(): HasMany
+    {
+        return $this->hasMany(Qualification::class);
+    }
+
     public function clubs(): BelongsToMany
     {
         return $this->belongsToMany(Club::class, 'meet_club');

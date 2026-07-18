@@ -6,11 +6,13 @@ use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
 use App\Models\StrokeType;
+use App\Services\QualificationDeterminationService;
 use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * QualifyingTimeListController
@@ -25,6 +27,7 @@ class QualifyingTimeListController extends Controller
     public function __construct(
         private readonly QualifyingTimeService $qualifyingTimeService,
         private readonly QualifyingTimeCalculationService $qualifyingTimeCalculationService,
+        private readonly QualificationDeterminationService $qualificationDeterminationService,
     ) {}
 
     // ── Richtzeitenliste ──────────────────────────────────────────────────────
@@ -131,6 +134,39 @@ class QualifyingTimeListController extends Controller
             $message .= ", {$result['skipped_manual_protected']} manuell gesetzte Zeiten unverändert gelassen";
         }
         $message .= ". (Basiswert-Version: {$result['version']}, Meet: {$result['reference_meet']})";
+
+        return redirect()
+            ->route('qualifying-time-lists.edit', $qualifyingTimeList)
+            ->with('success', $message);
+    }
+
+    /**
+     * POST /qualifying-time-lists/{qualifyingTimeList}/qualifications/calculate
+     *
+     * Löst die automatische Qualifikationsermittlung aus (Phase 4 der Spec).
+     * Der Zeitraum wird direkt an der Liste gepflegt (siehe
+     * qualification_period_start/-end), nicht aus einem Ziel-Meet abgeleitet
+     * — das Ziel-Meet des Folgejahres existiert zum Zeitpunkt der Ermittlung
+     * oft noch nicht.
+     *
+     * @throws Throwable bei einem unerwarteten Fehler innerhalb der Berechnung
+     */
+    public function calculateQualifications(QualifyingTimeList $qualifyingTimeList): RedirectResponse
+    {
+        $this->authorizeEditableList($qualifyingTimeList);
+
+        $result = $this->qualificationDeterminationService->calculateForList($qualifyingTimeList);
+
+        if (isset($result['error'])) {
+            return redirect()
+                ->route('qualifying-time-lists.edit', $qualifyingTimeList)
+                ->with('error', $result['error']);
+        }
+
+        $message = "{$result['qualified']} Qualifikationen ermittelt (von {$result['candidates_checked']} geprüften Ergebnissen im Zeitraum {$result['period_start']} bis {$result['period_end']}).";
+        if ($result['period_end_is_provisional']) {
+            $message .= ' Achtung: Zeitraum-Ende ist noch nicht gesetzt, es wurde vorläufig bis heute gerechnet — sobald der ÖSTM & ÖM-Termin feststeht, Ende eintragen und neu berechnen.';
+        }
 
         return redirect()
             ->route('qualifying-time-lists.edit', $qualifyingTimeList)
@@ -245,6 +281,8 @@ class QualifyingTimeListController extends Controller
         return $request->validate([
             'year' => 'required|integer|min:2000|max:2100|unique:qualifying_time_lists,year,'.($excludeId ?? 'NULL').',id',
             'is_active' => 'boolean',
+            'qualification_period_start' => 'nullable|date',
+            'qualification_period_end' => 'nullable|date|after_or_equal:qualification_period_start',
         ]);
     }
 }

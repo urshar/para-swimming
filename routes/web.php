@@ -151,6 +151,8 @@ Route::middleware(['auth'])->group(function () {
         [QualifyingTimeListController::class, 'destroyTime'])->name('qualifying-time-lists.times.destroy');
     Route::post('qualifying-time-lists/{qualifyingTimeList}/calculate',
         [QualifyingTimeListController::class, 'calculate'])->name('qualifying-time-lists.calculate');
+    Route::post('qualifying-time-lists/{qualifyingTimeList}/qualifications/calculate',
+        [QualifyingTimeListController::class, 'calculateQualifications'])->name('qualifying-time-lists.qualifications.calculate');
 
     // ── Richtzeiten ÖSTM & ÖM: Ausgeschlossene Bewerbe (z.B. 25m, 800m/1500m Frei) ──
     Route::get('qualifying-excluded-disciplines',

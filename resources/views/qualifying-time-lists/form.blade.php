@@ -55,6 +55,25 @@
                                    :checked="old('is_active', $list?->is_active ?? true)"
                                    label="Aktiv"/>
                 </flux:field>
+
+                <div class="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-700">
+                    <flux:field>
+                        <flux:label>Qualifikationszeitraum — Beginn</flux:label>
+                        <flux:input name="qualification_period_start" type="date"
+                                    value="{{ old('qualification_period_start', $list?->qualification_period_start?->toDateString()) }}"/>
+                        <flux:description>Erster Wettkampftag der vorherigen ÖSTM & ÖM.</flux:description>
+                        <flux:error name="qualification_period_start"/>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Qualifikationszeitraum — Ende</flux:label>
+                        <flux:input name="qualification_period_end" type="date"
+                                    value="{{ old('qualification_period_end', $list?->qualification_period_end?->toDateString()) }}"/>
+                        <flux:description>14 Tage vor dem ersten Wettkampftag dieser ÖSTM & ÖM — kann später
+                            nachgetragen/geändert werden, sobald der Termin feststeht.
+                        </flux:description>
+                        <flux:error name="qualification_period_end"/>
+                    </flux:field>
+                </div>
             </div>
 
             <div class="flex gap-3">
@@ -194,6 +213,41 @@
                         @endforelse
                     </flux:table.rows>
                 </flux:table>
+            </div>
+
+            {{-- ── Qualifikationsermittlung ──────────────────────────────────── --}}
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6">
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Qualifikation ermitteln</h2>
+                <p class="text-xs text-zinc-400 mb-4">
+                    Ermittelt alle Schwimmer, die im oben eingetragenen Qualifikationszeitraum eine Richtzeit
+                    erreicht haben. Eine erneute Berechnung ersetzt die bestehende Liste vollständig.
+                </p>
+
+                @if(! $list->qualification_period_start)
+                    <p class="text-sm text-amber-600 dark:text-amber-400 mb-4">
+                        Zeitraum-Beginn ist oben noch nicht gesetzt — bitte zuerst eintragen und speichern.
+                    </p>
+                @elseif(! $list->qualification_period_end)
+                    <p class="text-sm text-amber-600 dark:text-amber-400 mb-4">
+                        Zeitraum: ab {{ $list->qualification_period_start->format('d.m.Y') }} — Ende noch nicht
+                        gesetzt. Es wird vorläufig bis heute gerechnet; sobald der ÖSTM & ÖM-Termin feststeht, Ende
+                        eintragen und neu berechnen.
+                    </p>
+                @else
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                        Zeitraum: {{ $list->qualification_period_start->format('d.m.Y') }}
+                        – {{ $list->qualification_period_end->format('d.m.Y') }}
+                    </p>
+                @endif
+
+                <form method="POST" action="{{ route('qualifying-time-lists.qualifications.calculate', $list) }}"
+                      x-data="{ submit() { if (confirm('Qualifikation neu ermitteln? Eine bestehende Liste wird dabei vollständig ersetzt.')) this.$el.submit() } }"
+                      @submit.prevent="submit()">
+                    @csrf
+                    <flux:button type="submit" variant="primary" icon="check-badge">
+                        Qualifikation ermitteln
+                    </flux:button>
+                </form>
             </div>
         @endif
     </div>

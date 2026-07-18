@@ -10,11 +10,15 @@ class QualifyingTimeList extends Model
     protected $fillable = [
         'year',
         'is_active',
+        'qualification_period_start',
+        'qualification_period_end',
     ];
 
     protected $casts = [
         'year' => 'integer',
         'is_active' => 'boolean',
+        'qualification_period_start' => 'date',
+        'qualification_period_end' => 'date',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -33,6 +37,12 @@ class QualifyingTimeList extends Model
     public function meets(): HasMany
     {
         return $this->hasMany(Meet::class);
+    }
+
+    /** Ermittelte Qualifikationen für diese Richtzeitenliste (Phase 4/5/6). */
+    public function qualifications(): HasMany
+    {
+        return $this->hasMany(Qualification::class);
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
