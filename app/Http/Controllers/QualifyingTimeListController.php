@@ -6,13 +6,18 @@ use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
+use App\Models\SportClassGroup;
+use App\Models\SportClassGroupMember;
 use App\Models\StrokeType;
+use App\Services\PdfExportService;
 use App\Services\QualificationDeterminationService;
 use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -29,6 +34,7 @@ class QualifyingTimeListController extends Controller
         private readonly QualifyingTimeService $qualifyingTimeService,
         private readonly QualifyingTimeCalculationService $qualifyingTimeCalculationService,
         private readonly QualificationDeterminationService $qualificationDeterminationService,
+        private readonly PdfExportService $pdfExportService,
     ) {}
 
     // ── Richtzeitenliste ──────────────────────────────────────────────────────
@@ -80,62 +86,40 @@ class QualifyingTimeListController extends Controller
      */
     public function qualifications(Request $request, QualifyingTimeList $qualifyingTimeList): View
     {
-        $base = Qualification::where('qualifying_time_list_id', $qualifyingTimeList->id)
-            ->with(['athlete', 'club', 'qualifyingTime.strokeType']);
-
-        // Filteroptionen aus dem ungefilterten Gesamtbestand ableiten, damit
-        // sie beim Filtern nicht verschwinden.
-        $all = (clone $base)->get();
-
-        $events = $all->map(fn (Qualification $q) => [
-            'stroke_type_id' => $q->qualifyingTime->stroke_type_id,
-            'distance' => $q->qualifyingTime->distance,
-            'label' => "{$q->qualifyingTime->distance}m {$q->qualifyingTime->strokeType?->name_de}",
-        ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('distance')->values();
-
-        $genders = $all->pluck('qualifyingTime.gender')->unique()->sort()->values();
-        $sportClasses = $all->pluck('sport_class')->unique()->sort()->values();
-        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
-
-        $filtered = $base;
-
-        if ($request->filled('stroke_type_id') && $request->filled('distance')) {
-            $filtered->whereHas('qualifyingTime', fn ($q) => $q
-                ->where('stroke_type_id', $request->integer('stroke_type_id'))
-                ->where('distance', $request->integer('distance')));
-        }
-        if ($request->filled('gender')) {
-            $filtered->whereHas('qualifyingTime', fn ($q) => $q->where('gender', $request->string('gender')));
-        }
-        if ($request->filled('sport_class')) {
-            $filtered->where('sport_class', strtoupper($request->string('sport_class')));
-        }
-        if ($request->filled('club_id')) {
-            $filtered->where('club_id', $request->integer('club_id'));
-        }
-        if ($request->filled('search')) {
-            $search = $request->string('search');
-            $filtered->where(function ($q) use ($search) {
-                $q->whereHas('athlete', fn ($a) => $a
-                    ->where('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%"))
-                    ->orWhereHas('club', fn ($c) => $c->where('name', 'like', "%$search%"));
-            });
-        }
-
-        $qualifications = $filtered->get()->sortBy([
-            fn (Qualification $q) => $q->athlete?->last_name,
-            fn (Qualification $q) => $q->athlete?->first_name,
-        ]);
-
         return view('qualifying-time-lists.qualifications', [
             'list' => $qualifyingTimeList,
-            'qualifications' => $qualifications,
-            'events' => $events,
-            'genders' => $genders,
-            'sportClasses' => $sportClasses,
-            'clubs' => $clubs,
+            ...$this->filteredQualifications($request, $qualifyingTimeList),
         ]);
+    }
+
+    /**
+     * GET /qualifying-time-lists/{qualifyingTimeList}/pdf
+     *
+     * PDF der Richtzeitenliste (Phase 7 der Spec). Lesezugriff für alle
+     * authentifizierten User (wie show()) — auch für historisierte Listen.
+     */
+    public function pdfTimes(QualifyingTimeList $qualifyingTimeList): Response
+    {
+        $qualifyingTimeList->load(['targetPoints', 'times.strokeType']);
+
+        return $this->pdfExportService->stream('pdf.qualifying-times', [
+            'list' => $qualifyingTimeList,
+        ], "richtzeiten-$qualifyingTimeList->year.pdf");
+    }
+
+    /**
+     * GET /qualifying-time-lists/{qualifyingTimeList}/qualifications/pdf
+     *
+     * PDF der (ggf. gefilterten) Qualifikationsliste (Phase 7 der Spec).
+     * Übernimmt dieselben Filter-Query-Parameter wie die normale Anzeige.
+     */
+    public function pdfQualifications(Request $request, QualifyingTimeList $qualifyingTimeList): Response
+    {
+        return $this->pdfExportService->stream('pdf.qualifications', [
+            'list' => $qualifyingTimeList,
+            'filters' => $request->only(['stroke_type_id', 'distance', 'gender', 'sport_class', 'club_id', 'search']),
+            ...$this->filteredQualifications($request, $qualifyingTimeList),
+        ], "qualifikation-$qualifyingTimeList->year.pdf");
     }
 
     public function edit(QualifyingTimeList $qualifyingTimeList): View
@@ -322,6 +306,134 @@ class QualifyingTimeListController extends Controller
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
+    /**
+     * Gemeinsame Filterlogik für die Qualifikations-Anzeige (Phase 6) und den
+     * PDF-Export (Phase 7), damit beide exakt dieselben Ergebnisse liefern.
+     *
+     * @return array{qualifications: Collection, events: Collection, genders: Collection, sportClasses: Collection, clubs: Collection}
+     */
+    private function filteredQualifications(Request $request, QualifyingTimeList $qualifyingTimeList): array
+    {
+        $base = Qualification::where('qualifying_time_list_id', $qualifyingTimeList->id)
+            ->with(['athlete', 'club', 'qualifyingTime.strokeType']);
+
+        // Filteroptionen aus dem ungefilterten Gesamtbestand ableiten, damit
+        // sie beim Filtern nicht verschwinden.
+        $all = (clone $base)->get();
+
+        $events = $all->map(fn (Qualification $q) => [
+            'stroke_type_id' => $q->qualifyingTime->stroke_type_id,
+            'distance' => $q->qualifyingTime->distance,
+            'label' => "{$q->qualifyingTime->distance}m {$q->qualifyingTime->strokeType?->name_de}",
+        ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('distance')->values();
+
+        $genders = $all->pluck('qualifyingTime.gender')->unique()->sort()->values();
+        $sportClasses = $all->pluck('sport_class')->unique()->sort()->values();
+        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
+
+        $filtered = $base;
+
+        if ($request->filled('stroke_type_id') && $request->filled('distance')) {
+            $filtered->whereHas('qualifyingTime', fn ($q) => $q
+                ->where('stroke_type_id', $request->integer('stroke_type_id'))
+                ->where('distance', $request->integer('distance')));
+        }
+        if ($request->filled('gender')) {
+            $filtered->whereHas('qualifyingTime', fn ($q) => $q->where('gender', $request->string('gender')));
+        }
+        if ($request->filled('sport_class')) {
+            $filtered->where('sport_class', strtoupper($request->string('sport_class')));
+        }
+        if ($request->filled('club_id')) {
+            $filtered->where('club_id', $request->integer('club_id'));
+        }
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $filtered->where(function ($q) use ($search) {
+                $q->whereHas('athlete', fn ($a) => $a
+                    ->where('first_name', 'like', "%$search%")
+                    ->orWhere('last_name', 'like', "%$search%"))
+                    ->orWhereHas('club', fn ($c) => $c->where('name', 'like', "%$search%"));
+            });
+        }
+
+        $qualifications = $filtered->get()->sortBy(
+            fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
+        );
+
+        $sections = $this->groupByDisabilityGroupAndStroke($qualifications);
+
+        return compact('qualifications', 'events', 'genders', 'sportClasses', 'clubs', 'sections');
+    }
+
+    /**
+     * Gliedert Qualifikationen zuerst nach Behinderungsgruppe (PI/VI/II/T21/HI,
+     * wiederverwendet aus dem Cup-Modul, siehe SportClassGroup), darin nach
+     * Lage — für eine übersichtlichere Anzeige/PDF-Ausgabe.
+     *
+     * @return Collection<int, array{group: ?SportClassGroup, strokes: Collection}>
+     */
+    private function groupByDisabilityGroupAndStroke(Collection $qualifications): Collection
+    {
+        $memberMap = SportClassGroupMember::pluck('sport_class_group_id', 'sport_class');
+        $groups = SportClassGroup::active()->orderBy('sort_order')->get();
+
+        $sections = collect();
+
+        foreach ($groups as $group) {
+            $items = $qualifications->filter(
+                fn (Qualification $q) => ($memberMap->get($q->sport_class)) === $group->id
+            )->values();
+
+            if ($items->isNotEmpty()) {
+                $sections->push(['group' => $group, 'strokes' => $this->groupByStroke($items)]);
+            }
+        }
+
+        // Sportklassen ohne zugeordnete Behinderungsgruppe landen gesammelt am Ende.
+        $unassigned = $qualifications->filter(
+            fn (Qualification $q) => ! $memberMap->has($q->sport_class)
+        )->values();
+
+        if ($unassigned->isNotEmpty()) {
+            $sections->push(['group' => null, 'strokes' => $this->groupByStroke($unassigned)]);
+        }
+
+        return $sections;
+    }
+
+    /**
+     * Gliedert eine Qualifikations-Teilmenge nach Bewerb (Lage + Distanz, z.B.
+     * "50m Freistil", "100m Freistil" jeweils als eigener Abschnitt), in der
+     * üblichen Wettkampf-Reihenfolge (Freistil, Rücken, Brust, Schmetterling,
+     * Lagen) und aufsteigend nach Distanz (Erik, 2026-07-19: pro
+     * Behinderungsgruppe sollen Distanzen innerhalb einer Lage eigene
+     * Unterabschnitte bekommen, statt gemeinsam unter der Lage gelistet zu
+     * werden).
+     *
+     * @return Collection<int, array{stroke: ?StrokeType, distance: int, items: Collection}>
+     */
+    private function groupByStroke(Collection $items): Collection
+    {
+        $strokeOrder = ['FREE' => 1, 'BACK' => 2, 'BREAST' => 3, 'FLY' => 4, 'MEDLEY' => 5, 'IMRELAY' => 6];
+
+        return collect($items
+            ->groupBy(fn (Qualification $q) => "{$q->qualifyingTime->stroke_type_id}|{$q->qualifyingTime->distance}")
+            ->map(fn ($group) => [
+                'stroke' => $group->first()->qualifyingTime->strokeType,
+                'distance' => $group->first()->qualifyingTime->distance,
+                'items' => $group
+                    ->sortBy(fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name)
+                    ->values(),
+            ])
+            // Einzelner kombinierter Sortierschlüssel statt Mehrfachkriterien-Array,
+            // da sortBy() mit mehreren Closures im Array sich nicht zuverlässig wie
+            // eine echte Mehrfachsortierung verhalten hat (Lage vor Distanz).
+            ->sortBy(fn ($s) => sprintf('%02d-%06d', $strokeOrder[$s['stroke']?->lenex_code] ?? 99, $s['distance']))
+            ->values()
+            ->all());
+    }
 
     private function authorizeAdmin(): void
     {

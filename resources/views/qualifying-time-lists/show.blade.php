@@ -21,6 +21,10 @@
                          icon="check-badge" size="sm" class="ms-auto">
                 Qualifizierte Schwimmer anzeigen
             </flux:button>
+            <flux:button href="{{ route('qualifying-time-lists.pdf', $list) }}" variant="ghost" icon="printer"
+                         size="sm" target="_blank">
+                PDF
+            </flux:button>
         </div>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-6">

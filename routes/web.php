@@ -143,6 +143,10 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('qualifying-time-lists', QualifyingTimeListController::class);
     Route::get('qualifying-time-lists/{qualifyingTimeList}/qualifications',
         [QualifyingTimeListController::class, 'qualifications'])->name('qualifying-time-lists.qualifications');
+    Route::get('qualifying-time-lists/{qualifyingTimeList}/pdf',
+        [QualifyingTimeListController::class, 'pdfTimes'])->name('qualifying-time-lists.pdf');
+    Route::get('qualifying-time-lists/{qualifyingTimeList}/qualifications/pdf',
+        [QualifyingTimeListController::class, 'pdfQualifications'])->name('qualifying-time-lists.qualifications.pdf');
     Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
         [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
     Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',

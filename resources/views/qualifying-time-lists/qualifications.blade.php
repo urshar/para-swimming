@@ -9,6 +9,10 @@
                          size="sm"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Qualifikation {{ $list->year }}</h1>
             <flux:badge color="zinc">{{ $qualifications->count() }} Schwimmer</flux:badge>
+            <flux:button href="{{ route('qualifying-time-lists.qualifications.pdf', $list) }}?{{ http_build_query(request()->query()) }}"
+                         variant="ghost" icon="printer" size="sm" target="_blank" class="ms-auto">
+                PDF
+            </flux:button>
         </div>
 
         {{-- Filter --}}
@@ -88,51 +92,65 @@
             </div>
         @endif
 
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <flux:table
-                class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                <flux:table.columns>
-                    <flux:table.column>Name</flux:table.column>
-                    <flux:table.column>Verein</flux:table.column>
-                    <flux:table.column>Geschlecht</flux:table.column>
-                    <flux:table.column>Sportklasse</flux:table.column>
-                    <flux:table.column>Bewerb</flux:table.column>
-                    <flux:table.column>Zeit</flux:table.column>
-                    <flux:table.column>Richtzeit</flux:table.column>
-                    <flux:table.column>Punkte</flux:table.column>
-                    <flux:table.column>Datum</flux:table.column>
-                </flux:table.columns>
-                <flux:table.rows>
-                    @forelse($qualifications as $q)
-                        <flux:table.row>
-                            <flux:table.cell class="font-medium">
-                                {{ $q->athlete?->last_name }}, {{ $q->athlete?->first_name }}
-                            </flux:table.cell>
-                            <flux:table.cell>{{ $q->club?->display_name ?? $q->club?->name ?? '–' }}</flux:table.cell>
-                            <flux:table.cell>{{ $q->qualifyingTime->gender }}</flux:table.cell>
-                            <flux:table.cell class="font-mono">{{ $q->sport_class }}</flux:table.cell>
-                            <flux:table.cell>
-                                {{ $q->qualifyingTime->distance }}m {{ $q->qualifyingTime->strokeType?->name_de }}
-                            </flux:table.cell>
-                            <flux:table.cell class="font-mono">{{ $q->formatted_swim_time }}</flux:table.cell>
-                            <flux:table.cell class="font-mono text-zinc-400">
-                                {{ $q->qualifyingTime->formatted_value }}
-                            </flux:table.cell>
-                            <flux:table.cell>{{ $q->points ?? '–' }}</flux:table.cell>
-                            <flux:table.cell>{{ $q->qualified_at->format('d.m.Y') }}</flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="9">
-                                <p class="text-sm text-zinc-400 py-6 text-center">
-                                    Keine Qualifikationen gefunden — ggf. Filter anpassen oder zuerst unter
-                                    „Bearbeiten" die Qualifikation berechnen.
-                                </p>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </div>
+        @if($qualifications->isEmpty())
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8">
+                <p class="text-sm text-zinc-400 text-center">
+                    Keine Qualifikationen gefunden — ggf. Filter anpassen oder zuerst unter „Bearbeiten" die
+                    Qualifikation berechnen.
+                </p>
+            </div>
+        @else
+            @foreach($sections as $section)
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                        {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
+                    </h2>
+
+                    @foreach($section['strokes'] as $strokeGroup)
+                        <div class="mb-4">
+                            <h3 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                                {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
+                            </h3>
+                            <div
+                                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                <flux:table
+                                    class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                                    <flux:table.columns>
+                                        <flux:table.column>Name</flux:table.column>
+                                        <flux:table.column>Verein</flux:table.column>
+                                        <flux:table.column>Geschlecht</flux:table.column>
+                                        <flux:table.column>Sportklasse</flux:table.column>
+                                        <flux:table.column>Zeit</flux:table.column>
+                                        <flux:table.column>Richtzeit</flux:table.column>
+                                        <flux:table.column>Punkte</flux:table.column>
+                                        <flux:table.column>Datum</flux:table.column>
+                                    </flux:table.columns>
+                                    <flux:table.rows>
+                                        @foreach($strokeGroup['items'] as $q)
+                                            <flux:table.row>
+                                                <flux:table.cell class="font-medium">
+                                                    {{ $q->athlete?->last_name }}, {{ $q->athlete?->first_name }}
+                                                </flux:table.cell>
+                                                <flux:table.cell>
+                                                    {{ $q->club?->display_name ?? $q->club?->name ?? '–' }}
+                                                </flux:table.cell>
+                                                <flux:table.cell>{{ $q->qualifyingTime->gender }}</flux:table.cell>
+                                                <flux:table.cell class="font-mono">{{ $q->sport_class }}</flux:table.cell>
+                                                <flux:table.cell class="font-mono">{{ $q->formatted_swim_time }}</flux:table.cell>
+                                                <flux:table.cell class="font-mono text-zinc-400">
+                                                    {{ $q->qualifyingTime->formatted_value }}
+                                                </flux:table.cell>
+                                                <flux:table.cell>{{ $q->points ?? '–' }}</flux:table.cell>
+                                                <flux:table.cell>{{ $q->qualified_at->format('d.m.Y') }}</flux:table.cell>
+                                            </flux:table.row>
+                                        @endforeach
+                                    </flux:table.rows>
+                                </flux:table>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endforeach
+        @endif
     </div>
 @endsection
