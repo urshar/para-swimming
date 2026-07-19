@@ -33,7 +33,7 @@
 
             @if($list->targetPoints->isNotEmpty())
                 <div class="flex flex-wrap gap-2">
-                    @foreach($list->targetPoints->sortBy('sport_class') as $tp)
+                    @foreach($list->targetPoints->sortBy('sort_key') as $tp)
                         <span
                             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700 text-sm text-zinc-800 dark:text-zinc-200">
                             {{ $tp->sport_class }}: {{ $tp->points }} Pkt.
@@ -45,43 +45,54 @@
             @endif
         </div>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <div class="p-6 pb-0">
-                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Richtzeiten</h2>
+        @if($list->times->isEmpty())
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8">
+                <p class="text-sm text-zinc-400 text-center">Noch keine Richtzeiten hinterlegt.</p>
             </div>
-            <flux:table
-                class="mt-4 [&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                <flux:table.columns>
-                    <flux:table.column>Bewerb</flux:table.column>
-                    <flux:table.column>Geschlecht</flux:table.column>
-                    <flux:table.column>Sportklasse</flux:table.column>
-                    <flux:table.column>Richtzeit</flux:table.column>
-                    <flux:table.column>Quelle</flux:table.column>
-                </flux:table.columns>
-                <flux:table.rows>
-                    @forelse($list->times->sortBy(['distance', 'gender', 'sport_class']) as $time)
-                        <flux:table.row>
-                            <flux:table.cell>{{ $time->distance }}m {{ $time->strokeType?->name_de }}</flux:table.cell>
-                            <flux:table.cell>{{ $time->gender }}</flux:table.cell>
-                            <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
-                            <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
-                            <flux:table.cell>
-                                @if($time->isManual())
-                                    <flux:badge color="amber">Manuell</flux:badge>
-                                @else
-                                    <flux:badge color="blue">Berechnet</flux:badge>
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="5">
-                                <p class="text-sm text-zinc-400 py-4 text-center">Noch keine Richtzeiten hinterlegt.</p>
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
-        </div>
+        @else
+            @foreach($sections as $section)
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                        {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
+                    </h2>
+
+                    @foreach($section['strokes'] as $strokeGroup)
+                        <div class="mb-4">
+                            <h3 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                                {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
+                            </h3>
+                            <div
+                                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                <flux:table
+                                    class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                                    <flux:table.columns>
+                                        <flux:table.column>Geschlecht</flux:table.column>
+                                        <flux:table.column>Sportklasse</flux:table.column>
+                                        <flux:table.column>Richtzeit</flux:table.column>
+                                        <flux:table.column>Quelle</flux:table.column>
+                                    </flux:table.columns>
+                                    <flux:table.rows>
+                                        @foreach($strokeGroup['items'] as $time)
+                                            <flux:table.row>
+                                                <flux:table.cell>{{ $time->gender }}</flux:table.cell>
+                                                <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
+                                                <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
+                                                <flux:table.cell>
+                                                    @if($time->isManual())
+                                                        <flux:badge color="amber">Manuell</flux:badge>
+                                                    @else
+                                                        <flux:badge color="blue">Berechnet</flux:badge>
+                                                    @endif
+                                                </flux:table.cell>
+                                            </flux:table.row>
+                                        @endforeach
+                                    </flux:table.rows>
+                                </flux:table>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endforeach
+        @endif
     </div>
 @endsection

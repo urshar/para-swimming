@@ -33,6 +33,14 @@
             border: 1px solid #ddd;
         }
 
+        h3 {
+            font-size: 11px;
+            margin: 12px 0 4px 0;
+            padding: 3px 6px;
+            background-color: #f7f7f7;
+            color: #555;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -75,30 +83,33 @@
     @endif
 </p>
 
-<table>
-    <thead>
-    <tr>
-        <th>Bewerb</th>
-        <th>Geschlecht</th>
-        <th>Sportklasse</th>
-        <th class="time">Richtzeit</th>
-    </tr>
-    </thead>
-    <tbody>
-    @forelse($list->times->sortBy(['distance', 'gender', 'sport_class']) as $time)
-        <tr>
-            <td>{{ $time->distance }}m {{ $time->strokeType?->name_de }}</td>
-            <td>{{ $time->gender }}</td>
-            <td>{{ $time->sport_class }}</td>
-            <td class="time">{{ $time->formatted_value ?? '–' }}</td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="4">Keine Richtzeiten hinterlegt.</td>
-        </tr>
-    @endforelse
-    </tbody>
-</table>
+@forelse($sections as $section)
+    <h2>{{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}</h2>
+
+    @foreach($section['strokes'] as $strokeGroup)
+        <h3>{{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Geschlecht</th>
+                <th>Sportklasse</th>
+                <th class="time">Richtzeit</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach($strokeGroup['items'] as $time)
+                <tr>
+                    <td>{{ $time->gender }}</td>
+                    <td>{{ $time->sport_class }}</td>
+                    <td class="time">{{ $time->formatted_value ?? '–' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @endforeach
+@empty
+    <p>Keine Richtzeiten hinterlegt.</p>
+@endforelse
 
 <p class="footer">
     Para Swimming NatDB — ÖBSV — erstellt am {{ now()->format('d.m.Y H:i') }} Uhr

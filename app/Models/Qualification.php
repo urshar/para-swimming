@@ -66,4 +66,26 @@ class Qualification extends Model
     {
         return TimeParser::display($this->swim_time_centiseconds);
     }
+
+    /**
+     * Proxy-Accessoren auf die zugehörige Richtzeit — damit Qualification und
+     * QualifyingTime dieselbe Schnittstelle (stroke_type_id/distance/strokeType)
+     * für die gemeinsame Gruppierungslogik (Behinderungsgruppe → Lage/Distanz,
+     * siehe QualifyingTimeListController) bereitstellen, ohne die Logik zu
+     * duplizieren.
+     */
+    public function getStrokeTypeIdAttribute(): ?int
+    {
+        return $this->qualifyingTime?->stroke_type_id;
+    }
+
+    public function getDistanceAttribute(): ?int
+    {
+        return $this->qualifyingTime?->distance;
+    }
+
+    public function getStrokeTypeAttribute(): ?StrokeType
+    {
+        return $this->qualifyingTime?->strokeType;
+    }
 }

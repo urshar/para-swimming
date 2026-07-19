@@ -13,6 +13,8 @@ use App\Services\PdfExportService;
 use App\Services\QualificationDeterminationService;
 use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
+use App\Support\SportClassSorter;
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -73,7 +75,13 @@ class QualifyingTimeListController extends Controller
     {
         $qualifyingTimeList->load(['targetPoints', 'times.strokeType']);
 
-        return view('qualifying-time-lists.show', ['list' => $qualifyingTimeList]);
+        return view('qualifying-time-lists.show', [
+            'list' => $qualifyingTimeList,
+            'sections' => $this->groupByDisabilityGroupAndStroke(
+                $qualifyingTimeList->times,
+                fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
+            ),
+        ]);
     }
 
     /**
@@ -104,6 +112,10 @@ class QualifyingTimeListController extends Controller
 
         return $this->pdfExportService->stream('pdf.qualifying-times', [
             'list' => $qualifyingTimeList,
+            'sections' => $this->groupByDisabilityGroupAndStroke(
+                $qualifyingTimeList->times,
+                fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
+            ),
         ], "richtzeiten-$qualifyingTimeList->year.pdf");
     }
 
@@ -133,6 +145,10 @@ class QualifyingTimeListController extends Controller
         return view('qualifying-time-lists.form', [
             'list' => $qualifyingTimeList,
             'strokeTypes' => $strokeTypes,
+            'sections' => $this->groupByDisabilityGroupAndStroke(
+                $qualifyingTimeList->times,
+                fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
+            ),
         ]);
     }
 
@@ -329,7 +345,7 @@ class QualifyingTimeListController extends Controller
         ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('distance')->values();
 
         $genders = $all->pluck('qualifyingTime.gender')->unique()->sort()->values();
-        $sportClasses = $all->pluck('sport_class')->unique()->sort()->values();
+        $sportClasses = $all->pluck('sport_class')->unique()->sortBy(fn ($sc) => SportClassSorter::key($sc))->values();
         $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
 
         $filtered = $base;
@@ -362,19 +378,28 @@ class QualifyingTimeListController extends Controller
             fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
         );
 
-        $sections = $this->groupByDisabilityGroupAndStroke($qualifications);
+        $sections = $this->groupByDisabilityGroupAndStroke(
+            $qualifications,
+            fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
+        );
 
         return compact('qualifications', 'events', 'genders', 'sportClasses', 'clubs', 'sections');
     }
 
     /**
-     * Gliedert Qualifikationen zuerst nach Behinderungsgruppe (PI/VI/II/T21/HI,
-     * wiederverwendet aus dem Cup-Modul, siehe SportClassGroup), darin nach
-     * Lage — für eine übersichtlichere Anzeige/PDF-Ausgabe.
+     * Gliedert eine Menge von Qualifikationen ODER Richtzeiten-Zeilen zuerst
+     * nach Behinderungsgruppe (PI/VI/II/T21/HI, wiederverwendet aus dem
+     * Cup-Modul, siehe SportClassGroup), darin nach Bewerb (Lage + Distanz) —
+     * für eine übersichtlichere Anzeige/PDF-Ausgabe. Funktioniert generisch
+     * für beide Models, da beide über sport_class/stroke_type_id/distance/
+     * strokeType verfügen (bei Qualification per Proxy-Accessor auf die
+     * zugehörige Richtzeit, siehe Qualification-Model).
      *
+     * @param  Collection  $items  Qualification[] oder QualifyingTime[]
+     * @param  Closure  $sortWithin  Sortierschlüssel für Zeilen innerhalb eines Bewerbs-Abschnitts
      * @return Collection<int, array{group: ?SportClassGroup, strokes: Collection}>
      */
-    private function groupByDisabilityGroupAndStroke(Collection $qualifications): Collection
+    private function groupByDisabilityGroupAndStroke(Collection $items, Closure $sortWithin): Collection
     {
         $memberMap = SportClassGroupMember::pluck('sport_class_group_id', 'sport_class');
         $groups = SportClassGroup::active()->orderBy('sort_order')->get();
@@ -382,50 +407,45 @@ class QualifyingTimeListController extends Controller
         $sections = collect();
 
         foreach ($groups as $group) {
-            $items = $qualifications->filter(
-                fn (Qualification $q) => ($memberMap->get($q->sport_class)) === $group->id
+            $groupItems = $items->filter(
+                fn ($item) => $memberMap->get($item->sport_class) === $group->id
             )->values();
 
-            if ($items->isNotEmpty()) {
-                $sections->push(['group' => $group, 'strokes' => $this->groupByStroke($items)]);
+            if ($groupItems->isNotEmpty()) {
+                $sections->push(['group' => $group, 'strokes' => $this->groupByStroke($groupItems, $sortWithin)]);
             }
         }
 
         // Sportklassen ohne zugeordnete Behinderungsgruppe landen gesammelt am Ende.
-        $unassigned = $qualifications->filter(
-            fn (Qualification $q) => ! $memberMap->has($q->sport_class)
+        $unassigned = $items->filter(
+            fn ($item) => ! $memberMap->has($item->sport_class)
         )->values();
 
         if ($unassigned->isNotEmpty()) {
-            $sections->push(['group' => null, 'strokes' => $this->groupByStroke($unassigned)]);
+            $sections->push(['group' => null, 'strokes' => $this->groupByStroke($unassigned, $sortWithin)]);
         }
 
         return $sections;
     }
 
     /**
-     * Gliedert eine Qualifikations-Teilmenge nach Bewerb (Lage + Distanz, z.B.
-     * "50m Freistil", "100m Freistil" jeweils als eigener Abschnitt), in der
+     * Gliedert eine Teilmenge nach Bewerb (Lage + Distanz, z.B. "50m
+     * Freistil", "100m Freistil" jeweils als eigener Abschnitt), in der
      * üblichen Wettkampf-Reihenfolge (Freistil, Rücken, Brust, Schmetterling,
-     * Lagen) und aufsteigend nach Distanz (Erik, 2026-07-19: pro
-     * Behinderungsgruppe sollen Distanzen innerhalb einer Lage eigene
-     * Unterabschnitte bekommen, statt gemeinsam unter der Lage gelistet zu
-     * werden).
+     * Lagen) und aufsteigend nach Distanz.
      *
      * @return Collection<int, array{stroke: ?StrokeType, distance: int, items: Collection}>
      */
-    private function groupByStroke(Collection $items): Collection
+    private function groupByStroke(Collection $items, Closure $sortWithin): Collection
     {
         $strokeOrder = ['FREE' => 1, 'BACK' => 2, 'BREAST' => 3, 'FLY' => 4, 'MEDLEY' => 5, 'IMRELAY' => 6];
 
         return collect($items
-            ->groupBy(fn (Qualification $q) => "{$q->qualifyingTime->stroke_type_id}|{$q->qualifyingTime->distance}")
+            ->groupBy(fn ($item) => "$item->stroke_type_id|$item->distance")
             ->map(fn ($group) => [
-                'stroke' => $group->first()->qualifyingTime->strokeType,
-                'distance' => $group->first()->qualifyingTime->distance,
-                'items' => $group
-                    ->sortBy(fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name)
-                    ->values(),
+                'stroke' => $group->first()->strokeType,
+                'distance' => $group->first()->distance,
+                'items' => $group->sortBy($sortWithin)->values(),
             ])
             // Einzelner kombinierter Sortierschlüssel statt Mehrfachkriterien-Array,
             // da sortBy() mit mehreren Closures im Array sich nicht zuverlässig wie
@@ -438,6 +458,16 @@ class QualifyingTimeListController extends Controller
     private function authorizeAdmin(): void
     {
         abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+    }
+
+    /**
+     * Natürlicher Sortierschlüssel für Sportklassen (S10 nach S9, nicht nach
+     * S1) — reine alphabetische Sortierung würde "S10" fälschlich vor "S2"
+     * einordnen (Erik, 2026-07-19 bestätigt).
+     */
+    private function sportClassSortKey(?string $sportClass): string
+    {
+        return SportClassSorter::key($sportClass);
     }
 
     /**
