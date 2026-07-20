@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Club;
+use App\Models\Meet;
 use App\Models\Result;
 use App\Support\ReportConfiguration;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * ParticipationStatisticsService
@@ -20,6 +22,9 @@ use Illuminate\Database\Eloquent\Builder;
  * Die Definition eines "Starts" ist bewusst an genau einer Stelle gekapselt
  * (startsQuery), damit sie zentral anpassbar und in Phase 16 gegen die
  * Referenzzahlen des ÖBSV kalibrierbar bleibt.
+ *
+ * statusBreakdown() liefert ergänzend, wie oft jeder Ergebnisstatus vorkam
+ * (inkl. DNS/SICK/WDR), damit der Bericht diese Fälle ausweisen kann.
  */
 final readonly class ParticipationStatisticsService
 {
@@ -36,6 +41,15 @@ final readonly class ParticipationStatisticsService
      * @var list<string>
      */
     private const array NON_START_STATUSES = ['DNS', 'SICK', 'WDR'];
+
+    /**
+     * Alle Nicht-null-Statuswerte des results.status-Enums, in Enum-Reihenfolge.
+     * Reguläre Ergebnisse (status = null) werden getrennt unter dem Schlüssel
+     * 'regular' geführt.
+     *
+     * @var list<string>
+     */
+    private const array SPECIAL_STATUSES = ['EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'];
 
     /**
      * Basiskennzahlen für den Übersichtsabschnitt.
@@ -65,25 +79,93 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Grundgesamtheit aller Starts im Auswertungsumfang:
-     *   - Einzelstarts (keine Staffeln — relay_count = 1),
-     *   - ohne "nicht angetreten"-Status (siehe NON_START_STATUSES),
+     * Ergebnisse pro Status im Auswertungsumfang (Einzelbewerbe, gleicher
+     * Umfang wie overview()). Enthält ausdrücklich auch die "nicht
+     * angetreten"-Status DNS, SICK und WDR sowie reguläre Ergebnisse
+     * (status = null) unter dem Schlüssel 'regular'.
+     *
+     * Alle bekannten Schlüssel erscheinen immer (0, falls nicht vorhanden), in
+     * stabiler Reihenfolge (regular, dann Enum-Reihenfolge) — praktisch für
+     * Berichtstabellen. Die Summe aller Werte entspricht der Gesamtzahl der
+     * Einzelergebnisse im Umfang; die Summe von regular + EXH + DSQ + DNF
+     * entspricht der Startzahl aus overview().
+     *
+     * @return array<string, int>
+     */
+    public function statusBreakdown(ReportConfiguration $config): array
+    {
+        $breakdown = ['regular' => 0];
+        foreach (self::SPECIAL_STATUSES as $status) {
+            $breakdown[$status] = 0;
+        }
+
+        $rows = $this->scopedQuery($config)
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->get();
+
+        foreach ($rows as $row) {
+            $key = $row->status ?? 'regular';
+            $breakdown[$key] = (int) $row->aggregate;
+        }
+
+        return $breakdown;
+    }
+
+    /**
+     * Veranstaltungsstatistik (Spec Phase 3): pro Veranstaltung im Umfang die
+     * Anzahl Teilnehmer (unterschiedliche Athleten) und Starts.
+     *
+     * Ein Athlet zählt je Veranstaltung nur einmal als Teilnehmer. Es werden
+     * nur Veranstaltungen mit mindestens einem relevanten Start geliefert
+     * (leere Meets erscheinen nicht), sortiert chronologisch nach start_date,
+     * dann nach Name.
+     *
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, participants: int, starts: int}>
+     */
+    public function byMeet(ReportConfiguration $config): Collection
+    {
+        $aggregates = $this->startsQuery($config)
+            ->selectRaw('meet_id, COUNT(*) as starts, COUNT(DISTINCT athlete_id) as participants')
+            ->groupBy('meet_id')
+            ->get()
+            ->keyBy('meet_id');
+
+        if ($aggregates->isEmpty()) {
+            return collect();
+        }
+
+        return Meet::query()
+            ->whereIn('id', $aggregates->keys())
+            ->orderBy('start_date')
+            ->orderBy('name')
+            ->get(['id', 'name', 'start_date'])
+            ->map(fn (Meet $meet): array => [
+                'meet_id' => $meet->id,
+                'meet' => $meet->name,
+                'start_date' => $meet->start_date?->toDateString(),
+                'participants' => (int) $aggregates[$meet->id]->participants,
+                'starts' => (int) $aggregates[$meet->id]->starts,
+            ])
+            ->values();
+    }
+
+    /**
+     * Gemeinsamer Auswertungsumfang für alle Kennzahlen:
+     *   - Einzelbewerbe (keine Staffeln — relay_count = 1),
      *   - eingeschränkt auf die ausgewählten Veranstaltungen; ohne Auswahl auf
      *     alle Meets, deren start_date im Zeitraum liegt.
      *
-     * Wichtig: `status = null` (reguläres Ergebnis) muss ausdrücklich
-     * eingeschlossen werden, weil `NOT IN (...)` in SQL bei NULL nicht greift.
+     * Bewusst OHNE Status-Filter, damit darauf sowohl die Startzählung
+     * (startsQuery) als auch die vollständige Status-Aufschlüsselung
+     * (statusBreakdown) aufsetzen können.
      *
      * Staffeln werden derzeit ausgeklammert (der Staffelcup ist noch nicht
      * definiert).
      */
-    private function startsQuery(ReportConfiguration $config): Builder
+    private function scopedQuery(ReportConfiguration $config): Builder
     {
         $query = Result::query()
-            ->where(function (Builder $q): void {
-                $q->whereNull('status')
-                    ->orWhereNotIn('status', self::NON_START_STATUSES);
-            })
             ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
 
         if ($config->isMeetFiltered()) {
@@ -96,6 +178,21 @@ final readonly class ParticipationStatisticsService
         }
 
         return $query;
+    }
+
+    /**
+     * Grundgesamtheit aller Starts: der Auswertungsumfang, eingeschränkt auf
+     * angetretene Ergebnisse (ohne NON_START_STATUSES).
+     *
+     * Wichtig: `status = null` (reguläres Ergebnis) muss ausdrücklich
+     * eingeschlossen werden, weil `NOT IN (...)` in SQL bei NULL nicht greift.
+     */
+    private function startsQuery(ReportConfiguration $config): Builder
+    {
+        return $this->scopedQuery($config)->where(function (Builder $q): void {
+            $q->whereNull('status')
+                ->orWhereNotIn('status', self::NON_START_STATUSES);
+        });
     }
 
     /**
