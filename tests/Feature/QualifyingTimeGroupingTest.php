@@ -127,3 +127,21 @@ describe('Richtzeitenliste — Gliederung in der Bearbeiten-Ansicht (edit)', fun
             ->assertSee(route('qualifying-time-lists.times.destroy', [$list, $time]), false);
     })->group('qualifying-time-lists-grouping');
 });
+
+// ── Inhaltsverzeichnis / Sprungmarken (Erik, 2026-07-20) ─────────────────────────
+
+describe('Inhaltsverzeichnis auf den Anzeige-Seiten', function () {
+    it('zeigt auf der Richtzeiten-Anzeige einen Sprunglink pro Behinderungsgruppe', function () {
+        $list = makeQualifyingList_qtl10();
+        $free = makeStrokeType_qtl10('FREE');
+        $group = makeGroup_qtl10('PI', 1);
+        SportClassGroupMember::create(['sport_class_group_id' => $group->id, 'sport_class' => 'S9']);
+        makeQualifyingTime_qtl10($list, $free, 100, 'M', 'S9', 6000);
+
+        $this->actingAs(makeClubUser_qtl10())
+            ->get(route('qualifying-time-lists.show', $list))
+            ->assertOk()
+            ->assertSee('Inhaltsverzeichnis')
+            ->assertSee('href="#group-'.$group->id.'"', false);
+    })->group('qualifying-time-lists-grouping');
+});

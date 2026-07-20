@@ -234,3 +234,39 @@ describe('Qualifikationsliste — Gliederung nach Behinderungsgruppe und Lage', 
         $response->assertSeeInOrder(['50m FREE', '100m FREE']);
     })->group('qualifying-time-lists-grouping');
 });
+
+// ── Inhaltsverzeichnis / Sprungmarken (Erik, 2026-07-20) ─────────────────────────
+
+describe('Inhaltsverzeichnis auf der Qualifikationsliste', function () {
+    it('zeigt einen Sprunglink pro Behinderungsgruppe', function () {
+        $list = makeQualifyingList_qtl9();
+        $free = makeStrokeType_qtl9('FREE');
+        $group = makeGroup_qtl9('PI', 1);
+        SportClassGroupMember::create(['sport_class_group_id' => $group->id, 'sport_class' => 'S9']);
+
+        $club = makeClub_qtl9();
+        $qt = makeQualifyingTime_qtl9($list, $free, 100, 'M', 'S9', 6000);
+        $meet = Meet::create([
+            'name' => 'Meet', 'nation_id' => makeNation_qtl9()->id, 'course' => 'LCM', 'start_date' => '2026-08-01',
+        ]);
+        $event = SwimEvent::create([
+            'meet_id' => $meet->id, 'stroke_type_id' => $free->id, 'distance' => 100, 'relay_count' => 1, 'gender' => 'M',
+        ]);
+        $athlete = makeAthlete_qtl9($club, 'Anna', 'Frei9');
+        $result = Result::create([
+            'meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id,
+            'club_id' => $club->id, 'swim_time' => 5900, 'sport_class' => 'S9', 'points' => 500,
+        ]);
+        Qualification::create([
+            'qualifying_time_list_id' => $list->id, 'qualifying_time_id' => $qt->id, 'athlete_id' => $athlete->id,
+            'result_id' => $result->id, 'club_id' => $club->id, 'sport_class' => 'S9',
+            'swim_time_centiseconds' => 5900, 'points' => 500, 'qualified_at' => '2026-08-01',
+        ]);
+
+        $this->actingAs(makeClubUser_qtl9())
+            ->get(route('qualifying-time-lists.qualifications', $list))
+            ->assertOk()
+            ->assertSee('Inhaltsverzeichnis')
+            ->assertSee('href="#group-'.$group->id.'"', false);
+    })->group('qualifying-time-lists-grouping');
+});

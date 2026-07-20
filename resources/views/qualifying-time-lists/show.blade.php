@@ -50,47 +50,68 @@
                 <p class="text-sm text-zinc-400 text-center">Noch keine Richtzeiten hinterlegt.</p>
             </div>
         @else
-            @foreach($sections as $section)
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-                        {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
-                    </h2>
-
-                    @foreach($section['strokes'] as $strokeGroup)
-                        <div class="mb-4">
-                            <h3 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
-                                {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
-                            </h3>
-                            <div
-                                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                                <flux:table
-                                    class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                                    <flux:table.columns>
-                                        <flux:table.column>Geschlecht</flux:table.column>
-                                        <flux:table.column>Sportklasse</flux:table.column>
-                                        <flux:table.column>Richtzeit</flux:table.column>
-                                        <flux:table.column>Quelle</flux:table.column>
-                                    </flux:table.columns>
-                                    <flux:table.rows>
-                                        @foreach($strokeGroup['items'] as $time)
-                                            <flux:table.row>
-                                                <flux:table.cell>{{ $time->gender }}</flux:table.cell>
-                                                <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
-                                                <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
-                                                <flux:table.cell>
-                                                    @if($time->isManual())
-                                                        <flux:badge color="amber">Manuell</flux:badge>
-                                                    @else
-                                                        <flux:badge color="blue">Berechnet</flux:badge>
-                                                    @endif
-                                                </flux:table.cell>
-                                            </flux:table.row>
-                                        @endforeach
-                                    </flux:table.rows>
-                                </flux:table>
-                            </div>
-                        </div>
+            {{-- ── Inhaltsverzeichnis ─────────────────────────────────────── --}}
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
+                <p class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
+                    Inhaltsverzeichnis
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach($sections as $section)
+                        <a href="#group-{{ $section['group']?->id ?? 'sonstige' }}"
+                           class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-600">
+                            {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
+                        </a>
                     @endforeach
+                </div>
+            </div>
+
+            @foreach($sections as $section)
+                <div id="group-{{ $section['group']?->id ?? 'sonstige' }}" class="mb-6 scroll-mt-4"
+                     x-data="{ open: true }">
+                    <button type="button" @click="open = !open"
+                            class="w-full flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                        <flux:icon.chevron-down x-show="open" class="size-4 shrink-0"/>
+                        <flux:icon.chevron-right x-show="!open" class="size-4 shrink-0"/>
+                        {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
+                    </button>
+
+                    <div x-show="open">
+                        @foreach($section['strokes'] as $strokeGroup)
+                            <div class="mb-4">
+                                <h3 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                                    {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
+                                </h3>
+                                <div
+                                    class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                    <flux:table
+                                        class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                                        <flux:table.columns>
+                                            <flux:table.column>Geschlecht</flux:table.column>
+                                            <flux:table.column>Sportklasse</flux:table.column>
+                                            <flux:table.column>Richtzeit</flux:table.column>
+                                            <flux:table.column>Quelle</flux:table.column>
+                                        </flux:table.columns>
+                                        <flux:table.rows>
+                                            @foreach($strokeGroup['items'] as $time)
+                                                <flux:table.row>
+                                                    <flux:table.cell>{{ $time->gender }}</flux:table.cell>
+                                                    <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
+                                                    <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
+                                                    <flux:table.cell>
+                                                        @if($time->isManual())
+                                                            <flux:badge color="amber">Manuell</flux:badge>
+                                                        @else
+                                                            <flux:badge color="blue">Berechnet</flux:badge>
+                                                        @endif
+                                                    </flux:table.cell>
+                                                </flux:table.row>
+                                            @endforeach
+                                        </flux:table.rows>
+                                    </flux:table>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             @endforeach
         @endif
