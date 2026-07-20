@@ -120,24 +120,60 @@
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-3 mb-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Aktive Altersgruppen</h2>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-                    Gilt nur für die Gesamtwertung (Punkt 5 der Spec). Nicht angehakte Altersgruppen werden nicht
-                    separat gewertet — betroffene Athleten landen in einer gemeinsamen, altersgruppen-übergreifenden
-                    Wertung statt in einer eigenen Alters-Kategorie.
+                    Gilt nur für die Gesamtwertung (Punkt 5 der Spec) — pro Sportklassengruppe einzeln steuerbar.
+                    Nicht angehakte Kombinationen werden nicht separat gewertet — betroffene Athleten landen in einer
+                    gemeinsamen, altersgruppen-übergreifenden Wertung statt in einer eigenen Alters-Kategorie.
                 </p>
-                @forelse($ageGroups as $ageGroup)
-                    <flux:field>
-                        <flux:checkbox name="active_age_group_ids[]" value="{{ $ageGroup->id }}"
-                                       :checked="in_array($ageGroup->id, old('active_age_group_ids', $activeAgeGroupIds))"
-                                       label="{{ $ageGroup->name_de }}"/>
-                    </flux:field>
-                @empty
+                @if($ageGroups->isEmpty())
                     <p class="text-sm text-zinc-400">
                         Noch keine Altersgruppen angelegt —
                         <a href="{{ route('age-groups.create') }}" class="text-blue-600 hover:underline">
                             jetzt anlegen
                         </a>.
                     </p>
-                @endforelse
+                @elseif($sportClassGroups->isEmpty())
+                    <p class="text-sm text-zinc-400">
+                        Noch keine Sportklassengruppen angelegt —
+                        <a href="{{ route('sport-class-groups.create') }}" class="text-blue-600 hover:underline">
+                            jetzt anlegen
+                        </a>.
+                    </p>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr>
+                                <th class="text-left font-medium text-zinc-500 dark:text-zinc-400 pe-4 pb-2">
+                                    Altersgruppe
+                                </th>
+                                @foreach($sportClassGroups as $group)
+                                    <th class="text-center font-medium text-zinc-500 dark:text-zinc-400 px-3 pb-2">
+                                        {{ $group->code }}
+                                    </th>
+                                @endforeach
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($ageGroups as $ageGroup)
+                                <tr class="border-t border-zinc-100 dark:border-zinc-700">
+                                    <td class="py-2 pe-4 text-zinc-800 dark:text-zinc-200">
+                                        {{ $ageGroup->name_de }}
+                                    </td>
+                                    @foreach($sportClassGroups as $group)
+                                        <td class="text-center px-3 py-2">
+                                            <input type="checkbox"
+                                                   name="active_age_group_ids[{{ $group->id }}][]"
+                                                   value="{{ $ageGroup->id }}"
+                                                   @checked(in_array($ageGroup->id, old('active_age_group_ids.'.$group->id, $activeAgeGroupIdsByGroup[$group->id] ?? [])))
+                                            />
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
 
             <div class="flex gap-3">

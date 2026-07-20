@@ -133,35 +133,95 @@ readonly class GroupResolverService
      * Wettkampftag selbst). Ein Athlet, der z.B. am 31.12. eines Jahres
      * Geburtstag hat, zählt das ganze Jahr über bereits als ein Jahr älter.
      *
-     * Ist die passende Altersgruppe für den übergebenen Cup deaktiviert
-     * (Erik: z.B. Jugendwertung für dieses Jahr ausgeschaltet), wird null
-     * zurückgegeben — der Athlet landet dadurch in der Gesamtwertung in
-     * einer gemeinsamen, altersgruppen-übergreifenden Wertung statt in einer
-     * eigenen Alters-Kategorie.
+     * Sind $cup UND $sportClassGroup gesetzt, werden die Altersgrenzen für
+     * diese Kombination DYNAMISCH neu berechnet (Erik, 2026-07-20): Eine
+     * deaktivierte Altersgruppe fällt komplett weg — ihre Alterspanne wird
+     * automatisch von den benachbarten aktiven Gruppen übernommen, statt
+     * dass Athleten in dieser Spanne in eine gemeinsame Wertung ohne
+     * Alterskategorie fallen. Siehe effectiveAgeGroupBoundaries().
      *
-     * Gibt null zurück, wenn kein Geburtsdatum hinterlegt ist oder keine
-     * aktive Altersgruppe passt.
+     * Ist $cup oder $sportClassGroup nicht gesetzt (z.B. unaufgelöste
+     * Sportklassengruppe, oder Aufruf außerhalb eines Cup-Kontexts), wird
+     * auf die statische, in AgeGroup fix konfigurierte Alters-Spanne
+     * zurückgegriffen (Rückwärtskompatibilität).
+     *
+     * Gibt null zurück, wenn kein Geburtsdatum hinterlegt ist, oder wenn
+     * für die Kombination keine einzige Altersgruppe aktiv ist (Erik
+     * bestätigt: dann gemeinsame Wertung ohne Alterskategorie).
      */
-    public function resolveAgeGroup(Athlete $athlete, CarbonInterface|string $meetDate, ?Cup $cup = null): ?AgeGroup
-    {
+    public function resolveAgeGroup(
+        Athlete $athlete,
+        CarbonInterface|string $meetDate,
+        ?Cup $cup = null,
+        ?SportClassGroup $sportClassGroup = null,
+    ): ?AgeGroup {
         if (! $athlete->birth_date) {
             return null;
         }
 
         $meetDate = $meetDate instanceof CarbonInterface ? $meetDate : Carbon::parse($meetDate);
         $yearEnd = Carbon::create($meetDate->year, 12, 31);
-        $age = $athlete->birth_date->diffInYears($yearEnd);
+        // Explizite Ganzzahl-Umwandlung: diffInYears() liefert in dieser
+        // Carbon-Version einen Float zurück, was sonst zu einer PHP-
+        // Deprecation-Warnung führt ("implicit conversion from float to
+        // int"). Abschneiden (nicht Runden) ist hier korrekt: die Stichtags-
+        // regel fragt "wie viele volle Jahre sind vergangen", nicht das
+        // rechnerisch gerundete Alter.
+        $age = (int) $athlete->birth_date->diffInYears($yearEnd);
 
-        $group = AgeGroup::active()
+        if ($cup && $sportClassGroup) {
+            $match = $this->effectiveAgeGroupBoundaries($cup, $sportClassGroup)
+                ->first(fn (array $b
+                ) => $age >= $b['effectiveMin'] && ($b['effectiveMax'] === null || $age <= $b['effectiveMax']));
+
+            return $match['ageGroup'] ?? null;
+        }
+
+        return AgeGroup::active()
             ->orderBy('sort_order')
             ->get()
             ->first(fn (AgeGroup $group) => $group->matchesAge($age));
+    }
 
-        if ($group && $cup && ! $cup->isAgeGroupActive($group)) {
-            return null;
-        }
+    /**
+     * Berechnet für eine Kombination (Cup, Sportklassengruppe) die
+     * tatsächlichen Altersgrenzen der AKTIVEN Altersgruppen (Erik,
+     * 2026-07-20). Prinzip: eine deaktivierte Altersgruppe verschwindet
+     * komplett aus der Alters-Skala — die verbleibenden aktiven Gruppen
+     * rücken lückenlos zusammen:
+     *   - die erste aktive Gruppe (niedrigstes Alter) beginnt immer bei 0,
+     *     unabhängig von ihrer konfigurierten Untergrenze;
+     *   - die letzte aktive Gruppe (höchstes Alter) ist immer nach oben
+     *     offen (kein Maximum), unabhängig von ihrer konfigurierten
+     *     Obergrenze;
+     *   - alle "mittleren" aktiven Gruppen behalten ihre eigene
+     *     konfigurierte Untergrenze; ihre Obergrenze ergibt sich aus der
+     *     Untergrenze der nächsten aktiven Gruppe minus 1.
+     *
+     * Beispiel: Jugend (aktiv, Konfig 0–18) + offen (aktiv, Konfig 19+) +
+     * Senioren (aktiv, Konfig 50+) → effektiv Jugend 0–18, offen 19–49,
+     * Senioren 50+. Ist Senioren deaktiviert, wird offen 19+ (unbegrenzt).
+     * Ist zusätzlich Jugend deaktiviert, wird offen 0+ (die einzige aktive
+     * Gruppe deckt die gesamte Altersskala ab).
+     *
+     * @return Collection<int, array{ageGroup: AgeGroup, effectiveMin: int, effectiveMax: ?int}>
+     */
+    public function effectiveAgeGroupBoundaries(Cup $cup, SportClassGroup $sportClassGroup): Collection
+    {
+        $active = AgeGroup::active()
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(fn (AgeGroup $ageGroup) => $cup->isAgeGroupActive($ageGroup, $sportClassGroup))
+            ->values();
 
-        return $group;
+        return $active->map(function (AgeGroup $ageGroup, int $index) use ($active) {
+            $effectiveMin = $index === 0 ? 0 : (int) $ageGroup->min_age;
+
+            $next = $active->get($index + 1);
+            $effectiveMax = $next ? ((int) $next->min_age - 1) : null;
+
+            return ['ageGroup' => $ageGroup, 'effectiveMin' => $effectiveMin, 'effectiveMax' => $effectiveMax];
+        });
     }
 
     // ── Top-Gruppen-Kriterien ─────────────────────────────────────────────────

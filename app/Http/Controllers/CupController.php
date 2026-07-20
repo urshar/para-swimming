@@ -58,7 +58,9 @@ class CupController extends Controller
             'activeGroupIds' => $sportClassGroups->pluck('id')->all(),
             'genderCombinedGroupIds' => [],
             'ageGroups' => $ageGroups,
-            'activeAgeGroupIds' => $ageGroups->pluck('id')->all(),
+            'activeAgeGroupIdsByGroup' => $sportClassGroups->mapWithKeys(
+                fn (SportClassGroup $group) => [$group->id => $ageGroups->pluck('id')->all()]
+            ),
         ]);
     }
 
@@ -98,14 +100,18 @@ class CupController extends Controller
             ->pluck('id')
             ->all();
 
-        $activeAgeGroupIds = $ageGroups
-            ->filter(fn (AgeGroup $ageGroup) => $cup->isAgeGroupActive($ageGroup))
-            ->pluck('id')
-            ->all();
+        $activeAgeGroupIdsByGroup = $sportClassGroups->mapWithKeys(function (SportClassGroup $group) use ($ageGroups, $cup) {
+            $activeIds = $ageGroups
+                ->filter(fn (AgeGroup $ageGroup) => $cup->isAgeGroupActive($ageGroup, $group))
+                ->pluck('id')
+                ->all();
+
+            return [$group->id => $activeIds];
+        });
 
         return view('cups.form', compact(
             'cup', 'baseTimeVersions', 'sportClassGroups', 'activeGroupIds', 'genderCombinedGroupIds',
-            'ageGroups', 'activeAgeGroupIds'
+            'ageGroups', 'activeAgeGroupIdsByGroup'
         ));
     }
 
@@ -198,15 +204,28 @@ class CupController extends Controller
      * Speichert, welche Altersgruppen für diesen Cup aktiv sind (Erik: generisch
      * über alle Altersgruppen, nicht nur "Jugend" fest verdrahtet).
      */
+    /**
+     * Erwartet Checkbox-Input in Matrix-Form: active_age_group_ids[{sportClassGroupId}][]
+     * (Erik, 2026-07-19: Altersgruppen-Aktivierung ist pro Sportklassengruppe
+     * steuerbar statt cup-weit global).
+     */
     private function syncAgeGroupSettings(Cup $cup, Request $request): void
     {
-        $selectedAgeGroupIds = collect($request->input('active_age_group_ids', []))->map(fn ($id) => (int) $id);
+        $matrix = $request->input('active_age_group_ids', []);
 
-        foreach (AgeGroup::active()->get() as $ageGroup) {
-            CupAgeGroupSetting::updateOrCreate(
-                ['cup_id' => $cup->id, 'age_group_id' => $ageGroup->id],
-                ['is_active' => $selectedAgeGroupIds->contains($ageGroup->id)]
-            );
+        foreach (SportClassGroup::active()->get() as $sportClassGroup) {
+            $selectedAgeGroupIds = collect($matrix[$sportClassGroup->id] ?? [])->map(fn ($id) => (int) $id);
+
+            foreach (AgeGroup::active()->get() as $ageGroup) {
+                CupAgeGroupSetting::updateOrCreate(
+                    [
+                        'cup_id' => $cup->id,
+                        'sport_class_group_id' => $sportClassGroup->id,
+                        'age_group_id' => $ageGroup->id,
+                    ],
+                    ['is_active' => $selectedAgeGroupIds->contains($ageGroup->id)]
+                );
+            }
         }
     }
 

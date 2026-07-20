@@ -82,7 +82,7 @@ readonly class OverallRankingService
     private function groupDailyResultsByBucket(Cup $cup): Collection
     {
         return CupDailyResult::where('cup_id', $cup->id)
-            ->with('athlete')
+            ->with(['athlete', 'sportClassGroup'])
             ->get()
             ->groupBy(fn (CupDailyResult $row) => "$row->athlete_id|$row->gender|$row->sport_class_group_id");
     }
@@ -98,7 +98,12 @@ readonly class OverallRankingService
         $counted = $bucketRows->sortByDesc('points')->take($cup->best_of_count)->values();
 
         // resolveAgeGroup() wertet nur das Jahr aus (31.12.-Stichtagsregel) — Monat/Tag sind irrelevant.
-        $ageGroup = $this->groupResolver->resolveAgeGroup($athlete, "$cup->year-01-01", $cup);
+        $ageGroup = $this->groupResolver->resolveAgeGroup(
+            $athlete,
+            "$cup->year-01-01",
+            $cup,
+            $first->sportClassGroup
+        );
 
         CupOverallResult::create([
             'cup_id' => $cup->id,

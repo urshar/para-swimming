@@ -333,4 +333,55 @@ describe('resolveAgeGroup', function () {
 
         expect((new GroupResolverService)->resolveAgeGroup($athlete, '2026-06-01'))->toBeNull();
     })->group('cup-wertung-p2');
+
+    it('rundet das Alter korrekt ab, auch wenn diffInYears() einen Float liefert (Regressionstest)', function () {
+        AgeGroup::create(['code' => 'JUGEND', 'name_de' => 'Jugend', 'max_age' => 18, 'is_active' => true]);
+        AgeGroup::create(['code' => 'OFFEN', 'name_de' => 'Offen', 'min_age' => 19, 'is_active' => true]);
+
+        // Wird am 31.12.2025 erst 18 (nicht 19) -> muss JUGEND treffen, nicht OFFEN.
+        $athlete = makeAthlete_cup2(['birth_date' => '2007-05-04']);
+
+        $group = (new GroupResolverService)->resolveAgeGroup($athlete, '2025-06-01');
+
+        expect($group?->code)->toBe('JUGEND');
+    })->group('cup-wertung-p2');
+});
+
+// ── effectiveAgeGroupBoundaries (Erik, 2026-07-20) ────────────────────────────
+
+describe('effectiveAgeGroupBoundaries', function () {
+    it('berechnet die Grenzen korrekt für Jugend + Offen + Senioren, alle aktiv', function () {
+        AgeGroup::create(['code' => 'JUGEND', 'name_de' => 'Jugend', 'min_age' => 0, 'max_age' => 18, 'sort_order' => 10, 'is_active' => true]);
+        AgeGroup::create(['code' => 'OFFEN', 'name_de' => 'Offen', 'min_age' => 19, 'sort_order' => 20, 'is_active' => true]);
+        AgeGroup::create(['code' => 'SENIOREN', 'name_de' => 'Senioren', 'min_age' => 50, 'sort_order' => 30, 'is_active' => true]);
+        $cup = makeCup_cup2();
+        $group = makeSportClassGroup_cup2('PI');
+
+        $boundaries = (new GroupResolverService)->effectiveAgeGroupBoundaries($cup, $group)
+            ->mapWithKeys(fn (array $b) => [$b['ageGroup']->code => [$b['effectiveMin'], $b['effectiveMax']]]);
+
+        expect($boundaries->all())->toBe([
+            'JUGEND' => [0, 18],
+            'OFFEN' => [19, 49],
+            'SENIOREN' => [50, null],
+        ]);
+    })->group('cup-wertung-p12');
+
+    it('lässt eine deaktivierte mittlere Gruppe aus der Berechnung komplett weg', function () {
+        AgeGroup::create(['code' => 'JUGEND', 'name_de' => 'Jugend', 'min_age' => 0, 'max_age' => 18, 'sort_order' => 10, 'is_active' => true]);
+        $offen = AgeGroup::create(['code' => 'OFFEN', 'name_de' => 'Offen', 'min_age' => 19, 'sort_order' => 20, 'is_active' => true]);
+        AgeGroup::create(['code' => 'SENIOREN', 'name_de' => 'Senioren', 'min_age' => 50, 'sort_order' => 30, 'is_active' => true]);
+        $cup = makeCup_cup2();
+        $group = makeSportClassGroup_cup2('PI');
+        $cup->ageGroupSettings()->create(['sport_class_group_id' => $group->id, 'age_group_id' => $offen->id, 'is_active' => false]);
+
+        $boundaries = (new GroupResolverService)->effectiveAgeGroupBoundaries($cup, $group)
+            ->mapWithKeys(fn (array $b) => [$b['ageGroup']->code => [$b['effectiveMin'], $b['effectiveMax']]]);
+
+        // Jugend übernimmt bis direkt vor Senioren, Offen fehlt komplett.
+        expect($boundaries->all())->toBe([
+            'JUGEND' => [0, 49],
+            'SENIOREN' => [50, null],
+        ]);
+    })->group('cup-wertung-p12');
 });

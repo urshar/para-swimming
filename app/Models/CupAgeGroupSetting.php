@@ -9,6 +9,7 @@ class CupAgeGroupSetting extends Model
 {
     protected $fillable = [
         'cup_id',
+        'sport_class_group_id',
         'age_group_id',
         'is_active',
     ];
@@ -22,6 +23,11 @@ class CupAgeGroupSetting extends Model
     public function cup(): BelongsTo
     {
         return $this->belongsTo(Cup::class);
+    }
+
+    public function sportClassGroup(): BelongsTo
+    {
+        return $this->belongsTo(SportClassGroup::class);
     }
 
     public function ageGroup(): BelongsTo

@@ -73,13 +73,19 @@ class Cup extends Model
     }
 
     /**
-     * Ist eine Altersgruppe für dieses Cup-Jahr aktiv (Punkt 5 der Spec,
-     * konkretisiert durch Erik — generisch über alle Altersgruppen, nicht
-     * nur "Jugend")? Fehlt ein expliziter Eintrag, gilt sie als aktiv (Default).
+     * Ist eine Altersgruppe für dieses Cup-Jahr in einer bestimmten
+     * Sportklassengruppe aktiv (Punkt 5 der Spec, konkretisiert durch Erik —
+     * generisch über alle Altersgruppen, nicht nur "Jugend" fest verdrahtet;
+     * seit 2026 und 07-19 pro Sportklassengruppe steuerbar statt cup-weit
+     * global, analog zu isGenderCombined())? Fehlt ein expliziter Eintrag,
+     * gilt sie als aktiv (Default).
      */
-    public function isAgeGroupActive(AgeGroup $ageGroup): bool
+    public function isAgeGroupActive(AgeGroup $ageGroup, SportClassGroup $sportClassGroup): bool
     {
-        $setting = $this->ageGroupSettings->firstWhere('age_group_id', $ageGroup->id);
+        $setting = $this->ageGroupSettings->first(
+            fn (CupAgeGroupSetting $s) => $s->age_group_id === $ageGroup->id
+                && $s->sport_class_group_id === $sportClassGroup->id
+        );
 
         return $setting?->is_active ?? true;
     }
