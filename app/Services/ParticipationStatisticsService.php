@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
+use App\Models\Nation;
 use App\Models\Result;
 use App\Support\ReportConfiguration;
 use Illuminate\Database\Eloquent\Builder;
@@ -151,6 +153,149 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
+     * Vereinsstatistik (Spec Phase 4): pro Verein die Anzahl Teilnehmer
+     * (unterschiedliche Athleten) und Starts, absteigend gereiht.
+     *
+     * Verein = Verein zum Zeitpunkt des Ergebnisses (results.club_id). Ein
+     * Athlet zählt je Verein nur einmal als Teilnehmer. Gereiht wird nach
+     * Starts (desc), dann Teilnehmer (desc), dann Name (asc); 'rank' ist die
+     * 1-basierte Position. Es werden alle beteiligten Vereine (inkl.
+     * ausländischer, erkennbar am Nationscode) geliefert.
+     *
+     * @return Collection<int, array{rank: int, club_id: int, club: string, nation: ?string, participants: int, starts: int}>
+     */
+    public function byClub(ReportConfiguration $config): Collection
+    {
+        $aggregates = $this->startsQuery($config)
+            ->selectRaw('club_id, COUNT(*) as starts, COUNT(DISTINCT athlete_id) as participants')
+            ->groupBy('club_id')
+            ->get()
+            ->keyBy('club_id');
+
+        if ($aggregates->isEmpty()) {
+            return collect();
+        }
+
+        return Club::query()
+            ->with('nation:id,code')
+            ->whereIn('id', $aggregates->keys())
+            ->get(['id', 'name', 'nation_id'])
+            ->map(fn (Club $club): array => [
+                'club_id' => $club->id,
+                'club' => $club->name,
+                'nation' => $club->nation?->code,
+                'participants' => (int) $aggregates[$club->id]->participants,
+                'starts' => (int) $aggregates[$club->id]->starts,
+            ])
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+                ?: strcmp($a['club'], $b['club']))
+            ->values()
+            ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
+    }
+
+    /**
+     * Sportlerstatistik (Spec Phase 5): pro Sportler die Anzahl der
+     * Veranstaltungs-Teilnahmen (unterschiedliche Meets) und Starts, gereiht
+     * nach den meisten Teilnahmen.
+     *
+     * Ein Sportler zählt je Veranstaltung nur einmal als Teilnahme. Gereiht
+     * wird nach Teilnahmen (desc), dann Starts (desc), dann Name (asc);
+     * 'rank' ist die 1-basierte Position. Der Nationscode stammt aus der
+     * Nation des Sportlers (nicht des Vereins), da in Österreich lebende
+     * EU-Bürger für österreichische Vereine starten können.
+     *
+     * @return Collection<int, array{rank: int, athlete_id: int, athlete: string, nation: ?string, participations: int, starts: int}>
+     */
+    public function byAthlete(ReportConfiguration $config): Collection
+    {
+        $aggregates = $this->startsQuery($config)
+            ->selectRaw('athlete_id, COUNT(*) as starts, COUNT(DISTINCT meet_id) as participations')
+            ->groupBy('athlete_id')
+            ->get()
+            ->keyBy('athlete_id');
+
+        if ($aggregates->isEmpty()) {
+            return collect();
+        }
+
+        return Athlete::query()
+            ->with('nation:id,code')
+            ->whereIn('id', $aggregates->keys())
+            ->get()
+            ->map(fn (Athlete $athlete): array => [
+                'athlete_id' => $athlete->id,
+                'athlete' => $athlete->display_name,
+                'nation' => $athlete->nation?->code,
+                'participations' => (int) $aggregates[$athlete->id]->participations,
+                'starts' => (int) $aggregates[$athlete->id]->starts,
+            ])
+            ->sort(fn (array $a, array $b): int => [$b['participations'], $b['starts']] <=> [$a['participations'], $a['starts']]
+                ?: strcmp($a['athlete'], $b['athlete']))
+            ->values()
+            ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
+    }
+
+    /**
+     * Anzahl Sportler mit mindestens X Veranstaltungs-Teilnahmen (Spec Phase 5).
+     * X stammt aus der Konfiguration (min_participations, Standard 2).
+     *
+     * Der Schwellenwert wird bewusst in PHP geprüft: Ein gebundener Parameter
+     * in HAVING wird von PDO als String übergeben, wodurch SQLite den Vergleich
+     * Integer/Text falsch auswertet. Die Aggregatmenge (eine Zeile je Sportler)
+     * ist klein genug, um sie zu laden und zu filtern.
+     */
+    public function countAthletesWithMinParticipations(ReportConfiguration $config): int
+    {
+        return $this->startsQuery($config)
+            ->selectRaw('athlete_id, COUNT(DISTINCT meet_id) as participations')
+            ->groupBy('athlete_id')
+            ->get()
+            ->filter(fn ($row): bool => (int) $row->participations >= $config->minParticipations)
+            ->count();
+    }
+
+    /**
+     * Nationenstatistik (Spec Phase 6): pro Nation die Anzahl Teilnehmer
+     * (unterschiedliche Athleten) und Starts, absteigend gereiht.
+     *
+     * Zuordnung über die Nation des Sportlers (athletes.nation_id), nicht die
+     * Vereinsnation — konsistent mit der Sportlerstatistik. Es werden alle
+     * beteiligten Nationen inkl. AUT geliefert. Gereiht nach Starts (desc),
+     * dann Teilnehmer (desc), dann Nationscode (asc); 'rank' ist die
+     * 1-basierte Position.
+     *
+     * @return Collection<int, array{rank: int, nation_id: int, nation: string, nation_name: string, participants: int, starts: int}>
+     */
+    public function byNation(ReportConfiguration $config): Collection
+    {
+        $aggregates = $this->startsQuery($config)
+            ->join('athletes', 'athletes.id', '=', 'results.athlete_id')
+            ->selectRaw('athletes.nation_id as nation_id, COUNT(*) as starts, COUNT(DISTINCT results.athlete_id) as participants')
+            ->groupBy('athletes.nation_id')
+            ->get()
+            ->keyBy('nation_id');
+
+        if ($aggregates->isEmpty()) {
+            return collect();
+        }
+
+        return Nation::query()
+            ->whereIn('id', $aggregates->keys())
+            ->get(['id', 'code', 'name_de'])
+            ->map(fn (Nation $nation): array => [
+                'nation_id' => $nation->id,
+                'nation' => $nation->code,
+                'nation_name' => $nation->name_de,
+                'participants' => (int) $aggregates[$nation->id]->participants,
+                'starts' => (int) $aggregates[$nation->id]->starts,
+            ])
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+                ?: strcmp($a['nation'], $b['nation']))
+            ->values()
+            ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
+    }
+
+    /**
      * Gemeinsamer Auswertungsumfang für alle Kennzahlen:
      *   - Einzelbewerbe (keine Staffeln — relay_count = 1),
      *   - eingeschränkt auf die ausgewählten Veranstaltungen; ohne Auswahl auf
@@ -169,7 +314,7 @@ final readonly class ParticipationStatisticsService
             ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
 
         if ($config->isMeetFiltered()) {
-            $query->whereIn('meet_id', $config->meetIds);
+            $query->whereIn('results.meet_id', $config->meetIds);
         } else {
             $query->whereHas('meet', fn (Builder $q) => $q->whereBetween('start_date', [
                 $config->dateFrom->toDateString(),
@@ -190,8 +335,8 @@ final readonly class ParticipationStatisticsService
     private function startsQuery(ReportConfiguration $config): Builder
     {
         return $this->scopedQuery($config)->where(function (Builder $q): void {
-            $q->whereNull('status')
-                ->orWhereNotIn('status', self::NON_START_STATUSES);
+            $q->whereNull('results.status')
+                ->orWhereNotIn('results.status', self::NON_START_STATUSES);
         });
     }
 

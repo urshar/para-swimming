@@ -42,9 +42,9 @@ final readonly class ReportConfiguration
     ];
 
     /**
-     * @param  list<int>  $meetIds  ausgewählte Veranstaltungen; leer = keine
-     *                              Einschränkung (alle Meets im Zeitraum werden ausgewertet).
-     * @param  array<string, bool>  $sections  Abschnitt => aktiv? (nur Schlüssel aus SECTION_KEYS).
+     * @param  list<int>  $meetIds  ausgewählte Veranstaltungen; leer = alle Meets im Zeitraum
+     * @param  array<string, bool>  $sections  Abschnitt => aktiv? (nur Schlüssel aus SECTION_KEYS)
+     * @param  int  $minParticipations  Schwellenwert X für "mind. X Veranstaltungs-Teilnahmen" (Spec Phase 5), Standard 2
      */
     public function __construct(
         public int $year,
@@ -52,11 +52,18 @@ final readonly class ReportConfiguration
         public CarbonImmutable $dateTo,
         public array $meetIds,
         public array $sections,
+        public int $minParticipations = 2,
     ) {
         if ($this->dateFrom->greaterThan($this->dateTo)) {
             throw new InvalidArgumentException(
                 'date_from darf nicht nach date_to liegen '
                 ."($this->dateFrom → $this->dateTo)."
+            );
+        }
+
+        if ($this->minParticipations < 1) {
+            throw new InvalidArgumentException(
+                "min_participations muss mindestens 1 sein ($this->minParticipations übergeben)."
             );
         }
     }
@@ -105,12 +112,16 @@ final readonly class ReportConfiguration
             ? CarbonImmutable::parse((string) $data['date_to'])->endOfDay()
             : CarbonImmutable::parse(sprintf('%04d-12-31', $year))->endOfDay();
 
+        $hasMin = isset($data['min_participations'])
+            && $data['min_participations'] !== '';
+
         return new self(
             year: $year,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
             meetIds: self::normalizeMeetIds($data['meet_ids'] ?? []),
             sections: self::normalizeSections($data['sections'] ?? []),
+            minParticipations: $hasMin ? (int) $data['min_participations'] : 2,
         );
     }
 
@@ -160,7 +171,7 @@ final readonly class ReportConfiguration
     /**
      * Serialisierung für Views/PDF und Round-Trip-Tests.
      *
-     * @return array{year: int, date_from: string, date_to: string, meet_ids: list<int>, sections: array<string, bool>}
+     * @return array{year: int, date_from: string, date_to: string, meet_ids: list<int>, sections: array<string, bool>, min_participations: int}
      */
     public function toArray(): array
     {
@@ -170,6 +181,7 @@ final readonly class ReportConfiguration
             'date_to' => $this->dateTo->toDateString(),
             'meet_ids' => $this->meetIds,
             'sections' => $this->sections,
+            'min_participations' => $this->minParticipations,
         ];
     }
 
@@ -177,6 +189,7 @@ final readonly class ReportConfiguration
      * Normalisiert die Meet-IDs: zu int casten, Duplikate/0-Werte entfernen,
      * Schlüssel neu indizieren (echte Liste).
      *
+     * @param  mixed  $meetIds
      * @return list<int>
      */
     private static function normalizeMeetIds(mixed $meetIds): array
@@ -197,6 +210,7 @@ final readonly class ReportConfiguration
      * überschreiben den Default. Unbekannte Schlüssel führen zu einer
      * Exception (fängt Tippfehler früh ab).
      *
+     * @param  mixed  $sections
      * @return array<string, bool>
      *
      * @throws InvalidArgumentException bei unbekanntem Abschnittsschlüssel.

@@ -146,3 +146,28 @@ it('serialisiert per toArray() verlustfrei zurück', function () {
         ->and($array['meet_ids'])->toBe([2, 4])
         ->and($rebuilt->toArray())->toBe($array);
 });
+
+// ── min_participations (Spec Phase 5) ────────────────────────────────────────
+
+it('setzt min_participations standardmäßig auf 2', function () {
+    expect(ReportConfiguration::forYear(2024)->minParticipations)->toBe(2);
+});
+
+it('übernimmt ein konfiguriertes min_participations', function () {
+    expect(ReportConfiguration::fromArray(['year' => 2024, 'min_participations' => 5])->minParticipations)->toBe(5);
+});
+
+it('behandelt leeres min_participations als Default 2', function () {
+    expect(ReportConfiguration::fromArray(['year' => 2024, 'min_participations' => ''])->minParticipations)->toBe(2);
+});
+
+it('wirft, wenn min_participations kleiner als 1 ist', function () {
+    ReportConfiguration::fromArray(['year' => 2024, 'min_participations' => 0]);
+})->throws(InvalidArgumentException::class);
+
+it('serialisiert min_participations verlustfrei mit', function () {
+    $array = ReportConfiguration::fromArray(['year' => 2024, 'min_participations' => 3])->toArray();
+
+    expect($array['min_participations'])->toBe(3)
+        ->and(ReportConfiguration::fromArray($array)->minParticipations)->toBe(3);
+});
