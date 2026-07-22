@@ -2,13 +2,17 @@
 
 /** @noinspection PhpUnhandledExceptionInspection Pest-Test-Closures fangen Exceptions selbst ab. */
 
+use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
+use App\Models\SportClassGroup;
+use App\Models\SportClassGroupMember;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
+use App\Services\GroupResolverService;
 use App\Services\ParticipationStatisticsService;
 use App\Support\ReportConfiguration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +24,7 @@ uses(TestCase::class, RefreshDatabase::class);
 
 function stat2_service(): ParticipationStatisticsService
 {
-    return new ParticipationStatisticsService;
+    return new ParticipationStatisticsService(new GroupResolverService);
 }
 
 function stat2_config(array $overrides = []): ReportConfiguration
@@ -933,3 +937,678 @@ it('enthält pro Nationszeile die erwarteten Schlüssel inkl. rank und nation_na
 
     expect($row)->toHaveKeys(['rank', 'nation_id', 'nation', 'nation_name', 'participants', 'starts']);
 })->group('statistik-p6');
+
+//
+// VORAUSSETZUNG 1 — diese Imports oben im Testfile ergänzen:
+//     use App\Models\SportClassGroup;
+//     use App\Models\SportClassGroupMember;
+//     use App\Services\GroupResolverService;
+//
+// VORAUSSETZUNG 2 — Helper stat2_service() anpassen (Konstruktor-Injection):
+//     return new ParticipationStatisticsService(new GroupResolverService);
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Sportklassen und Behinderungsgruppen (Spec Phase 7) ─────────────────────
+
+function stat2_group(string $code, string $nameDe, int $sortOrder): SportClassGroup
+{
+    return SportClassGroup::create([
+        'code' => $code,
+        'name_de' => $nameDe,
+        'sort_order' => $sortOrder,
+    ]);
+}
+
+/** @param  list<string>  $sportClasses */
+function stat2_groupMembers(SportClassGroup $group, array $sportClasses): void
+{
+    foreach ($sportClasses as $sportClass) {
+        SportClassGroupMember::create([
+            'sport_class_group_id' => $group->id,
+            'sport_class' => $sportClass,
+        ]);
+    }
+}
+
+it('liefert pro Sportklasse Teilnehmer und Starts', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+    $a1 = stat2_athlete();
+    $a2 = stat2_athlete();
+
+    for ($i = 0; $i < 3; $i++) {
+        stat2_start($a1, $club, $meet, ['sport_class' => 'S9']);
+    }
+    stat2_start($a2, $club, $meet, ['sport_class' => 'S9']);
+    for ($i = 0; $i < 2; $i++) {
+        stat2_start($a1, $club, $meet, ['sport_class' => 'S11']);
+    }
+
+    $byClass = stat2_service()->bySportClass(stat2_config())->keyBy('sport_class');
+
+    expect($byClass['S9']['participants'])->toBe(2)
+        ->and($byClass['S9']['starts'])->toBe(4)
+        ->and($byClass['S11']['participants'])->toBe(1)
+        ->and($byClass['S11']['starts'])->toBe(2);
+})->group('statistik-p7');
+
+it('sortiert Sportklassen numerisch statt alphabetisch', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    foreach (['S10', 'S2', 'SB9', 'S1'] as $sportClass) {
+        stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => $sportClass]);
+    }
+
+    $order = stat2_service()->bySportClass(stat2_config())->pluck('sport_class')->all();
+
+    expect($order)->toBe(['S1', 'S2', 'S10', 'SB9']);
+})->group('statistik-p7');
+
+it('ignoriert Ergebnisse ohne Sportklasse', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => 'S9']);
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => null]);
+
+    $rows = stat2_service()->bySportClass(stat2_config());
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['sport_class'])->toBe('S9');
+})->group('statistik-p7');
+
+it('fasst unterschiedliche Schreibweisen derselben Sportklasse zusammen', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+    $athlete = stat2_athlete();
+
+    stat2_start($athlete, $club, $meet, ['sport_class' => 'S9']);
+    stat2_start($athlete, $club, $meet, ['sport_class' => 's9']);
+
+    $rows = stat2_service()->bySportClass(stat2_config());
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['sport_class'])->toBe('S9')
+        ->and($rows->first()['participants'])->toBe(1)
+        ->and($rows->first()['starts'])->toBe(2);
+})->group('statistik-p7');
+
+it('weist jeder Sportklasse ihre Behinderungsgruppe aus der bestehenden Zuordnung zu', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+
+    stat2_start(stat2_athlete(), stat2_club(), stat2_meet(), ['sport_class' => 'S9']);
+
+    $row = stat2_service()->bySportClass(stat2_config())->first();
+
+    expect($row['group_code'])->toBe('PI')
+        ->and($row['group_name'])->toBe('Körperliche Behinderung');
+})->group('statistik-p7');
+
+it('lässt die Gruppe leer, wenn für die Sportklasse keine Zuordnung hinterlegt ist', function () {
+    stat2_start(stat2_athlete(), stat2_club(), stat2_meet(), ['sport_class' => 'S7']);
+
+    $row = stat2_service()->bySportClass(stat2_config())->first();
+
+    expect($row['group_code'])->toBeNull()
+        ->and($row['group_name'])->toBeNull();
+})->group('statistik-p7');
+
+it('berücksichtigt neu angelegte Sportklassen und Gruppen automatisch', function () {
+    // Frei erfundene Klasse/Gruppe: darf nur über die Stammdaten wirken,
+    // ohne Anpassung der Statistiklogik (Spec Phase 7: keine hardcodierten Listen).
+    stat2_groupMembers(stat2_group('XX', 'Neue Gruppe', 99), ['S99']);
+
+    stat2_start(stat2_athlete(), stat2_club(), stat2_meet(), ['sport_class' => 'S99']);
+
+    $row = stat2_service()->bySportClass(stat2_config())->first();
+
+    expect($row['sport_class'])->toBe('S99')
+        ->and($row['group_code'])->toBe('XX');
+})->group('statistik-p7');
+
+it('enthält pro Sportklassenzeile die erwarteten Schlüssel', function () {
+    stat2_start(stat2_athlete(), stat2_club(), stat2_meet(), ['sport_class' => 'S9']);
+
+    $row = stat2_service()->bySportClass(stat2_config())->first();
+
+    expect($row)->toHaveKeys(['sport_class', 'group_code', 'group_name', 'participants', 'starts']);
+})->group('statistik-p7');
+
+it('liefert eine leere Collection, wenn keine Starts existieren (Sportklassen)', function () {
+    expect(stat2_service()->bySportClass(stat2_config()))->toBeEmpty();
+})->group('statistik-p7');
+
+// ── Behinderungsgruppen ─────────────────────────────────────────────────────
+
+it('zählt einen Athleten je Behinderungsgruppe nur einmal, auch über mehrere Sportklassen', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9', 'SB8']);
+    $club = stat2_club();
+    $meet = stat2_meet();
+    $a1 = stat2_athlete();
+    $a2 = stat2_athlete();
+
+    // Athlet 1 startet in beiden Klassen derselben Gruppe.
+    for ($i = 0; $i < 3; $i++) {
+        stat2_start($a1, $club, $meet, ['sport_class' => 'S9']);
+    }
+    for ($i = 0; $i < 2; $i++) {
+        stat2_start($a1, $club, $meet, ['sport_class' => 'SB8']);
+    }
+    stat2_start($a2, $club, $meet, ['sport_class' => 'S9']);
+
+    $row = stat2_service()->byDisabilityGroup(stat2_config())->first();
+
+    expect($row['group_code'])->toBe('PI')
+        ->and($row['participants'])->toBe(2)
+        ->and($row['starts'])->toBe(6);
+})->group('statistik-p7');
+
+it('sortiert Behinderungsgruppen nach der gepflegten sort_order', function () {
+    stat2_groupMembers(stat2_group('VI', 'Sehbehinderung', 2), ['S11']);
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    stat2_groupMembers(stat2_group('II', 'Intellektuelle Behinderung', 3), ['S14']);
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    foreach (['S11', 'S9', 'S14'] as $sportClass) {
+        stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => $sportClass]);
+    }
+
+    $order = stat2_service()->byDisabilityGroup(stat2_config())->pluck('group_code')->all();
+
+    expect($order)->toBe(['PI', 'VI', 'II']);
+})->group('statistik-p7');
+
+it('weist Sportklassen ohne Gruppenzuordnung als Sammeleintrag aus', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => 'S9']);
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => 'S7']); // nicht zugeordnet
+
+    $rows = stat2_service()->byDisabilityGroup(stat2_config());
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]['group_code'])->toBe('PI')
+        ->and($rows[1]['group_id'])->toBeNull()
+        ->and($rows[1]['group_code'])->toBeNull()
+        ->and($rows[1]['group_name'])->toBe('Ohne Zuordnung')
+        ->and($rows[1]['participants'])->toBe(1)
+        ->and($rows[1]['starts'])->toBe(1);
+})->group('statistik-p7');
+
+it('berücksichtigt bei Sportklassen und Gruppen nur Starts (DNS/SICK/WDR nicht)', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => 'S9']);
+    stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => 'S9', 'status' => 'DNS', 'swim_time' => null]);
+
+    $service = stat2_service();
+
+    expect($service->bySportClass(stat2_config())->first()['starts'])->toBe(1)
+        ->and($service->byDisabilityGroup(stat2_config())->first()['starts'])->toBe(1);
+})->group('statistik-p7');
+
+it('beschränkt Sportklassen- und Gruppenstatistik auf ausgewählte meet_ids', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    $club = stat2_club();
+    $athlete = stat2_athlete();
+    $in = stat2_meet();
+    $out = stat2_meet();
+
+    stat2_start($athlete, $club, $in, ['sport_class' => 'S9']);
+    stat2_start($athlete, $club, $out, ['sport_class' => 'S9']);
+
+    $config = stat2_config(['meet_ids' => [$in->id]]);
+    $service = stat2_service();
+
+    expect($service->bySportClass($config)->first()['starts'])->toBe(1)
+        ->and($service->byDisabilityGroup($config)->first()['starts'])->toBe(1);
+})->group('statistik-p7');
+
+it('enthält pro Gruppenzeile die erwarteten Schlüssel', function () {
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    stat2_start(stat2_athlete(), stat2_club(), stat2_meet(), ['sport_class' => 'S9']);
+
+    $row = stat2_service()->byDisabilityGroup(stat2_config())->first();
+
+    expect($row)->toHaveKeys(['group_id', 'group_code', 'group_name', 'participants', 'starts']);
+})->group('statistik-p7');
+
+it('liefert eine leere Collection, wenn keine Starts existieren (Gruppen)', function () {
+    expect(stat2_service()->byDisabilityGroup(stat2_config()))->toBeEmpty();
+})->group('statistik-p7');
+
+//
+// VORAUSSETZUNG — diesen Import oben im Testfile ergänzen:
+//     use App\Models\AgeGroup;
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Altersgruppen und Geschlecht (Spec Phase 8) ─────────────────────────────
+
+function stat2_ageGroup(string $code, string $nameDe, ?int $minAge, ?int $maxAge, int $sortOrder): AgeGroup
+{
+    return AgeGroup::create([
+        'code' => $code,
+        'name_de' => $nameDe,
+        'min_age' => $minAge,
+        'max_age' => $maxAge,
+        'sort_order' => $sortOrder,
+    ]);
+}
+
+/** ÖBSV-Regel: Jugend 18 Jahre und jünger, offen 19 Jahre und älter. */
+function stat2_oebsvAgeGroups(): void
+{
+    stat2_ageGroup('JUGEND', 'Jugend', null, 18, 1);
+    stat2_ageGroup('OFFEN', 'Offen', 19, null, 2);
+}
+
+it('ordnet Athleten nach der 31.12.-Stichtagsregel der Jugend- bzw. offenen Klasse zu', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    // Am 31.12.2024: 18 Jahre -> Jugend
+    $youth = stat2_athlete(['birth_date' => '2006-05-10']);
+    // Am 31.12.2024: 19 Jahre -> Offen
+    $open = stat2_athlete(['birth_date' => '2005-05-10']);
+
+    stat2_start($youth, $club, $meet);
+    stat2_start($open, $club, $meet);
+
+    $byCode = stat2_service()->byAgeGroup(stat2_config())->keyBy('age_group_code');
+
+    expect($byCode['JUGEND']['participants'])->toBe(1)
+        ->and($byCode['OFFEN']['participants'])->toBe(1);
+})->group('statistik-p8');
+
+it('wendet den Stichtag am Jahresende an, nicht das Alter am Wettkampftag', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    // Geburtstag erst am 31.12.2024 -> am Wettkampftag noch 18, am Stichtag 19 -> Offen
+    $athlete = stat2_athlete(['birth_date' => '2005-12-31']);
+    stat2_start($athlete, $club, $meet);
+
+    $rows = stat2_service()->byAgeGroup(stat2_config());
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['age_group_code'])->toBe('OFFEN');
+})->group('statistik-p8');
+
+it('ordnet einen am 31.12. geborenen 18-Jährigen noch der Jugend zu', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    // Am 31.12.2024 exakt 18 -> Jugend (Grenzfall)
+    stat2_start(stat2_athlete(['birth_date' => '2006-12-31']), $club, $meet);
+
+    expect(stat2_service()->byAgeGroup(stat2_config())->first()['age_group_code'])->toBe('JUGEND');
+})->group('statistik-p8');
+
+it('zählt einen Athleten je Altersgruppe nur einmal und summiert seine Starts', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $m1 = stat2_meet(['start_date' => '2024-03-01']);
+    $m2 = stat2_meet(['start_date' => '2024-09-01']);
+    $athlete = stat2_athlete(['birth_date' => '2006-05-10']);
+
+    for ($i = 0; $i < 3; $i++) {
+        stat2_start($athlete, $club, $m1);
+    }
+    for ($i = 0; $i < 2; $i++) {
+        stat2_start($athlete, $club, $m2);
+    }
+
+    $row = stat2_service()->byAgeGroup(stat2_config())->first();
+
+    expect($row['age_group_code'])->toBe('JUGEND')
+        ->and($row['participants'])->toBe(1)
+        ->and($row['starts'])->toBe(5);
+})->group('statistik-p8');
+
+it('ordnet denselben Athleten bei jahresübergreifendem Bericht je Wettkampfjahr zu', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    // Am 31.12.2024 = 18 (Jugend), am 31.12.2025 = 19 (Offen)
+    $athlete = stat2_athlete(['birth_date' => '2006-05-10']);
+
+    stat2_start($athlete, $club, stat2_meet(['start_date' => '2024-06-01']));
+    stat2_start($athlete, $club, stat2_meet(['start_date' => '2025-06-01']));
+
+    $config = stat2_config(['date_from' => '2024-01-01', 'date_to' => '2025-12-31']);
+    $byCode = stat2_service()->byAgeGroup($config)->keyBy('age_group_code');
+
+    expect($byCode['JUGEND']['participants'])->toBe(1)
+        ->and($byCode['JUGEND']['starts'])->toBe(1)
+        ->and($byCode['OFFEN']['participants'])->toBe(1)
+        ->and($byCode['OFFEN']['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('weist Athleten ohne Geburtsdatum als Sammeleintrag aus', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10']), $club, $meet);
+    stat2_start(stat2_athlete(['birth_date' => null]), $club, $meet);
+
+    $rows = stat2_service()->byAgeGroup(stat2_config());
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]['age_group_code'])->toBe('JUGEND')
+        ->and($rows[1]['age_group_id'])->toBeNull()
+        ->and($rows[1]['age_group_code'])->toBeNull()
+        ->and($rows[1]['age_group_name'])->toBe('Ohne Geburtsdatum')
+        ->and($rows[1]['participants'])->toBe(1)
+        ->and($rows[1]['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('sortiert Altersgruppen nach der gepflegten sort_order', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => '2005-05-10']), $club, $meet); // Offen
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10']), $club, $meet); // Jugend
+
+    $order = stat2_service()->byAgeGroup(stat2_config())->pluck('age_group_code')->all();
+
+    expect($order)->toBe(['JUGEND', 'OFFEN']);
+})->group('statistik-p8');
+
+it('berücksichtigt bei der Altersgruppenstatistik nur Starts (DNS/SICK/WDR nicht)', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10']), $club, $meet);
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10']), $club, $meet, [
+        'status' => 'DNS', 'swim_time' => null,
+    ]);
+
+    expect(stat2_service()->byAgeGroup(stat2_config())->first()['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('beschränkt die Altersgruppenstatistik auf ausgewählte meet_ids', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $athlete = stat2_athlete(['birth_date' => '2006-05-10']);
+    $in = stat2_meet(['start_date' => '2024-03-01']);
+    $out = stat2_meet(['start_date' => '2024-09-01']);
+
+    stat2_start($athlete, $club, $in);
+    stat2_start($athlete, $club, $out);
+
+    expect(stat2_service()->byAgeGroup(stat2_config(['meet_ids' => [$in->id]]))->first()['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('enthält pro Altersgruppenzeile die erwarteten Schlüssel', function () {
+    stat2_oebsvAgeGroups();
+    stat2_start(
+        stat2_athlete(['birth_date' => '2006-05-10']),
+        stat2_club(),
+        stat2_meet(['start_date' => '2024-06-01'])
+    );
+
+    $row = stat2_service()->byAgeGroup(stat2_config())->first();
+
+    expect($row)->toHaveKeys(['age_group_id', 'age_group_code', 'age_group_name', 'participants', 'starts']);
+})->group('statistik-p8');
+
+it('liefert eine leere Collection, wenn keine Starts existieren (Altersgruppen)', function () {
+    stat2_oebsvAgeGroups();
+
+    expect(stat2_service()->byAgeGroup(stat2_config()))->toBeEmpty();
+})->group('statistik-p8');
+
+// ── Geschlecht ──────────────────────────────────────────────────────────────
+
+it('liefert pro Geschlecht Teilnehmer und Starts', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+    $male = stat2_athlete(['gender' => 'M']);
+    $female = stat2_athlete(['gender' => 'F']);
+
+    for ($i = 0; $i < 3; $i++) {
+        stat2_start($male, $club, $meet);
+    }
+    stat2_start($female, $club, $meet);
+
+    $byGender = stat2_service()->byGender(stat2_config())->keyBy('gender');
+
+    expect($byGender['M']['participants'])->toBe(1)
+        ->and($byGender['M']['starts'])->toBe(3)
+        ->and($byGender['F']['participants'])->toBe(1)
+        ->and($byGender['F']['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('zählt einen Athleten je Geschlecht nur einmal über mehrere Veranstaltungen', function () {
+    $club = stat2_club();
+    $athlete = stat2_athlete(['gender' => 'F']);
+
+    stat2_start($athlete, $club, stat2_meet());
+    stat2_start($athlete, $club, stat2_meet());
+
+    $row = stat2_service()->byGender(stat2_config())->first();
+
+    expect($row['participants'])->toBe(1)
+        ->and($row['starts'])->toBe(2);
+})->group('statistik-p8');
+
+it('sortiert die Geschlechter in der Reihenfolge des bestehenden Enums', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    foreach (['N', 'F', 'M'] as $gender) {
+        stat2_start(stat2_athlete(['gender' => $gender]), $club, $meet);
+    }
+
+    expect(stat2_service()->byGender(stat2_config())->pluck('gender')->all())->toBe(['M', 'F', 'N']);
+})->group('statistik-p8');
+
+it('berücksichtigt bei der Geschlechterstatistik nur Starts (DNS/SICK/WDR nicht)', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(['gender' => 'F']), $club, $meet);
+    stat2_start(stat2_athlete(['gender' => 'F']), $club, $meet, ['status' => 'DNS', 'swim_time' => null]);
+
+    $row = stat2_service()->byGender(stat2_config())->first();
+
+    expect($row['participants'])->toBe(1)
+        ->and($row['starts'])->toBe(1);
+})->group('statistik-p8');
+
+it('enthält pro Geschlechtszeile die erwarteten Schlüssel', function () {
+    stat2_start(stat2_athlete(['gender' => 'M']), stat2_club(), stat2_meet());
+
+    expect(stat2_service()->byGender(stat2_config())->first())
+        ->toHaveKeys(['gender', 'participants', 'starts']);
+})->group('statistik-p8');
+
+it('liefert eine leere Collection, wenn keine Starts existieren (Geschlecht)', function () {
+    expect(stat2_service()->byGender(stat2_config()))->toBeEmpty();
+})->group('statistik-p8');
+
+it('stellt den Sammeleintrag der Behinderungsgruppen immer ans Ende', function () {
+    stat2_groupMembers(stat2_group('VI', 'Sehbehinderung', 2), ['S11']);
+    stat2_groupMembers(stat2_group('PI', 'Körperliche Behinderung', 1), ['S9']);
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    foreach (['S7', 'S11', 'S9'] as $sportClass) {
+        stat2_start(stat2_athlete(), $club, $meet, ['sport_class' => $sportClass]);
+    }
+
+    $order = stat2_service()->byDisabilityGroup(stat2_config())->pluck('group_name')->all();
+
+    expect($order)->toBe(['Körperliche Behinderung', 'Sehbehinderung', 'Ohne Zuordnung']);
+})->group('statistik-p7');
+
+it('fasst mehrere nicht zugeordnete Sportklassen zu einem Sammeleintrag zusammen', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+    $athlete = stat2_athlete();
+
+    // Zwei verschiedene, jeweils nicht zugeordnete Klassen desselben Athleten.
+    stat2_start($athlete, $club, $meet, ['sport_class' => 'S7']);
+    stat2_start($athlete, $club, $meet, ['sport_class' => 'SB6']);
+
+    $rows = stat2_service()->byDisabilityGroup(stat2_config());
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['participants'])->toBe(1)
+        ->and($rows->first()['starts'])->toBe(2);
+})->group('statistik-p7');
+
+it('stellt den Sammeleintrag der Altersgruppen immer ans Ende', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => null]), $club, $meet);
+    stat2_start(stat2_athlete(['birth_date' => '2005-05-10']), $club, $meet); // Offen
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10']), $club, $meet); // Jugend
+
+    $order = stat2_service()->byAgeGroup(stat2_config())->pluck('age_group_name')->all();
+
+    expect($order)->toBe(['Jugend', 'Offen', 'Ohne Geburtsdatum']);
+})->group('statistik-p8');
+
+// ── Kreuztabelle Altersgruppe × Geschlecht (Spec Phase 8) ───────────────────
+
+it('liefert je Altersgruppe und Geschlecht Teilnehmer und Starts', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    $youthMale = stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'M']);
+    $youthFemale = stat2_athlete(['birth_date' => '2007-05-10', 'gender' => 'F']);
+    $openMale = stat2_athlete(['birth_date' => '2000-05-10', 'gender' => 'M']);
+
+    for ($i = 0; $i < 3; $i++) {
+        stat2_start($youthMale, $club, $meet);
+    }
+    stat2_start($youthFemale, $club, $meet);
+    for ($i = 0; $i < 2; $i++) {
+        stat2_start($openMale, $club, $meet);
+    }
+
+    $rows = stat2_service()->byAgeGroupAndGender(stat2_config())
+        ->keyBy(fn (array $row): string => $row['age_group_code'].'/'.$row['gender']);
+
+    expect($rows['JUGEND/M']['participants'])->toBe(1)
+        ->and($rows['JUGEND/M']['starts'])->toBe(3)
+        ->and($rows['JUGEND/F']['participants'])->toBe(1)
+        ->and($rows['JUGEND/F']['starts'])->toBe(1)
+        ->and($rows['OFFEN/M']['participants'])->toBe(1)
+        ->and($rows['OFFEN/M']['starts'])->toBe(2);
+})->group('statistik-p8');
+
+it('sortiert die Kreuztabelle nach Altersgruppe und darin nach Geschlecht', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => '2000-05-10', 'gender' => 'F']), $club, $meet); // Offen/F
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'F']), $club, $meet); // Jugend/F
+    stat2_start(stat2_athlete(['birth_date' => '2000-05-10', 'gender' => 'M']), $club, $meet); // Offen/M
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'M']), $club, $meet); // Jugend/M
+
+    $order = stat2_service()->byAgeGroupAndGender(stat2_config())
+        ->map(fn (array $row): string => $row['age_group_code'].'/'.$row['gender'])
+        ->all();
+
+    expect($order)->toBe(['JUGEND/M', 'JUGEND/F', 'OFFEN/M', 'OFFEN/F']);
+})->group('statistik-p8');
+
+it('zählt einen Athleten in der Kreuztabelle je Kombination nur einmal', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $athlete = stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'F']);
+
+    stat2_start($athlete, $club, stat2_meet(['start_date' => '2024-03-01']));
+    stat2_start($athlete, $club, stat2_meet(['start_date' => '2024-09-01']));
+
+    $row = stat2_service()->byAgeGroupAndGender(stat2_config())->first();
+
+    expect($row['participants'])->toBe(1)
+        ->and($row['starts'])->toBe(2);
+})->group('statistik-p8');
+
+it('führt Athleten ohne Geburtsdatum auch in der Kreuztabelle als Sammeleintrag', function () {
+    stat2_oebsvAgeGroups();
+    $club = stat2_club();
+    $meet = stat2_meet(['start_date' => '2024-06-01']);
+
+    stat2_start(stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'M']), $club, $meet);
+    stat2_start(stat2_athlete(['birth_date' => null, 'gender' => 'F']), $club, $meet);
+
+    $rows = stat2_service()->byAgeGroupAndGender(stat2_config());
+    $last = $rows->last();
+
+    expect($rows)->toHaveCount(2)
+        ->and($last['age_group_id'])->toBeNull()
+        ->and($last['age_group_name'])->toBe('Ohne Geburtsdatum')
+        ->and($last['gender'])->toBe('F');
+})->group('statistik-p8');
+
+it('enthält pro Kreuztabellenzeile die erwarteten Schlüssel', function () {
+    stat2_oebsvAgeGroups();
+    stat2_start(
+        stat2_athlete(['birth_date' => '2006-05-10', 'gender' => 'M']),
+        stat2_club(),
+        stat2_meet(['start_date' => '2024-06-01'])
+    );
+
+    expect(stat2_service()->byAgeGroupAndGender(stat2_config())->first())
+        ->toHaveKeys(['age_group_id', 'age_group_code', 'age_group_name', 'gender', 'participants', 'starts']);
+})->group('statistik-p8');
+
+it('liefert eine leere Collection, wenn keine Starts existieren (Kreuztabelle)', function () {
+    stat2_oebsvAgeGroups();
+
+    expect(stat2_service()->byAgeGroupAndGender(stat2_config()))->toBeEmpty();
+})->group('statistik-p8');
+
+// ── GroupResolverService: vorgeladene Altersgruppen (Rückwärtskompatibilität) ─
+
+it('liefert mit vorgeladenen Altersgruppen dasselbe Ergebnis wie ohne', function () {
+    stat2_oebsvAgeGroups();
+    $resolver = new GroupResolverService;
+    $athlete = stat2_athlete(['birth_date' => '2006-05-10']);
+
+    $withoutPreload = $resolver->resolveAgeGroup($athlete, '2024-06-01');
+    $withPreload = $resolver->resolveAgeGroup(
+        $athlete,
+        '2024-06-01',
+        ageGroups: $resolver->loadAgeGroups(),
+    );
+
+    expect($withoutPreload?->code)->toBe('JUGEND')
+        ->and($withPreload?->code)->toBe('JUGEND');
+})->group('statistik-p8');
+
+it('lädt über loadAgeGroups() nur aktive Altersgruppen in Sortierreihenfolge', function () {
+    stat2_oebsvAgeGroups();
+    AgeGroup::create([
+        'code' => 'INAKTIV',
+        'name_de' => 'Inaktiv',
+        'min_age' => 30,
+        'max_age' => 40,
+        'sort_order' => 0,
+        'is_active' => false,
+    ]);
+
+    $codes = (new GroupResolverService)->loadAgeGroups()->pluck('code')->all();
+
+    expect($codes)->toBe(['JUGEND', 'OFFEN']);
+})->group('statistik-p8');

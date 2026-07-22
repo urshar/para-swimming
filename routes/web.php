@@ -242,3 +242,6 @@ Route::middleware(['auth'])->group(function () {
     });
 
 });
+
+// ── Benutzereinstellungen (Profil, Sicherheit, Darstellung) ───────────────────
+require __DIR__.'/settings.php';

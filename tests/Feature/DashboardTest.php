@@ -2,15 +2,20 @@
 
 use App\Models\User;
 
-test('guests are redirected to the login page', function () {
-    $response = $this->get(route('dashboard'));
-    $response->assertRedirect(route('login'));
+// In dieser Anwendung gibt es kein eigenes Dashboard: /dashboard ist bewusst
+// eine Weiterleitung auf die Wettkampfübersicht (routes/web.php).
+// Die Tests sichern dieses Verhalten ab, statt eine Dashboard-Seite zu erwarten.
+
+test('dashboard leitet Gäste auf die Wettkampfübersicht weiter', function () {
+    $this->get(route('dashboard'))->assertRedirect('/meets');
 });
 
-test('authenticated users can visit the dashboard', function () {
-    $user = User::factory()->create();
-    $this->actingAs($user);
+test('dashboard leitet angemeldete User auf die Wettkampfübersicht weiter', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('dashboard'))
+        ->assertRedirect('/meets');
+});
 
-    $response = $this->get(route('dashboard'));
-    $response->assertOk();
+test('Gäste landen von der Wettkampfübersicht auf der Login-Seite', function () {
+    $this->get('/meets')->assertRedirect(route('login'));
 });

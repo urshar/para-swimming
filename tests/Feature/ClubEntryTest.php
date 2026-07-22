@@ -6,7 +6,7 @@ use App\Models\Meet;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
+uses(RefreshDatabase::class)->group('club-entry-feature');
 
 // ── Feature-Test Helpers ──────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ describe('index', function () {
         $user = makeClubUser_p5($club);
         $meet = makeOpenMeet_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M']);
-        $athlete = makeAthlete_p5($club, 'M', ['S9']);
+        $athlete = makeAthlete_p5($club);
 
         Entry::create([
             'meet_id' => $meet->id,
@@ -64,7 +64,7 @@ describe('index', function () {
             ->assertForbidden();
     });
 
-})->group('club-entry-feature');
+});
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ describe('store', function () {
         $user = makeClubUser_p5($club);
         $meet = makeOpenMeet_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M', 'sport_classes' => '9']);
-        $athlete = makeAthlete_p5($club, 'M', ['S9']);
+        $athlete = makeAthlete_p5($club);
 
         $this->actingAs($user)
             ->post(route('club-entries.store', $meet), [
@@ -99,7 +99,7 @@ describe('store', function () {
         $user = makeClubUser_p5($club);
         $meet = makeOpenMeet_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M']);
-        $athlete = makeAthlete_p5($club, 'M', ['S9']);
+        $athlete = makeAthlete_p5($club);
 
         $this->actingAs($user)
             ->post(route('club-entries.store', $meet), [
@@ -109,8 +109,8 @@ describe('store', function () {
             ]);
 
         $entry = Entry::where('athlete_id', $athlete->id)->first();
-        expect($entry->entry_time)->toBeNull();
-        expect($entry->entry_time_code)->toBe('NT');
+        expect($entry->entry_time)->toBeNull()
+            ->and($entry->entry_time_code)->toBe('NT');
     });
 
     it('nach Meldeschluss ist Store nicht erlaubt', function () {
@@ -118,7 +118,7 @@ describe('store', function () {
         $user = makeClubUser_p5($club);
         $meet = makeOpenMeet_p5(['entries_deadline' => now()->subDay()->toDateString()]);
         $event = makeEvent_p5($meet, ['gender' => 'M']);
-        $athlete = makeAthlete_p5($club, 'M', ['S9']);
+        $athlete = makeAthlete_p5($club);
 
         $this->actingAs($user)
             ->post(route('club-entries.store', $meet), [
@@ -134,12 +134,15 @@ describe('store', function () {
         // Admin nutzt ersten Club
         $club = makeClub_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M']);
-        $athlete = makeAthlete_p5($club, 'M', ['S9']);
+        $athlete = makeAthlete_p5($club);
 
         $this->actingAs($admin)
             ->post(route('club-entries.store', $meet), [
                 'swim_event_id' => $event->id,
                 'athlete_id' => $athlete->id,
+                // Admins haben keinen eigenen Verein und müssen ihn explizit
+                // angeben (ClubEntryController::userClub()).
+                'club_id' => $club->id,
             ])
             ->assertRedirect(route('club-entries.index', $meet));
     });
@@ -150,7 +153,7 @@ describe('store', function () {
         $user = makeClubUser_p5($ownClub);
         $meet = makeOpenMeet_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M']);
-        $foreign = makeAthlete_p5($foreignClub, 'M', ['S9']);
+        $foreign = makeAthlete_p5($foreignClub);
 
         $this->actingAs($user)
             ->post(route('club-entries.store', $meet), [
@@ -160,7 +163,7 @@ describe('store', function () {
             ->assertStatus(404); // findOrFail schlägt fehl
     });
 
-})->group('club-entry-feature');
+});
 
 // ── Update ────────────────────────────────────────────────────────────────────
 
@@ -191,7 +194,7 @@ describe('update', function () {
         expect($entry->fresh()->entry_time)->toBe(6500);
     });
 
-})->group('club-entry-feature');
+});
 
 // ── Destroy ───────────────────────────────────────────────────────────────────
 
@@ -238,7 +241,7 @@ describe('destroy', function () {
             ->assertForbidden();
     });
 
-})->group('club-entry-feature');
+});
 
 // ── AJAX ──────────────────────────────────────────────────────────────────────
 
@@ -250,8 +253,8 @@ describe('AJAX eligible-athletes', function () {
         $meet = makeOpenMeet_p5();
         $event = makeEvent_p5($meet, ['gender' => 'M', 'sport_classes' => '9']);
 
-        $a1 = makeAthlete_p5($club, 'M', ['S9']);
-        makeAthlete_p5($club, 'F', ['S9']); // falsches Geschlecht
+        $a1 = makeAthlete_p5($club);
+        makeAthlete_p5($club, 'F'); // falsches Geschlecht
 
         $this->actingAs($user)
             ->getJson(route('club-entries.eligible-athletes', $meet).'?event_id='.$event->id)
@@ -260,4 +263,4 @@ describe('AJAX eligible-athletes', function () {
             ->assertJsonPath('0.id', $a1->id);
     });
 
-})->group('club-entry-feature');
+});

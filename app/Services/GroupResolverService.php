@@ -148,12 +148,15 @@ readonly class GroupResolverService
      * Gibt null zurück, wenn kein Geburtsdatum hinterlegt ist, oder wenn
      * für die Kombination keine einzige Altersgruppe aktiv ist (Erik
      * bestätigt: dann gemeinsame Wertung ohne Alterskategorie).
+     *
+     * @param  Collection<int, AgeGroup>|null  $ageGroups  optionale, vorab geladene aktive Altersgruppen (siehe loadAgeGroups()), um bei Massenverarbeitung N+1-Abfragen zu vermeiden; wirkt nur im statischen Zweig ohne $cup/$sportClassGroup
      */
     public function resolveAgeGroup(
         Athlete $athlete,
         CarbonInterface|string $meetDate,
         ?Cup $cup = null,
         ?SportClassGroup $sportClassGroup = null,
+        ?Collection $ageGroups = null,
     ): ?AgeGroup {
         if (! $athlete->birth_date) {
             return null;
@@ -177,10 +180,22 @@ readonly class GroupResolverService
             return $match['ageGroup'] ?? null;
         }
 
+        return ($ageGroups ?? $this->loadAgeGroups())
+            ->first(fn (AgeGroup $group) => $group->matchesAge($age));
+    }
+
+    /**
+     * Lädt die aktiven Altersgruppen einmalig in Sortierreihenfolge, damit
+     * resolveAgeGroup() bei vielen Athleten nicht pro Aufruf erneut abfragen
+     * muss — analog zu loadSportClassMap() für Sportklassen.
+     *
+     * @return Collection<int, AgeGroup>
+     */
+    public function loadAgeGroups(): Collection
+    {
         return AgeGroup::active()
             ->orderBy('sort_order')
-            ->get()
-            ->first(fn (AgeGroup $group) => $group->matchesAge($age));
+            ->get();
     }
 
     /**

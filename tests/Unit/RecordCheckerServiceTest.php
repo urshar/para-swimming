@@ -12,8 +12,9 @@ use App\Models\SwimEvent;
 use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
-uses(RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
 // ── Setup-Helpers ─────────────────────────────────────────────────────────────
 

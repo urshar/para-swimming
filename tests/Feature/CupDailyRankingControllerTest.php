@@ -193,6 +193,12 @@ describe('calculate', function () {
 describe('gemeinsame Damen/Herren-Wertung', function () {
     it('zeigt eine gemeinsame Bracket "Damen & Herren", wenn für die Gruppe aktiviert', function () {
         $group = SportClassGroup::create(['code' => 'PI', 'name_de' => 'PI', 'is_active' => true]);
+        // Ohne diese Zuordnung liefert resolveBaseSportClassGroup() null, die
+        // Ergebnisse fallen aus der Tageswertung und die Ansicht bleibt leer.
+        SportClassGroupMember::create([
+            'sport_class_group_id' => $group->id,
+            'sport_class' => 'S9',
+        ]);
         $cup = makeCup_cup4();
         $cup->groupSettings()->create(['sport_class_group_id' => $group->id, 'gender_combined' => true]);
         $meet = makeMeet_cup4($cup);

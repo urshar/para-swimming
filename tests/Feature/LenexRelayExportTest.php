@@ -126,6 +126,27 @@ function parseXml_p7(string $xml): SimpleXMLElement
     return $el;
 }
 
+// ── Hilfsfunktion: Export bauen ──────────────────────────────────────────────
+
+/**
+ * Baut den LENEX-Export für den Test.
+ *
+ * LenexExportService::build() deklariert eine DOMException; sie wird hier
+ * einmalig abgefangen und als RuntimeException weitergereicht, damit die
+ * einzelnen Testfälle die geprüfte Ausnahme nicht jeweils selbst behandeln
+ * müssen. Der Service wird direkt instanziiert statt über app(): Er hat keine
+ * Konstruktor-Abhängigkeiten, und der Container-Aufruf würde nur eine weitere
+ * geprüfte Ausnahme (BindingResolutionException) mitbringen.
+ */
+function buildLenex_p7(Meet $meet, string $exportType = 'entries'): string
+{
+    try {
+        return (new LenexExportService)->build($meet, $exportType);
+    } catch (DOMException $e) {
+        throw new RuntimeException('LENEX-Export fehlgeschlagen: '.$e->getMessage(), previous: $e);
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('LENEX Relay Export', function () {
@@ -147,16 +168,21 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "Schwimmer$i"), $i, 'S'.($i + 4));
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
         $relayEl = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY;
+        // LENEX 3.0: eventid/entrytime/entrycourse stehen auf RELAY > ENTRIES > ENTRY,
+        // nur number bleibt auf RELAY. Die Staffelklasse selbst wird nicht auf RELAY
+        // exportiert — sie steht auf EVENT > AGEGROUPS, die Klassen der Mitglieder
+        // auf RELAYPOSITION.
+        $entryEl = $relayEl->ENTRIES->ENTRY;
 
-        expect((string) $relayEl['eventid'])->toBe('EVT-10')
-            ->and((string) $relayEl['number'])->toBe('1')
-            ->and((string) $relayEl['entrytime'])->toBe('00:04:30.25')
-            ->and((string) $relayEl['entrycourse'])->toBe('SCM')
-            ->and((string) $relayEl['handicap'])->toBe('S20');
+        expect((string) $relayEl['number'])->toBe('1')
+            ->and((string) $entryEl['eventid'])->toBe('EVT-10')
+            ->and((string) $entryEl['entrytime'])->toBe('00:04:30.25')
+            ->and((string) $entryEl['entrycourse'])->toBe('SCM')
+            ->and((string) $entryEl->RELAYPOSITIONS->RELAYPOSITION[0]['handicap'])->toBe('S5');
     });
 
     it('exports NT when entry_time is null', function () {
@@ -171,11 +197,11 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "AthlNT$i"), $i, 'S5');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
-        $relayEl = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY;
-        expect((string) $relayEl['entrytime'])->toBe('NT');
+        $entryEl = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY->ENTRIES->ENTRY;
+        expect((string) $entryEl['entrytime'])->toBe('NT');
     });
 
     // ── RELAYPOSITIONS ────────────────────────────────────────────────────────
@@ -195,10 +221,11 @@ describe('LENEX Relay Export', function () {
             $athletes[] = $a;
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
-        $positionList = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY->RELAYPOSITIONS->RELAYPOSITION;
+        $positionList = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY
+            ->ENTRIES->ENTRY->RELAYPOSITIONS->RELAYPOSITION;
         $positions = iterator_to_array($positionList, false);
         expect(count($positions))->toBe(4);
 
@@ -226,10 +253,11 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "Fill$i"), $i, 'S5');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
-        $firstPos = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY->RELAYPOSITIONS->RELAYPOSITION[0];
+        $firstPos = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY
+            ->ENTRIES->ENTRY->RELAYPOSITIONS->RELAYPOSITION[0];
         // Fallback: DB-ID wird als athleteid verwendet
         expect((string) $firstPos['athleteid'])->toBe((string) $athlete->id);
     });
@@ -253,7 +281,7 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relayB, makeAthlete_p7($club, $nation, "B$i"), $i, 'S6');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
         $relays = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY;
@@ -279,7 +307,7 @@ describe('LENEX Relay Export', function () {
             $athletes[] = $a;
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
         $athleteIds = collect(iterator_to_array($root->MEETS->MEET->CLUBS->CLUB->ATHLETES->ATHLETE, false))
@@ -314,7 +342,7 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "Extra$i"), $i, 'S5');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
         $athleteIds = collect(iterator_to_array($root->MEETS->MEET->CLUBS->CLUB->ATHLETES->ATHLETE, false))
@@ -343,7 +371,7 @@ describe('LENEX Relay Export', function () {
             'sport_class' => 'S5',
         ]);
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
         $relays = $root->MEETS->MEET->CLUBS->CLUB->RELAYS;
@@ -364,7 +392,7 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "ResAth$i"), $i, 'S5');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'results');
+        $xml = buildLenex_p7($meet, 'results');
         expect($xml)->not->toContain('<RELAYS>');
     });
 
@@ -393,11 +421,11 @@ describe('LENEX Relay Export', function () {
             addMember_p7($relay, makeAthlete_p7($club, $nation, "FbkAth$i"), $i, 'S5');
         }
 
-        $xml = app(LenexExportService::class)->build($meet, 'entries');
+        $xml = buildLenex_p7($meet);
         $root = parseXml_p7($xml);
 
-        $relayEl = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY;
-        expect((string) $relayEl['eventid'])->toBe((string) $event->id);
+        $entryEl = $root->MEETS->MEET->CLUBS->CLUB->RELAYS->RELAY->ENTRIES->ENTRY;
+        expect((string) $entryEl['eventid'])->toBe((string) $event->id);
     });
 
 });
