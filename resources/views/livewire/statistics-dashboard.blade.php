@@ -34,7 +34,7 @@
                     <p class="text-xs text-zinc-400 mt-2">
                         @if(count($meetIds) > 0)
                             {{ count($meetIds) }} von {{ $this->availableMeets->count() }} ausgewählt.
-                            <button type="button" wire:click="resetMeetSelection()" class="underline hover:no-underline">
+                            <button type="button" wire:click="resetMeetSelection" class="underline hover:no-underline">
                                 Auswahl aufheben
                             </button>
                         @else
@@ -253,5 +253,53 @@
                 </div>
             @endif
         </div>
+    </div>
+
+    {{-- ── Jahresbericht ─────────────────────────────────────────────────── --}}
+    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mt-6">
+        <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Jahresbericht</h2>
+        <p class="text-xs text-zinc-400 mt-0.5 mb-4">
+            Jahr und Veranstaltungen werden aus der Auswahl oben übernommen. Jeder Abschnitt ist einzeln abwählbar.
+        </p>
+
+        <form method="GET" action="{{ route('statistics.report') }}" target="_blank">
+            <input type="hidden" name="year" value="{{ $year }}">
+            @foreach($meetIds as $selectedMeetId)
+                <input type="hidden" name="meet_ids[]" value="{{ $selectedMeetId }}">
+            @endforeach
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4">
+                @foreach($reportSections as $key => $label)
+                    <flux:checkbox name="sections[{{ $key }}]" value="1" checked label="{{ $label }}"/>
+                @endforeach
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                @foreach(['oebm_meet_ids' => 'Veranstaltungen als ÖBM werten', 'oejm_meet_ids' => 'Veranstaltungen als ÖJM werten'] as $field => $label)
+                    <div>
+                        <flux:label>{{ $label }}</flux:label>
+                        <select name="{{ $field }}[]" multiple size="4"
+                                class="mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700
+                                       bg-white dark:bg-zinc-900 text-sm p-2">
+                            @foreach($this->availableMeets as $meet)
+                                <option value="{{ $meet->id }}">
+                                    {{ $meet->name }} ({{ $this->formatDate($meet->start_date?->toDateString()) }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <flux:button type="submit" variant="primary" icon="document-text">
+                    Bericht anzeigen
+                </flux:button>
+                <flux:button type="submit" variant="filled" icon="arrow-down-tray"
+                             formaction="{{ route('statistics.report.pdf') }}">
+                    Als PDF
+                </flux:button>
+            </div>
+        </form>
     </div>
 </div>

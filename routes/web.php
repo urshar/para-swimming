@@ -25,6 +25,7 @@ use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\ResultController;
+use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
@@ -173,6 +174,8 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Statistik ─────────────────────────────────────────────────────────────
     Route::view('/statistics', 'statistics.page')->name('statistics.index');
+    Route::get('/statistics/report', [StatisticsController::class, 'report'])->name('statistics.report');
+    Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
     Route::resource('meets', MeetController::class);

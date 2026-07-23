@@ -32,6 +32,45 @@ class StatisticsDashboard extends Component
     /** Anzahl der Zeilen in den "Top"-Tabellen (Vereine, Sportler, Nationen). */
     public const int TOP_ROWS = 10;
 
+    /**
+     * Abschnitte, die das Dashboard tatsächlich darstellt. Alle übrigen
+     * Abschnitte aus ReportConfiguration::SECTION_KEYS werden deaktiviert und
+     * damit gar nicht erst berechnet.
+     *
+     * Bewusst als Positivliste: Kommt später ein Abschnitt hinzu, bleibt er
+     * für das Dashboard aus, bis er hier ergänzt und angezeigt wird.
+     *
+     * @var list<string>
+     */
+    private const array DISPLAYED_SECTIONS = [
+        'overview',
+        'meets',
+        'clubs',
+        'athletes',
+        'nations',
+        'records',
+    ];
+
+    /**
+     * Beschriftung der Abschnitte für die Auswahl des Jahresberichts.
+     * Die Schlüssel entsprechen ReportConfiguration::SECTION_KEYS.
+     *
+     * @var array<string, string>
+     */
+    public const array REPORT_SECTION_LABELS = [
+        'overview' => 'Allgemeiner Überblick',
+        'meets' => 'Teilnehmer und Starts',
+        'participants' => 'Altersgruppen und Geschlecht',
+        'clubs' => 'Vereinsstatistik',
+        'athletes' => 'Sportlerstatistik',
+        'nations' => 'Ausländische Teilnehmer',
+        'sport_classes' => 'Behinderungsgruppen und Sportklassen',
+        'records' => 'Rekorde',
+        'cup' => 'ÖBSV Cup',
+        'oebm' => 'ÖBM',
+        'oejm' => 'ÖJM',
+    ];
+
     public int $year;
 
     /** @var list<int> */
@@ -112,7 +151,10 @@ class StatisticsDashboard extends Component
 
     public function render(): View
     {
-        return view('statistics.dashboard', ['topRows' => self::TOP_ROWS]);
+        return view('livewire.statistics-dashboard', [
+            'topRows' => self::TOP_ROWS,
+            'reportSections' => self::REPORT_SECTION_LABELS,
+        ]);
     }
 
     /**
@@ -124,17 +166,11 @@ class StatisticsDashboard extends Component
         return ReportConfiguration::fromArray([
             'year' => $this->year,
             'meet_ids' => $this->meetIds,
-            'sections' => [
-                'overview' => true,
-                'meets' => true,
-                'clubs' => true,
-                'athletes' => true,
-                'nations' => true,
-                'records' => true,
-                'participants' => false,
-                'sport_classes' => false,
-                'cup' => false,
-            ],
+            'sections' => collect(ReportConfiguration::SECTION_KEYS)
+                ->mapWithKeys(fn (string $key): array => [
+                    $key => in_array($key, self::DISPLAYED_SECTIONS, true),
+                ])
+                ->all(),
         ]);
     }
 }

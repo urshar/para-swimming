@@ -40,12 +40,16 @@ final readonly class ReportConfiguration
         'sport_classes',
         'records',
         'cup',
+        'oebm',
+        'oejm',
     ];
 
     /**
      * @param  list<int>  $meetIds  ausgewählte Veranstaltungen; leer = alle Meets im Zeitraum
      * @param  array<string, bool>  $sections  Abschnitt => aktiv? (nur Schlüssel aus SECTION_KEYS)
      * @param  int  $minParticipations  Schwellenwert X für "mind. X Veranstaltungs-Teilnahmen" (Spec Phase 5), Standard 2
+     * @param  list<int>  $oebmMeetIds  Veranstaltungen, die als ÖBM ausgewertet werden (Spec Phase 13)
+     * @param  list<int>  $oejmMeetIds  Veranstaltungen, die als ÖJM ausgewertet werden (Spec Phase 13)
      */
     public function __construct(
         public int $year,
@@ -54,6 +58,8 @@ final readonly class ReportConfiguration
         public array $meetIds,
         public array $sections,
         public int $minParticipations = 2,
+        public array $oebmMeetIds = [],
+        public array $oejmMeetIds = [],
     ) {
         if ($this->dateFrom->greaterThan($this->dateTo)) {
             throw new InvalidArgumentException(
@@ -123,6 +129,8 @@ final readonly class ReportConfiguration
             meetIds: self::normalizeMeetIds($data['meet_ids'] ?? []),
             sections: self::normalizeSections($data['sections'] ?? []),
             minParticipations: $hasMin ? (int) $data['min_participations'] : 2,
+            oebmMeetIds: self::normalizeMeetIds($data['oebm_meet_ids'] ?? []),
+            oejmMeetIds: self::normalizeMeetIds($data['oejm_meet_ids'] ?? []),
         );
     }
 
@@ -172,7 +180,7 @@ final readonly class ReportConfiguration
     /**
      * Serialisierung für Views/PDF und Round-Trip-Tests.
      *
-     * @return array{year: int, date_from: string, date_to: string, meet_ids: list<int>, sections: array<string, bool>, min_participations: int}
+     * @return array{year: int, date_from: string, date_to: string, meet_ids: list<int>, sections: array<string, bool>, min_participations: int, oebm_meet_ids: list<int>, oejm_meet_ids: list<int>}
      */
     public function toArray(): array
     {
@@ -183,14 +191,38 @@ final readonly class ReportConfiguration
             'meet_ids' => $this->meetIds,
             'sections' => $this->sections,
             'min_participations' => $this->minParticipations,
+            'oebm_meet_ids' => $this->oebmMeetIds,
+            'oejm_meet_ids' => $this->oejmMeetIds,
         ];
+    }
+
+    /**
+     * Kopie der Konfiguration eingeschränkt auf bestimmte Veranstaltungen.
+     *
+     * Wird für die Meisterschaftsabschnitte (ÖBM/ÖJM) benötigt: Sie werten
+     * denselben Zeitraum aus, aber nur die dafür ausgewählten Veranstaltungen.
+     * Zeitraum, Jahr und Schwellenwert bleiben unverändert.
+     *
+     * @param  list<int>  $meetIds
+     */
+    public function restrictedToMeets(array $meetIds): self
+    {
+        return new self(
+            year: $this->year,
+            dateFrom: $this->dateFrom,
+            dateTo: $this->dateTo,
+            meetIds: self::normalizeMeetIds($meetIds),
+            sections: $this->sections,
+            minParticipations: $this->minParticipations,
+            oebmMeetIds: $this->oebmMeetIds,
+            oejmMeetIds: $this->oejmMeetIds,
+        );
     }
 
     /**
      * Normalisiert die Meet-IDs: zu int casten, Duplikate/0-Werte entfernen,
      * Schlüssel neu indizieren (echte Liste).
      *
-     * @param  mixed  $meetIds
      * @return list<int>
      */
     private static function normalizeMeetIds(mixed $meetIds): array
@@ -211,7 +243,6 @@ final readonly class ReportConfiguration
      * überschreiben den Default. Unbekannte Schlüssel führen zu einer
      * Exception (fängt Tippfehler früh ab).
      *
-     * @param  mixed  $sections
      * @return array<string, bool>
      *
      * @throws InvalidArgumentException bei unbekanntem Abschnittsschlüssel.

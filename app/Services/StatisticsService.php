@@ -40,7 +40,7 @@ final readonly class StatisticsService
      *   clubs          je Verein Teilnehmer und Starts
      *   athletes       je Sportler Teilnahmen und Starts
      *   nations        je Nation Teilnehmer und Starts
-     *   sport_classes je Sportklasse und Behinderungsgruppe
+     *   sport_classes  je Sportklasse und Behinderungsgruppe
      *   records        Rekorde des Zeitraums
      *   cup            Gesamtwertung des ÖBSV-Cups
      *
@@ -60,7 +60,7 @@ final readonly class StatisticsService
 
     /**
      * Baut einen einzelnen Abschnitt. Ausgelagert, damit generate() nur die
-     * Auswahl steuert und die Zuordnung Abschnitt → Service an einer Stelle
+     * Auswahl steuert und die Zuordnung Abschnitt ⇒ Service an einer Stelle
      * nachvollziehbar bleibt.
      *
      * Bewusst ohne default-Zweig: Wird ReportConfiguration::SECTION_KEYS um
@@ -93,7 +93,38 @@ final readonly class StatisticsService
                 'by_record_type' => $this->records->byRecordType($config),
             ],
             'cup' => $this->cup->overallRankingForConfiguration($config),
+            'oebm' => $this->championship($config, $config->oebmMeetIds),
+            'oejm' => $this->championship($config, $config->oejmMeetIds),
         };
+    }
+
+    /**
+     * Auswertung einer Meisterschaft (ÖBM/ÖJM, Spec Phase 13).
+     *
+     * Es gibt kein Datenfeld, das ein Meet als Meisterschaft kennzeichnet;
+     * maßgeblich ist deshalb die Auswahl der betreffenden Veranstaltungen in
+     * der Konfiguration. Ausgewertet wird derselbe Zeitraum, eingeschränkt auf
+     * diese Veranstaltungen — es kommen dieselben Services zum Einsatz wie im
+     * übrigen Bericht, es wird nichts gesondert berechnet.
+     *
+     * Ohne ausgewählte Veranstaltungen bleibt der Abschnitt leer.
+     *
+     * @param  list<int>  $meetIds
+     * @return array<string, mixed>
+     */
+    private function championship(ReportConfiguration $config, array $meetIds): array
+    {
+        if ($meetIds === []) {
+            return [];
+        }
+
+        $scoped = $config->restrictedToMeets($meetIds);
+
+        return [
+            'overview' => $this->participation->overview($scoped),
+            'meets' => $this->participation->byMeet($scoped),
+            'athletes' => $this->participation->byAthlete($scoped),
+        ];
     }
 
     /**
