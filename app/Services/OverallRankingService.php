@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AgeGroup;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
 use App\Models\CupOverallResult;
+use App\Models\SportClassGroup;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -74,6 +76,55 @@ readonly class OverallRankingService
     }
 
     /**
+     * Ermittelt die Wertungskategorien (Brackets) eines Cups dynamisch aus dem
+     * vorhandenen Snapshot: Sportklassengruppe × Altersgruppe × Geschlecht.
+     *
+     * Es werden ausschließlich Kombinationen geliefert, für die tatsächlich
+     * Gesamtwertungs-Zeilen existieren. Ist für eine Sportklassengruppe die
+     * gemeinsame Damen-/Herren-Wertung aktiviert (Cup::isGenderCombined), wird
+     * daraus ein einziges Bracket mit gender = null.
+     *
+     * Sortierung: Sportklassengruppe (sort_order), dann Geschlecht, dann
+     * Altersgruppe (sort_order); Zeilen ohne Altersgruppe zuletzt.
+     *
+     * @return Collection<int, array{gender: ?string, group: SportClassGroup, ageGroup: ?AgeGroup}>
+     */
+    public function brackets(Cup $cup): Collection
+    {
+        $rows = CupOverallResult::where('cup_id', $cup->id)
+            ->with(['sportClassGroup', 'ageGroup'])
+            ->get(['gender', 'sport_class_group_id', 'age_group_id']);
+
+        $brackets = collect();
+
+        foreach ($rows->groupBy(fn (CupOverallResult $row
+        ) => "$row->sport_class_group_id|$row->age_group_id") as $groupRows) {
+            $first = $groupRows->first();
+            $group = $first->sportClassGroup;
+            $ageGroup = $first->ageGroup;
+
+            if ($cup->isGenderCombined($group)) {
+                $brackets->push(['gender' => null, 'group' => $group, 'ageGroup' => $ageGroup]);
+
+                continue;
+            }
+
+            foreach ($groupRows->pluck('gender')->unique() as $gender) {
+                $brackets->push(['gender' => $gender, 'group' => $group, 'ageGroup' => $ageGroup]);
+            }
+        }
+
+        return $brackets
+            ->sortBy(fn (array $bracket) => sprintf(
+                '%03d-%s-%03d',
+                $bracket['group']->sort_order,
+                $bracket['gender'] ?? '',
+                $bracket['ageGroup']?->sort_order ?? 999
+            ))
+            ->values();
+    }
+
+    /**
      * Alle Tageswertungs-Zeilen des Cups gruppiert nach Athlet + Geschlecht +
      * Sportklassengruppe (die Bucket-Definition der Gesamtwertung).
      *
@@ -129,7 +180,11 @@ readonly class OverallRankingService
         $position = 0;
         $previousPoints = null;
 
-        return $rowsSortedByPointsDesc->map(function (CupOverallResult $row) use (&$rank, &$position, &$previousPoints) {
+        return $rowsSortedByPointsDesc->map(function (CupOverallResult $row) use (
+            &$rank,
+            &$position,
+            &$previousPoints
+        ) {
             $position++;
 
             if ($previousPoints === null || $row->total_points < $previousPoints) {

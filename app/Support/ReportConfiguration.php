@@ -32,6 +32,7 @@ final readonly class ReportConfiguration
      */
     public const array SECTION_KEYS = [
         'overview',
+        'meets',
         'participants',
         'clubs',
         'athletes',

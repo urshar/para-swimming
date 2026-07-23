@@ -120,37 +120,9 @@ class CupOverallRankingController extends Controller
      */
     private function resolveBrackets(Cup $cup, EloquentCollection $meets): Collection
     {
-        $rows = CupOverallResult::where('cup_id', $cup->id)
-            ->with(['sportClassGroup', 'ageGroup'])
-            ->get(['gender', 'sport_class_group_id', 'age_group_id']);
-
-        $byGroupAndAge = $rows->groupBy(fn (CupOverallResult $row) => "$row->sport_class_group_id|$row->age_group_id");
-
-        $brackets = collect();
-
-        foreach ($byGroupAndAge as $groupRows) {
-            $first = $groupRows->first();
-            $group = $first->sportClassGroup;
-            $ageGroup = $first->ageGroup;
-
-            if ($cup->isGenderCombined($group)) {
-                $brackets->push(['gender' => null, 'group' => $group, 'ageGroup' => $ageGroup]);
-
-                continue;
-            }
-
-            foreach ($groupRows->pluck('gender')->unique() as $gender) {
-                $brackets->push(['gender' => $gender, 'group' => $group, 'ageGroup' => $ageGroup]);
-            }
-        }
-
-        return $brackets
-            ->sortBy(fn (array $bracket) => sprintf(
-                '%03d-%s-%03d',
-                $bracket['group']->sort_order,
-                $bracket['gender'] ?? '',
-                $bracket['ageGroup']?->sort_order ?? 999
-            ))
+        // Die Ableitung der Wertungskategorien liegt im OverallRankingService,
+        // damit sie auch vom Statistikmodul genutzt werden kann.
+        return $this->overallRankingService->brackets($cup)
             ->map(function (array $bracket) use ($cup, $meets) {
                 $results = $this->overallRankingService->rankedBracket(
                     $cup->id, $bracket['gender'], $bracket['group']->id, $bracket['ageGroup']?->id

@@ -62,22 +62,28 @@ function makeCup_cup4(): Cup
 {
     $version = BaseTimeVersion::create(['label' => 'V1', 'valid_from' => '2021-01-01']);
 
-    $category = BaseTimeCategory::firstOrCreate(
-        ['course' => 'LCM', 'gender' => 'M'],
-        ['code' => 'LCM_M', 'label' => 'LCM Männer']
-    );
     $discipline = BaseTimeDiscipline::firstOrCreate(
         ['stroke_type_id' => makeStrokeType_cup4()->id, 'distance' => 100, 'relay_count' => 1],
         ['code' => 'FREE_100']
     );
     $sportClass = BaseTimeSportClass::firstOrCreate(['code' => 'S9'], ['sort_order' => 1]);
-    BaseTime::create([
-        'base_time_version_id' => $version->id,
-        'base_time_category_id' => $category->id,
-        'base_time_discipline_id' => $discipline->id,
-        'base_time_sport_class_id' => $sportClass->id,
-        'value_centiseconds' => 10000, // 100,00s — identisch zur Schwimmzeit in makeResult_cup4() → 1000 Punkte
-    ]);
+
+    // Basiszeiten für beide Geschlechter: Ohne Damen-Basiswert lassen sich
+    // Ergebnisse von Athletinnen nicht bepunkten und fallen aus der Wertung.
+    foreach ([['M', 'LCM_M', 'LCM Männer'], ['F', 'LCM_F', 'LCM Damen']] as [$gender, $code, $label]) {
+        $category = BaseTimeCategory::firstOrCreate(
+            ['course' => 'LCM', 'gender' => $gender],
+            ['code' => $code, 'label' => $label]
+        );
+
+        BaseTime::create([
+            'base_time_version_id' => $version->id,
+            'base_time_category_id' => $category->id,
+            'base_time_discipline_id' => $discipline->id,
+            'base_time_sport_class_id' => $sportClass->id,
+            'value_centiseconds' => 10000, // 100,00s — identisch zur Schwimmzeit in makeResult_cup4() → 1000 Punkte
+        ]);
+    }
 
     return Cup::create([
         'year' => 2026, 'name' => 'ÖBSV Cup 2026', 'base_time_version_id' => $version->id,

@@ -171,6 +171,9 @@ Route::middleware(['auth'])->group(function () {
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);
 
+    // ── Statistik ─────────────────────────────────────────────────────────────
+    Route::view('/statistics', 'statistics.page')->name('statistics.index');
+
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
     Route::resource('meets', MeetController::class);
 

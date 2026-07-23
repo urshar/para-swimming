@@ -144,7 +144,9 @@ describe('store', function () {
                 // angeben (ClubEntryController::userClub()).
                 'club_id' => $club->id,
             ])
-            ->assertRedirect(route('club-entries.index', $meet));
+            // Der Controller hängt den gewählten Verein an den Redirect an,
+            // damit die Liste danach denselben Verein zeigt.
+            ->assertRedirect(route('club-entries.index', ['meet' => $meet, 'club_id' => $club->id]));
     });
 
     it('Athlet aus fremdem Club wird abgelehnt', function () {
