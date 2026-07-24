@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 
 class Meet extends Model
 {
@@ -39,6 +40,25 @@ class Meet extends Model
         'is_open' => 'boolean',
         'entries_deadline' => 'date',
     ];
+
+    /**
+     * Jahre, für die Veranstaltungen erfasst sind — absteigend.
+     *
+     * Bewusst in PHP aus den Startdaten abgeleitet statt per YEAR()/strftime(),
+     * damit die Abfrage auf MySQL und SQLite gleich funktioniert.
+     *
+     * @return SupportCollection<int, int>
+     */
+    public static function yearsWithMeets(): SupportCollection
+    {
+        return self::query()
+            ->whereNotNull('start_date')
+            ->orderByDesc('start_date')
+            ->pluck('start_date')
+            ->map(fn ($date): int => (int) $date->year)
+            ->unique()
+            ->values();
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 

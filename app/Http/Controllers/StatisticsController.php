@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Meet;
 use App\Services\PdfExportService;
+use App\Services\StatisticsExportService;
 use App\Services\StatisticsService;
 use App\Support\ReportConfiguration;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Writer\Exception as SpreadsheetException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -58,6 +61,74 @@ class StatisticsController extends Controller
             ],
             "jahresbericht-$config->year.pdf",
         );
+    }
+
+    /**
+     * Derselbe Bericht als Excel-Datei (Spec Phase 15).
+     *
+     * Mit dem Parameter "section" lässt sich ein einzelner Statistikbereich
+     * exportieren; ohne ihn enthält die Datei alle aktivierten Abschnitte,
+     * je Tabelle ein Arbeitsblatt.
+     *
+     * @throws SpreadsheetException
+     */
+    public function reportXlsx(
+        Request $request,
+        StatisticsService $statistics,
+        StatisticsExportService $export,
+    ): BinaryFileResponse {
+        return $this->downloadExport($request, $statistics, $export, 'xlsx');
+    }
+
+    /**
+     * Derselbe Bericht als CSV-Datei (Spec Phase 15).
+     *
+     * @throws SpreadsheetException
+     */
+    public function reportCsv(
+        Request $request,
+        StatisticsService $statistics,
+        StatisticsExportService $export,
+    ): BinaryFileResponse {
+        return $this->downloadExport($request, $statistics, $export, 'csv');
+    }
+
+    /**
+     * Gemeinsamer Ablauf beider Dateiexporte: Konfiguration bauen, Abschnitte
+     * holen, Datei erzeugen und nach dem Ausliefern wieder entfernen — im
+     * selben Muster wie der bestehende BaseTimeExportController.
+     *
+     * @throws SpreadsheetException
+     */
+    private function downloadExport(
+        Request $request,
+        StatisticsService $statistics,
+        StatisticsExportService $export,
+        string $format,
+    ): BinaryFileResponse {
+        $config = $this->configurationFrom($request);
+        $section = $this->requestedSection($request);
+        $sections = $statistics->generate($config);
+
+        $path = $format === 'csv'
+            ? $export->csv($sections, $section)
+            : $export->xlsx($sections, $section);
+
+        return response()
+            ->download($path, $export->downloadFilename($config, $format, $section))
+            ->deleteFileAfterSend();
+    }
+
+    /**
+     * Optionaler Einzelabschnitt für den Export. Unbekannte Werte werden
+     * ignoriert, damit ein manipulierter Parameter nicht zu einem Fehler,
+     * sondern schlicht zum vollständigen Export führt.
+     */
+    private function requestedSection(Request $request): ?string
+    {
+        $section = $request->string('section')->toString();
+
+        return in_array($section, ReportConfiguration::SECTION_KEYS, true) ? $section : null;
     }
 
     /**

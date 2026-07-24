@@ -33,25 +33,6 @@ class StatisticsDashboard extends Component
     public const int TOP_ROWS = 10;
 
     /**
-     * Abschnitte, die das Dashboard tatsächlich darstellt. Alle übrigen
-     * Abschnitte aus ReportConfiguration::SECTION_KEYS werden deaktiviert und
-     * damit gar nicht erst berechnet.
-     *
-     * Bewusst als Positivliste: Kommt später ein Abschnitt hinzu, bleibt er
-     * für das Dashboard aus, bis er hier ergänzt und angezeigt wird.
-     *
-     * @var list<string>
-     */
-    private const array DISPLAYED_SECTIONS = [
-        'overview',
-        'meets',
-        'clubs',
-        'athletes',
-        'nations',
-        'records',
-    ];
-
-    /**
      * Beschriftung der Abschnitte für die Auswahl des Jahresberichts.
      * Die Schlüssel entsprechen ReportConfiguration::SECTION_KEYS.
      *
@@ -71,6 +52,25 @@ class StatisticsDashboard extends Component
         'oejm' => 'ÖJM',
     ];
 
+    /**
+     * Abschnitte, die das Dashboard tatsächlich darstellt. Alle übrigen
+     * Abschnitte aus ReportConfiguration::SECTION_KEYS werden deaktiviert und
+     * damit gar nicht erst berechnet.
+     *
+     * Bewusst als Positivliste: Kommt später ein Abschnitt hinzu, bleibt er
+     * für das Dashboard aus, bis er hier ergänzt und angezeigt wird.
+     *
+     * @var list<string>
+     */
+    private const array DISPLAYED_SECTIONS = [
+        'overview',
+        'meets',
+        'clubs',
+        'athletes',
+        'nations',
+        'records',
+    ];
+
     public int $year;
 
     /** @var list<int> */
@@ -84,21 +84,12 @@ class StatisticsDashboard extends Component
     /**
      * Jahre, für die überhaupt Veranstaltungen vorliegen — absteigend.
      *
-     * Bewusst in PHP aus den Startdaten abgeleitet statt per YEAR()/strftime(),
-     * damit die Abfrage auf MySQL und SQLite gleich funktioniert.
-     *
      * @return Collection<int, int>
      */
     #[Computed]
     public function availableYears(): Collection
     {
-        return Meet::query()
-            ->whereNotNull('start_date')
-            ->orderByDesc('start_date')
-            ->pluck('start_date')
-            ->map(fn ($date): int => (int) $date->year)
-            ->unique()
-            ->values();
+        return Meet::yearsWithMeets();
     }
 
     /**

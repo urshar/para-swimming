@@ -1,6 +1,17 @@
 @php
     /** @var array<string, mixed> $stats */
     $stats = $this->statistics;
+
+    /*
+     * Native <select>-Elemente erben im Dunkelmodus weder Textfarbe noch
+     * Farbschema — ohne explizite Angabe steht schwarze Schrift auf dunklem
+     * Grund. color-scheme sorgt zusätzlich dafür, dass der Browser Rahmen und
+     * Bildlaufleiste passend zeichnet.
+     */
+    $selectClasses = 'mt-1 w-full rounded-lg border p-2 text-sm '
+        .'border-zinc-200 bg-white text-zinc-900 '
+        .'dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:[color-scheme:dark]';
+    $optionClasses = 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100';
     $overview = $stats['overview'];
     $records = $stats['records'];
 @endphp
@@ -278,17 +289,25 @@
                 @foreach(['oebm_meet_ids' => 'Veranstaltungen als ÖBM werten', 'oejm_meet_ids' => 'Veranstaltungen als ÖJM werten'] as $field => $label)
                     <div>
                         <flux:label>{{ $label }}</flux:label>
-                        <select name="{{ $field }}[]" multiple size="4"
-                                class="mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700
-                                       bg-white dark:bg-zinc-900 text-sm p-2">
+                        <select name="{{ $field }}[]" multiple size="4" class="{{ $selectClasses }}">
                             @foreach($this->availableMeets as $meet)
-                                <option value="{{ $meet->id }}">
+                                <option value="{{ $meet->id }}" class="{{ $optionClasses }}">
                                     {{ $meet->name }} ({{ $this->formatDate($meet->start_date?->toDateString()) }})
                                 </option>
                             @endforeach
                         </select>
                     </div>
                 @endforeach
+            </div>
+
+            <div class="mb-4 max-w-md">
+                <flux:label>Nur ein Bereich exportieren (optional, für Excel und CSV)</flux:label>
+                <select name="section" class="{{ $selectClasses }}">
+                    <option value="" class="{{ $optionClasses }}">Alle gewählten Abschnitte</option>
+                    @foreach($reportSections as $sectionKey => $sectionLabel)
+                        <option value="{{ $sectionKey }}" class="{{ $optionClasses }}">{{ $sectionLabel }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -298,6 +317,14 @@
                 <flux:button type="submit" variant="filled" icon="arrow-down-tray"
                              formaction="{{ route('statistics.report.pdf') }}">
                     Als PDF
+                </flux:button>
+                <flux:button type="submit" variant="filled" icon="table-cells"
+                             formaction="{{ route('statistics.report.xlsx') }}">
+                    Als Excel
+                </flux:button>
+                <flux:button type="submit" variant="filled" icon="document"
+                             formaction="{{ route('statistics.report.csv') }}">
+                    Als CSV
                 </flux:button>
             </div>
         </form>
