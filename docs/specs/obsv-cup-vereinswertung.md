@@ -1,11 +1,10 @@
-# ÖBSV Cup Vereinswertung -- Spezifikation
+# ÖBSV Cup Vereinswertung — Spezifikation
 
-**Status:** Entwurf zur Implementierung\
-**Modul:** ÖBSV Cup Vereinswertung\
-**Projekt:** Para Swimming NatDB\
-**Technologie:** Laravel 13, PHP 8.3+, Livewire 4, Flux UI 2, Blade, MySQL / SQLite-Tests
+**Status:** Freigegeben zur Implementierung (Entscheidungen aus Phase 0 eingearbeitet)
+**Modul:** ÖBSV Cup Vereinswertung **Projekt:** Para Swimming NatDB **Technologie:** Laravel 13, PHP 8.3+, Livewire 4,
+Flux UI 2, Blade, MySQL / SQLite-Tests
 
-------------------------------------------------------------------------
+---
 
 ## 1. Ziel des Moduls
 
@@ -15,865 +14,499 @@ Die bestehende Vereinswertung basiert auf der absoluten Anzahl der Starts. Dadur
 vielen aktiven Schwimmern realistische Chancen auf die vorderen Plätze. Vereine mit wenigen Athleten können trotz sehr
 guter sportlicher Leistungen kaum unter die Top 3 kommen.
 
-Das neue Modul soll daher zwei Wertungssysteme parallel unterstützen:
+Das neue Modul unterstützt daher **zwei Wertungssysteme parallel**:
 
-1. **Historische / klassische Startwertung**
+1. **Historische / klassische Startwertung (System A)**
     - Rangfolge nach der Anzahl der Starts.
-    - Dient der Darstellung der bisherigen Wertungen.
-    - Muss für vergangene Jahre weiterhin reproduzierbar sein.
-2. **Neue leistungsorientierte Vereinswertung**
+    - Bildet die bisherige Wertung ab und muss für vergangene Jahre reproduzierbar bleiben.
+2. **Neue leistungsorientierte Vereinswertung (System B)**
     - Berücksichtigt die sportliche Leistung der Athleten.
     - Begrenzt den Vorteil sehr großer Vereine.
     - Ermöglicht auch Vereinen mit wenigen Startern eine realistische Chance auf die Top 3.
-    - Die Wertungslogik muss langfristig erweiterbar und konfigurierbar sein.
+    - Die Wertungslogik ist konfigurierbar und langfristig erweiterbar.
 
-------------------------------------------------------------------------
+---
 
 ## 2. Geltungsbereich
 
-Für die Vereinswertung werden ausschließlich Wettkämpfe berücksichtigt, die einem ÖBSV Cup zugeordnet sind.
+Für die Vereinswertung werden ausschließlich Wettkämpfe berücksichtigt, die einem ÖBSV Cup zugeordnet sind. Ein Meet ist
+Cup-relevant, wenn:
 
-Ein Meet ist Cup-relevant, wenn:
-
-``` text
+```text
 meets.cup_id IS NOT NULL
 ```
 
-Es dürfen keine Ergebnisse aus normalen Wettkämpfen, Landesmeisterschaften, Österreichischen Meisterschaften oder
-anderen Veranstaltungen automatisch in die ÖBSV-Cup-Vereinswertung einfließen.
+Es fließen keine Ergebnisse aus normalen Wettkämpfen, Landesmeisterschaften, Österreichischen Meisterschaften oder
+anderen Veranstaltungen automatisch in die Vereinswertung ein.
 
-Die Auswertung erfolgt immer innerhalb eines bestimmten Cups bzw. Cup-Jahres.
+Die Auswertung erfolgt immer innerhalb eines bestimmten Cups bzw. Cup-Jahres (`cups.year`), z.B. "ÖBSV Cup 2026". Die
+Wertungen vergangener Jahre müssen jederzeit abrufbar sein.
 
-Beispiel:
+---
 
-``` text
-ÖBSV Cup 2026
-ÖBSV Cup 2027
-ÖBSV Cup 2028
+## 3. Wertungssystem A — Klassische Startwertung
+
+### 3.1 Zweck
+
+Die klassische Wertung bildet die bisherige Vereinswertung ab und beantwortet: **Welcher Verein hatte im ÖBSV Cup die
+meisten Starts?**
+
+### 3.2 Definition eines Starts
+
+```text
+1 Athlet + 1 Einzelbewerb + 1 ÖBSV-Cup-Meet = 1 Start
 ```
 
-Die Wertungen vergangener Jahre müssen jederzeit abrufbar sein.
+- Ein **Einzelbewerb** ist die logische Disziplin, abgebildet über **Distanz + Schwimmart** (`swim_events.distance` +
+  `swim_events.stroke_type_id`). Mehrere Ergebnisse desselben Athleten in derselben Disziplin und demselben Meet —
+  insbesondere **Vorlauf und Finale** (getrennte `swim_events`) sowie verschiedene **Läufe/Heats** — zählen als **genau
+  ein Start**. In der Praxis sind die ÖBSV-Cup-Meets überwiegend Timed Finals (`round = TIM`), sodass diese
+  Zusammenfassung selten greift, aber korrekt bleibt.
+- **Staffelstarts werden nicht berücksichtigt** (`swim_events.relay_count > 1`).
+- Als Start zählen **angetretene Einzelergebnisse**: reguläre Ergebnisse (`results.status = null`) sowie **DSQ** und
+  **DNF** (der Athlet ist angetreten). **Nicht** gewertet werden **DNS, SICK, WDR** (nicht angetreten) und **EXH**
+  (außer Konkurrenz).
+- Maßgeblich ist der **Startverein zum Zeitpunkt des Ergebnisses** (`results.club_id`, siehe §9).
 
-------------------------------------------------------------------------
+> Diese Start-Definition ist mit dem ÖBSV abgestimmt und deckt sich mit der bestehenden Statistiklogik
+> (`ParticipationStatisticsService`), erweitert um den zusätzlichen Ausschluss von **EXH** und die Zusammenfassung von
+> Runden/Heats zu einem Start je Disziplin. Sie ist im Code an genau einer Stelle gekapselt
+> (`StartBasedClubRankingService`), damit sie zentral anpassbar bleibt.
 
-# 3. Wertungssystem A -- Klassische Startwertung
-
-## 3.1 Zweck
-
-Die klassische Wertung bildet die bisherige Vereinswertung ab.
-
-Sie beantwortet:
-
-> Welcher Verein hatte im ÖBSV Cup die meisten Starts?
-
-## 3.2 Definition eines Starts
-
-Ein Start ist eine gültige Einzelmeldung bzw. ein gültiges Einzelergebnis eines Athleten in einem ÖBSV-Cup-Meet.
-
-Staffelstarts werden nicht berücksichtigt.
-
-Die Wertung soll sich bevorzugt an den tatsächlich vorhandenen Resultaten orientieren.
-
-Grundsätzlich zählen:
-
-``` text
-1 Athlet
-+ 1 Einzelbewerb
-+ 1 ÖBSV-Cup-Meet
-= 1 Start
-```
-
-Ein mehrfaches Ergebnis desselben Athleten im selben Bewerb darf nicht mehrfach gezählt werden, wenn es sich nur um
-verschiedene Läufe / Heats desselben Bewerbs handelt.
-
-Die genaue technische Umsetzung muss die bestehende Datenstruktur und die bestehende Statistiklogik berücksichtigen.
-
-## 3.3 Rangfolge
-
-Sortierung:
+### 3.3 Rangfolge
 
 1. Anzahl Starts absteigend
 2. Anzahl unterschiedlicher Athleten absteigend
-3. Vereinsname aufsteigend
+3. Anzahl unterschiedlicher Cup-Meets absteigend
+4. Vereinsname aufsteigend
 
-## 3.4 Historische Darstellung
+Vereine mit identischen Kriterien (Starts, Athleten, Meets) teilen sich einen Rang; der nächste Rang überspringt
+entsprechend (Sportwertung). Der Vereinsname ist nur ein stabiles Anzeigekriterium und beeinflusst den Rang nicht.
 
-Für jeden Cup müssen folgende Informationen dargestellt werden können:
+### 3.4 Historische Darstellung
 
-Rang Verein Starts Athleten
-  ------ ---------- -------- ----------
-1 Verein A 142 18 2 Verein B 117 12 3 Verein C 98 9
+Je Cup darstellbar:
+
+| Rang | Verein   | Starts | Athleten |
+|------|----------|--------|----------|
+| 1    | Verein A | 142    | 18       |
+| 2    | Verein B | 117    | 12       |
+| 3    | Verein C | 98     | 9        |
 
 Die historische Startwertung muss auch für bereits vergangene Cup-Jahre abrufbar sein.
 
-------------------------------------------------------------------------
+---
 
-# 4. Wertungssystem B -- Neue leistungsorientierte Vereinswertung
+## 4. Wertungssystem B — Neue leistungsorientierte Vereinswertung
 
-## 4.1 Ziel
+### 4.1 Ziel
 
-Die neue Wertung soll nicht ausschließlich die Größe eines Vereins belohnen.
+Die neue Wertung belohnt nicht ausschließlich die Größe eines Vereins. Ein Verein mit wenigen Athleten soll eine
+realistische Chance auf einen Spitzenplatz haben, wenn diese Athleten überdurchschnittliche Leistungen erbringen.
+Gleichzeitig soll ein großer Verein nicht vollständig benachteiligt werden. Daher wird ein **gewichtetes
+Top-Athleten-Modell** verwendet.
 
-Ein Verein mit wenigen Athleten soll eine realistische Chance auf einen Spitzenplatz haben, wenn diese Athleten
-überdurchschnittliche Leistungen erbringen.
+### 4.2 Grundprinzip
 
-Gleichzeitig soll ein großer Verein nicht vollständig benachteiligt werden.
+Die Berechnung erfolgt in drei Ebenen:
 
-Daher wird ein **gewichtetes Top-Athleten-Modell** empfohlen.
-
-------------------------------------------------------------------------
-
-## 4.2 Grundprinzip
-
-Die Vereinswertung wird nicht direkt über alle Starts berechnet.
-
-Stattdessen erfolgt die Berechnung in drei Ebenen:
-
-``` text
-Ergebnis
-    ↓
-Athletenwertung
-    ↓
-Vereinswertung
+```text
+Ergebnis → Athletenwertung → Vereinswertung
 ```
 
-### Ebene 1 -- Ergebnis
+- **Ebene 1 — Ergebnis:** Ein Athlet erzielt bei einem ÖBSV-Cup-Meet ein Ergebnis.
+- **Ebene 2 — Athletenwertung:** Für jeden Athleten werden seine besten Cup-Leistungen ermittelt.
+- **Ebene 3 — Vereinswertung:** Für jeden Verein werden die besten Athleten gewichtet berücksichtigt. Die Anzahl
+  einfließender Athleten ist begrenzt und gewichtet — dadurch entsteht ein kontrollierter, aber kein unbegrenzter
+  Vorteil für größere Vereine.
 
-Ein Athlet erzielt bei einem ÖBSV-Cup-Meet ein Ergebnis.
+---
 
-### Ebene 2 -- Athletenwertung
+## 5. Berechnungsmodell
 
-Für jeden Athleten werden seine besten Cup-Leistungen ermittelt.
+### 5.1 Schritt 1 — Punkte pro Ergebnis
 
-### Ebene 3 -- Vereinswertung
+Für jedes gültige Einzelresultat werden die **bereits vorhandenen ÖBSV-Cup-Punkte** verwendet.
 
-Für jeden Verein werden die besten Athleten berücksichtigt.
+**Datenquelle (Entscheidung Phase 0):** Die Punkte werden aus dem bestehenden Snapshot `cup_daily_results` gelesen.
+Dieser enthält je Athlet und Cup-Meet bereits das **punktbeste gültige Einzelergebnis**, dessen Punkte, über den
+`WorldAquaticsPointsService` gegen die im Cup konfigurierte Basiswert-Version berechnet wurden, inklusive `club_id`
+(Startverein), Sportklassengruppe und Geschlecht.
 
-Die Anzahl der Athleten, die in die Vereinswertung einfließen, wird begrenzt und gewichtet.
+Die Vereinswertung implementiert **keine** eigene, abweichende Punkteberechnung parallel zum bestehenden Cup-System
+(Spec §19). Sie baut ausschließlich auf der bestehenden Cup-Punktelogik auf.
 
-Dadurch entsteht ein kontrollierter Vorteil für größere Vereine, aber kein unbegrenzter Vorteil.
+> **Snapshot-Abhängigkeit:** `cup_daily_results` wird pro Cup-Meet manuell über die Tageswertung berechnet. Fehlt für
+> ein Cup-Meet die Tageswertung, fehlt es in der Leistungswertung. Die UI muss diesen Zustand erkennbar machen (siehe
+> §12 / §13).
 
-------------------------------------------------------------------------
+### 5.2 Schritt 2 — Beste Leistung pro Athlet und Meet
 
-# 5. Empfohlenes Berechnungsmodell
+Bereits durch `cup_daily_results` gegeben: je Athlet und Cup-Meet zählt nur die beste Leistung. Damit erhält ein Athlet
+mit sehr vielen Starts keinen unverhältnismäßigen Vorteil.
 
-## 5.1 Schritt 1 -- Punkte pro Ergebnis
+Beispiel: Athlet A bei Meet 1 mit 50 m Freistil (720), 100 m Freistil (810), 100 m Rücken (760) → gewertet werden **810
+Punkte**.
 
-Für jedes gültige Einzelresultat werden die bereits vorhandenen ÖBSV-Cup-Punkte verwendet.
+### 5.3 Schritt 3 — Saisonwertung pro Athlet (je Verein)
 
-Die Wertung soll möglichst auf bestehender Cup-Logik aufbauen.
+Für jeden Athleten werden die besten Cup-Meet-Leistungen der Saison aufsummiert. Empfohlene Standardkonfiguration:
 
-Falls für ein Resultat bereits Cup-Punkte vorhanden sind:
-
-``` text
-Cup-Punkte verwenden
-```
-
-Alternativ kann die Wertung auf Basis der bestehenden ÖBSV-1000-Punkte-Tabelle erfolgen.
-
-Die Vereinswertung darf keine eigene, abweichende Punkteberechnung parallel zum bestehenden Cup-System implementieren,
-wenn die vorhandene Cup-Punkteberechnung fachlich identisch verwendet werden kann.
-
-------------------------------------------------------------------------
-
-## 5.2 Schritt 2 -- Beste Leistung pro Athlet und Meet
-
-Innerhalb eines ÖBSV-Cup-Meets wird pro Athlet nur die beste Leistung für die Vereinswertung berücksichtigt.
-
-Beispiel:
-
-``` text
-Athlet A – Meet 1
-50 m Freistil: 720 Punkte
-100 m Freistil: 810 Punkte
-100 m Rücken: 760 Punkte
-```
-
-Für die Vereinswertung des Meets:
-
-``` text
-Bestes Ergebnis = 810 Punkte
-```
-
-Damit verhindert die Wertung, dass ein Athlet mit sehr vielen Starts automatisch einen unverhältnismäßig großen Vorteil
-erhält.
-
-------------------------------------------------------------------------
-
-## 5.3 Schritt 3 -- Saisonwertung pro Athlet
-
-Für jeden Athleten werden die besten Cup-Meet-Leistungen der Saison berücksichtigt.
-
-Empfohlene Standardkonfiguration:
-
-``` text
-Maximal 3 beste Cup-Meets pro Athlet
-```
-
-Beispiel:
-
-Meet Punkte
-  ------------ --------
-Cup Meet 1 810 Cup Meet 2 790 Cup Meet 3 760 Cup Meet 4 720
-
-Athletenwert:
-
-``` text
-810 + 790 + 760 = 2.360 Punkte
-```
-
-Das vierte Meet wird nicht berücksichtigt.
-
-Die Anzahl der zu berücksichtigenden Meets muss konfigurierbar sein.
-
-Beispiel:
-
-``` text
+```text
 counted_meets_per_athlete = 3
 ```
 
-------------------------------------------------------------------------
+Beispiel: Meets mit 810 / 790 / 760 / 720 → Athletenwert = 810 + 790 + 760 = **2.360** (das vierte Meet fällt weg).
 
-# 6. Schritt 4 -- Vereinswertung mit gewichteten Top-Athleten
+**Vereinswechsel (Entscheidung Phase 0, §9):** Der Saisonwert wird **je Verein getrennt** gebildet. Ein Athlet, der
+innerhalb der Saison den Verein wechselt, trägt bei jedem seiner Vereine nur mit den dort (laut `results.club_id`)
+erzielten Cup-Meets bei. Die "besten N Meets" werden also je (Athlet, Verein) ermittelt, nicht global je Athlet.
 
-Für jeden Verein werden die Athleten nach ihrer Saisonleistung sortiert.
+Die Anzahl der zu berücksichtigenden Meets ist konfigurierbar (`counted_meets_per_athlete`, siehe §8).
 
-Beispiel:
+---
 
-Athlet Saisonleistung
-  ---------- ----------------
-Athlet A 2.700 Athlet B 2.400 Athlet C 2.100 Athlet D 1.900 Athlet E 1.600 Athlet F 1.500 Athlet G 1.200
+## 6. Schritt 4 — Vereinswertung mit gewichteten Top-Athleten
 
-Es werden maximal die besten fünf Athleten berücksichtigt.
+Für jeden Verein werden die (je Verein ermittelten) Athleten-Saisonwerte absteigend sortiert. Es werden maximal die
+besten `max_counted_athletes_per_club` Athleten gewichtet berücksichtigt.
 
-Empfohlene Gewichtung:
+Standardgewichtung (Top 5):
 
-Position Gewicht
-  ---------- ---------
-1 100 % 2 80 % 3 60 % 4 40 % 5 20 %
+| Position | Gewicht |
+|----------|---------|
+| 1        | 100 %   |
+| 2        | 80 %    |
+| 3        | 60 %    |
+| 4        | 40 %    |
+| 5        | 20 %    |
 
-Berechnung:
-
-``` text
-Vereinswert =
-Athlet 1 × 1,00
-+ Athlet 2 × 0,80
-+ Athlet 3 × 0,60
-+ Athlet 4 × 0,40
-+ Athlet 5 × 0,20
+```text
+Vereinswert = A1×1,00 + A2×0,80 + A3×0,60 + A4×0,40 + A5×0,20
 ```
 
-Beispiel:
+Beispiel (2.700 / 2.400 / 2.100 / 1.900 / 1.600):
 
-``` text
-2.700 × 1,00 = 2.700
-2.400 × 0,80 = 1.920
-2.100 × 0,60 = 1.260
-1.900 × 0,40 =   760
-1.600 × 0,20 =   320
-
-Gesamt = 6.960 Punkte
+```text
+2.700×1,00 = 2.700
+2.400×0,80 = 1.920
+2.100×0,60 = 1.260
+1.900×0,40 =   760
+1.600×0,20 =   320
+Gesamt     = 6.960
 ```
 
-Ein Verein mit nur zwei Athleten kann somit ebenfalls in die Wertung gelangen:
+Ein Verein mit nur zwei Athleten kann ebenfalls in die Wertung gelangen (2.700×1,00 + 2.400×0,80 = 4.620). Zusätzliche
+Athleten außerhalb der Top N bringen keinen weiteren Vorteil.
 
-``` text
-2.700 × 1,00
-+ 2.400 × 0,80
-= 4.620 Punkte
+---
+
+## 7. Warum dieses Modell
+
+- **Kleine Vereine:** Wenige, aber sehr gute Athleten ergeben eine hohe Wertung.
+- **Mittlere Vereine:** Mehrere gute Athleten erhöhen die Chance auf Spitzenplätze.
+- **Große Vereine:** Viele Athleten bleiben ein Vorteil, aber ein begrenzter — allein durch Masse lässt sich die Wertung
+  nicht dominieren.
+
+---
+
+## 8. Konfigurierbarkeit
+
+Die Wertung ist nicht hardcodiert. Konfigurierbar sind:
+
+```text
+include_foreign_clubs           (Standard false — gilt für beide Wertungssysteme)
+counted_meets_per_athlete       (Standard 3 — nur Leistungswertung)
+max_counted_athletes_per_club   (Standard 5 — nur Leistungswertung)
+athlete_weights                 (Standard 1: 1.00 / 2: 0.80 / 3: 0.60 / 4: 0.40 / 5: 0.20)
 ```
 
-Der Verein erhält keinen automatischen Vorteil durch zusätzliche Athleten außerhalb der Top 5.
+**Ausländische Vereine (`include_foreign_clubs`):** Standardmäßig werden nur österreichische Vereine
+(`club.nation.code = 'AUT'`) gewertet. Über die Konfiguration lassen sich ausländische Vereine (Gaststarts) zuschalten.
+Der Wert gilt für **beide** Wertungssysteme. `StartBasedClubRankingService::getRanking()` akzeptiert zusätzlich ein
+optionales Argument `$includeForeignClubs`, das den Konfigurationswert je Aufruf überschreiben kann (Standard:
+Konfigurationswert).
 
-------------------------------------------------------------------------
+**Ablageort (Entscheidung Phase 0):** Die Konfiguration liegt in einer **Config-Datei** (`config/cup_club_ranking.php`)
+mit den obigen Standardwerten. `counted_meets_per_athlete` ist bewusst **unabhängig** von `cups.best_of_count` (die
+Gesamtwertung der Athleten ist eine fachlich andere Wertung als die Vereinswertung).
 
-# 7. Warum dieses Modell empfohlen wird
+Die Datenstruktur ist so zu halten, dass spätere abweichende Konfigurationen (z.B. Top 3 mit 100/75/50 % oder Top 8 mit
+100…30 %) sowie ein späterer Snapshot mit `configuration_snapshot` (§12.2) möglich bleiben.
 
-Das Modell verbindet drei Ziele:
+---
 
-### Kleine Vereine
+## 9. Vereinszugehörigkeit
 
-Ein Verein mit wenigen Athleten kann mit sehr guten Leistungen eine hohe Wertung erreichen.
+Maßgeblich ist der Verein, für den der Athlet **beim jeweiligen Ergebnis** gestartet ist:
 
-### Mittlere Vereine
-
-Mehrere gute Athleten erhöhen die Chance auf eine Spitzenplatzierung.
-
-### Große Vereine
-
-Viele Athleten sind weiterhin ein Vorteil, aber der Vorteil ist begrenzt.
-
-Ein Verein kann nicht allein durch eine sehr große Anzahl an Athleten die Wertung dominieren.
-
-------------------------------------------------------------------------
-
-# 8. Konfigurierbarkeit
-
-Die neue Wertung darf nicht hardcodiert werden.
-
-Folgende Werte sollen konfigurierbar sein:
-
-``` text
-counted_meets_per_athlete
-max_counted_athletes_per_club
-athlete_weights
+```text
+results.club_id
 ```
 
-Standard:
+`results.club_id` ist NOT NULL und wird je Ergebnis gesetzt — historische Vereinswechsel sind damit korrekt abgebildet,
+ohne `athlete.club_id` (nur aktueller Verein) heranzuziehen. `entries.club_id` und `athlete.club_id` sind nicht
+maßgeblich.
 
-``` text
-counted_meets_per_athlete = 3
-max_counted_athletes_per_club = 5
+Für die **aggregierte Saisonleistung** eines Athleten in System B gilt die per-Meet/per-Verein-Zuordnung aus §5.3: Jeder
+Beitrag bleibt bei dem Verein, für den das jeweilige Cup-Meet geschwommen wurde.
 
-weights:
-1 = 1.00
-2 = 0.80
-3 = 0.60
-4 = 0.40
-5 = 0.20
+---
+
+## 10. Datenquelle und Integration mit dem Statistik-/Cup-Modul
+
+Wiederverwendet werden:
+
+- `cup_daily_results` (Snapshot) als Datenbasis für System B (§5.1).
+- `WorldAquaticsPointsService` als einzige Punktequelle (nicht duplizieren).
+- `GroupResolverService` (Staffel-/Gruppen-/Altersauflösung), wo für Detailansichten nötig.
+- `results.club_id` als Startverein, `Meet::where('cup_id', …)` als Cup-Kontext.
+- `CupStalenessService` für den Staleness-Hinweis, wenn ein Snapshot veraltet ist.
+
+Die **fachliche Wertungslogik** bleibt im Vereinswertungsmodul. Empfohlene Struktur:
+
+```text
+CupClubRankingService  (Fassade)
+    ├── StartBasedClubRankingService        → getRanking(Cup): Collection<StartClubRankingResult>
+    └── PerformanceBasedClubRankingService  → getRanking(Cup, Config): Collection<PerformanceClubRankingResult>
 ```
 
-Beispiel einer zukünftigen Konfiguration:
+Die Fassade `CupClubRankingService` bietet `calculateStartRanking(Cup)` und `calculatePerformanceRanking(Cup, ?Config)`
+und enthält selbst keine Punktelogik.
 
-``` text
-3 Meets
-Top 3 Athleten
-Gewichtung:
-100 %
-75 %
-50 %
+---
+
+## 11. Historische Wertungen
+
+Für jedes Cup-Jahr kann zwischen den Wertungssystemen gewechselt werden. Die alte Wertung wird durch die neue nicht
+überschrieben. Beispiel:
+
+```text
+ÖBSV Cup 2026 — Startwertung:      1. Verein A (142)  2. Verein B (117)  3. Verein C (98)
+ÖBSV Cup 2026 — Leistungswertung:  1. Verein B (6.960) 2. Verein A (6.540) 3. Verein D (5.980)
 ```
 
-Oder:
+---
 
-``` text
-5 Meets
-Top 8 Athleten
-Gewichtung:
-100 %
-90 %
-80 %
-70 %
-60 %
-50 %
-40 %
-30 %
-```
+## 12. Persistenz der Ergebnisse
 
-Die Datenstruktur muss daher eine spätere Erweiterung ermöglichen.
+### 12.1 Grundsatz
 
-------------------------------------------------------------------------
+Die Vereinswertung wird **dynamisch** aus den Bestandsdaten berechnet und nicht als eigenes Ranking persistiert:
 
-# 9. Vereinszugehörigkeit
+- **System A** rechnet vollständig live aus `results`.
+- **System B** rechnet live über den bestehenden `cup_daily_results`-Snapshot (§5.1). Es entsteht kein zweiter,
+  konkurrierender Snapshot der Vereinswertung.
 
-Die Vereinswertung muss den Verein verwenden, für den der Athlet beim jeweiligen Ergebnis gestartet ist.
+Vorteile: Änderungen an Resultaten und Cup-Zuordnungen wirken automatisch; keine veralteten Vereinsrankings; historische
+Auswertungen entstehen aus den historischen Daten.
 
-Maßgeblich ist daher grundsätzlich:
+### 12.2 Snapshot-Option (später)
 
-``` text
-result.club_id
-```
+Falls eine offizielle Wertung nach Cup-Abschluss unveränderlich archiviert werden muss, kann später ein Snapshot-System
+ergänzt werden (`cup_id`, `ranking_type`, `configuration_snapshot`, `calculated_at` samt Ranglisten). Nicht Teil der
+ersten Ausbaustufe; die Architektur darf ein späteres Einfrieren jedoch nicht verhindern.
 
-Nicht ausschließlich:
+---
 
-``` text
-athlete.club_id
-```
+## 13. Benutzeroberfläche
 
-Das ist wichtig, weil ein Athlet über die Zeit den Verein wechseln kann.
+### 13.1 Hauptseite
 
-Für jedes Ergebnis muss der damals zugehörige Startverein berücksichtigt werden.
+Erreichbar über das Cup-Modul (Navigationsgruppe "Cup Wertung"):
 
-Falls die bestehende Datenstruktur historische Vereinszugehörigkeiten oder `result.club_id` bereits korrekt abbildet,
-soll diese vorhandene Logik verwendet werden.
-
-------------------------------------------------------------------------
-
-# 10. Datenquelle und Integration mit dem Statistikmodul
-
-Die bestehende Statistiklogik soll geprüft und möglichst wiederverwendet werden.
-
-Insbesondere ist zu untersuchen:
-
-``` text
-StatisticsService
-ParticipationStatisticsService
-CupStatisticsService
-```
-
-Die neue Vereinswertung darf jedoch nicht einfach eine unklare Kopie von Statistiklogik enthalten.
-
-Empfohlen wird:
-
-``` text
-CupClubRankingService
-```
-
-mit getrennten Berechnungsmethoden:
-
-``` text
-calculateStartRanking()
-calculatePerformanceRanking()
-```
-
-Eine mögliche Fassade:
-
-``` text
-CupClubRankingService
-    ├── StartBasedClubRankingService
-    └── PerformanceBasedClubRankingService
-```
-
-Falls die bestehende `CupStatisticsService` bereits passende, wiederverwendbare Query- oder Aggregationslogik enthält,
-soll diese genutzt werden.
-
-Die fachliche Wertungslogik soll jedoch im Vereinswertungsmodul bleiben.
-
-------------------------------------------------------------------------
-
-# 11. Historische Wertungen
-
-Das System muss historische Ergebnisse anzeigen können.
-
-Beispiele:
-
-``` text
-ÖBSV Cup 2026
-ÖBSV Cup 2027
-ÖBSV Cup 2028
-```
-
-Für jedes Jahr soll der Benutzer zwischen den Wertungssystemen wechseln können:
-
-``` text
-[Startwertung]
-[Leistungswertung]
-```
-
-Beispiel:
-
-``` text
-ÖBSV Cup 2026
-
-Startwertung
-1. Verein A – 142 Starts
-2. Verein B – 117 Starts
-3. Verein C – 98 Starts
-
-Leistungswertung
-1. Verein B – 6.960 Punkte
-2. Verein A – 6.540 Punkte
-3. Verein D – 5.980 Punkte
-```
-
-Die alte Wertung darf durch die neue Wertung nicht überschrieben werden.
-
-------------------------------------------------------------------------
-
-# 12. Persistenz der Ergebnisse
-
-## 12.1 Grundsatz
-
-Die bestehende Architektur berechnet Statistik- und Wertungswerte grundsätzlich aus den Bestandsdaten.
-
-Das soll auch für die Vereinswertung bevorzugt gelten.
-
-Die Wertung soll daher zunächst dynamisch berechnet werden.
-
-Vorteile:
-
-- Änderungen an Resultaten werden automatisch berücksichtigt.
-- Korrekturen an Cup-Zuordnungen werden berücksichtigt.
-- Keine veralteten gespeicherten Rankings.
-- Historische Auswertungen können aus den historischen Daten erzeugt werden.
-
-------------------------------------------------------------------------
-
-## 12.2 Snapshot-Option
-
-Falls eine offizielle Wertung nach Abschluss eines Cups unveränderlich archiviert werden muss, soll später ein
-Snapshot-System ergänzt werden können.
-
-Ein Snapshot könnte enthalten:
-
-``` text
-cup_id
-ranking_type
-configuration_snapshot
-calculated_at
-```
-
-sowie die damals ermittelten Vereinsranglisten.
-
-Dies ist nicht zwingend Bestandteil der ersten Implementierungsphase.
-
-Die Architektur soll jedoch nicht verhindern, dass offizielle Wertungen später eingefroren werden können.
-
-------------------------------------------------------------------------
-
-# 13. Benutzeroberfläche
-
-## 13.1 Hauptseite
-
-Die Vereinswertung soll über das Cup-Modul erreichbar sein.
-
-Beispiel:
-
-``` text
+```text
 ÖBSV Cup
     ├── Tageswertung
     ├── Gesamtwertung
-    └── Vereinswertung
+    └── Vereinswertung   ← neu
 ```
 
-## 13.2 Filter
+Umsetzung: neuer `CupClubRankingController` (`show(Cup)`, `pdf(Cup)`), Views unter `resources/views/cups/`, Einstieg
+über die bestehende öffentliche Cup-Übersicht sowie einen neuen Navigationseintrag "Vereinswertung".
 
-Die Seite muss mindestens folgende Filter anbieten:
+### 13.2 Filter
 
-``` text
+```text
 Cup / Jahr
-Wertungssystem
+Wertungssystem: [Startwertung] [Leistungswertung]
 ```
 
-Wertungssystem:
+### 13.3 Startwertung — Anzeige
 
-``` text
-Startwertung
-Leistungswertung
+```text
+Rang | Verein | Starts | Anzahl Athleten | Anzahl Cup-Meets
 ```
 
-------------------------------------------------------------------------
+### 13.4 Leistungswertung — Anzeige
 
-## 13.3 Startwertung
-
-Anzuzeigen:
-
-``` text
-Rang
-Verein
-Starts
-Anzahl Athleten
-Anzahl Cup-Meets
+```text
+Rang | Verein | Gesamtpunkte | gewertete Athleten | gewertete Meets
 ```
 
-------------------------------------------------------------------------
+Optional aufklappbar je Athlet: die gewerteten Meet-Punkte, deren Summe, das Gewicht der Position und der resultierende
+Wertungsbeitrag — damit die Wertung transparent nachvollziehbar bleibt.
 
-## 13.4 Leistungswertung
+**Staleness-Hinweis:** Beruht die Leistungswertung auf einem veralteten `cup_daily_results`-Snapshot (Ergebnis- oder
+Klassifizierungsänderungen seit der letzten Tageswertung), zeigt die Seite einen Hinweis über `CupStalenessService` an
+und verweist auf die Neuberechnung der Tageswertung.
 
-Anzuzeigen:
+---
 
-``` text
-Rang
-Verein
-Gesamtpunkte
-gewertete Athleten
-gewertete Meets
-```
+## 14. Ranggleichheit (Tie-Breaker)
 
-Optional aufklappbar:
+**Startwertung:** 1. mehr unterschiedliche Athleten · 2. mehr unterschiedliche Cup-Meets · 3. Vereinsname alphabetisch.
 
-``` text
-Athlet 1
-    Meet 1: 810 Punkte
-    Meet 2: 790 Punkte
-    Meet 3: 760 Punkte
-    Summe: 2.360
-    Gewicht: 100 %
-    Wertungsbeitrag: 2.360
+**Leistungswertung:** 1. höhere Summe der ungewichteten Athletenleistungen · 2. höhere beste Einzelleistung · 3. mehr
+unterschiedliche gewertete Athleten · 4. mehr gewertete Cup-Meets · 5. Vereinsname alphabetisch.
 
-Athlet 2
-    ...
-```
+---
 
-Damit die Wertung nachvollziehbar und transparent bleibt.
+## 15. Ausschlussregeln
 
-------------------------------------------------------------------------
+Nicht berücksichtigt werden:
 
-# 14. Ranggleichheit
+- Nicht-Cup-Meets (`meets.cup_id IS NULL`),
+- Staffelstarts (`swim_events.relay_count > 1`),
+- nicht angetretene Ergebnisse: **DNS, SICK, WDR**,
+- **EXH** (außer Konkurrenz),
+- **ausländische Vereine** (`club.nation.code != 'AUT'`) — standardmäßig; über `include_foreign_clubs` (§8) zuschaltbar,
+- Ergebnisse ohne gültige Vereinszuordnung (strukturell ausgeschlossen, da `results.club_id` NOT NULL ist).
 
-Bei gleicher Punktzahl gelten folgende Tie-Breaker:
+**DSQ und DNF** werden in der **Startwertung** als Start gewertet (der Athlet ist angetreten). In der
+**Leistungswertung** erhalten sie über den `WorldAquaticsPointsService` ohnehin keine Punkte und wirken daher nicht mit.
 
-## Leistungswertung
+> Hinweis: Das Ergebnisstatus-Enum kennt `DNS` (nicht "NS"). Frühere Spec-Fassungen nannten "NS" — gemeint war stets
+> `DNS`.
 
-1. Höhere Summe der ungegewichteten Athletenleistungen
-2. Höhere beste Einzelleistung
-3. Mehr unterschiedliche gewertete Athleten
-4. Mehr gewertete Cup-Meets
-5. Vereinsname alphabetisch
+---
 
-## Startwertung
+## 16. Erforderliche Analyse vor Implementierung
 
-1. Mehr unterschiedliche Athleten
-2. Mehr unterschiedliche Cup-Meets
-3. Vereinsname alphabetisch
+Die Repositoryanalyse (Phase 0) ist abgeschlossen. Bestätigt wurde u.a.:
 
-------------------------------------------------------------------------
+- Cup-Kontext eindeutig über `meets.cup_id` / `cups.year`.
+- Startverein historisiert über `results.club_id` (NOT NULL).
+- Cup-Punkte vorhanden in `cup_daily_results` (bestes Ergebnis je Athlet/Meet, Punkte gegen Cup-Basiswert-Version).
+- Startzählung vorhanden (`ParticipationStatisticsService`), inkl. Staffel-Ausschluss über `swim_events.relay_count`.
+- Vor-/Endlauf werden als getrennte `swim_events` (`round`, `prev_event_id`) geführt; Cup-Meets sind überwiegend
+  `round = TIM`.
 
-# 15. Ausschlussregeln
+Getroffene Entscheidungen (Phase 0):
 
-Nicht berücksichtigen:
+1. **Start-Definition:** regulär + DSQ + DNF zählen; DNS/SICK/WDR/EXH nicht.
+2. **Bewerbs-Granularität:** ein Start je (Athlet, Disziplin = Distanz+Schwimmart, Meet); Runden/Heats zusammengefasst.
+3. **Datenbasis System B:** `cup_daily_results`-Snapshot lesen + Staleness-Hinweis in der UI.
+4. **Vereinswechsel:** Athleten-Saisonwert je Verein getrennt (per-Meet/per-Verein).
+5. **Konfiguration:** `config/cup_club_ranking.php`; `counted_meets_per_athlete` unabhängig von `cups.best_of_count`.
+6. **Ausländische Vereine:** standardmäßig ausgeschlossen, per `include_foreign_clubs` zuschaltbar (beide
+   Wertungssysteme).
 
-- Nicht-Cup-Meets
-- Staffelstarts
-- ungültige Ergebnisse
-- disqualifizierte Ergebnisse
-- DNS / DNF / NS / DSQ
-- Ergebnisse ohne gültige Vereinszuordnung
+---
 
-Die konkreten gültigen Result status müssen an die bestehende Result-Status-Implementierung angepasst werden.
+## 17. Implementierungsphasen
 
-------------------------------------------------------------------------
+### Phase 0 — Repositoryanalyse
 
-# 16. Erforderliche Analyse vor Implementierung
+Abgeschlossen (Analysebericht liegt vor).
 
-Vor der Implementierung muss die Coding-AI das Repository analysieren.
+### Phase 1 — Klassische Startwertung
 
-Insbesondere:
+-
+`App\Services\StartBasedClubRankingService::getRanking(Cup, ?bool $includeForeignClubs): Collection<StartClubRankingResult>`
+- `App\Support\StartClubRankingResult` (VO: rank, clubId, clubName, starts, athletes, meets)
+- `config/cup_club_ranking.php` mit `include_foreign_clubs` (weitere Schlüssel für Phase 2 bereits vorhanden)
+- Unit-Tests (§18).
 
-### Bestehende Modelle
+### Phase 2 — Neue Leistungswertung
 
-- `Cup`
-- `Meet`
-- `Club`
-- `Athlete`
-- `Entry`
-- `Result`
-- `CupDailyResult`
-- `CupOverallResult`
+-
+`App\Services\PerformanceBasedClubRankingService::getRanking(Cup, ClubRankingConfiguration): Collection<PerformanceClubRankingResult>`
+- `App\Support\PerformanceClubRankingResult` (VO inkl. Athleten-Breakdown), `App\Support\ClubRankingConfiguration`,
+  `config/cup_club_ranking.php`
+- `App\Services\CupClubRankingService` (Fassade)
+- Berechnungskette: `cup_daily_results` → beste N Meets je (Athlet, Verein) → Athleten-Saisonwert → je Verein Top-N
+  gewichten → Vereinsgesamtwert → Reihung + Tie-Break
+- Unit-Tests (§18).
 
-### Bestehende Services
+### Phase 3 — UI
 
-- `StatisticsService`
-- `ParticipationStatisticsService`
-- `CupStatisticsService`
-- `DailyRankingService`
-- `OverallRankingService`
+- `CupClubRankingController`, Routen, Navigationseintrag, Views (Filter Start/Leistung, Tabellen §13.3/§13.4,
+  aufklappbare Detailansicht, Staleness-Hinweis)
+- Feature-Tests.
 
-### Bestehende Cup-Zuordnung
+### Phase 4 — PDF / Export
 
-Prüfen:
+- PDF-View (`pdf/cup-club-ranking.blade.php`, Landscape) für beide Wertungssysteme; optional Excel-Export nach
+  Projektstandard
+- PDF-Feature-Test.
 
-``` text
-meets.cup_id
-```
+---
 
-### Vereinszuordnung
+## 18. Tests
 
-Prüfen:
+### Startwertung
 
-``` text
-results.club_id
-entries.club_id
-athletes.club_id
-athlete_club_histories
-```
-
-### Bestehende Punktelogik
-
-Prüfen, ob für die Vereinswertung bereits eine geeignete Punktequelle vorhanden ist.
-
-------------------------------------------------------------------------
-
-# 17. Empfohlene Implementierungsphasen
-
-## Phase 0 -- Repositoryanalyse
-
-Keine Implementierung.
-
-Ermitteln:
-
-- vorhandene Modelle
-- Beziehungen
-- Statistikabfragen
-- Cup-Logik
-- gültige Result status
-- bestehende UI-Struktur
-- bestehende PDF- und Exportlogik
-- bestehende Berechnung der Cup-Punkte
-
-Ergebnis:
-
-``` text
-Analysebericht
-```
-
-------------------------------------------------------------------------
-
-## Phase 1 -- Klassische Startwertung
-
-Implementieren:
-
-``` text
-StartBasedClubRankingService
-```
-
-Funktion:
-
-``` text
-getRanking(Cup $cup)
-```
-
-Ausgabe:
-
-``` text
-ClubRankingResult
-```
-
-------------------------------------------------------------------------
-
-## Phase 2 -- Neue Leistungswertung
-
-Implementieren:
-
-``` text
-PerformanceBasedClubRankingService
-```
-
-Berechnung:
-
-``` text
-Resultate
-    ↓
-Bestes Ergebnis je Athlet / Meet
-    ↓
-Beste N Cup-Meets je Athlet
-    ↓
-Athleten-Saisonwert
-    ↓
-Sortierung je Verein
-    ↓
-Gewichtung der Top N Athleten
-    ↓
-Vereinsgesamtwert
-    ↓
-Ranking
-```
-
-------------------------------------------------------------------------
-
-## Phase 3 -- UI
-
-Implementieren:
-
-- Cup-Auswahl
-- Wertungsauswahl
-- Ranking-Tabelle
-- Detailansicht
-- historische Jahre
-
-------------------------------------------------------------------------
-
-## Phase 4 -- PDF / Export
-
-Optional bzw. nach bestehendem Projektstandard:
-
-- PDF-Ausgabe
-- Excel-Export
-
-Beide Wertungssysteme sollen exportierbar sein.
-
-------------------------------------------------------------------------
-
-# 18. Tests
-
-Es sind Unit- und Feature-Tests zu erstellen.
-
-## Startwertung
-
-Testfälle:
-
-- nur Cup-Meets werden berücksichtigt
-- Nicht-Cup-Meets werden ignoriert
+- nur Cup-Meets werden berücksichtigt; Nicht-Cup-Meets werden ignoriert
 - Staffeln werden ignoriert
-- DSQ-Ergebnisse werden ignoriert
-- Starts werden korrekt gezählt
-- historische Cups funktionieren
-- Gleichstände werden korrekt aufgelöst
+- reguläre sowie **DSQ- und DNF**-Ergebnisse zählen als Start; **DNS/SICK/WDR/EXH** werden ignoriert
+- Vor-/Endlauf und Heats desselben Bewerbs ergeben genau einen Start
+- Starts, Athleten und Meets werden korrekt gezählt
+- historische Cup-Jahre funktionieren
+- der Startverein des Ergebnisses (`results.club_id`) ist maßgeblich, nicht der aktuelle Verein des Athleten
+- ausländische Vereine werden standardmäßig ausgeschlossen und über Konfiguration/Argument zuschaltbar
+- Gleichstände werden korrekt aufgelöst (Rangvergabe)
 
-## Leistungswertung
-
-Testfälle:
+### Leistungswertung
 
 - bestes Ergebnis pro Athlet und Meet
-- nur die konfigurierten besten Meets werden berücksichtigt
-- nur die konfigurierten Top-Athleten werden berücksichtigt
+- nur die konfigurierten besten Meets je Athlet werden berücksichtigt
+- nur die konfigurierten Top-Athleten je Verein werden berücksichtigt
 - Gewichtung wird korrekt angewendet
-- kleiner Verein mit wenigen Athleten kann korrekt gewertet werden
+- kleiner Verein mit wenigen, starken Athleten kann vorne stehen
 - großer Verein erhält keinen unbegrenzten Vorteil durch zusätzliche Athleten
-- Vereinswechsel werden korrekt berücksichtigt
-- Nicht-Cup-Meets werden ignoriert
-- Staffeln werden ignoriert
-- ungültige Resultate werden ignoriert
+- Vereinswechsel werden je Verein korrekt berücksichtigt
+- Nicht-Cup-Meets, Staffeln und Ergebnisse ohne Cup-Punkte werden ignoriert
 - Gleichstände werden korrekt aufgelöst
 
-------------------------------------------------------------------------
+---
 
-# 19. Akzeptanzkriterien
+## 19. Akzeptanzkriterien
 
 Das Modul ist fachlich fertig, wenn:
 
-- nur ÖBSV-Cup-Meets berücksichtigt werden
-- die historische Startwertung weiterhin korrekt angezeigt werden kann
-- vergangene Cup-Jahre abrufbar sind
-- eine leistungsorientierte Vereinswertung vorhanden ist
-- Vereine mit wenigen Athleten realistisch unter die Top 3 kommen können
-- große Vereine nicht ausschließlich durch die Anzahl ihrer Athleten dominieren
-- die Wertung transparent nachvollziehbar ist
-- die Anzahl der gewerteten Meets konfigurierbar ist
-- die Anzahl der gewerteten Athleten konfigurierbar ist
-- die Gewichtung konfigurierbar ist
-- Vereinswechsel korrekt berücksichtigt werden
-- die Berechnung durch automatisierte Tests abgesichert ist
-- die bestehende Cup- und Statistiklogik nicht dupliziert oder widersprüchlich implementiert wird
-- die bestehende Architektur des Projekts eingehalten wird
+- nur ÖBSV-Cup-Meets berücksichtigt werden,
+- die historische Startwertung korrekt und für vergangene Jahre reproduzierbar angezeigt wird,
+- eine leistungsorientierte Vereinswertung vorhanden ist, bei der kleine Vereine realistisch unter die Top 3 kommen
+  können und große Vereine nicht allein durch Athletenzahl dominieren,
+- die Wertung transparent nachvollziehbar ist,
+- Anzahl gewerteter Meets, Anzahl gewerteter Athleten und Gewichtung konfigurierbar sind,
+- Vereinswechsel korrekt berücksichtigt werden,
+- die Berechnung durch automatisierte Tests abgesichert ist,
+- die bestehende Cup- und Statistiklogik nicht dupliziert oder widersprüchlich implementiert wird,
+- die bestehende Projektarchitektur eingehalten wird.
 
-------------------------------------------------------------------------
+---
 
-# 20. Offene fachliche Entscheidung für die finale Version
+## 20. Punktequelle — festgelegt
 
-Vor der produktiven Implementierung sollte festgelegt werden, ob die neue Leistungswertung ausschließlich auf der
-bestehenden Cup-Punktewertung basiert oder direkt auf den ÖBSV-1000-Punkten.
+Die Leistungswertung basiert auf den **bestehenden Cup-Punkten** aus `cup_daily_results` (über
+`WorldAquaticsPointsService` gegen die Cup-Basiswert-Version berechnet). Es werden keine mehreren, widersprüchlichen
+Punktesysteme parallel verwendet. Eine separate ÖBSV-1000-Punkte-Basis ist nicht erforderlich, da die vorhandenen
+Cup-Punkte genau diese standardisierte Leistung bereits abbilden.
 
-Empfehlung:
+---
 
-``` text
-Bestehende Cup-Punkte verwenden,
-wenn diese bereits die gewünschte sportliche Leistung abbilden.
-```
+## Zusammenfassung der Standardwertung (System B)
 
-Andernfalls:
-
-``` text
-ÖBSV-1000-Punkte als standardisierte Leistungsbasis verwenden.
-```
-
-Wichtig ist, dass die Vereinswertung nicht gleichzeitig mehrere widersprüchliche Punktesysteme verwendet.
-
-------------------------------------------------------------------------
-
-## Zusammenfassung der empfohlenen Standardwertung
-
-``` text
+```text
 Nur ÖBSV-Cup-Meets
-        ↓
-Bestes Ergebnis je Athlet und Meet
-        ↓
-Beste 3 Meets je Athlet
-        ↓
-Athleten-Saisonwert
-        ↓
-Beste 5 Athleten je Verein
-        ↓
-Gewichtung:
-100 % / 80 % / 60 % / 40 % / 20 %
-        ↓
-Vereinsranking
+  → bestes Ergebnis je Athlet und Meet   (cup_daily_results)
+  → beste 3 Meets je Athlet und Verein
+  → Athleten-Saisonwert
+  → beste 5 Athleten je Verein
+  → Gewichtung 100/80/60/40/20 %
+  → Vereinsranking
 ```
 
-Parallel bleibt die historische:
-
-``` text
-Startwertung
-```
-
-erhalten.
+Parallel bleibt die historische **Startwertung** (System A) erhalten.
