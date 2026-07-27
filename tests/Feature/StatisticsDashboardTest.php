@@ -77,13 +77,12 @@ it('leitet nicht angemeldete Besucher auf die Login-Seite', function () {
     $this->get(route('statistics.index'))->assertRedirect(route('login'));
 });
 
-it('ist für angemeldete Vereins-User zugänglich', function () {
+it('verwehrt angemeldeten Vereins-Usern den Zugriff', function () {
     $club = dash12_club('Testclub');
 
     $this->actingAs(User::factory()->create(['club_id' => $club->id, 'is_admin' => false]))
         ->get(route('statistics.index'))
-        ->assertOk()
-        ->assertSee('Statistik');
+        ->assertForbidden();
 });
 
 it('ist für Admins zugänglich', function () {
@@ -99,7 +98,7 @@ it('bietet die Jahre der erfassten Veranstaltungen absteigend an', function () {
     dash12_meet('Meet 2024', '2024-05-01');
     dash12_meet('Meet 2024 II', '2024-09-01');
 
-    $component = Livewire::actingAs(User::factory()->create())->test(StatisticsDashboard::class);
+    $component = Livewire::actingAs(User::factory()->create(['is_admin' => true]))->test(StatisticsDashboard::class);
 
     expect($component->instance()->availableYears()->all())->toBe([2024, 2023]);
 });
@@ -108,13 +107,13 @@ it('wählt beim Öffnen das jüngste Jahr mit Veranstaltungen vor', function () 
     dash12_meet('Meet 2023', '2023-05-01');
     dash12_meet('Meet 2024', '2024-05-01');
 
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->assertSet('year', 2024);
 });
 
 it('fällt ohne Veranstaltungen auf das laufende Jahr zurück', function () {
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->assertSet('year', now()->year);
 });
@@ -123,7 +122,7 @@ it('listet nur die Veranstaltungen des gewählten Jahres', function () {
     dash12_meet('Meet 2023', '2023-05-01');
     dash12_meet('Meet 2024', '2024-05-01');
 
-    $component = Livewire::actingAs(User::factory()->create())
+    $component = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('year', 2023);
 
@@ -134,7 +133,7 @@ it('verwirft die Veranstaltungsauswahl beim Wechsel des Jahres', function () {
     $meet = dash12_meet('Meet 2024', '2024-05-01');
     dash12_meet('Meet 2023', '2023-05-01');
 
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('meetIds', [$meet->id])
         ->set('year', 2023)
@@ -144,7 +143,7 @@ it('verwirft die Veranstaltungsauswahl beim Wechsel des Jahres', function () {
 it('hebt die Veranstaltungsauswahl auf Knopfdruck auf', function () {
     $meet = dash12_meet('Meet 2024', '2024-05-01');
 
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('meetIds', [$meet->id])
         ->call('resetMeetSelection')
@@ -158,16 +157,17 @@ it('zeigt die Kennzahlen des gewählten Jahres', function () {
     $club = dash12_club('Testclub');
     $athlete = dash12_athlete('Muster');
 
-    dash12_start($meet, $athlete, $club);
+    $result = dash12_start($meet, $athlete, $club);
     dash12_start($meet, $athlete, $club);
 
     SwimRecord::create([
         'stroke_type_id' => dash12_strokeType()->id, 'athlete_id' => $athlete->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);
 
-    $stats = Livewire::actingAs(User::factory()->create())
+    $stats = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('year', 2024)
         ->instance()
@@ -184,7 +184,7 @@ it('zeigt Veranstaltung, Verein, Sportler und Nation in den Tabellen', function 
     $meet = dash12_meet('Sichtbares Meet', '2024-06-01');
     dash12_start($meet, dash12_athlete('Sichtbar'), dash12_club('Sichtbarer Verein'));
 
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('year', 2024)
         ->assertSee('Sichtbares Meet')
@@ -201,7 +201,7 @@ it('schränkt die Auswertung auf die gewählten Veranstaltungen ein', function (
     dash12_start($selected, dash12_athlete('Eins'), $club);
     dash12_start($other, dash12_athlete('Zwei'), $club);
 
-    $component = Livewire::actingAs(User::factory()->create())
+    $component = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->set('year', 2024)
         ->set('meetIds', [$selected->id]);
@@ -215,7 +215,7 @@ it('schränkt die Auswertung auf die gewählten Veranstaltungen ein', function (
 it('berechnet nur die im Dashboard dargestellten Abschnitte', function () {
     dash12_meet('Testmeet', '2024-06-01');
 
-    $stats = Livewire::actingAs(User::factory()->create())
+    $stats = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->instance()
         ->statistics();
@@ -224,7 +224,7 @@ it('berechnet nur die im Dashboard dargestellten Abschnitte', function () {
 });
 
 it('zeigt einen Hinweis, wenn für das Jahr keine Veranstaltungen erfasst sind', function () {
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
         ->test(StatisticsDashboard::class)
         ->assertSee('sind keine Veranstaltungen erfasst');
 });

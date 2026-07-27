@@ -54,7 +54,7 @@ function pdf14_seed(): Meet
         'distance' => 100, 'gender' => 'A', 'relay_count' => 1,
     ]);
 
-    Result::create([
+    $result = Result::create([
         'meet_id' => $meet->id, 'swim_event_id' => $event->id,
         'athlete_id' => $athlete->id, 'club_id' => $club->id,
         'sport_class' => 'S9', 'swim_time' => 6000,
@@ -62,6 +62,7 @@ function pdf14_seed(): Meet
 
     SwimRecord::create([
         'stroke_type_id' => pdf14_strokeType()->id, 'athlete_id' => $athlete->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);
@@ -81,7 +82,7 @@ it('leitet nicht angemeldete Besucher auf die Login-Seite', function () {
 });
 
 it('lehnt einen Aufruf ohne Jahr ab', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf'))
         ->assertSessionHasErrors('year');
 });
@@ -89,7 +90,7 @@ it('lehnt einen Aufruf ohne Jahr ab', function () {
 // ── PDF-Erzeugung ────────────────────────────────────────────────────────────
 
 it('liefert ein PDF für einen leeren Zeitraum', function () {
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', ['year' => 2024, 'sections' => pdf14_allSections()]));
 
     $response->assertOk();
@@ -99,7 +100,7 @@ it('liefert ein PDF für einen leeren Zeitraum', function () {
 it('liefert ein PDF mit vollständigem Datenbestand', function () {
     pdf14_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', ['year' => 2024, 'sections' => pdf14_allSections()]));
 
     $response->assertOk();
@@ -110,7 +111,7 @@ it('liefert ein PDF mit vollständigem Datenbestand', function () {
 });
 
 it('benennt die Datei nach dem Berichtsjahr', function () {
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', ['year' => 2023]));
 
     $response->assertOk();
@@ -120,7 +121,7 @@ it('benennt die Datei nach dem Berichtsjahr', function () {
 it('erzeugt auch mit nur einem Abschnitt ein PDF', function () {
     pdf14_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', ['year' => 2024, 'sections' => ['overview' => '1']]));
 
     $response->assertOk();
@@ -130,7 +131,7 @@ it('erzeugt auch mit nur einem Abschnitt ein PDF', function () {
 it('erzeugt ein PDF mit den Meisterschaftsabschnitten', function () {
     $meet = pdf14_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', [
             'year' => 2024,
             'oebm_meet_ids' => [$meet->id],
@@ -144,7 +145,7 @@ it('erzeugt ein PDF mit den Meisterschaftsabschnitten', function () {
 it('berücksichtigt eine Einschränkung auf ausgewählte Veranstaltungen', function () {
     $meet = pdf14_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.pdf', [
             'year' => 2024,
             'meet_ids' => [$meet->id],
@@ -163,7 +164,7 @@ it('nutzt für PDF und Browser dieselbe Berichtsvorlage', function () {
     pdf14_seed();
 
     $parameters = ['year' => 2024, 'sections' => pdf14_allSections()];
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_admin' => true]);
 
     $html = $this->actingAs($user)->get(route('statistics.report', $parameters));
     $pdf = $this->actingAs($user)->get(route('statistics.report.pdf', $parameters));

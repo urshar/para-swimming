@@ -74,13 +74,14 @@ function ref16_seed(): void
     $anna = ref16_athlete('Anna');
     $berta = ref16_athlete('Berta');
 
-    ref16_start($meet, $anna, $club);
+    $result = ref16_start($meet, $anna, $club);
     ref16_start($meet, $anna, $club, 'DSQ');
     ref16_start($meet, $berta, $club);
     ref16_start($meet, $berta, $club, 'DNS');
 
     SwimRecord::create([
         'stroke_type_id' => ref16_strokeType()->id, 'athlete_id' => $anna->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);

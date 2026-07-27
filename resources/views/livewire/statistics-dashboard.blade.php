@@ -289,13 +289,25 @@
                 @foreach(['oebm_meet_ids' => 'Veranstaltungen als ÖBM werten', 'oejm_meet_ids' => 'Veranstaltungen als ÖJM werten'] as $field => $label)
                     <div>
                         <flux:label>{{ $label }}</flux:label>
-                        <select name="{{ $field }}[]" multiple size="4" class="{{ $selectClasses }}">
-                            @foreach($this->availableMeets as $meet)
-                                <option value="{{ $meet->id }}" class="{{ $optionClasses }}">
-                                    {{ $meet->name }} ({{ $this->formatDate($meet->start_date?->toDateString()) }})
-                                </option>
-                            @endforeach
-                        </select>
+                        @if($this->availableMeets->isEmpty())
+                            <p class="text-sm text-zinc-400 mt-1">Für {{ $year }} sind keine Veranstaltungen erfasst.</p>
+                        @else
+                            {{-- Checkboxen statt <select multiple>: kein Strg+Klick nötig, und
+                                 dieselbe Veranstaltung kann unabhängig als ÖBM UND ÖJM markiert
+                                 werden (beide Listen sind eigenständig). --}}
+                            <div class="mt-1 max-h-48 space-y-1.5 overflow-y-auto rounded-lg border
+                                        border-zinc-200 dark:border-zinc-700 p-3">
+                                @foreach($this->availableMeets as $meet)
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer
+                                                  text-zinc-700 dark:text-zinc-200">
+                                        <input type="checkbox" name="{{ $field }}[]" value="{{ $meet->id }}"
+                                               class="rounded border-zinc-300 text-blue-600 focus:ring-blue-500
+                                                      dark:border-zinc-600 dark:bg-zinc-900">
+                                        <span>{{ $meet->name }} ({{ $this->formatDate($meet->start_date?->toDateString()) }})</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                 @endforeach
             </div>

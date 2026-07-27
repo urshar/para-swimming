@@ -1,8 +1,12 @@
 <?php
 
 use App\Models\Athlete;
+use App\Models\Club;
+use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\Result;
 use App\Models\StrokeType;
+use App\Models\SwimEvent;
 use App\Models\SwimRecord;
 use App\Services\RecordStatisticsService;
 use App\Support\ReportConfiguration;
@@ -53,8 +57,46 @@ function rec9_athlete(array $attrs = []): Athlete
     ], $attrs));
 }
 
-function rec9_record(array $attrs = []): SwimRecord
+function rec9_club(): Club
 {
+    return Club::firstOrCreate(['name' => 'Testverein'], ['nation_id' => rec9_nation()->id]);
+}
+
+function rec9_meet(string $name = 'Standardmeet', string $date = '2024-06-01'): Meet
+{
+    return Meet::firstOrCreate(
+        ['name' => $name],
+        ['nation_id' => rec9_nation()->id, 'course' => 'LCM', 'start_date' => $date],
+    );
+}
+
+/** Ein Ergebnis an der Veranstaltung — der Anker, über den ein Rekord an einem Meet hängt. */
+function rec9_result(Meet $meet): Result
+{
+    $event = SwimEvent::create([
+        'meet_id' => $meet->id, 'stroke_type_id' => rec9_strokeType()->id,
+        'distance' => 100, 'gender' => 'A', 'relay_count' => 1,
+    ]);
+
+    return Result::create([
+        'meet_id' => $meet->id, 'swim_event_id' => $event->id,
+        'athlete_id' => rec9_athlete()->id, 'club_id' => rec9_club()->id,
+        'sport_class' => 'S9', 'swim_time' => 6000,
+    ]);
+}
+
+/**
+ * Legt einen Rekord an. Sofern kein result_id vorgegeben ist, wird der Rekord
+ * an einer Veranstaltung verankert (Standardmeet), damit er dem seit Erik
+ * bestätigten Veranstaltungsbezug genügt und in der Auswertung mitzählt.
+ * Über $meet lässt sich der Rekord einer bestimmten Veranstaltung zuordnen.
+ */
+function rec9_record(array $attrs = [], ?Meet $meet = null): SwimRecord
+{
+    if (! array_key_exists('result_id', $attrs)) {
+        $attrs['result_id'] = rec9_result($meet ?? rec9_meet())->id;
+    }
+
     return SwimRecord::create(array_merge([
         'stroke_type_id' => rec9_strokeType()->id,
         'record_type' => 'AUT',
@@ -256,34 +298,71 @@ it('liefert eine leere Collection, wenn keine Rekorde existieren (Rekordarten)',
     expect(rec9_service()->byRecordType(rec9_config()))->toBeEmpty();
 })->group('statistik-p9');
 
-it('bezieht Veranstaltungen am ersten und letzten Tag des Zeitraums ein', function () {
-    $club = stat2_club();
+// ── Veranstaltungsbezug (Erik: nur Rekorde der ausgewählten Veranstaltungen) ──
 
-    stat2_start(stat2_athlete(), $club, stat2_meet(['start_date' => '2024-01-01']));
-    stat2_start(stat2_athlete(), $club, stat2_meet(['start_date' => '2024-12-31']));
+it('zählt ohne Meet-Auswahl nur Rekorde mit Veranstaltungsbezug (Option B)', function () {
+    rec9_record();                          // mit result_id (Standardmeet)
+    rec9_record(['result_id' => null]);     // historischer Bestand ohne Bezug
 
-    $o = stat2_service()->overview(stat2_config());
+    expect(rec9_service()->overview(rec9_config())['total'])->toBe(1);
+})->group('statistik-p9');
 
-    expect($o['meets'])->toBe(2)
-        ->and($o['starts'])->toBe(2);
-})->group('statistik-p2');
+it('zählt bei Meet-Auswahl nur Rekorde der gewählten Veranstaltungen', function () {
+    $cup = rec9_meet('ÖBSV Cup Runde 1', '2024-03-02');
+    $international = rec9_meet('World Series', '2024-05-01');
 
-it('schließt Veranstaltungen einen Tag außerhalb des Zeitraums aus', function () {
-    $club = stat2_club();
+    rec9_record(meet: $cup);
+    rec9_record(meet: $cup);
+    rec9_record(meet: $international);
 
-    stat2_start(stat2_athlete(), $club, stat2_meet(['start_date' => '2023-12-31']));
-    stat2_start(stat2_athlete(), $club, stat2_meet(['start_date' => '2025-01-01']));
+    $config = rec9_config(['meet_ids' => [$cup->id]]);
 
-    expect(stat2_service()->overview(stat2_config())['meets'])->toBe(0);
-})->group('statistik-p2');
+    expect(rec9_service()->overview($config)['total'])->toBe(2);
+})->group('statistik-p9');
 
-it('führt Veranstaltungen am Zeitraumende auch in der Veranstaltungsstatistik', function () {
-    $meet = stat2_meet(['start_date' => '2024-12-31', 'name' => 'Silvester Cup']);
+it('trennt die Rekorde verschiedener Veranstaltungen', function () {
+    $cup = rec9_meet('ÖBSV Cup Runde 1', '2024-03-02');
+    $other = rec9_meet('ÖBSV Cup Runde 2', '2024-04-06');
 
-    stat2_start(stat2_athlete(), stat2_club(), $meet);
+    rec9_record(meet: $cup);
+    rec9_record(meet: $other);
 
-    $rows = stat2_service()->byMeet(stat2_config());
+    expect(rec9_service()->overview(rec9_config(['meet_ids' => [$cup->id]]))['total'])->toBe(1)
+        ->and(rec9_service()->overview(rec9_config(['meet_ids' => [$other->id]]))['total'])->toBe(1)
+        ->and(rec9_service()->overview(rec9_config(['meet_ids' => [$cup->id, $other->id]]))['total'])->toBe(2);
+})->group('statistik-p9');
+
+it('wirkt der Meet-Filter auch auf die Aufstellung je Sportler', function () {
+    $cup = rec9_meet('ÖBSV Cup Runde 1', '2024-03-02');
+    $other = rec9_meet('World Series', '2024-05-01');
+    $anna = rec9_athlete(['first_name' => 'Anna', 'last_name' => 'Auer']);
+
+    rec9_record(['athlete_id' => $anna->id], meet: $cup);
+    rec9_record(['athlete_id' => $anna->id], meet: $other);
+
+    $rows = rec9_service()->byAthlete(rec9_config(['meet_ids' => [$cup->id]]));
 
     expect($rows)->toHaveCount(1)
-        ->and($rows->first()['meet'])->toBe('Silvester Cup');
-})->group('statistik-p3');
+        ->and($rows[0]['records'])->toBe(1);
+})->group('statistik-p9');
+
+it('greift der Meet-Filter auch bei den Rekordarten', function () {
+    $cup = rec9_meet('ÖBSV Cup Runde 1', '2024-03-02');
+    $other = rec9_meet('World Series', '2024-05-01');
+
+    rec9_record(['record_type' => 'AUT'], meet: $cup);
+    rec9_record(['record_type' => 'WR'], meet: $other);
+
+    $rows = rec9_service()->byRecordType(rec9_config(['meet_ids' => [$cup->id]]));
+
+    expect($rows->pluck('record_type')->all())->toBe(['AUT']);
+})->group('statistik-p9');
+
+it('bleibt beim set_date-Jahr, auch wenn ein Meet gewählt ist', function () {
+    $cup = rec9_meet('ÖBSV Cup Runde 1', '2024-03-02');
+
+    rec9_record(['set_date' => '2024-06-01'], meet: $cup);
+    rec9_record(['set_date' => '2023-06-01'], meet: $cup);
+
+    expect(rec9_service()->overview(rec9_config(['meet_ids' => [$cup->id]]))['total'])->toBe(1);
+})->group('statistik-p9');

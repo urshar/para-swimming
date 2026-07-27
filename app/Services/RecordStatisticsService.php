@@ -131,14 +131,21 @@ final readonly class RecordStatisticsService
     }
 
     /**
-     * Grundgesamtheit: alle im Berichtszeitraum aufgestellten Rekorde.
+     * Grundgesamtheit: die im Berichtszeitraum an einer Veranstaltung
+     * aufgestellten Rekorde.
      *
-     * Abgegrenzt wird über set_date; Rekorde ohne Datum lassen sich keinem
-     * Zeitraum zuordnen und bleiben unberücksichtigt. Eine Einschränkung auf
-     * ausgewählte Veranstaltungen (meet_ids) findet bewusst NICHT statt: Ein
-     * Rekord ist nicht zwingend mit einem importierten Ergebnis verknüpft
-     * (result_id ist optional), sodass eine Meet-Filterung importierte
-     * Rekorde stillschweigend verschlucken würde.
+     * Zeitliche Abgrenzung über set_date; Rekorde ohne Datum lassen sich
+     * keinem Zeitraum zuordnen und bleiben unberücksichtigt.
+     *
+     * Veranstaltungsbezug (bestätigt von Erik): Gezählt werden nur Rekorde,
+     * die tatsächlich an einer Veranstaltung aufgestellt wurden — verknüpft
+     * über result_id → results.meet_id.
+     *   • Sind Veranstaltungen ausgewählt, zählen ausschließlich Rekorde
+     *     dieser Veranstaltungen (z.B. die neuen Rekorde der ÖBSV-Cup-Runden).
+     *   • Ohne Auswahl zählen alle Rekorde des Jahres, die an einer im System
+     *     vorhandenen Veranstaltung aufgestellt wurden (result_id gesetzt).
+     *     Ein separat importierter historischer Grundbestand ohne
+     *     Veranstaltungsbezug bleibt damit außen vor.
      *
      * Der Datumsvergleich läuft über whereDate() statt über einen einfachen
      * Bereichsvergleich: Eloquent schreibt date-Felder mit Uhrzeit
@@ -149,10 +156,18 @@ final readonly class RecordStatisticsService
      */
     private function recordsQuery(ReportConfiguration $config): Builder
     {
-        return SwimRecord::query()
+        $query = SwimRecord::query()
             ->whereNotNull('set_date')
             ->whereDate('set_date', '>=', $config->dateFrom->toDateString())
             ->whereDate('set_date', '<=', $config->dateTo->toDateString())
             ->whereNotIn('record_status', self::NON_RECORD_STATUSES);
+
+        if ($config->isMeetFiltered()) {
+            $query->whereHas('result', fn (Builder $result) => $result->whereIn('meet_id', $config->meetIds));
+        } else {
+            $query->whereNotNull('result_id');
+        }
+
+        return $query;
     }
 }

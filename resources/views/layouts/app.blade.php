@@ -63,12 +63,14 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
-        <flux:navlist.group heading="Statistik">
-            <flux:navlist.item icon="chart-bar" href="{{ route('statistics.index') }}"
-                               :current="request()->routeIs('statistics.*')">
-                Statistik
-            </flux:navlist.item>
-        </flux:navlist.group>
+        @if(auth()->user()?->is_admin)
+            <flux:navlist.group heading="Statistik">
+                <flux:navlist.item icon="chart-bar" href="{{ route('statistics.index') }}"
+                                   :current="request()->routeIs('statistics.*')">
+                    Statistik
+                </flux:navlist.item>
+            </flux:navlist.group>
+        @endif
 
         @auth
             @if(auth()->user()->club_id || auth()->user()->is_admin)

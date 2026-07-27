@@ -77,14 +77,14 @@ it('leitet nicht angemeldete Besucher auf die Login-Seite', function () {
 });
 
 it('ist für angemeldete Nutzer zugänglich', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024]))
         ->assertOk()
         ->assertSee('Jahresbericht 2024');
 });
 
 it('lehnt einen Aufruf ohne Jahr ab', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report'))
         ->assertSessionHasErrors('year');
 });
@@ -92,7 +92,7 @@ it('lehnt einen Aufruf ohne Jahr ab', function () {
 // ── Abschnittssteuerung ──────────────────────────────────────────────────────
 
 it('zeigt alle angeforderten Abschnitte an', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections()]))
         ->assertOk()
         ->assertSee('Allgemeiner Überblick')
@@ -109,7 +109,7 @@ it('zeigt alle angeforderten Abschnitte an', function () {
 });
 
 it('lässt nicht angeforderte Abschnitte vollständig weg', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', [
             'year' => 2024,
             'sections' => ['overview' => '1'],
@@ -122,7 +122,7 @@ it('lässt nicht angeforderte Abschnitte vollständig weg', function () {
 });
 
 it('nummeriert die Abschnitte fortlaufend, unabhängig von der Auswahl', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', [
             'year' => 2024,
             'sections' => ['overview' => '1', 'records' => '1'],
@@ -133,7 +133,7 @@ it('nummeriert die Abschnitte fortlaufend, unabhängig von der Auswahl', functio
 });
 
 it('weist darauf hin, wenn kein Abschnitt ausgewählt wurde', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024, 'sections' => []]))
         ->assertOk()
         ->assertSee('kein Abschnitt für den Bericht ausgewählt');
@@ -146,16 +146,17 @@ it('gibt die Kennzahlen des Berichtsjahres aus', function () {
     $club = Club::create(['name' => 'Testverein', 'nation_id' => rep13_nation()->id]);
     $athlete = rep13_athlete('Muster');
 
-    rep13_start($meet, $athlete, $club);
+    $result = rep13_start($meet, $athlete, $club);
     rep13_start($meet, $athlete, $club);
 
     SwimRecord::create([
         'stroke_type_id' => rep13_strokeType()->id, 'athlete_id' => $athlete->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections()]))
         ->assertOk()
         ->assertSee('Testmeet')
@@ -170,7 +171,7 @@ it('führt ausländische Teilnehmer ohne die österreichischen auf', function ()
     rep13_start($meet, rep13_athlete('Inland'), $club);
     rep13_start($meet, rep13_athlete('Ausland', 'CZE'), $club);
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024, 'sections' => ['nations' => '1']]));
 
     $response->assertOk()->assertSee('CZE');
@@ -185,7 +186,7 @@ it('berücksichtigt eine Einschränkung auf ausgewählte Veranstaltungen', funct
     rep13_start($selected, rep13_athlete('Eins'), $club);
     rep13_start($other, rep13_athlete('Zwei'), $club);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', [
             'year' => 2024,
             'meet_ids' => [$selected->id],
@@ -206,7 +207,7 @@ it('wertet die als ÖBM markierten Veranstaltungen gesondert aus', function () {
     rep13_start($championship, rep13_athlete('Meister'), $club);
     rep13_start($other, rep13_athlete('Sonstig'), $club);
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', [
             'year' => 2024,
             'oebm_meet_ids' => [$championship->id],
@@ -221,7 +222,7 @@ it('wertet die als ÖBM markierten Veranstaltungen gesondert aus', function () {
 });
 
 it('weist einen Meisterschaftsabschnitt ohne ausgewählte Veranstaltungen als leer aus', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2024, 'sections' => ['oejm' => '1']]))
         ->assertOk()
         ->assertSee('Österreichische Jugendmeisterschaften')
@@ -236,7 +237,7 @@ it('trennt ÖBM und ÖJM voneinander', function () {
     rep13_start($oebm, rep13_athlete('Aelter'), $club);
     rep13_start($oejm, rep13_athlete('Juenger'), $club);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', [
             'year' => 2024,
             'oebm_meet_ids' => [$oebm->id],
@@ -255,7 +256,7 @@ it('wertet nur Veranstaltungen des Berichtsjahres aus', function () {
     rep13_start(rep13_meet('Meet 2024', '2024-06-01'), rep13_athlete('Eins'), $club);
     rep13_start(rep13_meet('Meet 2023', '2023-06-01'), rep13_athlete('Zwei'), $club);
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report', ['year' => 2023, 'sections' => ['meets' => '1']]))
         ->assertOk()
         ->assertSee('Meet 2023')

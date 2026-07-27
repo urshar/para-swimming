@@ -97,7 +97,7 @@ function stat11_seed(): array
             'distance' => $distance, 'gender' => 'A', 'relay_count' => 1,
         ]);
 
-        Result::create([
+        $result = Result::create([
             'meet_id' => $meet->id, 'swim_event_id' => $event->id,
             'athlete_id' => $athlete->id, 'club_id' => $club->id,
             'sport_class' => 'S9', 'swim_time' => 6000,
@@ -106,6 +106,7 @@ function stat11_seed(): array
 
     SwimRecord::create([
         'stroke_type_id' => stat11_strokeType()->id, 'athlete_id' => $athlete->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);

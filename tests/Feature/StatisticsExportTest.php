@@ -55,7 +55,7 @@ function exp15_seed(): Meet
         'distance' => 100, 'gender' => 'A', 'relay_count' => 1,
     ]);
 
-    Result::create([
+    $result = Result::create([
         'meet_id' => $meet->id, 'swim_event_id' => $event->id,
         'athlete_id' => $athlete->id, 'club_id' => $club->id,
         'sport_class' => 'S9', 'swim_time' => 6000,
@@ -63,6 +63,7 @@ function exp15_seed(): Meet
 
     SwimRecord::create([
         'stroke_type_id' => exp15_strokeType()->id, 'athlete_id' => $athlete->id,
+        'result_id' => $result->id, // Veranstaltungsbezug für die Rekordauswertung
         'record_type' => 'AUT', 'sport_class' => 'S9', 'gender' => 'F',
         'distance' => 100, 'swim_time' => 6000, 'set_date' => '2024-06-01',
     ]);
@@ -95,7 +96,7 @@ it('leitet nicht angemeldete Besucher bei beiden Exporten auf die Login-Seite', 
 })->with(['statistics.report.xlsx', 'statistics.report.csv']);
 
 it('lehnt einen Aufruf ohne Jahr ab', function (string $route) {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route($route))
         ->assertSessionHasErrors('year');
 })->with(['statistics.report.xlsx', 'statistics.report.csv']);
@@ -105,7 +106,7 @@ it('lehnt einen Aufruf ohne Jahr ab', function (string $route) {
 it('liefert eine Excel-Datei mit dem Berichtsjahr im Dateinamen', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.xlsx', ['year' => 2024, 'sections' => exp15_allSections()]));
 
     $response->assertOk();
@@ -114,7 +115,7 @@ it('liefert eine Excel-Datei mit dem Berichtsjahr im Dateinamen', function () {
 });
 
 it('erzeugt auch ohne Daten eine gültige Excel-Datei', function () {
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.xlsx', ['year' => 2024, 'sections' => exp15_allSections()]));
 
     $response->assertOk();
@@ -124,7 +125,7 @@ it('erzeugt auch ohne Daten eine gültige Excel-Datei', function () {
 it('exportiert auf Wunsch nur einen einzelnen Bereich', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.xlsx', [
             'year' => 2024,
             'sections' => exp15_allSections(),
@@ -139,7 +140,7 @@ it('exportiert auf Wunsch nur einen einzelnen Bereich', function () {
 it('ignoriert einen unbekannten Bereich und exportiert vollständig', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.xlsx', [
             'year' => 2024,
             'sections' => exp15_allSections(),
@@ -155,7 +156,7 @@ it('ignoriert einen unbekannten Bereich und exportiert vollständig', function (
 it('liefert eine CSV-Datei mit den Daten des Berichts', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', [
             'year' => 2024,
             'sections' => exp15_allSections(),
@@ -175,7 +176,7 @@ it('liefert eine CSV-Datei mit den Daten des Berichts', function () {
 it('schreibt die CSV mit BOM, damit Excel Umlaute korrekt anzeigt', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', ['year' => 2024, 'sections' => ['overview' => '1']]));
 
     $response->assertOk();
@@ -185,7 +186,7 @@ it('schreibt die CSV mit BOM, damit Excel Umlaute korrekt anzeigt', function () 
 it('enthält im CSV mehrerer Tabellen deren Überschriften', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', [
             'year' => 2024,
             'sections' => ['records' => '1'],
@@ -209,7 +210,7 @@ it('berücksichtigt die Einschränkung auf ausgewählte Veranstaltungen', functi
         'course' => 'LCM', 'start_date' => '2024-09-01',
     ]);
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', [
             'year' => 2024,
             'meet_ids' => [$meet->id],
@@ -227,7 +228,7 @@ it('berücksichtigt die Einschränkung auf ausgewählte Veranstaltungen', functi
 it('exportiert einen abgewählten Abschnitt nicht', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', ['year' => 2024, 'sections' => ['overview' => '1']]));
 
     $response->assertOk();
@@ -241,13 +242,13 @@ it('exportiert einen abgewählten Abschnitt nicht', function () {
 it('schreibt Nullwerte als 0 und nicht als leere Zelle', function () {
     exp15_seed();
 
-    $response = $this->actingAs(User::factory()->create())
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', ['year' => 2024, 'sections' => ['overview' => '1']]));
 
     $response->assertOk();
     $content = exp15_content($response);
 
-    // Ohne strictNullComparison vergliche PhpSpreadsheet lose gegen null;
+    // Ohne strictNullComparison vergleiche PhpSpreadsheet lose gegen null;
     // 0 == null ist in PHP wahr, wodurch jede Null als Leerzelle verschwände.
     expect($content)->toContain('"Vereine (Ausland)";"0"')
         ->and($content)->toContain('"EXH";"0"');

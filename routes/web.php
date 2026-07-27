@@ -172,12 +172,14 @@ Route::middleware(['auth'])->group(function () {
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);
 
-    // ── Statistik ─────────────────────────────────────────────────────────────
-    Route::view('/statistics', 'statistics.page')->name('statistics.index');
-    Route::get('/statistics/report', [StatisticsController::class, 'report'])->name('statistics.report');
-    Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
-    Route::get('/statistics/report/xlsx', [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');
-    Route::get('/statistics/report/csv', [StatisticsController::class, 'reportCsv'])->name('statistics.report.csv');
+    // ── Statistik (nur Admin) ─────────────────────────────────────────────────
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::view('/statistics', 'statistics.page')->name('statistics.index');
+        Route::get('/statistics/report', [StatisticsController::class, 'report'])->name('statistics.report');
+        Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
+        Route::get('/statistics/report/xlsx', [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');
+        Route::get('/statistics/report/csv', [StatisticsController::class, 'reportCsv'])->name('statistics.report.csv');
+    });
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
     Route::resource('meets', MeetController::class);
