@@ -147,7 +147,7 @@ Jahreswechsel wird die Meet-Auswahl zurückgesetzt; `statistics()` ruft die Fass
 
 ## HTTP & Export
 
-Routen (unter `auth`):
+Routen (unter `auth` + `RequireAdmin` — nur Admins):
 
 | Route                         | Name                     | Zweck                      |
 |-------------------------------|--------------------------|----------------------------|
@@ -170,8 +170,16 @@ vorliegenden (gedruckten) Berichts — zur Verifikation, dass die Live-Berechnun
 
 ## Berechtigungen
 
-Alle Statistik-Routen liegen hinter `auth`. Es werden ausschließlich lesende Auswertungen erzeugt; es wird nichts
-geschrieben.
+Das Statistikmodul ist **ausschließlich für Administratoren** zugänglich: Die
+Statistik-Routen liegen in einer `RequireAdmin`-Gruppe (zusätzlich zu `auth`),
+und der Navigationseintrag ist mit `@if(auth()->user()?->is_admin)` gegated.
+Das Projekt kennt keine eigene Rechte-/Rollen-Architektur, sondern nur das
+`is_admin`-Flag mit der `RequireAdmin`-Middleware. Es werden ausschließlich
+lesende Auswertungen erzeugt; es wird nichts geschrieben.
+
+Die Referenzvalidierung des Moduls und die dahinterstehenden fachlichen
+Entscheidungen sind in [statistics-validation.md](statistics-validation.md)
+dokumentiert.
 
 ## Tests
 
