@@ -17,7 +17,7 @@ class Club extends Model
 
     const array REGIONAL_ASSOCIATIONS = [
         'BBSV' => 'Burgenländischer Behindertensportverband',
-        'KLSV' => 'Kärntner Behindertensportverband',
+        'KBSV' => 'Kärntner Behindertensportverband',
         'NOEVSV' => 'Niederösterreichischer Versehrtensportverband',
         'OOEBSV' => 'Oberösterreichsicher Behindertensportverband',
         'SBSV' => 'Salzburger Behindertensportverband',

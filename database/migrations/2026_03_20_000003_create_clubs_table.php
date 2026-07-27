@@ -28,7 +28,7 @@ return new class extends Migration
             $table->enum('regional_association', [
                 'WBSV',
                 'BBSV',
-                'KLSV',
+                'KBSV',
                 'NOEVSV',
                 'OOEBSV',
                 'SBSV',

@@ -291,7 +291,7 @@ class LenexResolverService
      * LENEX → App:
      *   TLSV   → TBSV   (Tirol)
      *   SLSV   → SBSV   (Salzburg)
-     *   KLSV   → KLSV   (Kärnten — identisch)
+     *   KLSV   → KBSV   (Kärnten)
      *   WLSV   → WBSV   (Wien)
      *   OOELSV → OOEBSV   (Oberösterreich)
      *   STLSV  → STBSV  (Steiermark)
@@ -308,7 +308,7 @@ class LenexResolverService
         $map = [
             'TLSV' => 'TBSV',
             'SLSV' => 'SBSV',
-            'KLSV' => 'KLSV',
+            'KLSV' => 'KBSV',
             'WLSV' => 'WBSV',
             'OOELSV' => 'OOEBSV',
             'STLSV' => 'STBSV',

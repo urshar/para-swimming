@@ -141,7 +141,7 @@ Bekannte Eigenheiten (siehe auch [conventions.md](conventions.md)):
 | **WA**                | World Aquatics                                                     |
 | **SDMS / IPC-Lizenz** | Athleten-ID im World-Para-Swimming-System (`license_ipc`)          |
 | **SWRID**             | Globale ID von swimrankings.net                                    |
-| **Landesverbände**    | BBSV, KLSV, NOEVSV, OOEBSV, SBSV, STBSV, TBSV, VBSV, WBSV          |
+| **Landesverbände**    | BBSV, KBSV, NOEVSV, OOEBSV, SBSV, STBSV, TBSV, VBSV, WBSV          |
 
 ## Zeiteinheiten im Code
 
