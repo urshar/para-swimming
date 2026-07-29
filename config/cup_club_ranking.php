@@ -45,4 +45,23 @@ return [
         5 => 0.20,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ausgeschlossene Kaderarten (nur Leistungswertung)
+    |--------------------------------------------------------------------------
+    |
+    | Athleten, die während des Cup-Jahres in einer dieser Kaderarten aktiv
+    | waren, fließen NICHT in die leistungsorientierte Vereinswertung ein
+    | (Kaderathleten sollen die Wertung nicht dominieren). Angegeben werden die
+    | (administrierbaren) Codes aus kader_types. Leeres Array = kein Ausschluss.
+    | Die klassische Startwertung ist davon nicht betroffen.
+    |
+    */
+
+    'excluded_kader_type_codes' => [
+        'WELTKLASSE',
+        'INTERNATIONALE_KLASSE',
+        'SICHTUNGSPOOL',
+    ],
+
 ];

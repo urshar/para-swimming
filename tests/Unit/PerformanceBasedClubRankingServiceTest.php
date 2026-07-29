@@ -1,10 +1,12 @@
 <?php
 
 use App\Models\Athlete;
+use App\Models\AthleteKaderMembership;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
+use App\Models\KaderType;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
@@ -36,13 +38,18 @@ function nextSeq_pcr2(): int
     return ++$n;
 }
 
-function config_pcr2(int $meets = 3, int $athletes = 5, bool $foreign = false): ClubRankingConfiguration
-{
+function config_pcr2(
+    int $meets = 3,
+    int $athletes = 5,
+    bool $foreign = false,
+    array $excludedKader = ['WELTKLASSE', 'INTERNATIONALE_KLASSE', 'SICHTUNGSPOOL']
+): ClubRankingConfiguration {
     return new ClubRankingConfiguration(
         countedMeetsPerAthlete: $meets,
         maxCountedAthletesPerClub: $athletes,
         weights: [1 => 1.0, 2 => 0.8, 3 => 0.6, 4 => 0.4, 5 => 0.2],
         includeForeignClubs: $foreign,
+        excludedKaderTypeCodes: $excludedKader,
     );
 }
 
@@ -151,6 +158,25 @@ function makeDaily_pcr2(
         'gender' => 'M',
         'points' => $points,
         'calculated_at' => now(),
+    ]);
+}
+
+function makeKaderType_pcr2(string $code): KaderType
+{
+    return KaderType::firstOrCreate(['code' => $code], ['name_de' => $code, 'sort_order' => 1]);
+}
+
+function makeKaderMembership_pcr2(
+    Athlete $athlete,
+    string $code,
+    ?string $from = null,
+    ?string $until = null
+): AthleteKaderMembership {
+    return AthleteKaderMembership::create([
+        'athlete_id' => $athlete->id,
+        'kader_type_id' => makeKaderType_pcr2($code)->id,
+        'valid_from' => $from,
+        'valid_until' => $until,
     ]);
 }
 
@@ -383,4 +409,77 @@ it('Fassade: calculatePerformanceRanking liefert PerformanceClubRankingResult', 
     $ranking = app(CupClubRankingService::class)->calculatePerformanceRanking($cup);
 
     expect($ranking->first())->toBeInstanceOf(PerformanceClubRankingResult::class);
+});
+
+// ── Tests: Kaderausschluss ───────────────────────────────────────────────────
+
+it('schließt Athleten der konfigurierten Kaderarten aus', function (string $code) {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+
+    $kaderAthlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($kaderAthlete, $code);
+    makeDaily_pcr2($cup, $meet, $kaderAthlete, $club, 900); // ausgeschlossen
+
+    $normal = makeAthlete_pcr2();
+    makeDaily_pcr2($cup, $meet, $normal, $club, 400);       // zählt
+
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2()), 'Verein');
+
+    expect($row->countedAthletes)->toBe(1)
+        ->and($row->totalPoints)->toEqualWithDelta(400.0, 0.001);
+})->with(['WELTKLASSE', 'INTERNATIONALE_KLASSE', 'SICHTUNGSPOOL']);
+
+it('wertet Athleten mit einer nicht ausgeschlossenen Kaderart', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+    $athlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($athlete, 'NACHWUCHS'); // nicht in der Ausschlussliste
+    makeDaily_pcr2($cup, $meet, $athlete, $club, 400);
+
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2()), 'Verein');
+
+    expect($row->countedAthletes)->toBe(1)
+        ->and($row->totalPoints)->toEqualWithDelta(400.0, 0.001);
+});
+
+it('wertet Athleten, deren Kaderzugehörigkeit vor dem Cup-Jahr endete', function () {
+    $cup = makeCup_pcr2(); // 2026
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+    $athlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($athlete, 'WELTKLASSE', '2024-01-01', '2024-12-31'); // vor 2026 abgelaufen
+    makeDaily_pcr2($cup, $meet, $athlete, $club, 400);
+
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2()), 'Verein');
+
+    expect($row->countedAthletes)->toBe(1)
+        ->and($row->totalPoints)->toEqualWithDelta(400.0, 0.001);
+});
+
+it('schließt eine während des Cup-Jahres beginnende Kaderzugehörigkeit aus', function () {
+    $cup = makeCup_pcr2(); // 2026
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+    $athlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($athlete, 'WELTKLASSE', '2026-06-01'); // beginnt mitten im Cup-Jahr, offen
+    makeDaily_pcr2($cup, $meet, $athlete, $club, 400);
+
+    expect(service_pcr2()->getRanking($cup, config_pcr2()))->toBeEmpty();
+});
+
+it('wertet alle Athleten, wenn die Ausschlussliste leer ist', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+    $athlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($athlete, 'WELTKLASSE');
+    makeDaily_pcr2($cup, $meet, $athlete, $club, 400);
+
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(excludedKader: [])), 'Verein');
+
+    expect($row->countedAthletes)->toBe(1)
+        ->and($row->totalPoints)->toEqualWithDelta(400.0, 0.001);
 });

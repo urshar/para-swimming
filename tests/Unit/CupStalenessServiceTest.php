@@ -243,3 +243,61 @@ describe('overallRankingStatus', function () {
         expect($status['isStale'])->toBeTrue();
     })->group('cup-wertung-p11');
 });
+
+// ── clubRankingStatus ────────────────────────────────────────────────────────
+
+describe('clubRankingStatus', function () {
+    it('ist nicht veraltet, wenn der Cup keine Meets hat', function () {
+        $cup = makeCup_cup11();
+
+        $status = service_cup11()->clubRankingStatus($cup);
+
+        expect($status['calculatedAt'])->toBeNull()
+            ->and($status['isStale'])->toBeFalse()
+            ->and($status['reason'])->toBeNull();
+    })->group('cup-wertung-p11', 'cup-club-ranking-p3');
+
+    it('ist nicht veraltet, wenn alle Cup-Meets eine frische Tageswertung haben', function () {
+        $cup = makeCup_cup11();
+        $meet = makeMeet_cup11($cup);
+        $club = makeClub_cup11();
+        $athlete = makeAthlete_cup11();
+
+        $daily = makeDailyResult_cup11($cup, $meet, $athlete, $club, Carbon::parse('2026-07-14 12:00'));
+        // Ergebnis-Zeitstempel vor der Tageswertung → nicht veraltet.
+        touchAt_cup11('results', $daily->result_id, 'updated_at', Carbon::parse('2026-07-14 10:00'));
+
+        $status = service_cup11()->clubRankingStatus($cup);
+
+        expect($status['isStale'])->toBeFalse()
+            ->and($status['calculatedAt']->format('Y-m-d H:i'))->toBe('2026-07-14 12:00');
+    })->group('cup-wertung-p11', 'cup-club-ranking-p3');
+
+    it('ist veraltet, wenn für ein Cup-Meet mit Ergebnissen keine Tageswertung vorliegt', function () {
+        $cup = makeCup_cup11();
+        $meet = makeMeet_cup11($cup);
+        // Ergebnis vorhanden, aber keine Tageswertung berechnet.
+        makeResult_cup11(makeAthlete_cup11(), makeClub_cup11(), $meet);
+
+        $status = service_cup11()->clubRankingStatus($cup);
+
+        expect($status['isStale'])->toBeTrue()
+            ->and($status['reason'])->toContain('keine Tageswertung');
+    })->group('cup-wertung-p11', 'cup-club-ranking-p3');
+
+    it('ist veraltet, wenn ein Ergebnis nach der Tageswertung geändert wurde', function () {
+        $cup = makeCup_cup11();
+        $meet = makeMeet_cup11($cup);
+        $club = makeClub_cup11();
+        $athlete = makeAthlete_cup11();
+
+        $daily = makeDailyResult_cup11($cup, $meet, $athlete, $club, Carbon::parse('2026-07-14 10:00'));
+        // Ergebnis NACH der Tageswertung geändert.
+        touchAt_cup11('results', $daily->result_id, 'updated_at', Carbon::parse('2026-07-14 12:00'));
+
+        $status = service_cup11()->clubRankingStatus($cup);
+
+        expect($status['isStale'])->toBeTrue()
+            ->and($status['reason'])->toContain('veraltet');
+    })->group('cup-wertung-p11', 'cup-club-ranking-p3');
+});

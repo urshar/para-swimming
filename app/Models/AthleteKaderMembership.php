@@ -52,4 +52,24 @@ class AthleteKaderMembership extends Model
                 $q->whereNull('valid_until')->orWhere('valid_until', '>=', $date);
             });
     }
+
+    /**
+     * Nur Zugehörigkeiten, die sich mit einem Zeitraum [$from, $to] überschneiden
+     * (an mindestens einem Tag darin gültig sind). valid_from/valid_until = null
+     * bedeutet "unbegrenzt gültig" in diese Richtung. Wird u.a. für die
+     * Vereinsleistungswertung genutzt (Kaderausschluss während des Cup-Jahres).
+     */
+    public function scopeActiveDuring(Builder $query, Carbon|string $from, Carbon|string $to): Builder
+    {
+        $from = $from instanceof Carbon ? $from->toDateString() : $from;
+        $to = $to instanceof Carbon ? $to->toDateString() : $to;
+
+        return $query
+            ->where(function (Builder $q) use ($to) {
+                $q->whereNull('valid_from')->orWhere('valid_from', '<=', $to);
+            })
+            ->where(function (Builder $q) use ($from) {
+                $q->whereNull('valid_until')->orWhere('valid_until', '>=', $from);
+            });
+    }
 }

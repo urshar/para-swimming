@@ -11,6 +11,7 @@ use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
 use App\Http\Controllers\CupController;
+use App\Http\Controllers\CupClubRankingController;
 use App\Http\Controllers\CupDailyRankingController;
 use App\Http\Controllers\CupOverallRankingController;
 use App\Http\Controllers\EntryController;
@@ -129,6 +130,12 @@ Route::middleware(['auth'])->group(function () {
         [CupOverallRankingController::class, 'pdf'])->name('cups.overall-ranking.pdf');
     Route::post('cups/{cup}/overall-ranking/calculate',
         [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
+
+    // ── ÖBSV Cup Wertung — Vereinswertung (Phase 3) ────────────────────────────
+    Route::get('vereinswertung',
+        [CupClubRankingController::class, 'index'])->name('cups.club-ranking.index');
+    Route::get('cups/{cup}/club-ranking',
+        [CupClubRankingController::class, 'show'])->name('cups.club-ranking.show');
 
     Route::resource('kader-types', KaderTypeController::class)->except(['show']);
 

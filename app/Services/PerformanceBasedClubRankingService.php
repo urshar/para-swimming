@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\Models\Athlete;
+use App\Models\AthleteKaderMembership;
 use App\Models\Club;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
 use App\Support\ClubRankingConfiguration;
 use App\Support\CountedAthleteBreakdown;
 use App\Support\PerformanceClubRankingResult;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use stdClass;
 
@@ -32,6 +34,12 @@ use stdClass;
  *   3. je Verein die besten max_counted_athletes_per_club Athleten gewichten,
  *   4. Vereinsgesamtwert, Reihung und Tie-Break (§14).
  *
+ * Kaderausschluss: Athleten, die während des Cup-Jahres in einer
+ * ausgeschlossenen Kaderart aktiv waren (config: excluded_kader_type_codes,
+ * z.B. Weltklasse, internationale Klasse, Sichtungspool), fließen nicht in die
+ * Leistungswertung ein — ihre Tageswertungs-Zeilen werden vor der Aggregation
+ * verworfen. Nur die Leistungswertung ist betroffen (nicht die Startwertung).
+ *
  * EXH-Ausschluss: EXH-Ergebnisse (außer Konkurrenz) zählen in keiner
  * Punktewertung. Der Ausschluss erfolgt an der Quelle — DailyRankingService
  * überspringt EXH bei der Auswahl des Tagesbesten, sodass cup_daily_results je
@@ -51,12 +59,11 @@ final readonly class PerformanceBasedClubRankingService
     private const string DOMESTIC_NATION_CODE = 'AUT';
 
     /**
-     * Leistungsorientierte Vereinswertung für einen Cup.
+     * Leistungsorientierte Vereinswertung für einen Cup — gereiht mit Rang; leer,
+     * wenn keine gewerteten Tageswertungen vorliegen.
      *
      * @param  ClubRankingConfiguration|null  $config  null = Konfiguration aus config()
-     * @return Collection<int, PerformanceClubRankingResult> gereiht, mit dynamischem Rang;
-     *                                                       leer, wenn keine gewerteten
-     *                                                       Tageswertungen vorliegen
+     * @return Collection<int, PerformanceClubRankingResult>
      */
     public function getRanking(Cup $cup, ?ClubRankingConfiguration $config = null): Collection
     {
@@ -66,6 +73,18 @@ final readonly class PerformanceBasedClubRankingService
 
         if ($dailyResults->isEmpty()) {
             return collect();
+        }
+
+        $excludedAthleteIds = $this->excludedKaderAthleteIds($cup, $config);
+
+        if ($excludedAthleteIds->isNotEmpty()) {
+            $dailyResults = $dailyResults->reject(
+                fn (stdClass $row): bool => $excludedAthleteIds->contains((int) $row->athlete_id)
+            );
+
+            if ($dailyResults->isEmpty()) {
+                return collect();
+            }
         }
 
         $perAthleteClub = $this->resolveAthleteSeasonValues($dailyResults, $config);
@@ -130,6 +149,45 @@ final readonly class PerformanceBasedClubRankingService
                 .'cup_daily_results.points as points'
             )
             ->get();
+    }
+
+    /**
+     * Athleten, deren Leistungen nicht in die Wertung einfließen, weil sie
+     * während des Cup-Jahres in einer ausgeschlossenen Kaderart (z.B.
+     * Weltklasse, internationale Klasse, Sichtungspool) aktiv waren.
+     *
+     * Maßgeblich ist das Kalenderjahr des Cups: eine Mitgliedschaft, die sich
+     * mit [1.1., 31.12.] des Cup-Jahres überschneidet, schließt aus. Der Bezug
+     * auf das Cup-Jahr (statt auf now()) hält historische Cup-Jahre
+     * reproduzierbar. Die Kaderarten werden über ihren (administrierbaren) Code
+     * ausgewählt; eine leere Ausschlussliste ergibt keine Ausschlüsse.
+     *
+     * @return Collection<int, int> athlete_ids
+     */
+    private function excludedKaderAthleteIds(Cup $cup, ClubRankingConfiguration $config): Collection
+    {
+        if ($config->excludedKaderTypeCodes === []) {
+            return collect();
+        }
+
+        // Eine Kaderzugehörigkeit schließt aus, wenn sie sich mit dem Kalenderjahr
+        // des Cups überschneidet (valid_from/valid_until = null = unbegrenzt). Der
+        // Bezug auf das Cup-Jahr statt auf now() hält historische Cups reproduzierbar.
+        $yearStart = $cup->year.'-01-01';
+        $yearEnd = $cup->year.'-12-31';
+
+        return AthleteKaderMembership::query()
+            ->whereHas('kaderType', fn (Builder $query) => $query->whereIn('code', $config->excludedKaderTypeCodes))
+            ->where(function (Builder $query) use ($yearEnd) {
+                $query->whereNull('valid_from')->orWhere('valid_from', '<=', $yearEnd);
+            })
+            ->where(function (Builder $query) use ($yearStart) {
+                $query->whereNull('valid_until')->orWhere('valid_until', '>=', $yearStart);
+            })
+            ->pluck('athlete_id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**

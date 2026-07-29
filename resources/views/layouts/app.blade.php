@@ -61,6 +61,10 @@
                                :current="request()->routeIs('cups.overall-ranking.*')">
                 Gesamtwertung
             </flux:navlist.item>
+            <flux:navlist.item icon="user-group" href="{{ route('cups.club-ranking.index') }}"
+                               :current="request()->routeIs('cups.club-ranking.*')">
+                Vereinswertung
+            </flux:navlist.item>
         </flux:navlist.group>
 
         @if(auth()->user()?->is_admin)

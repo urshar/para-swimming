@@ -188,7 +188,10 @@ include_foreign_clubs           (Standard false — gilt für beide Wertungssyst
 counted_meets_per_athlete       (Standard 3 — nur Leistungswertung)
 max_counted_athletes_per_club   (Standard 5 — nur Leistungswertung)
 athlete_weights                 (Standard 1: 1.00 / 2: 0.80 / 3: 0.60 / 4: 0.40 / 5: 0.20)
+excluded_kader_type_codes       (Standard WELTKLASSE, INTERNATIONALE_KLASSE, SICHTUNGSPOOL — nur Leistungswertung)
 ```
+
+**Ausgeschlossene Kaderarten (`excluded_kader_type_codes`):** Athleten, die während des Cup-Jahres in einer dieser Kaderarten aktiv waren, fließen **nicht** in die Leistungswertung ein — Kaderathleten (Weltklasse, Internationale Klasse, Sichtungspool) sollen die Vereinswertung nicht dominieren. Maßgeblich ist die Überschneidung der Kaderzugehörigkeit (`athlete_kader_memberships.valid_from`/`valid_until`) mit dem Kalenderjahr des Cups — der Bezug auf das Cup-Jahr (statt auf den heutigen Stichtag) hält historische Cup-Jahre reproduzierbar. Die Auswahl erfolgt über den (administrierbaren) `kader_types.code`; ein leeres Array ergibt keinen Ausschluss. Die klassische Startwertung ist **nicht** betroffen.
 
 **Ausländische Vereine (`include_foreign_clubs`):** Standardmäßig werden nur österreichische Vereine (`club.nation.code = 'AUT'`) gewertet. Über die Konfiguration lassen sich ausländische Vereine (Gaststarts) zuschalten. Der Wert gilt für **beide** Wertungssysteme. `StartBasedClubRankingService::getRanking()` akzeptiert zusätzlich ein optionales Argument `$includeForeignClubs`, das den Konfigurationswert je Aufruf überschreiben kann (Standard: Konfigurationswert).
 
@@ -281,7 +284,8 @@ Umsetzung: neuer `CupClubRankingController` (`show(Cup)`, `pdf(Cup)`), Views unt
 
 ```text
 Cup / Jahr
-Wertungssystem: [Startwertung] [Leistungswertung]
+Wertungssystem: [Startwertung] [Leistungswertung]   (Standard: Leistungswertung)
+Ausländische Vereine: [ausgeschlossen] [einbezogen]  (überschreibt den config-Standard)
 ```
 
 ### 13.3 Startwertung — Anzeige
@@ -319,6 +323,7 @@ Nicht berücksichtigt werden:
 - nicht angetretene Ergebnisse: **DNS, SICK, WDR**,
 - **EXH** (außer Konkurrenz),
 - **ausländische Vereine** (`club.nation.code != 'AUT'`) — standardmäßig; über `include_foreign_clubs` (§8) zuschaltbar,
+- **Kaderathleten** (nur Leistungswertung) — Athleten, die während des Cup-Jahres in einer ausgeschlossenen Kaderart (`excluded_kader_type_codes`, §8) aktiv waren,
 - Ergebnisse ohne gültige Vereinszuordnung (strukturell ausgeschlossen, da `results.club_id` NOT NULL ist).
 
 **DSQ und DNF** werden in der **Startwertung** als Start gewertet (der Athlet ist angetreten). In der **Leistungswertung** erhalten sie über den `WorldAquaticsPointsService` ohnehin keine Punkte und wirken daher nicht mit.
@@ -345,6 +350,7 @@ Getroffene Entscheidungen (Phase 0):
 4. **Vereinswechsel:** Athleten-Saisonwert je Verein getrennt (per-Meet/per-Verein).
 5. **Konfiguration:** `config/cup_club_ranking.php`; `counted_meets_per_athlete` unabhängig von `cups.best_of_count`.
 6. **Ausländische Vereine:** standardmäßig ausgeschlossen, per `include_foreign_clubs` zuschaltbar (beide Wertungssysteme).
+7. **Kaderausschluss (nur Leistungswertung):** Athleten, die während des Cup-Jahres in einer ausgeschlossenen Kaderart (Weltklasse, Internationale Klasse, Sichtungspool; `excluded_kader_type_codes`) aktiv waren, fließen nicht ein. Stichtag = Überschneidung mit dem Kalenderjahr des Cups (reproduzierbar).
 
 ---
 
@@ -367,8 +373,13 @@ Abgeschlossen (Analysebericht liegt vor).
 - Unit-Tests (§18).
 
 ### Phase 3 — UI
-- `CupClubRankingController`, Routen, Navigationseintrag, Views (Filter Start/Leistung, Tabellen §13.3/§13.4, aufklappbare Detailansicht, Staleness-Hinweis)
-- Feature-Tests.
+- `CupClubRankingController` (`index`, `show`) mit Routen `cups.club-ranking.index` (`/vereinswertung`) und `cups.club-ranking.show` (`/cups/{cup}/club-ranking?system=&foreign=`)
+- Navigationseintrag „Vereinswertung" in der Gruppe „Cup Wertung"
+- Views `cups/club-ranking-index` und `cups/club-ranking` (Cup/Jahr-Auswahl, Umschalter Start/Leistung, Ausland-Umschalter, Tabellen §13.3/§13.4, aufklappbare Athleten-Details, Staleness-Hinweis)
+- `CupStalenessService::clubRankingStatus(Cup)` (Aktualität der Tageswertungen über alle Cup-Meets)
+- `ClubRankingConfiguration::withIncludeForeignClubs()` (UI-Übersteuerung des Ausland-Schalters)
+- Feature-Tests (`cup-club-ranking-p3`) und Unit-Tests für `clubRankingStatus`
+- PDF-Export bleibt Phase 4.
 
 ### Phase 4 — PDF / Export
 - PDF-View (`pdf/cup-club-ranking.blade.php`, Landscape) für beide Wertungssysteme; optional Excel-Export nach Projektstandard
