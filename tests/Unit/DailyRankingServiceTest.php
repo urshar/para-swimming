@@ -237,6 +237,36 @@ describe('calculateForMeet — Grundlagen', function () {
             ->and($rows->first()->points)->toBe(expectedPoints_cup3(10500));
     })->group('cup-wertung-p3');
 
+    it('schließt EXH-Ergebnisse (außer Konkurrenz) aus, wertet aber ein paralleles reguläres Ergebnis', function () {
+        makeSportClassGroup_cup3('PI', ['S9']);
+        $cup = makeCup_cup3();
+        $meet = makeMeet_cup3(['cup_id' => $cup->id]);
+        $athlete = makeAthlete_cup3();
+        $club = makeClub_cup3();
+
+        makeResult_cup3($athlete, $club, $meet, 8000, ['status' => 'EXH']); // schnellste Zeit, aber außer Konkurrenz
+        makeResult_cup3($athlete, $club, $meet, 10500);                     // reguläres Ergebnis → wird gewertet
+
+        $rows = service_cup3()->calculateForMeet($meet);
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows->first()->points)->toBe(expectedPoints_cup3(10500));
+    })->group('cup-wertung-p3');
+
+    it('legt für einen Athleten mit ausschließlich EXH-Ergebnissen keine Tageswertung an', function () {
+        makeSportClassGroup_cup3('PI', ['S9']);
+        $cup = makeCup_cup3();
+        $meet = makeMeet_cup3(['cup_id' => $cup->id]);
+        $athlete = makeAthlete_cup3();
+        $club = makeClub_cup3();
+
+        makeResult_cup3($athlete, $club, $meet, 9000, ['status' => 'EXH']);
+
+        $rows = service_cup3()->calculateForMeet($meet);
+
+        expect($rows)->toHaveCount(0);
+    })->group('cup-wertung-p3');
+
     it('schließt Ergebnisse ohne zugeordnete Sportklassengruppe aus (z.B. künftige Staffel-Klassen)', function () {
         // keine SportClassGroup für "R20" angelegt
         $cup = makeCup_cup3();

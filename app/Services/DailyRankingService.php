@@ -34,8 +34,10 @@ use Throwable;
  * in den Cup-Wertungs-Snapshot ein. Ergebnisse, für die sich mit der
  * Cup-Basiswert-Version keine Punkte berechnen lassen (z.B. fehlender
  * Basiswert-Eintrag), fließen nicht ein — ebenso wie Ergebnisse ohne
- * zugeordnete Sportklassengruppe (z.B. künftige Staffel-Klassen) und
- * ungültige Ergebnisse (DSQ/DNS/DNF/WDR).
+ * zugeordnete Sportklassengruppe (z.B. künftige Staffel-Klassen), ungültige
+ * Ergebnisse (DSQ/DNS/DNF/WDR) und EXH-Ergebnisse (außer Konkurrenz). Hat ein
+ * Athlet neben einem EXH-Schwimmen ein reguläres Ergebnis, wird das reguläre
+ * als Tagesbestes gewertet. Für Richtzeiten und Rekorde bleibt EXH gültig.
  */
 readonly class DailyRankingService
 {
@@ -126,7 +128,13 @@ readonly class DailyRankingService
         $best = [];
 
         foreach ($results as $result) {
-            if (! $result->isValid() || ! $result->athlete || ! $result->athlete->gender) {
+            // EXH (außer Konkurrenz) zählt in keiner Punktewertung — Tageswertung,
+            // Gesamtwertung und Vereinswertung. Ein paralleles Nicht-EXH-Ergebnis
+            // desselben Athleten im selben Meet wird weiterhin als Tagesbestes
+            // berücksichtigt. Für Richtzeiten und Rekorde bleibt EXH über
+            // Result::isValid() gültig (isValid() wird hier bewusst nicht geändert).
+            if (! $result->isValid() || $result->status === 'EXH'
+                || ! $result->athlete || ! $result->athlete->gender) {
                 continue;
             }
 
