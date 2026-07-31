@@ -23,8 +23,8 @@ use stdClass;
  *
  * Datenbasis (Spec §5.1): der bestehende Snapshot `cup_daily_results`. Dieser
  * enthält je Athlet und Cup-Meet bereits das punktbeste gültige Einzelergebnis,
- * dessen Cup-Punkte über den WorldAquaticsPointsService gegen die Cup-Basiswert-
- * Version berechnet wurden, inklusive Startverein (`club_id`). Es wird keine
+ * dessen Cup-Punkte über den WorldAquaticsPointsService gegen die Cup-Basiswert-Version
+ * berechnet wurden, inklusive Startverein (`club_id`). Es wird keine
  * eigene, parallele Punkteberechnung implementiert (Spec §19).
  *
  * Berechnungskette:
@@ -34,11 +34,12 @@ use stdClass;
  *   3. je Verein die besten max_counted_athletes_per_club Athleten gewichten,
  *   4. Vereinsgesamtwert, Reihung und Tie-Break (§14).
  *
- * Kaderausschluss: Athleten, die während des Cup-Jahres in einer
- * ausgeschlossenen Kaderart aktiv waren (config: excluded_kader_type_codes,
- * z.B. Weltklasse, internationale Klasse, Sichtungspool), fließen nicht in die
- * Leistungswertung ein — ihre Tageswertungs-Zeilen werden vor der Aggregation
- * verworfen. Nur die Leistungswertung ist betroffen (nicht die Startwertung).
+ * Kaderbegrenzung: Athleten, die während des Cup-Jahres in einer
+ * eingeschränkten Kaderart aktiv waren (config: restricted_kader_type_codes,
+ * z.B. Weltklasse, internationale Klasse, Sichtungspool), zählen je Verein nur
+ * begrenzt: höchstens counted_kader_athletes_per_club Kaderathleten pro Verein
+ * (Standard 0 = keiner). Nur die Leistungswertung ist betroffen (nicht die
+ * Startwertung).
  *
  * EXH-Ausschluss: EXH-Ergebnisse (außer Konkurrenz) zählen in keiner
  * Punktewertung. Der Ausschluss erfolgt an der Quelle — DailyRankingService
@@ -75,17 +76,9 @@ final readonly class PerformanceBasedClubRankingService
             return collect();
         }
 
-        $excludedAthleteIds = $this->excludedKaderAthleteIds($cup, $config);
-
-        if ($excludedAthleteIds->isNotEmpty()) {
-            $dailyResults = $dailyResults->reject(
-                fn (stdClass $row): bool => $excludedAthleteIds->contains((int) $row->athlete_id)
-            );
-
-            if ($dailyResults->isEmpty()) {
-                return collect();
-            }
-        }
+        // Kaderathleten werden nicht mehr global verworfen, sondern je Verein auf
+        // counted_kader_athletes_per_club begrenzt (siehe selectCountedAthletes()).
+        $kaderAthleteIds = $this->kaderAthleteIds($cup, $config);
 
         $perAthleteClub = $this->resolveAthleteSeasonValues($dailyResults, $config);
         $byClub = $perAthleteClub->groupBy('club_id');
@@ -109,8 +102,12 @@ final readonly class PerformanceBasedClubRankingService
                 $clubAthletes,
                 $config,
                 $clubs,
-                $athletes
+                $athletes,
+                $kaderAthleteIds
             ))
+            // Vereine ohne gewertete Athleten (z.B. nur Kaderathleten bei Limit 0)
+            // erscheinen nicht in der Rangliste.
+            ->reject(fn (array $row): bool => $row['counted_athletes'] === 0)
             ->values()
             ->sort(fn (array $a, array $b): int => [
                 $b['total_points'], $b['unweighted_sum'], $b['best_value'],
@@ -152,32 +149,33 @@ final readonly class PerformanceBasedClubRankingService
     }
 
     /**
-     * Athleten, deren Leistungen nicht in die Wertung einfließen, weil sie
-     * während des Cup-Jahres in einer ausgeschlossenen Kaderart (z.B.
-     * Weltklasse, internationale Klasse, Sichtungspool) aktiv waren.
+     * Athleten, die während des Cup-Jahres in einer eingeschränkten Kaderart
+     * (z.B. Weltklasse, internationale Klasse, Sichtungspool) aktiv waren. Sie
+     * werden nicht generell ausgeschlossen, sondern je Verein auf
+     * counted_kader_athletes_per_club begrenzt (selectCountedAthletes()).
      *
      * Maßgeblich ist das Kalenderjahr des Cups: eine Mitgliedschaft, die sich
-     * mit [1.1., 31.12.] des Cup-Jahres überschneidet, schließt aus. Der Bezug
-     * auf das Cup-Jahr (statt auf now()) hält historische Cup-Jahre
+     * mit [1.1., 31.12.] des Cup-Jahres überschneidet, gilt als Kaderzugehörigkeit.
+     * Der Bezug auf das Cup-Jahr (statt auf now()) hält historische Cup-Jahre
      * reproduzierbar. Die Kaderarten werden über ihren (administrierbaren) Code
-     * ausgewählt; eine leere Ausschlussliste ergibt keine Ausschlüsse.
+     * ausgewählt; eine leere Liste ergibt keine Kaderathleten.
      *
      * @return Collection<int, int> athlete_ids
      */
-    private function excludedKaderAthleteIds(Cup $cup, ClubRankingConfiguration $config): Collection
+    private function kaderAthleteIds(Cup $cup, ClubRankingConfiguration $config): Collection
     {
-        if ($config->excludedKaderTypeCodes === []) {
+        if ($config->restrictedKaderTypeCodes === []) {
             return collect();
         }
 
-        // Eine Kaderzugehörigkeit schließt aus, wenn sie sich mit dem Kalenderjahr
-        // des Cups überschneidet (valid_from/valid_until = null = unbegrenzt). Der
+        // Eine Kaderzugehörigkeit greift, wenn sie sich mit dem Kalenderjahr des
+        // Cups überschneidet (valid_from/valid_until = null = unbegrenzt). Der
         // Bezug auf das Cup-Jahr statt auf now() hält historische Cups reproduzierbar.
         $yearStart = $cup->year.'-01-01';
         $yearEnd = $cup->year.'-12-31';
 
         return AthleteKaderMembership::query()
-            ->whereHas('kaderType', fn (Builder $query) => $query->whereIn('code', $config->excludedKaderTypeCodes))
+            ->whereHas('kaderType', fn (Builder $query) => $query->whereIn('code', $config->restrictedKaderTypeCodes))
             ->where(function (Builder $query) use ($yearEnd) {
                 $query->whereNull('valid_from')->orWhere('valid_from', '<=', $yearEnd);
             })
@@ -225,12 +223,53 @@ final readonly class PerformanceBasedClubRankingService
     }
 
     /**
+     * Wählt die gewerteten Athleten eines Vereins: absteigend nach Saisonwert,
+     * höchstens max_counted_athletes_per_club insgesamt und höchstens
+     * counted_kader_athletes_per_club Kaderathleten. Ist das Kader-Limit erreicht,
+     * werden weitere Kaderathleten übersprungen und Nicht-Kaderathleten rücken nach.
+     * counted_kader_athletes_per_club = 0 → kein Kaderathlet zählt.
+     *
+     * @param  Collection<int, array{athlete_id: int, club_id: int, meet_points: list<int>, meet_ids: list<int>, season_value: int}>  $clubAthletes
+     * @param  Collection<int, int>  $kaderAthleteIds
+     * @return Collection<int, array{athlete_id: int, club_id: int, meet_points: list<int>, meet_ids: list<int>, season_value: int}>
+     */
+    private function selectCountedAthletes(
+        Collection $clubAthletes,
+        ClubRankingConfiguration $config,
+        Collection $kaderAthleteIds
+    ): Collection {
+        $selected = collect();
+        $kaderUsed = 0;
+
+        foreach ($clubAthletes->sortByDesc('season_value') as $athlete) {
+            if ($selected->count() >= $config->maxCountedAthletesPerClub) {
+                break;
+            }
+
+            $isKader = $kaderAthleteIds->contains($athlete['athlete_id']);
+
+            if ($isKader && $kaderUsed >= $config->countedKaderAthletesPerClub) {
+                continue;
+            }
+
+            if ($isKader) {
+                $kaderUsed++;
+            }
+
+            $selected->push($athlete);
+        }
+
+        return $selected->values();
+    }
+
+    /**
      * Baut die Wertungszeile eines Vereins: beste N Athleten gewichten,
      * Gesamtpunkte, gewertete Athleten/Meets und die Detailaufstellung.
      *
      * @param  Collection<int, array{athlete_id: int, club_id: int, meet_points: list<int>, meet_ids: list<int>, season_value: int}>  $clubAthletes
      * @param  Collection<int, Club>  $clubs
      * @param  Collection<int, Athlete>  $athletes
+     * @param  Collection<int, int>  $kaderAthleteIds
      * @return array{club_id: int, club_name: string, total_points: float, counted_athletes: int, counted_meets: int, unweighted_sum: int, best_value: int, breakdown: list<CountedAthleteBreakdown>}
      */
     private function buildClubRow(
@@ -238,17 +277,12 @@ final readonly class PerformanceBasedClubRankingService
         Collection $clubAthletes,
         ClubRankingConfiguration $config,
         Collection $clubs,
-        Collection $athletes
+        Collection $athletes,
+        Collection $kaderAthleteIds
     ): array {
-        $counted = $clubAthletes
-            ->sortByDesc('season_value')
-            ->take($config->maxCountedAthletesPerClub)
-            ->values();
+        $counted = $this->selectCountedAthletes($clubAthletes, $config, $kaderAthleteIds);
 
-        $breakdown = $counted->map(function (array $athlete, int $index) use (
-            $config,
-            $athletes
-        ): CountedAthleteBreakdown {
+        $breakdown = $counted->map(function (array $athlete, int $index) use ($config, $athletes, $kaderAthleteIds): CountedAthleteBreakdown {
             $position = $index + 1;
             $weight = $config->weightForPosition($position);
 
@@ -260,6 +294,7 @@ final readonly class PerformanceBasedClubRankingService
                 seasonValue: $athlete['season_value'],
                 weight: $weight,
                 weightedValue: round($athlete['season_value'] * $weight, 2),
+                isKader: $kaderAthleteIds->contains($athlete['athlete_id']),
             );
         });
 
@@ -298,11 +333,7 @@ final readonly class PerformanceBasedClubRankingService
         $position = 0;
         $previousKey = null;
 
-        return $rowsSorted->map(function (array $row) use (
-            &$rank,
-            &$position,
-            &$previousKey
-        ): PerformanceClubRankingResult {
+        return $rowsSorted->map(function (array $row) use (&$rank, &$position, &$previousKey): PerformanceClubRankingResult {
             $position++;
             $key = [
                 $row['total_points'], $row['unweighted_sum'], $row['best_value'],

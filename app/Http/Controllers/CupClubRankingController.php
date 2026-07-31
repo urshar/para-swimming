@@ -34,7 +34,7 @@ class CupClubRankingController extends Controller
      * GET /vereinswertung
      *
      * Cup-Übersicht als Einstieg zur Vereinswertung (für alle angemeldeten
-     * Nutzer), analog zur Gesamtwertungsübersicht.
+     * Nutzer), analog zur Gesamtwertungs-Übersicht.
      */
     public function index(): View
     {
@@ -60,6 +60,14 @@ class CupClubRankingController extends Controller
 
         $includeForeign = $request->has('foreign') ? $request->boolean('foreign') : null;
 
+        $maxCountedAthletes = (int) config('cup_club_ranking.max_counted_athletes_per_club', 5);
+
+        // Anzahl der je Verein gewerteten Kaderathleten (0 … max), per Ansicht
+        // überschreibbar; fehlt der Parameter, gilt der Konfigurationswert.
+        $kader = $request->has('kader')
+            ? max(0, min($maxCountedAthletes, (int) $request->query('kader')))
+            : null;
+
         if ($system === 'start') {
             $ranking = $this->clubRankingService->calculateStartRanking($cup, $includeForeign);
             $status = ['calculatedAt' => null, 'isStale' => false, 'reason' => null];
@@ -68,6 +76,10 @@ class CupClubRankingController extends Controller
 
             if ($includeForeign !== null) {
                 $config = $config->withIncludeForeignClubs($includeForeign);
+            }
+
+            if ($kader !== null) {
+                $config = $config->withCountedKaderAthletesPerClub($kader);
             }
 
             $ranking = $this->clubRankingService->calculatePerformanceRanking($cup, $config);
@@ -79,6 +91,8 @@ class CupClubRankingController extends Controller
             'cups' => Cup::orderByDesc('year')->get(['id', 'year', 'name']),
             'system' => $system,
             'includeForeign' => $includeForeign ?? (bool) config('cup_club_ranking.include_foreign_clubs', false),
+            'kaderCount' => $kader ?? (int) config('cup_club_ranking.counted_kader_athletes_per_club', 0),
+            'maxCountedAthletes' => $maxCountedAthletes,
             'ranking' => $ranking,
             'calculatedAt' => $status['calculatedAt'],
             'isStale' => $status['isStale'],

@@ -1,10 +1,12 @@
 <?php
 
 use App\Models\Athlete;
+use App\Models\AthleteKaderMembership;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
+use App\Models\KaderType;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
@@ -128,6 +130,18 @@ function makeDaily_ccr3(
     ]);
 }
 
+function makeKaderMembership_ccr3(Athlete $athlete, string $code): AthleteKaderMembership
+{
+    $type = KaderType::firstOrCreate(['code' => $code], ['name_de' => $code, 'sort_order' => 1]);
+
+    return AthleteKaderMembership::create([
+        'athlete_id' => $athlete->id,
+        'kader_type_id' => $type->id,
+        'valid_from' => null,
+        'valid_until' => null,
+    ]);
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 it('erfordert eine Anmeldung', function () {
@@ -222,4 +236,29 @@ it('schließt ausländische Vereine standardmäßig aus und bezieht sie mit fore
         ->get(route('cups.club-ranking.show', ['cup' => $cup, 'system' => 'performance', 'foreign' => 1]))
         ->assertOk()
         ->assertSee('Germania SC');
+})->group('cup-club-ranking-p3');
+
+it('bezieht über den kader-Parameter Kaderathleten in die Leistungswertung ein', function () {
+    $cup = makeCup_ccr3();
+    $meet = makeMeet_ccr3($cup);
+    $club = makeClub_ccr3('Delfin Wien');
+
+    $kaderAthlete = makeAthlete_ccr3();
+    makeKaderMembership_ccr3($kaderAthlete, 'WELTKLASSE');
+    makeDaily_ccr3($cup, $meet, $kaderAthlete, $club, 900);
+    makeDaily_ccr3($cup, $meet, makeAthlete_ccr3(), $club, 400);
+
+    $user = user_ccr3();
+
+    // Standard (0 Kaderathleten): der Kaderathlet wird nicht gewertet.
+    $this->actingAs($user)
+        ->get(route('cups.club-ranking.show', ['cup' => $cup, 'system' => 'performance']))
+        ->assertOk()
+        ->assertDontSee($kaderAthlete->display_name);
+
+    // Mit kader=1: der Kaderathlet wird einbezogen.
+    $this->actingAs($user)
+        ->get(route('cups.club-ranking.show', ['cup' => $cup, 'system' => 'performance', 'kader' => 1]))
+        ->assertOk()
+        ->assertSee($kaderAthlete->display_name);
 })->group('cup-club-ranking-p3');

@@ -47,21 +47,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Ausgeschlossene Kaderarten (nur Leistungswertung)
+    | Kaderathleten (nur Leistungswertung)
     |--------------------------------------------------------------------------
     |
-    | Athleten, die während des Cup-Jahres in einer dieser Kaderarten aktiv
-    | waren, fließen NICHT in die leistungsorientierte Vereinswertung ein
-    | (Kaderathleten sollen die Wertung nicht dominieren). Angegeben werden die
-    | (administrierbaren) Codes aus kader_types. Leeres Array = kein Ausschluss.
-    | Die klassische Startwertung ist davon nicht betroffen.
+    | restricted_kader_type_codes:  Kaderarten, deren Athleten je Verein nur
+    |   begrenzt in die leistungsorientierte Vereinswertung einfließen. Angegeben
+    |   werden die (administrierbaren) Codes aus kader_types. Maßgeblich ist, ob
+    |   die Kaderzugehörigkeit während des Cup-Jahres aktiv war. Leeres Array =
+    |   keine Kaderbegrenzung.
+    |
+    | counted_kader_athletes_per_club:  Wie viele Kaderathleten je Verein
+    |   höchstens gewertet werden. 0 = keiner (Kaderathleten zählen nicht),
+    |   höher = die besten N Kaderathleten je Verein zählen mit. Der Wert lässt
+    |   sich in der Ansicht je Aufruf überschreiben.
+    |
+    | Die klassische Startwertung ist von beidem nicht betroffen.
     |
     */
 
-    'excluded_kader_type_codes' => [
+    'restricted_kader_type_codes' => [
         'WELTKLASSE',
         'INTERNATIONALE_KLASSE',
         'SICHTUNGSPOOL',
     ],
+
+    'counted_kader_athletes_per_club' => 0,
 
 ];

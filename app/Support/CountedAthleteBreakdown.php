@@ -13,6 +13,7 @@ namespace App\Support;
  * - weight:         Gewicht der Position des Athleten im Verein
  * - weightedValue:  seasonValue × weight = Beitrag zur Vereinswertung
  *                   (auf 2 Nachkommastellen gerundet)
+ * - isKader:        ist ein (eingeschränkter) Kaderathlet
  */
 final readonly class CountedAthleteBreakdown
 {
@@ -27,5 +28,6 @@ final readonly class CountedAthleteBreakdown
         public int $seasonValue,
         public float $weight,
         public float $weightedValue,
+        public bool $isKader,
     ) {}
 }

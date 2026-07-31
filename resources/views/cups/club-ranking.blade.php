@@ -9,8 +9,8 @@
 
     @php
         $foreignFlag = $includeForeign ? 1 : 0;
-        $linkFor = fn (string $sys, int $foreign) => route('cups.club-ranking.show', [
-            'cup' => $cup, 'system' => $sys, 'foreign' => $foreign,
+        $linkFor = fn (string $sys, int $foreign, int $kader) => route('cups.club-ranking.show', [
+            'cup' => $cup, 'system' => $sys, 'foreign' => $foreign, 'kader' => $kader,
         ]);
         $systemLabel = $system === 'start' ? 'Startwertung' : 'Leistungswertung';
         $fmt = fn ($v) => number_format((float) $v, 2, ',', '.');
@@ -40,7 +40,7 @@
                         class="rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm px-3 py-2 text-zinc-900 dark:text-zinc-100">
                     @foreach($cups as $c)
                         <option
-                            value="{{ route('cups.club-ranking.show', ['cup' => $c, 'system' => $system, 'foreign' => $foreignFlag]) }}"
+                            value="{{ route('cups.club-ranking.show', ['cup' => $c, 'system' => $system, 'foreign' => $foreignFlag, 'kader' => $kaderCount]) }}"
                             @selected($c->id === $cup->id)>
                             {{ $c->year }} — {{ $c->name }}
                         </option>
@@ -51,11 +51,11 @@
             <div>
                 <span class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Wertungssystem</span>
                 <div class="flex gap-1">
-                    <flux:button href="{{ $linkFor('start', $foreignFlag) }}" size="sm"
+                    <flux:button href="{{ $linkFor('start', $foreignFlag, $kaderCount) }}" size="sm"
                                  :variant="$system === 'start' ? 'primary' : 'ghost'">
                         Startwertung
                     </flux:button>
-                    <flux:button href="{{ $linkFor('performance', $foreignFlag) }}" size="sm"
+                    <flux:button href="{{ $linkFor('performance', $foreignFlag, $kaderCount) }}" size="sm"
                                  :variant="$system === 'performance' ? 'primary' : 'ghost'">
                         Leistungswertung
                     </flux:button>
@@ -65,12 +65,28 @@
             <div>
                 <span
                     class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Ausländische Vereine</span>
-                <flux:button href="{{ $linkFor($system, $includeForeign ? 0 : 1) }}" size="sm"
+                <flux:button href="{{ $linkFor($system, $includeForeign ? 0 : 1, $kaderCount) }}" size="sm"
                              :variant="$includeForeign ? 'primary' : 'ghost'"
                              :icon="$includeForeign ? 'check' : 'plus'">
                     {{ $includeForeign ? 'einbezogen' : 'ausgeschlossen' }}
                 </flux:button>
             </div>
+
+            @if($system === 'performance')
+                <div>
+                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Kaderathleten je
+                        Verein</label>
+                    <select onchange="window.location.href=this.value"
+                            class="rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm px-3 py-2 text-zinc-900 dark:text-zinc-100">
+                        @for($i = 0; $i <= $maxCountedAthletes; $i++)
+                            <option
+                                value="{{ $linkFor('performance', $foreignFlag, $i) }}" @selected($i === $kaderCount)>
+                                {{ $i === 0 ? 'keine' : $i }}
+                            </option>
+                        @endfor
+                    </select>
+                </div>
+            @endif
         </div>
 
         {{-- Staleness-Hinweis (nur Leistungswertung) --}}
@@ -171,7 +187,13 @@
                                         @foreach($row->athletes as $athlete)
                                             <tr class="text-zinc-600 dark:text-zinc-300">
                                                 <td class="py-1 pe-3">{{ $athlete->position }}</td>
-                                                <td class="py-1 pe-3">{{ $athlete->athleteName }}</td>
+                                                <td class="py-1 pe-3">
+                                                    {{ $athlete->athleteName }}
+                                                    @if($athlete->isKader)
+                                                        <span
+                                                            class="ms-1 inline-block rounded bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 text-[10px] font-medium align-middle">Kader</span>
+                                                    @endif
+                                                </td>
                                                 <td class="py-1 pe-3 tabular-nums">{{ implode(' + ', $athlete->meetPoints) }}</td>
                                                 <td class="py-1 pe-3 text-right tabular-nums">{{ $athlete->seasonValue }}</td>
                                                 <td class="py-1 pe-3 text-right tabular-nums">{{ $fmt($athlete->weight) }}</td>

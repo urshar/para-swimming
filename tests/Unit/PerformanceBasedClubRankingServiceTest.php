@@ -42,14 +42,16 @@ function config_pcr2(
     int $meets = 3,
     int $athletes = 5,
     bool $foreign = false,
-    array $excludedKader = ['WELTKLASSE', 'INTERNATIONALE_KLASSE', 'SICHTUNGSPOOL']
+    array $restrictedKader = ['WELTKLASSE', 'INTERNATIONALE_KLASSE', 'SICHTUNGSPOOL'],
+    int $countedKader = 0
 ): ClubRankingConfiguration {
     return new ClubRankingConfiguration(
         countedMeetsPerAthlete: $meets,
         maxCountedAthletesPerClub: $athletes,
         weights: [1 => 1.0, 2 => 0.8, 3 => 0.6, 4 => 0.4, 5 => 0.2],
         includeForeignClubs: $foreign,
-        excludedKaderTypeCodes: $excludedKader,
+        restrictedKaderTypeCodes: $restrictedKader,
+        countedKaderAthletesPerClub: $countedKader,
     );
 }
 
@@ -478,8 +480,87 @@ it('wertet alle Athleten, wenn die Ausschlussliste leer ist', function () {
     makeKaderMembership_pcr2($athlete, 'WELTKLASSE');
     makeDaily_pcr2($cup, $meet, $athlete, $club, 400);
 
-    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(excludedKader: [])), 'Verein');
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(restrictedKader: [])), 'Verein');
 
     expect($row->countedAthletes)->toBe(1)
         ->and($row->totalPoints)->toEqualWithDelta(400.0, 0.001);
+});
+
+// ── Tests: Kaderathleten je Verein einbeziehen (counted_kader_athletes_per_club) ─
+
+it('bezieht bis zur konfigurierten Anzahl Kaderathleten je Verein ein', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+
+    $kaderAthlete = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($kaderAthlete, 'WELTKLASSE');
+    makeDaily_pcr2($cup, $meet, $kaderAthlete, $club, 900);
+    makeDaily_pcr2($cup, $meet, makeAthlete_pcr2(), $club, 400);
+
+    // counted_kader = 1 → Kaderathlet zählt mit: 900×1,0 + 400×0,8 = 1220.
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(countedKader: 1)), 'Verein');
+
+    expect($row->countedAthletes)->toBe(2)
+        ->and($row->totalPoints)->toEqualWithDelta(1220.0, 0.001)
+        ->and(collect($row->athletes)->firstWhere('isKader', true))->not->toBeNull();
+});
+
+it('begrenzt die Anzahl gewerteter Kaderathleten je Verein', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+
+    $kader1 = makeAthlete_pcr2();
+    $kader2 = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($kader1, 'WELTKLASSE');
+    makeKaderMembership_pcr2($kader2, 'SICHTUNGSPOOL');
+    makeDaily_pcr2($cup, $meet, $kader1, $club, 900); // bester Kaderathlet → zählt
+    makeDaily_pcr2($cup, $meet, $kader2, $club, 800); // zweiter Kaderathlet → fällt weg
+    makeDaily_pcr2($cup, $meet, makeAthlete_pcr2(), $club, 400);
+
+    // counted_kader = 1 → nur der beste Kaderathlet: 900×1,0 + 400×0,8 = 1220.
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(countedKader: 1)), 'Verein');
+
+    expect($row->countedAthletes)->toBe(2)
+        ->and($row->totalPoints)->toEqualWithDelta(1220.0, 0.001)
+        ->and(collect($row->athletes)->pluck('seasonValue')->all())->not->toContain(800);
+});
+
+it('bezieht bei ausreichend hohem Limit alle Kaderathleten ein', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+
+    $kader1 = makeAthlete_pcr2();
+    $kader2 = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($kader1, 'WELTKLASSE');
+    makeKaderMembership_pcr2($kader2, 'WELTKLASSE');
+    makeDaily_pcr2($cup, $meet, $kader1, $club, 900);
+    makeDaily_pcr2($cup, $meet, $kader2, $club, 800);
+
+    // counted_kader = 5 → beide Kaderathleten zählen: 900×1,0 + 800×0,8 = 1540.
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2(countedKader: 5)), 'Verein');
+
+    expect($row->countedAthletes)->toBe(2)
+        ->and($row->totalPoints)->toEqualWithDelta(1540.0, 0.001);
+});
+
+it('lässt Nicht-Kaderathleten nachrücken, wenn das Kader-Limit greift', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = makeClub_pcr2('Verein');
+
+    // Stärkster Athlet ist Kader, zählt aber wegen Limit 0 nicht → Nicht-Kader rücken nach.
+    $kader = makeAthlete_pcr2();
+    makeKaderMembership_pcr2($kader, 'WELTKLASSE');
+    makeDaily_pcr2($cup, $meet, $kader, $club, 900);
+    makeDaily_pcr2($cup, $meet, makeAthlete_pcr2(), $club, 400);
+    makeDaily_pcr2($cup, $meet, makeAthlete_pcr2(), $club, 300);
+
+    // counted_kader = 0 (Default): 400×1,0 + 300×0,8 = 640; der 900er Kaderathlet zählt nicht.
+    $row = row_pcr2(service_pcr2()->getRanking($cup, config_pcr2()), 'Verein');
+
+    expect($row->countedAthletes)->toBe(2)
+        ->and($row->totalPoints)->toEqualWithDelta(640.0, 0.001);
 });

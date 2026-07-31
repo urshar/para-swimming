@@ -188,10 +188,11 @@ include_foreign_clubs           (Standard false — gilt für beide Wertungssyst
 counted_meets_per_athlete       (Standard 3 — nur Leistungswertung)
 max_counted_athletes_per_club   (Standard 5 — nur Leistungswertung)
 athlete_weights                 (Standard 1: 1.00 / 2: 0.80 / 3: 0.60 / 4: 0.40 / 5: 0.20)
-excluded_kader_type_codes       (Standard WELTKLASSE, INTERNATIONALE_KLASSE, SICHTUNGSPOOL — nur Leistungswertung)
+restricted_kader_type_codes     (Standard WELTKLASSE, INTERNATIONALE_KLASSE, SICHTUNGSPOOL — nur Leistungswertung)
+counted_kader_athletes_per_club (Standard 0 — nur Leistungswertung; in der Ansicht überschreibbar)
 ```
 
-**Ausgeschlossene Kaderarten (`excluded_kader_type_codes`):** Athleten, die während des Cup-Jahres in einer dieser Kaderarten aktiv waren, fließen **nicht** in die Leistungswertung ein — Kaderathleten (Weltklasse, Internationale Klasse, Sichtungspool) sollen die Vereinswertung nicht dominieren. Maßgeblich ist die Überschneidung der Kaderzugehörigkeit (`athlete_kader_memberships.valid_from`/`valid_until`) mit dem Kalenderjahr des Cups — der Bezug auf das Cup-Jahr (statt auf den heutigen Stichtag) hält historische Cup-Jahre reproduzierbar. Die Auswahl erfolgt über den (administrierbaren) `kader_types.code`; ein leeres Array ergibt keinen Ausschluss. Die klassische Startwertung ist **nicht** betroffen.
+**Kaderathleten (`restricted_kader_type_codes` + `counted_kader_athletes_per_club`):** Athleten, die während des Cup-Jahres in einer eingeschränkten Kaderart aktiv waren (Weltklasse, Internationale Klasse, Sichtungspool), sollen die Leistungswertung nicht dominieren. Statt sie pauschal auszuschließen, zählt je Verein höchstens `counted_kader_athletes_per_club` Kaderathleten mit (die besten nach Saisonwert); ist das Limit erreicht, rücken Nicht-Kaderathleten nach. Standard 0 = kein Kaderathlet zählt. Maßgeblich für die Kadereigenschaft ist die Überschneidung der Kaderzugehörigkeit (`athlete_kader_memberships.valid_from`/`valid_until`) mit dem Kalenderjahr des Cups — der Bezug auf das Cup-Jahr (statt auf den heutigen Stichtag) hält historische Cup-Jahre reproduzierbar. Die betroffenen Kaderarten werden über den (administrierbaren) `kader_types.code` gewählt; ein leeres Array bedeutet keine Kaderbegrenzung. Die Anzahl lässt sich in der Vereinswertungs-Ansicht je Aufruf überschreiben (0 … `max_counted_athletes_per_club`). Die klassische Startwertung ist **nicht** betroffen.
 
 **Ausländische Vereine (`include_foreign_clubs`):** Standardmäßig werden nur österreichische Vereine (`club.nation.code = 'AUT'`) gewertet. Über die Konfiguration lassen sich ausländische Vereine (Gaststarts) zuschalten. Der Wert gilt für **beide** Wertungssysteme. `StartBasedClubRankingService::getRanking()` akzeptiert zusätzlich ein optionales Argument `$includeForeignClubs`, das den Konfigurationswert je Aufruf überschreiben kann (Standard: Konfigurationswert).
 
@@ -286,6 +287,7 @@ Umsetzung: neuer `CupClubRankingController` (`show(Cup)`, `pdf(Cup)`), Views unt
 Cup / Jahr
 Wertungssystem: [Startwertung] [Leistungswertung]   (Standard: Leistungswertung)
 Ausländische Vereine: [ausgeschlossen] [einbezogen]  (überschreibt den config-Standard)
+Kaderathleten je Verein: [0 … max]                   (nur Leistungswertung; überschreibt den config-Standard)
 ```
 
 ### 13.3 Startwertung — Anzeige
@@ -323,7 +325,7 @@ Nicht berücksichtigt werden:
 - nicht angetretene Ergebnisse: **DNS, SICK, WDR**,
 - **EXH** (außer Konkurrenz),
 - **ausländische Vereine** (`club.nation.code != 'AUT'`) — standardmäßig; über `include_foreign_clubs` (§8) zuschaltbar,
-- **Kaderathleten** (nur Leistungswertung) — Athleten, die während des Cup-Jahres in einer ausgeschlossenen Kaderart (`excluded_kader_type_codes`, §8) aktiv waren,
+- **Kaderathleten** (nur Leistungswertung) — Athleten, die während des Cup-Jahres in einer eingeschränkten Kaderart (`restricted_kader_type_codes`, §8) aktiv waren, zählen je Verein nur begrenzt (`counted_kader_athletes_per_club`),
 - Ergebnisse ohne gültige Vereinszuordnung (strukturell ausgeschlossen, da `results.club_id` NOT NULL ist).
 
 **DSQ und DNF** werden in der **Startwertung** als Start gewertet (der Athlet ist angetreten). In der **Leistungswertung** erhalten sie über den `WorldAquaticsPointsService` ohnehin keine Punkte und wirken daher nicht mit.
@@ -350,7 +352,7 @@ Getroffene Entscheidungen (Phase 0):
 4. **Vereinswechsel:** Athleten-Saisonwert je Verein getrennt (per-Meet/per-Verein).
 5. **Konfiguration:** `config/cup_club_ranking.php`; `counted_meets_per_athlete` unabhängig von `cups.best_of_count`.
 6. **Ausländische Vereine:** standardmäßig ausgeschlossen, per `include_foreign_clubs` zuschaltbar (beide Wertungssysteme).
-7. **Kaderausschluss (nur Leistungswertung):** Athleten, die während des Cup-Jahres in einer ausgeschlossenen Kaderart (Weltklasse, Internationale Klasse, Sichtungspool; `excluded_kader_type_codes`) aktiv waren, fließen nicht ein. Stichtag = Überschneidung mit dem Kalenderjahr des Cups (reproduzierbar).
+7. **Kaderbegrenzung (nur Leistungswertung):** Kaderathleten (Weltklasse, Internationale Klasse, Sichtungspool; `restricted_kader_type_codes`) werden nicht pauschal ausgeschlossen, sondern zählen je Verein höchstens `counted_kader_athletes_per_club` (Standard 0, in der Ansicht überschreibbar). Kadereigenschaft = Überschneidung der Kaderzugehörigkeit mit dem Kalenderjahr des Cups (reproduzierbar).
 
 ---
 
