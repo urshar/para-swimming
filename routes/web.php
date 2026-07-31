@@ -136,6 +136,8 @@ Route::middleware(['auth'])->group(function () {
         [CupClubRankingController::class, 'index'])->name('cups.club-ranking.index');
     Route::get('cups/{cup}/club-ranking',
         [CupClubRankingController::class, 'show'])->name('cups.club-ranking.show');
+    Route::get('cups/{cup}/club-ranking/pdf',
+        [CupClubRankingController::class, 'pdf'])->name('cups.club-ranking.pdf');
 
     Route::resource('kader-types', KaderTypeController::class)->except(['show']);
 

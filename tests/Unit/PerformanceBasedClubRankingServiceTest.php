@@ -564,3 +564,16 @@ it('lässt Nicht-Kaderathleten nachrücken, wenn das Kader-Limit greift', functi
     expect($row->countedAthletes)->toBe(2)
         ->and($row->totalPoints)->toEqualWithDelta(640.0, 0.001);
 });
+
+it('verwendet den Kurznamen des Vereins, falls vorhanden', function () {
+    $cup = makeCup_pcr2();
+    $meet = makeMeet_pcr2($cup);
+    $club = Club::create([
+        'name' => 'Schwimmverein Musterstadt',
+        'short_name' => 'SV Muster',
+        'nation_id' => makeNation_pcr2('AUT')->id,
+    ]);
+    makeDaily_pcr2($cup, $meet, makeAthlete_pcr2(), $club, 500);
+
+    expect(service_pcr2()->getRanking($cup, config_pcr2())->first()->clubName)->toBe('SV Muster');
+});

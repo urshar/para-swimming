@@ -292,6 +292,8 @@ Kaderathleten je Verein: [0 … max]                   (nur Leistungswertung; ü
 
 ### 13.3 Startwertung — Anzeige
 
+> **Vereinsname:** In beiden Wertungssystemen (Anzeige und PDF) wird der Kurzname des Vereins (`clubs.short_name`) angezeigt, sofern vorhanden, sonst der volle Name (`Club::display_name`).
+
 ```text
 Rang | Verein | Starts | Anzahl Athleten | Anzahl Cup-Meets
 ```
@@ -384,8 +386,10 @@ Abgeschlossen (Analysebericht liegt vor).
 - PDF-Export bleibt Phase 4.
 
 ### Phase 4 — PDF / Export
-- PDF-View (`pdf/cup-club-ranking.blade.php`, Landscape) für beide Wertungssysteme; optional Excel-Export nach Projektstandard
-- PDF-Feature-Test.
+- Route `cups.club-ranking.pdf` (`/cups/{cup}/club-ranking/pdf?system=&foreign=&kader=&detail=0|1`) und `CupClubRankingController::pdf()`; `show()` und `pdf()` teilen sich einen privaten Helfer (`resolveRankingData`), damit Ansicht und PDF dieselbe Wertung/Filter zeigen.
+- PDF-View `pdf/cup-club-ranking.blade.php` (dompdf, Portrait) für beide Wertungssysteme; bei der Leistungswertung optional die gewerteten Athleten je Verein (`detail=1`, Kaderathleten gekennzeichnet). Kopf mit aktiven Filtern, Tageswertungs-Stand und Staleness-Hinweis.
+- PDF-Buttons in der Ansicht (Startwertung: „PDF"; Leistungswertung: „PDF Übersicht" und „PDF mit Athleten"), die die aktiven Filter mitnehmen.
+- Feature-Tests (`cup-club-ranking-p3`): PDF beider Systeme (200, `application/pdf`), Detail-Variante, Anmeldepflicht.
 
 ---
 

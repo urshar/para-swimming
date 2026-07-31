@@ -12,6 +12,9 @@
         $linkFor = fn (string $sys, int $foreign, int $kader) => route('cups.club-ranking.show', [
             'cup' => $cup, 'system' => $sys, 'foreign' => $foreign, 'kader' => $kader,
         ]);
+        $pdfLink = fn (int $detail) => route('cups.club-ranking.pdf', [
+            'cup' => $cup, 'system' => $system, 'foreign' => $foreignFlag, 'kader' => $kaderCount, 'detail' => $detail,
+        ]);
         $systemLabel = $system === 'start' ? 'Startwertung' : 'Leistungswertung';
         $fmt = fn ($v) => number_format((float) $v, 2, ',', '.');
     @endphp
@@ -30,6 +33,23 @@
                     </p>
                 </div>
             </div>
+
+            @unless($ranking->isEmpty())
+                <div class="flex gap-2 shrink-0">
+                    @if($system === 'performance')
+                        <flux:button href="{{ $pdfLink(0) }}" variant="ghost" size="sm" icon="arrow-down-tray">
+                            PDF Übersicht
+                        </flux:button>
+                        <flux:button href="{{ $pdfLink(1) }}" variant="ghost" size="sm" icon="arrow-down-tray">
+                            PDF mit Athleten
+                        </flux:button>
+                    @else
+                        <flux:button href="{{ $pdfLink(0) }}" variant="ghost" size="sm" icon="arrow-down-tray">
+                            PDF
+                        </flux:button>
+                    @endif
+                </div>
+            @endunless
         </div>
 
         {{-- Filterleiste --}}

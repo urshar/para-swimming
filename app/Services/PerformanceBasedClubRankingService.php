@@ -86,7 +86,7 @@ final readonly class PerformanceBasedClubRankingService
         $clubs = Club::withTrashed()
             ->with('nation:id,code')
             ->whereIn('id', $byClub->keys())
-            ->get(['id', 'name', 'nation_id'])
+            ->get(['id', 'name', 'short_name', 'nation_id'])
             ->keyBy('id');
 
         $athletes = Athlete::withTrashed()
@@ -282,7 +282,11 @@ final readonly class PerformanceBasedClubRankingService
     ): array {
         $counted = $this->selectCountedAthletes($clubAthletes, $config, $kaderAthleteIds);
 
-        $breakdown = $counted->map(function (array $athlete, int $index) use ($config, $athletes, $kaderAthleteIds): CountedAthleteBreakdown {
+        $breakdown = $counted->map(function (array $athlete, int $index) use (
+            $config,
+            $athletes,
+            $kaderAthleteIds
+        ): CountedAthleteBreakdown {
             $position = $index + 1;
             $weight = $config->weightForPosition($position);
 
@@ -302,7 +306,7 @@ final readonly class PerformanceBasedClubRankingService
 
         return [
             'club_id' => $clubId,
-            'club_name' => (string) ($clubs->get($clubId)?->name ?? '—'),
+            'club_name' => (string) ($clubs->get($clubId)?->display_name ?? '—'),
             'total_points' => round($breakdown->sum(fn (CountedAthleteBreakdown $b): float => $b->weightedValue), 2),
             'counted_athletes' => $counted->count(),
             'counted_meets' => $countedMeetIds->count(),
@@ -333,7 +337,11 @@ final readonly class PerformanceBasedClubRankingService
         $position = 0;
         $previousKey = null;
 
-        return $rowsSorted->map(function (array $row) use (&$rank, &$position, &$previousKey): PerformanceClubRankingResult {
+        return $rowsSorted->map(function (array $row) use (
+            &$rank,
+            &$position,
+            &$previousKey
+        ): PerformanceClubRankingResult {
             $position++;
             $key = [
                 $row['total_points'], $row['unweighted_sum'], $row['best_value'],

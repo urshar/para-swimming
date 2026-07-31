@@ -262,3 +262,42 @@ it('bezieht über den kader-Parameter Kaderathleten in die Leistungswertung ein'
         ->assertOk()
         ->assertSee($kaderAthlete->display_name);
 })->group('cup-club-ranking-p3');
+
+it('exportiert die Leistungswertung als PDF', function () {
+    $cup = makeCup_ccr3();
+    $meet = makeMeet_ccr3($cup);
+    makeDaily_ccr3($cup, $meet, makeAthlete_ccr3(), makeClub_ccr3('Delfin Wien'), 500);
+
+    $this->actingAs(user_ccr3())
+        ->get(route('cups.club-ranking.pdf', ['cup' => $cup, 'system' => 'performance']))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+})->group('cup-club-ranking-p3');
+
+it('exportiert die Leistungswertung mit Athleten-Detail als PDF', function () {
+    $cup = makeCup_ccr3();
+    $meet = makeMeet_ccr3($cup);
+    makeDaily_ccr3($cup, $meet, makeAthlete_ccr3(), makeClub_ccr3('Delfin Wien'), 500);
+
+    $this->actingAs(user_ccr3())
+        ->get(route('cups.club-ranking.pdf', ['cup' => $cup, 'system' => 'performance', 'detail' => 1]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+})->group('cup-club-ranking-p3');
+
+it('exportiert die Startwertung als PDF', function () {
+    $cup = makeCup_ccr3();
+    $meet = makeMeet_ccr3($cup);
+    makeDaily_ccr3($cup, $meet, makeAthlete_ccr3(), makeClub_ccr3('Delfin Wien'), 500);
+
+    $this->actingAs(user_ccr3())
+        ->get(route('cups.club-ranking.pdf', ['cup' => $cup, 'system' => 'start']))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+})->group('cup-club-ranking-p3');
+
+it('erfordert eine Anmeldung für den PDF-Export', function () {
+    $cup = makeCup_ccr3();
+
+    $this->get(route('cups.club-ranking.pdf', $cup))->assertRedirect();
+})->group('cup-club-ranking-p3');

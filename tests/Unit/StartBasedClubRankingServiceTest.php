@@ -91,7 +91,7 @@ function makeMeet_scr1(?Cup $cup): Meet
 }
 
 /**
- * Legt einen Einzelbewerb an. Der "Bewerb" wird über Distanz + Schwimmart
+ * Legt einen Einzelbewerb an. Der „Bewerb" wird über Distanz + Schwimmart
  * (hier stets Freistil) bestimmt; $round unterscheidet Vor-/Endlauf.
  */
 function makeEvent_scr1(Meet $meet, int $distance, string $round = 'TIM', int $relayCount = 1): SwimEvent
@@ -368,4 +368,17 @@ it('liefert eine leere Rangliste, wenn nur ungültige Ergebnisse vorliegen', fun
     makeResult_scr1($meet, makeEvent_scr1($meet, 200), $athlete, $club, 'EXH');
 
     expect(service_scr1()->getRanking($cup))->toBeEmpty();
+});
+
+it('verwendet den Kurznamen des Vereins, falls vorhanden', function () {
+    $cup = makeCup_scr1();
+    $meet = makeMeet_scr1($cup);
+    $club = Club::create([
+        'name' => 'Schwimmverein Musterstadt',
+        'short_name' => 'SV Muster',
+        'nation_id' => makeNation_scr1('AUT')->id,
+    ]);
+    makeResult_scr1($meet, makeEvent_scr1($meet, 100), makeAthlete_scr1(), $club);
+
+    expect(service_scr1()->getRanking($cup)->first()->clubName)->toBe('SV Muster');
 });

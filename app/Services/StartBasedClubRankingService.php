@@ -101,7 +101,7 @@ final readonly class StartBasedClubRankingService
         $clubs = Club::withTrashed()
             ->with('nation:id,code')
             ->whereIn('id', $byClub->keys())
-            ->get(['id', 'name', 'nation_id'])
+            ->get(['id', 'name', 'short_name', 'nation_id'])
             ->keyBy('id');
 
         $rows = $byClub
@@ -109,7 +109,7 @@ final readonly class StartBasedClubRankingService
                 && ! $this->isDomestic($clubs->get($clubId)))
             ->map(fn (Collection $clubStarts, int $clubId): array => [
                 'club_id' => $clubId,
-                'club_name' => (string) ($clubs->get($clubId)?->name ?? '—'),
+                'club_name' => (string) ($clubs->get($clubId)?->display_name ?? '—'),
                 'starts' => $clubStarts->count(),
                 'athletes' => $clubStarts->pluck('athlete_id')->unique()->count(),
                 'meets' => $clubStarts->pluck('meet_id')->unique()->count(),
