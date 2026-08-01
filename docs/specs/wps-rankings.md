@@ -196,8 +196,11 @@ Alle Leistungen eines Jahres. Je Athlet und Bewerb die beste Leistung (§4).
 
 Filter: Jahr, Bewerb, Sportklasse, Geschlecht, Altersgruppe, Kurs, Verein, Nation, Mindestpunktzahl.
 
-**Jahresabgrenzung:** über `meets.start_date` mit `whereDate()` — **kein** `YEAR()`, da die Testsuite auf SQLite läuft.
-Vorbild: `Meet::yearsWithMeets()`.
+**Jahresabgrenzung:** über `meets.start_date` — **kein** `YEAR()`, da die Testsuite auf SQLite läuft. Zu verwenden ist
+`whereBetween('start_date', ["$jahr-01-01", "$jahr-12-31 23:59:59"])`. Die Uhrzeit an der oberen Grenze ist zwingend:
+eine `date`-Spalte wird je nach Treiber als
+`"2026-12-31"` oder als `"2026-12-31 00:00:00"` abgelegt, und ohne Uhrzeit fiele eine Veranstaltung am 31. Dezember im
+zweiten Fall still aus der Auswertung. Grenzfälle (1. Januar und 31. Dezember) sind zu testen.
 
 ## 6.3 Jugendrangliste
 
@@ -393,12 +396,13 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 - Ergebnisse ohne `wps_points` erscheinen nicht
 - Vereinsauswertung: Summe, Durchschnitt und Schwellenwertmethode liefern korrekte Werte
 - Sportklassensortierung: `S2` vor `S10`
+- Jahresabgrenzung erfasst Veranstaltungen am 1. Januar und am 31. Dezember (§6.2)
 
 ## 14.2 Feature-Tests
 
 - Saisonrangliste: Jahr wählen, Filter setzen, korrekte Athleten in korrekter Reihenfolge
 - Jugendrangliste: Altersgrenze wirkt, historische Altersberechnung korrekt
-- PDF-Export: vollständige Tabelle, korrekter Kopfbereich, SCM-Hinweis vorhanden, wenn nötig
+- PDF-Export: vollständige Tabelle, korrekter Kopfbereich, SCM-Hinweis vorhanden wenn nötig
 - mehrere WPS-Versionen in einer Rangliste werden im Kopfbereich alle ausgewiesen
 
 ## 14.3 Berechtigungstests
@@ -409,7 +413,7 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 
 ## 14.4 Regressionstests
 
-Cup-Wertung, Richtzeiten und Statistik liefern unverändert dieselben Ergebnisse — dieses Modul ist reinlesend.
+Cup-Wertung, Richtzeiten und Statistik liefern unverändert dieselben Ergebnisse — dieses Modul ist rein lesend.
 
 ---
 
@@ -477,4 +481,4 @@ Rangliste weist Punktesystem, Version und Berechnungstyp aus.
 - `wps_ranking_cache` und Caching **[R4]**
 - Einbindung von WPS-Kennzahlen in den bestehenden Jahresbericht **[R5]**
 - Vergleich WPS / World Aquatics / ÖBSV am selben Ergebnis
-- Kaderprognosen, Qualifikationsanalysen, Talent analyse
+- Kaderprognosen, Qualifikationsanalysen, Talentanalyse

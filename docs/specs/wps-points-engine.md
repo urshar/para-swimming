@@ -140,7 +140,7 @@ Route → Middleware (auth, RequireAdmin) → Controller/Livewire (dünn)
 Services werden als `final readonly class` mit Constructor-Injection implementiert.
 
 Die Berechnungsmethode **rechnet und speichert nicht in einem Aufruf**. Vorbild ist
-`WorldAquaticsPointsService`, der zwischen `calculatePoints()` (reinlesend) und `recalculateForMeet()`
+`WorldAquaticsPointsService`, der zwischen `calculatePoints()` (rein lesend) und `recalculateForMeet()`
 (persistierend) trennt. Dieses Muster ist zwingend, weil `wps-rankings` und spätere Wertungen die Punkte mit einer
 bestimmten Version neu berechnen können müssen, **ohne** gespeicherte Werte zu verändern — genau wie es
 `DailyRankingService` heute für die Cup-Wertung tut.
@@ -259,7 +259,7 @@ Konstanz je Parametersatz gespeichert, da spätere Versionen davon abweichen kö
 Verbindlich zu implementieren:
 
 - `p <= 0` → keine Berechnung, Begründung `keine gültige Schwimmzeit`
-- der Exponent `b - c/p` wird vor dem Inneren `exp()` auf ein sicheres Intervall geklemmt, um Überlauf zu vermeiden; bei
+- der Exponent `b - c/p` wird vor dem inneren `exp()` auf ein sicheres Intervall geklemmt, um Überlauf zu vermeiden; bei
   sehr großem Exponenten strebt `q` gegen 0, bei sehr kleinem gegen `a`
 - **Ergebnis wird abgerundet, nicht kaufmännisch gerundet:** `(int) floor($q)`. Die offizielle WPS-Rechenvorschrift
   lautet ausdrücklich *"final points for certain time are rounded down"*; die Datei verwendet `FLOOR(...;1)`. `round()`
@@ -278,6 +278,13 @@ Es dürfen **keine** WPS-Werte im Programmcode hinterlegt werden. Alle Parameter
 - jede veröffentlichte Version wird separat gespeichert
 - Ergebnisse speichern die verwendete Version **und** den konkret verwendeten Parametersatz
 - Änderungen an aktuellen Parametern beeinflussen keine historischen Ergebnisse
+
+**Datumsvergleiche an den Gültigkeitsgrenzen:** Eine `date`-Spalte wird je nach Treiber als
+`"2026-01-01"` oder als `"2026-01-01 00:00:00"` abgelegt. Ein Zeichenkettenvergleich
+`valid_from <= '2026-01-01'` ist im zweiten Fall falsch — eine Veranstaltung genau am ersten Gültigkeitstag fände dann
+keine Version und bliebe ohne Punkte, ohne dass ein Fehler auftritt. Die obere Grenze von `valid_from` muss deshalb mit
+`"$date 23:59:59"` verglichen werden. Bei `valid_until` stellt sich das Problem nicht, dort zeigt der Vergleich in die
+andere Richtung. Dasselbe gilt für jede Jahresabgrenzung über `whereBetween` (§10.3).
 
 **Gelöschte Versionen:** Die Fremdschlüssel auf `results` werden mit `nullOnDelete()` angelegt. Ein Löschen einer
 Version macht historische Punkte damit nicht ungültig, entfernt aber die Nachvollziehbarkeit — deshalb wird das Löschen
@@ -311,6 +318,12 @@ Erwartete Kategorie aus dem Bewerb:
 Ablauf: aus dem Stroke die erwartete Kategorie bestimmen, `results.sport_class` parsen (Präfix + Nummer) und prüfen, ob
 die Kategorie übereinstimmt. Bei Abweichung wird die Berechnung mit Begründung übersprungen — es wird **nicht**
 stillschweigend umgeschrieben.
+
+**Reihenfolge der Alternation:** Beim Zerlegen der Sportklasse in Präfix und Nummer müssen die längeren Präfixe zuerst
+stehen — `SB|SM|S`, nicht `S|SB|SM`. Reguläre Ausdrücke prüfen Alternativen von links nach rechts und nehmen den ersten
+Treffer; mit `/^(S|SB|SM)/` liefert
+`SB9` die Kategorie `S`. Ein nachfolgender Anker (`$`) erzwingt zwar Backtracking und korrigiert den Fehler zufällig,
+ein Ausdruck ohne Anker aber nicht. Beide Varianten sind deshalb einheitlich zu schreiben.
 
 Nicht-numerische Klassen (`GER.AB`, `GER.GB`) sowie die Staffelklassen (`S14`, `S20`, `S21`, `S34`, `S49`) haben keine
 WPS-Parameter und führen zum Übersprungen-Status.
@@ -503,7 +516,7 @@ $result = $calculator->calculate(Result $result, WpsPointVersion $version): WpsP
 3. Version, deren Gültigkeitszeitraum `meets.start_date` umfasst (`validOn()`)
 4. keine → Berechnung wird übersprungen
 
-Gegenüber Version 1.0 wurde die Reihenfolge angepasst: Die manuelle Auswahl steht **vorn**, weil sie sonst durch die
+Gegenüber Version 1.0 wurde die Reihenfolge angepasst: die manuelle Auswahl steht **vorn**, weil sie sonst durch die
 automatische Zuordnung nie erreichbar wäre — dasselbe Verhalten hat der bestehende
 `WorldAquaticsPointsController` mit seinem `version_id`-Override.
 
@@ -768,6 +781,8 @@ Phasensuffix (`makeAdmin_wps1()` usw.). `->group()` auf File-Ebene in `uses()`. 
 - Statusfälle: `DNS`/`DNF`/`DSQ`/`SICK`/`WDR` übersprungen, `EXH` berechnet
 - Staffeln (`relay_count > 1`) übersprungen
 - numerische Extremwerte erzeugen keinen Overflow und kein `NaN`
+- Kategorie-Zerlegung: `SB9` ergibt `SB` und `SM10` ergibt `SM`, nicht `S`
+- Versionsauflösung greift am **ersten** und am **letzten** Gültigkeitstag
 
 **Gleitkomma:** Erwartungen mit Toleranz formulieren, nicht auf exakte Gleichheit — MySQL und SQLite runden
 `decimal` unterschiedlich.
@@ -869,6 +884,8 @@ Benutzer können Punkte inklusive Version und Berechnungstyp nachvollziehen.
 | R8  | ~~Importformat unbekannt~~                                                       | **erledigt** — Format festgelegt in §11.4              |
 | R9  | Abrunden statt Runden übersehen → jeder zweite Wert um 1 zu hoch                 | §5.3, Testvektor S2 in §11.4.7                         |
 | R10 | Annahme „max. 1000 Punkte" in Anzeige oder Validierung                           | §5.2, `a = 1200`                                       |
+| R11 | Alternation `S\|SB\|SM` liefert für `SB9` die Kategorie `S`                      | §7.1, eigener Testfall                                 |
+| R12 | Datumsvergleich am ersten Gültigkeitstag scheitert an der gespeicherten Uhrzeit  | §6, Grenzfalltests                                     |
 
 ---
 

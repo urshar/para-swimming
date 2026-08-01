@@ -30,11 +30,18 @@ class BaseTimeVersion extends Model
 
     /**
      * Filtert auf die Version, deren Gültigkeitszeitraum ein bestimmtes Datum umfasst.
-     * Wird später für die World-Aquatics-Punkteberechnung anhand des Wettkampfdatums benötigt.
+     * Wird für die World-Aquatics-Punkteberechnung anhand des Wettkampfdatums benötigt.
+     *
+     * Die obere Grenze von valid_from trägt bewusst eine Uhrzeit: date-Spalten werden je nach
+     * Treiber als "2026-01-01" oder als "2026-01-01 00:00:00" abgelegt. Im zweiten Fall ist
+     * "2026-01-01 00:00:00" ≤ "2026-01-01" als Zeichenkettenvergleich falsch, und eine
+     * Veranstaltung genau am ersten Gültigkeitstag fände keine Version — sie bekäme dann
+     * stillschweigend keine Punkte. Bei valid_until stellt sich das Problem nicht, dort zeigt
+     * der Vergleich in die andere Richtung.
      */
     public function scopeValidOn(Builder $query, string $date): Builder
     {
-        return $query->where('valid_from', '<=', $date)
+        return $query->where('valid_from', '<=', "$date 23:59:59")
             ->where(function (Builder $q) use ($date) {
                 $q->whereNull('valid_until')->orWhere('valid_until', '>=', $date);
             });

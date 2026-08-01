@@ -16,9 +16,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Para Swimming') }} – @yield('title', 'Dashboard')</title>
+    {{-- $title wird von Livewire-Full-Page-Komponenten mit #[Title(...)] gesetzt,
+         @section('title') von den klassischen Controller-Views. --}}
+    <title>{{ config('app.name', 'Para Swimming') }} – @yield('title', $title ?? 'Dashboard')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @fluxStyles
 </head>
 <body class="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
 
@@ -209,10 +210,22 @@
 
 <flux:main class="p-6">
 
+    {{-- Zwei Einbindungswege in dasselbe Layout:
+
+         1. Klassische Controller-Views nutzen @extends('layouts.app') + @section('content')
+            und landen in @yield('content').
+
+         2. Livewire-Full-Page-Komponenten (Route::livewire, resources/views/pages/…)
+            rendern ihre Ausgabe in $slot. Ohne die folgende Zeile wird sie stillschweigend
+            verworfen: die Seite liefert HTTP 200 mit vollständigem Layout, aber leerem
+            Inhaltsbereich. Genau das betraf die Einstellungsseiten.
+
+         $slot ?? '' ist notwendig, weil die Variable bei Weg 1 nicht existiert. --}}
+    {{ $slot ?? '' }}
+
     @yield('content')
 
 </flux:main>
 
-@fluxScripts
 </body>
 </html>
