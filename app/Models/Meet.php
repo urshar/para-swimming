@@ -87,6 +87,19 @@ class Meet extends Model
         return $this->hasMany(Qualification::class);
     }
 
+    /**
+     * Punktesysteme, die für diese Veranstaltung berechnet werden.
+     *
+     * Der Pivot trägt zusätzlich wps_point_version_id: damit kann für ein einzelnes Meet eine
+     * andere als die nach Wettkampfdatum ermittelte WPS-Version erzwungen werden.
+     */
+    public function pointSystems(): BelongsToMany
+    {
+        return $this->belongsToMany(PointSystem::class, 'meet_point_system')
+            ->withPivot('wps_point_version_id')
+            ->withTimestamps();
+    }
+
     public function clubs(): BelongsToMany
     {
         return $this->belongsToMany(Club::class, 'meet_club');
@@ -116,6 +129,14 @@ class Meet extends Model
         }
 
         return $this->start_date->format('d.m.Y').' – '.$this->end_date->format('d.m.Y');
+    }
+
+    /** Ob für diese Veranstaltung WPS-Punkte berechnet werden sollen. */
+    public function hasWpsPointsEnabled(): bool
+    {
+        return $this->pointSystems()
+            ->where('code', PointSystem::CODE_WPS)
+            ->exists();
     }
 
     public function isDeadlinePassed(): bool

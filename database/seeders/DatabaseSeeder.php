@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             KaderTypesSeeder::class,
             AgeGroupsSeeder::class,
             SportClassGroupsSeeder::class,
+            PointSystemsSeeder::class,
         ]);
 
         $this->command->info('');

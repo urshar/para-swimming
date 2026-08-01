@@ -9,6 +9,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Result extends Model
 {
+    /** Offiziell von World Para Swimming veröffentlichte Parameter (LCM). */
+    public const string WPS_TYPE_OFFICIAL = 'official';
+
+    /** Aus LCM-Parametern abgeleitet (SCM) — nicht von World Para Swimming anerkannt. */
+    public const string WPS_TYPE_ESTIMATED = 'estimated';
+
+    /** @used-by WpsPointsPhase1Test zur Validierung erlaubter wps_calculation_type-Werte */
+    public const array WPS_CALCULATION_TYPES = [
+        self::WPS_TYPE_OFFICIAL,
+        self::WPS_TYPE_ESTIMATED,
+    ];
+
     protected $fillable = [
         'meet_id',
         'swim_event_id',
@@ -18,6 +30,11 @@ class Result extends Model
         'status',
         'sport_class',
         'points',
+        'wps_points',
+        'wps_point_version_id',
+        'wps_point_parameter_id',
+        'wps_calculation_type',
+        'wps_calculated_at',
         'heat',
         'lane',
         'place',
@@ -39,6 +56,8 @@ class Result extends Model
         'is_junior_record' => 'boolean',
         'is_regional_record' => 'boolean',
         'is_regional_junior_record' => 'boolean',
+        'wps_points' => 'integer',
+        'wps_calculated_at' => 'datetime',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -61,6 +80,16 @@ class Result extends Model
     public function club(): BelongsTo
     {
         return $this->belongsTo(Club::class);
+    }
+
+    public function wpsPointVersion(): BelongsTo
+    {
+        return $this->belongsTo(WpsPointVersion::class, 'wps_point_version_id');
+    }
+
+    public function wpsPointParameter(): BelongsTo
+    {
+        return $this->belongsTo(WpsPointParameter::class, 'wps_point_parameter_id');
     }
 
     public function splits(): HasMany
@@ -88,6 +117,20 @@ class Result extends Model
     {
         return $this->swim_time !== null
             && ! in_array($this->status, ['DSQ', 'DNS', 'DNF', 'WDR']);
+    }
+
+    public function hasWpsPoints(): bool
+    {
+        return $this->wps_points !== null;
+    }
+
+    /**
+     * Ob die WPS-Punkte auf abgeleiteten SCM-Parametern beruhen und daher als nicht offiziell
+     * gekennzeichnet werden müssen.
+     */
+    public function hasEstimatedWpsPoints(): bool
+    {
+        return $this->wps_calculation_type === self::WPS_TYPE_ESTIMATED;
     }
 
     public function hasRecords(): bool
