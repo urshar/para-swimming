@@ -30,6 +30,8 @@ use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
+use App\Http\Controllers\WpsPointImportController;
+use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -180,6 +182,23 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);
+
+    // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
+    Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {
+        Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');
+        Route::post('import/preview', [WpsPointImportController::class, 'preview'])->name('import.preview');
+        Route::post('import/run', [WpsPointImportController::class, 'run'])->name('import.run');
+        Route::post('import/cancel', [WpsPointImportController::class, 'cancel'])->name('import.cancel');
+
+        Route::get('versions', [WpsPointVersionController::class, 'index'])->name('versions.index');
+        Route::get('versions/{version}', [WpsPointVersionController::class, 'show'])->name('versions.show');
+        Route::post('versions/{version}/activate',
+            [WpsPointVersionController::class, 'activate'])->name('versions.activate');
+        Route::post('versions/{version}/archive',
+            [WpsPointVersionController::class, 'archive'])->name('versions.archive');
+        Route::delete('versions/{version}',
+            [WpsPointVersionController::class, 'destroy'])->name('versions.destroy');
+    });
 
     // ── Statistik (nur Admin) ─────────────────────────────────────────────────
     Route::middleware(RequireAdmin::class)->group(function () {
