@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\BaseTimeSportClass;
+use App\Models\Meet;
+use App\Models\Nation;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
@@ -299,9 +301,9 @@ describe('QualifyingTimeListController — Richtzeiten-Zeilen', function () {
 describe('Meet::qualifyingTimeList', function () {
     it('ein Meet kann optional einer Richtzeitenliste zugeordnet werden', function () {
         $list = makeList_qtl1();
-        $meet = App\Models\Meet::create([
+        $meet = Meet::create([
             'name' => 'ÖSTM & ÖM 2026',
-            'nation_id' => App\Models\Nation::create([
+            'nation_id' => Nation::create([
                 'code' => 'AUT', 'name_de' => 'Österreich', 'name_en' => 'Austria', 'is_active' => true,
             ])->id,
             'course' => 'LCM',

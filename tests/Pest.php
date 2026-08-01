@@ -50,3 +50,4 @@ function something()
 }
 
 require_once __DIR__.'/helpers_p5.php';
+require_once __DIR__.'/helpers_wps2.php';
