@@ -30,6 +30,7 @@ use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
+use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsPointImportController;
 use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Middleware\RequireAdmin;
@@ -240,6 +241,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
         ->name('meets.recalculate-points');
+    Route::post('meets/{meet}/recalculate-wps-points',
+        [WpsPointCalculationController::class, 'recalculate'])->name('meets.wps-points.recalculate');
 
     // ── LENEX ─────────────────────────────────────────────────────────────────
     Route::prefix('lenex')->name('lenex.')->group(function () {

@@ -7,8 +7,10 @@ use App\Models\Club;
 use App\Models\Cup;
 use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\PointSystem;
 use App\Models\QualifyingTimeList;
 use App\Models\Result;
+use App\Models\WpsPointVersion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -51,7 +53,7 @@ class MeetController extends Controller
         $cups = Cup::orderByDesc('year')->get();
         $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
-        return view('meets.form', compact('nations', 'cups', 'qualifyingTimeLists'));
+        return view('meets.form', compact('nations', 'cups', 'qualifyingTimeLists') + $this->pointSystemData());
     }
 
     public function store(Request $request): RedirectResponse
@@ -65,6 +67,8 @@ class MeetController extends Controller
 
         $meet = Meet::create($data);
 
+        $this->syncPointSystems($request, $meet);
+
         return redirect()
             ->route('meets.show', $meet)
             ->with('success', 'Wettkampf erfolgreich erstellt.');
@@ -72,7 +76,7 @@ class MeetController extends Controller
 
     public function show(Meet $meet): View
     {
-        $meet->load(['nation', 'cup', 'clubs.nation']);
+        $meet->load(['nation', 'cup', 'clubs.nation', 'pointSystems']);
         $meet->loadCount(['swimEvents', 'entries', 'results']);
 
         $swimEvents = $meet->swimEvents()
@@ -90,7 +94,7 @@ class MeetController extends Controller
         $cups = Cup::orderByDesc('year')->get();
         $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
-        return view('meets.form', compact('meet', 'nations', 'cups', 'qualifyingTimeLists'));
+        return view('meets.form', compact('meet', 'nations', 'cups', 'qualifyingTimeLists') + $this->pointSystemData($meet));
     }
 
     public function update(Request $request, Meet $meet): RedirectResponse
@@ -103,6 +107,8 @@ class MeetController extends Controller
         }
 
         $meet->update($data);
+
+        $this->syncPointSystems($request, $meet);
 
         return redirect()
             ->route('meets.show', $meet)
@@ -119,6 +125,63 @@ class MeetController extends Controller
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Auswahldaten für den Abschnitt "Punkteberechnung" im Wettkampf-Formular.
+     *
+     * @return array<string, mixed>
+     */
+    private function pointSystemData(?Meet $meet = null): array
+    {
+        return [
+            'pointSystems' => PointSystem::active()->orderBy('name')->get(),
+            'selectedPointSystems' => $meet?->pointSystems->pluck('id')->all() ?? [],
+            'wpsSystemId' => PointSystem::where('code', PointSystem::CODE_WPS)->value('id'),
+            'wpsVersions' => WpsPointVersion::active()->orderByDesc('year')->get(),
+            'selectedWpsVersionId' => $this->currentWpsVersionId($meet),
+        ];
+    }
+
+    private function currentWpsVersionId(?Meet $meet): ?int
+    {
+        $system = $meet?->pointSystems->firstWhere('code', PointSystem::CODE_WPS);
+
+        return $system?->getRelation('pivot')->getAttribute('wps_point_version_id');
+    }
+
+    /**
+     * Schreibt die Zuordnung Wettkampf ↔ Punktesystem.
+     *
+     * Nur Administratoren dürfen sie ändern — die Auswahl entscheidet mit, welche Punkte
+     * offiziell ausgewiesen werden. Für alle anderen bleibt die bestehende Zuordnung
+     * unverändert; ein fehlendes Feld im Request darf sie nicht stillschweigend leeren.
+     */
+    private function syncPointSystems(Request $request, Meet $meet): void
+    {
+        if (! auth()->user()?->is_admin) {
+            return;
+        }
+
+        $validated = $request->validate([
+            'point_systems' => 'nullable|array',
+            'point_systems.*' => 'integer|exists:point_systems,id',
+            'wps_point_version_id' => 'nullable|integer|exists:wps_point_versions,id',
+        ]);
+
+        $wpsId = PointSystem::where('code', PointSystem::CODE_WPS)->value('id');
+        $versionId = $validated['wps_point_version_id'] ?? null;
+
+        $sync = [];
+
+        foreach ($validated['point_systems'] ?? [] as $systemId) {
+            $sync[(int) $systemId] = [
+                // Die Versionsübersteuerung gilt ausschließlich für WPS.
+                'wps_point_version_id' => (int) $systemId === (int) $wpsId ? $versionId : null,
+            ];
+        }
+
+        $meet->pointSystems()->sync($sync);
+    }
 
     private function validateMeet(Request $request): array
     {

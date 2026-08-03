@@ -181,6 +181,78 @@
 
             </div>
 
+            @if(auth()->user()?->is_admin)
+                @php
+                    // old() liefert die Werte als Zeichenketten zurück — für den strikten
+                    // Vergleich mit den IDs müssen sie auf Integer normalisiert werden.
+                    $selectedIds = array_map('intval', old('point_systems', $selectedPointSystems));
+
+                    // Die Konfiguration wird als ein zusammenhängender JSON-Wert übergeben.
+                    // Einzelne {{ }}-Ausdrücke mitten im JavaScript-Attribut lassen sich von
+                    // der IDE nicht mehr als Ausdruck lesen.
+                    $wpsAlpineConfig = [
+                        'wpsSelected' => in_array($wpsSystemId, $selectedIds, true),
+                        'course' => old('course', $meet->course ?? 'LCM'),
+                    ];
+                @endphp
+                {{-- Punkteberechnung: welche Punktesysteme werden für diesen Wettkampf
+                     berechnet? World Aquatics läuft über die Basiszeiten, WPS über die
+                     importierten Point Scores. --}}
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6"
+                     x-data="meetPointSystems(@json($wpsAlpineConfig))">
+                    <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Punkteberechnung</h2>
+
+                    <div class="space-y-3">
+                        @foreach($pointSystems as $system)
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" name="point_systems[]" value="{{ $system->id }}"
+                                       @if($system->id === $wpsSystemId) x-model="wps" @endif
+                                       @checked(in_array($system->id, $selectedIds, true))
+                                       class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
+                                <span>
+                                    <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                        {{ $system->name }}
+                                    </span>
+                                    @if($system->description)
+                                        <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                            {{ $system->description }}
+                                        </span>
+                                    @endif
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <div x-show="wps" x-cloak class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                        <flux:field>
+                            <flux:label>WPS-Version</flux:label>
+                            <select name="wps_point_version_id"
+                                    class="w-full rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 text-sm">
+                                <option value="">automatisch nach Wettkampfdatum</option>
+                                @foreach($wpsVersions as $wpsVersion)
+                                    <option value="{{ $wpsVersion->id }}"
+                                            @selected((int) old('wps_point_version_id', $selectedWpsVersionId) === $wpsVersion->id)>
+                                        {{ $wpsVersion->label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <flux:description>
+                                Leer lassen, damit die zum Wettkampfdatum gültige Version verwendet wird.
+                            </flux:description>
+                            <flux:error name="wps_point_version_id"/>
+                        </flux:field>
+
+                        {{-- Für Kurzbahn liegen keine offiziellen WPS-Parameter vor. --}}
+                        <div x-show="showEstimatedWarning" x-cloak
+                             class="mt-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
+                            Die Berechnung der WPS-Punkte erfolgt auf Basis abgeleiteter Parameter.
+                            Diese Werte sind nicht offiziell von World Para Swimming veröffentlicht
+                            und werden als "geschätzt" gekennzeichnet.
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="flex gap-3 mt-6">
                 <flux:button type="submit" variant="primary">
                     {{ isset($meet) ? 'Speichern' : 'Wettkampf anlegen' }}

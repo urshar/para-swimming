@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "checkJs": false,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["resources/js/*"]
+        }
+    },
+    "include": [
+        "resources/js/**/*.js",
+        "resources/js/types/*.d.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "public/build",
+        "vendor"
+    ]
+}

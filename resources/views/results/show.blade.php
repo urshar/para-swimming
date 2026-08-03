@@ -133,9 +133,31 @@
                         </dd>
                     </div>
                     <div class="flex justify-between">
-                        <dt class="text-zinc-500">Punkte</dt>
+                        <dt class="text-zinc-500">Punkte (World Aquatics)</dt>
                         <dd class="text-zinc-900 dark:text-white">{{ $result->points ?? '–' }}</dd>
                     </div>
+                    {{-- Der WPS-Block erscheint nur, wenn Punkte berechnet wurden. Ohne
+                         aktiviertes Punktesystem oder ohne passenden Parametersatz bleibt er
+                         ausgeblendet, statt einen Platzhalter anzuzeigen. --}}
+                    @if($result->hasWpsPoints())
+                        <div class="flex justify-between">
+                            <dt class="text-zinc-500">WPS-Punkte</dt>
+                            <dd class="text-zinc-900 dark:text-white">
+                                {{ $result->wps_points }}
+                                @if($result->hasEstimatedWpsPoints())
+                                    <flux:badge color="amber" size="sm" class="ms-1">geschätzt</flux:badge>
+                                @else
+                                    <flux:badge color="green" size="sm" class="ms-1">offiziell</flux:badge>
+                                @endif
+                            </dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-zinc-500">WPS-Version</dt>
+                            <dd class="text-zinc-900 dark:text-white">
+                                {{ $result->wpsPointVersion?->label ?? '–' }}
+                            </dd>
+                        </div>
+                    @endif
                     <div class="flex justify-between">
                         <dt class="text-zinc-500">Club</dt>
                         <dd class="text-zinc-900 dark:text-white">{{ $result->club?->display_name }}</dd>

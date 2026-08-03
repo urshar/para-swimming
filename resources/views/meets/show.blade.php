@@ -56,6 +56,16 @@
                     Rekorde prüfen
                 </flux:button>
             </form>
+            @if($meet->hasWpsPointsEnabled() && auth()->user()?->can('manageEntries', $meet))
+                <form method="POST" action="{{ route('meets.wps-points.recalculate', $meet) }}"
+                      x-data="{ submit() { if (confirm('WPS-Punkte für alle Ergebnisse neu berechnen?')) this.$el.submit() } }"
+                      @submit.prevent="submit()">
+                    @csrf
+                    <flux:button type="submit" variant="ghost" icon="calculator" size="sm">
+                        WPS-Punkte berechnen
+                    </flux:button>
+                </form>
+            @endif
             <flux:button href="{{ route('meets.edit', $meet) }}" variant="ghost" icon="pencil" size="sm">
                 Bearbeiten
             </flux:button>
@@ -81,6 +91,15 @@
         <div
             class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
             {{ $errors->first('check') }}
+        </div>
+    @endif
+
+    {{-- Ohne diesen Block scheitert die WPS-Berechnung lautlos: der Controller meldet
+         über withErrors('wps') zurück, und die Seite zeigte davon nichts an. --}}
+    @if($errors->has('wps'))
+        <div
+            class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+            {{ $errors->first('wps') }}
         </div>
     @endif
 
