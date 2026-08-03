@@ -226,6 +226,6 @@
     @yield('content')
 
 </flux:main>
-
+@fluxScripts
 </body>
 </html>

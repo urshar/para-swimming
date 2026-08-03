@@ -9,7 +9,9 @@ use App\Services\WpsParameterImportService;
 use App\Services\WpsPointCalculationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 uses(RefreshDatabase::class)->group('wps-points-p3');
@@ -19,7 +21,7 @@ uses(RefreshDatabase::class)->group('wps-points-p3');
 /**
  * Baut eine Datei im Aufbau der offiziellen WPS-Point-Score-Datei.
  *
- * Die echte Datei wird bewusst nicht als Fixture mitgeliefert: sie ist urheberrechtlich
+ * Die echte Datei wird bewusst nicht als Fixture mitgeliefert: Sie ist urheberrechtlich
  * geschützt und würde die Tests an eine konkrete Veröffentlichung binden. Der Aufbau ist
  * identisch — Blatt "Parameters" mit den Spalten A–F, Blatt "version control".
  *
@@ -51,7 +53,12 @@ function makeWpsFile_wps3(array $rows, ?array $headers = null): UploadedFile
     $version = $spreadsheet->createSheet();
     $version->setTitle('version control');
     $version->fromArray(['Version', 'Date', 'Comments'], null, 'A1', true);
-    $version->fromArray(['1', '30/01/2026', 'Erstveröffentlichung'], null, 'A2', true);
+    $version->fromArray(['1', null, 'Erstveröffentlichung'], null, 'A2', true);
+
+    // Wie in der Originaldatei: Excel legt das Datum als Seriennummer ab und hält das
+    // Datum nur über das Zahlenformat fest.
+    $version->getCell('B2')->setValue(ExcelDate::stringToExcel('2026-01-30'));
+    $version->getStyle('B2')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DDMMYYYY);
 
     $path = tempnam(sys_get_temp_dir(), 'wps').'.xlsx';
     (new Xlsx($spreadsheet))->save($path);
@@ -147,7 +154,10 @@ describe('WpsParameterImportService::parse', function () {
         $preview = importService_wps3()->parse(makeWpsFile_wps3(validRows_wps3())->getPathname());
 
         expect($preview->metadata)->toHaveKey('version')
-            ->and($preview->metadata['version'])->toBe('1');
+            ->and($preview->metadata['version'])->toBe('1')
+            // Excel legt Datumswerte als Seriennummer ab (30.01.2026 = 46052).
+            // Ohne Umrechnung stünde diese Zahl in der Vorschau.
+            ->and($preview->metadata['date'])->toBe('30.01.2026');
     });
 
     it('zählt Geschlechter, Bewerbe und Sportklassen', function () {

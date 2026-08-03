@@ -7,8 +7,10 @@ use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
 use App\Support\WpsImportPreview;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Exception as SpreadsheetReaderException;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 use Throwable;
@@ -61,7 +63,7 @@ final readonly class WpsParameterImportService
      *
      * Der Service wirft ausschließlich RuntimeException mit deutschsprachiger Meldung.
      * Technische Ausnahmen von PhpSpreadsheet werden übersetzt, damit der Aufrufer eine
-     * verwertbare Meldung erhält statt, eines Bibliotheks-Internums.
+     * verwertbare Meldung erhält statt eines Bibliotheks-Internums.
      *
      * @throws RuntimeException wenn die Datei nicht lesbar ist, das Arbeitsblatt fehlt
      *                          oder die Kopfzeile abweicht
@@ -340,6 +342,33 @@ final readonly class WpsParameterImportService
         return trim((string) $sheet->getCell($column.$row)->getCalculatedValue());
     }
 
+    /**
+     * Formatiert eine Zelle, die ein Datum enthalten kann.
+     *
+     * Excel speichert Datumswerte als Seriennummer (Tage seit dem 30.12.1899) und hält das
+     * Datum nur im Zahlenformat fest. Ohne Umrechnung erscheint in der Vorschau eine Zahl
+     * wie 46052 statt des 30.01.2026. Ist die Zelle nicht als Datum formatiert, wird der
+     * Inhalt unverändert als Text übernommen — manche Dateien tragen das Datum als
+     * Zeichenkette ein.
+     *
+     * Schlägt die Umrechnung fehl, wird der Rohwert zurückgegeben: Die Angabe dient
+     * ausschließlich der Anzeige in der Vorschau und darf den Import nicht scheitern lassen.
+     */
+    private function formatDateValue(Cell $cell): string
+    {
+        $value = $cell->getCalculatedValue();
+
+        if (is_numeric($value) && ExcelDate::isDateTime($cell)) {
+            try {
+                return ExcelDate::excelToDateTimeObject((float) $value)->format('d.m.Y');
+            } catch (Throwable) {
+                return trim((string) $value);
+            }
+        }
+
+        return trim((string) $value);
+    }
+
     /** @return array<string, int> lenex_code → id */
     private function strokeTypeIdsByLenexCode(): array
     {
@@ -365,7 +394,7 @@ final readonly class WpsParameterImportService
         }
 
         $version = $this->cell($sheet, 'A', 2);
-        $date = $this->cell($sheet, 'B', 2);
+        $date = $this->formatDateValue($sheet->getCell('B2'));
         $comment = $this->cell($sheet, 'C', 2);
 
         return array_filter([
