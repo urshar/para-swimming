@@ -7,6 +7,7 @@ use App\Models\PointSystem;
 use App\Models\Result;
 use App\Models\User;
 use App\Models\WpsPointVersion;
+use App\Services\WpsPointCalculationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 
@@ -74,15 +75,34 @@ describe('Berechnung auslösen', function () {
         $result = result_wps2();
         enableWps_wps4($result->meet);
 
-        // Keine gültige Version → der Controller meldet über withErrors('wps') zurück.
+        // Keine gültige Version → der Controller meldet über withErrors('wps') per back()
+        // zurück. from() setzt den Referer, damit back() auf der Wettkampfseite landet;
+        // followingRedirects() folgt der Weiterleitung, sodass die gerenderte Seite geprüft
+        // werden kann. Ein separates get() nach dem post() greift zu spät — die Flash-Daten
+        // sind dann bereits abgeräumt.
         $this->actingAs(adminUser_wps4())
+            ->from(route('meets.show', $result->meet))
+            ->followingRedirects()
             ->post(route('meets.wps-points.recalculate', $result->meet))
-            ->assertSessionHasErrors('wps');
+            ->assertOk()
+            ->assertSee('keine gültige WPS-Version', false)
+            // Ohne Weg zur Behebung zwingt die Meldung zur Suche im Menü.
+            ->assertSee(route('meets.edit', $result->meet), false)
+            ->assertSee(route('wps.versions.index'), false);
+    });
+
+    it('zeigt Admins die WPS-Verwaltung in der Navigation', function () {
+        $meet = result_wps2()->meet;
 
         $this->actingAs(adminUser_wps4())
-            ->get(route('meets.show', $result->meet))
+            ->get(route('meets.show', $meet))
             ->assertOk()
-            ->assertSee('keine gültige WPS-Version', false);
+            ->assertSee('WPS Punkte');
+
+        $this->actingAs(clubUser_wps4())
+            ->get(route('meets.show', $meet))
+            ->assertOk()
+            ->assertDontSee(route('wps.versions.index'), false);
     });
 
     it('weist ab, wenn WPS für den Wettkampf nicht aktiviert ist', function () {
@@ -200,7 +220,7 @@ describe('Hintergrundverarbeitung', function () {
         enableWps_wps4($result->meet);
 
         (new CalculateWpsPointsJob($result->meet->id))
-            ->handle(app(App\Services\WpsPointCalculationService::class));
+            ->handle(app(WpsPointCalculationService::class));
 
         expect($result->fresh()->wps_points)->toBe(939);
     });
@@ -208,7 +228,7 @@ describe('Hintergrundverarbeitung', function () {
     it('läuft ins Leere, wenn der Wettkampf nicht mehr existiert', function () {
         $job = new CalculateWpsPointsJob(999999);
 
-        $job->handle(app(App\Services\WpsPointCalculationService::class));
+        $job->handle(app(WpsPointCalculationService::class));
 
         expect(Result::whereNotNull('wps_points')->count())->toBe(0);
     });
@@ -340,7 +360,7 @@ describe('Anzeige', function () {
         $parameter = parameter_wps2();
         $result = result_wps2();
         enableWps_wps4($result->meet);
-        app(App\Services\WpsPointCalculationService::class)->recalculateForResult($result);
+        app(WpsPointCalculationService::class)->recalculateForResult($result);
 
         $this->actingAs(adminUser_wps4())
             ->get(route('results.show', $result))
@@ -356,12 +376,35 @@ describe('Anzeige', function () {
         parameter_wps2(['course' => 'SCM', 'official' => false]);
         $result = result_wps2(course: 'SCM');
         enableWps_wps4($result->meet);
-        app(App\Services\WpsPointCalculationService::class)->recalculateForResult($result);
+        app(WpsPointCalculationService::class)->recalculateForResult($result);
 
         $this->actingAs(adminUser_wps4())
             ->get(route('results.show', $result))
             ->assertOk()
             ->assertSee('geschätzt');
+    });
+
+    it('zeigt die WPS-Punkte auch in der Ergebnisliste', function () {
+        parameter_wps2(['sport_class' => 'S2', 'parameter_c' => 433.181]);
+        $result = result_wps2(['swim_time' => 5700, 'sport_class' => 'S2']);
+        enableWps_wps4($result->meet);
+        app(WpsPointCalculationService::class)->recalculateForResult($result);
+
+        $this->actingAs(adminUser_wps4())
+            ->get(route('results.index', ['meet_id' => $result->meet_id]))
+            ->assertOk()
+            ->assertSee('939');
+    });
+
+    it('zeigt die gespeicherte Auswahl im Formular auch angehakt an', function () {
+        $meet = result_wps2()->meet;
+        enableWps_wps4($meet);
+
+        // Der gerenderte Zustand muss der Datenbank folgen — nicht dem Alpine-Standardwert.
+        $this->actingAs(adminUser_wps4())
+            ->get(route('meets.edit', $meet))
+            ->assertOk()
+            ->assertSee('"wpsSelected":true', false);
     });
 
     it('blendet den WPS-Block ohne berechnete Punkte aus', function () {

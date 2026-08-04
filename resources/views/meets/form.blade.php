@@ -205,9 +205,18 @@
                     <div class="space-y-3">
                         @foreach($pointSystems as $system)
                             <label class="flex items-start gap-3 cursor-pointer">
+                                {{-- Bewusst KEIN x-model: sonst würden zwei Mechanismen über den
+                                     Zustand der Checkbox bestimmen — @checked serverseitig und
+                                     Alpine beim Initialisieren. Weichen sie ab, gewinnt Alpine
+                                     und überschreibt eine gespeicherte Auswahl stillschweigend.
+                                     Stattdessen entscheidet allein der Server; Alpine liest den
+                                     Zustand nur mit, um die Versionsauswahl ein- und
+                                     auszublenden. --}}
                                 <input type="checkbox" name="point_systems[]" value="{{ $system->id }}"
-                                       @if($system->id === $wpsSystemId) x-model="wps" @endif
-                                       @checked(in_array($system->id, $selectedIds, true))
+                                       @if((int) $system->id === $wpsSystemId)
+                                           x-init="wps = $el.checked" @change="wps = $el.checked"
+                                       @endif
+                                       @checked(in_array((int) $system->id, $selectedIds, true))
                                        class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
                                 <span>
                                     <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">

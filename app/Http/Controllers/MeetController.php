@@ -136,10 +136,19 @@ class MeetController extends Controller
         return [
             'pointSystems' => PointSystem::active()->orderBy('name')->get(),
             'selectedPointSystems' => $meet?->pointSystems->pluck('id')->all() ?? [],
-            'wpsSystemId' => PointSystem::where('code', PointSystem::CODE_WPS)->value('id'),
+            // Bewusst auf int normalisiert: value() liefert je nach Treiber eine
+            // Zeichenkette, und die View vergleicht strikt gegen die Model-IDs.
+            'wpsSystemId' => $this->wpsSystemId(),
             'wpsVersions' => WpsPointVersion::active()->orderByDesc('year')->get(),
             'selectedWpsVersionId' => $this->currentWpsVersionId($meet),
         ];
+    }
+
+    private function wpsSystemId(): ?int
+    {
+        $id = PointSystem::where('code', PointSystem::CODE_WPS)->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     private function currentWpsVersionId(?Meet $meet): ?int
@@ -168,7 +177,7 @@ class MeetController extends Controller
             'wps_point_version_id' => 'nullable|integer|exists:wps_point_versions,id',
         ]);
 
-        $wpsId = PointSystem::where('code', PointSystem::CODE_WPS)->value('id');
+        $wpsId = $this->wpsSystemId();
         $versionId = $validated['wps_point_version_id'] ?? null;
 
         $sync = [];
@@ -176,7 +185,7 @@ class MeetController extends Controller
         foreach ($validated['point_systems'] ?? [] as $systemId) {
             $sync[(int) $systemId] = [
                 // Die Versionsübersteuerung gilt ausschließlich für WPS.
-                'wps_point_version_id' => (int) $systemId === (int) $wpsId ? $versionId : null,
+                'wps_point_version_id' => (int) $systemId === $wpsId ? $versionId : null,
             ];
         }
 

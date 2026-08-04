@@ -20,6 +20,7 @@
          @section('title') von den klassischen Controller-Views. --}}
     <title>{{ config('app.name', 'Para Swimming') }} – @yield('title', $title ?? 'Dashboard')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @fluxStyles
 </head>
 <body class="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
 
@@ -139,6 +140,19 @@
             @endif
         </flux:navlist.group>
 
+        @if(auth()->user()?->is_admin)
+            <flux:navlist.group heading="WPS Punkte">
+                <flux:navlist.item icon="calculator" href="{{ route('wps.versions.index') }}"
+                                   :current="request()->routeIs('wps.versions.*')">
+                    Point Scores
+                </flux:navlist.item>
+                <flux:navlist.item icon="arrow-up-tray" href="{{ route('wps.import') }}"
+                                   :current="request()->routeIs('wps.import*')">
+                    Importieren
+                </flux:navlist.item>
+            </flux:navlist.group>
+        @endif
+
         <flux:navlist.group heading="LENEX">
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
                                :current="request()->routeIs('lenex.import*')">
@@ -226,6 +240,7 @@
     @yield('content')
 
 </flux:main>
+
 @fluxScripts
 </body>
 </html>

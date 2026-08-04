@@ -95,11 +95,27 @@
     @endif
 
     {{-- Ohne diesen Block scheitert die WPS-Berechnung lautlos: der Controller meldet
-         über withErrors('wps') zurück, und die Seite zeigte davon nichts an. --}}
+         über withErrors('wps') zurück, und die Seite zeigte davon nichts an.
+         Die Meldung nennt jeweils auch den Weg zur Behebung — eine Fehlermeldung ohne
+         Handlungsmöglichkeit zwingt sonst zur Suche im Menü. --}}
     @if($errors->has('wps'))
         <div
             class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
-            {{ $errors->first('wps') }}
+            <p>{{ $errors->first('wps') }}</p>
+
+            <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                <a href="{{ route('meets.edit', $meet) }}" class="font-medium underline">
+                    Punkteberechnung dieses Wettkampfs bearbeiten
+                </a>
+                @if(auth()->user()?->is_admin)
+                    <a href="{{ route('wps.versions.index') }}" class="font-medium underline">
+                        WPS-Versionen verwalten
+                    </a>
+                    <a href="{{ route('wps.import') }}" class="font-medium underline">
+                        Version importieren
+                    </a>
+                @endif
+            </p>
         </div>
     @endif
 

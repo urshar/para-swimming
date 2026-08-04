@@ -103,6 +103,7 @@
                 <flux:table.column>Klasse</flux:table.column>
                 <flux:table.column>Zeit</flux:table.column>
                 <flux:table.column>Punkte</flux:table.column>
+                <flux:table.column>WPS</flux:table.column>
                 <flux:table.column>Platz</flux:table.column>
                 <flux:table.column>Rekorde</flux:table.column>
                 <flux:table.column>Status</flux:table.column>
@@ -130,6 +131,20 @@
                         </flux:table.cell>
                         <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                             {{ $result->points ?? '–' }}
+                        </flux:table.cell>
+                        {{-- WPS-Punkte. Geschätzte Werte (abgeleitete Kurzbahn-Parameter)
+                             werden gekennzeichnet, damit sie nicht mit offiziellen
+                             verwechselt werden. --}}
+                        <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
+                            @if($result->hasWpsPoints())
+                                <span @class([
+                                    'text-amber-600 dark:text-amber-400' => $result->hasEstimatedWpsPoints(),
+                                ])>
+                                    {{ $result->wps_points }}@if($result->hasEstimatedWpsPoints())*@endif
+                                </span>
+                            @else
+                                –
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell class="text-zinc-500 dark:text-zinc-400 text-sm">
                             {{ $result->place ? '#' . $result->place : '–' }}
