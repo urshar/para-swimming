@@ -165,12 +165,18 @@ final readonly class WpsPointCalculationService
             'wps_point_parameter_id' => $calculated->parameter?->id,
             'wps_calculation_type' => $calculated->calculationType,
             'wps_calculated_at' => Carbon::now(),
+            // Nur bei umgerechneten Kurzbahnzeiten gesetzt; sonst bewusst auf null, damit
+            // eine frühere Umrechnung nicht stehen bleibt.
+            'wps_estimated_lcm_time' => $calculated->estimatedLcmTime,
+            'wps_conversion_factor_id' => $calculated->conversionFactor?->id,
         ]);
     }
 
     private function clear(Result $result): void
     {
-        if ($result->wps_points === null && $result->wps_calculated_at === null) {
+        if ($result->wps_points === null
+            && $result->wps_calculated_at === null
+            && $result->wps_estimated_lcm_time === null) {
             return;
         }
 
@@ -180,6 +186,8 @@ final readonly class WpsPointCalculationService
             'wps_point_parameter_id' => null,
             'wps_calculation_type' => null,
             'wps_calculated_at' => null,
+            'wps_estimated_lcm_time' => null,
+            'wps_conversion_factor_id' => null,
         ]);
     }
 

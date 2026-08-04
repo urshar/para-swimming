@@ -33,6 +33,7 @@ use App\Http\Controllers\WorldAquaticsPointsController;
 use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsPointImportController;
 use App\Http\Controllers\WpsPointVersionController;
+use App\Http\Controllers\WpsScmFactorController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -199,6 +200,14 @@ Route::middleware(['auth'])->group(function () {
             [WpsPointVersionController::class, 'archive'])->name('versions.archive');
         Route::delete('versions/{version}',
             [WpsPointVersionController::class, 'destroy'])->name('versions.destroy');
+
+        Route::get('factors', [WpsScmFactorController::class, 'index'])->name('factors.index');
+        Route::get('factors/report', [WpsScmFactorController::class, 'report'])->name('factors.report');
+        Route::post('factors/calibrate',
+            [WpsScmFactorController::class, 'calibrate'])->name('factors.calibrate');
+        Route::put('factors/{factor}', [WpsScmFactorController::class, 'update'])->name('factors.update');
+        Route::delete('factors/{factor}',
+            [WpsScmFactorController::class, 'destroy'])->name('factors.destroy');
     });
 
     // ── Statistik (nur Admin) ─────────────────────────────────────────────────

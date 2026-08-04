@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             AgeGroupsSeeder::class,
             SportClassGroupsSeeder::class,
             PointSystemsSeeder::class,
+            WpsScmConversionFactorsSeeder::class,
         ]);
 
         $this->command->info('');

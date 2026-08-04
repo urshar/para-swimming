@@ -157,6 +157,32 @@
                                 {{ $result->wpsPointVersion?->label ?? '–' }}
                             </dd>
                         </div>
+
+                        {{-- Zeit und Hinweis stehen bewusst in EINER Bedingung: zwei getrennte
+                             Prüfungen auf dieselbe Methode wären redundant, da sich dazwischen
+                             nichts ändern kann.
+
+                             Die geschätzte Langbahnzeit ist fachlich oft wichtiger als die
+                             Punktzahl selbst — sie lässt sich unmittelbar gegen internationale
+                             Melde- und Finalzeiten halten. --}}
+                        @if($result->hasConvertedWpsTime())
+                            <div class="flex justify-between">
+                                <dt class="text-zinc-500">Geschätzt LCM</dt>
+                                <dd class="text-zinc-900 dark:text-white font-mono">
+                                    {{ $result->formatted_estimated_lcm_time }}
+                                    <span class="text-xs text-zinc-500 font-sans ms-1">
+                                        (Faktor {{ $result->wpsConversionFactor?->description }})
+                                    </span>
+                                </dd>
+                            </div>
+
+                            <div class="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+                                Kurzbahnzeit auf Langbahn umgerechnet. Nicht offiziell von World Para
+                                Swimming anerkannt. Bei Nachwuchsathleten tendenziell zu optimistisch,
+                                da der Faktor überwiegend auf international startenden Athletinnen und
+                                Athleten beruht.
+                            </div>
+                        @endif
                     @endif
                     <div class="flex justify-between">
                         <dt class="text-zinc-500">Club</dt>

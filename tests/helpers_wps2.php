@@ -120,5 +120,6 @@ function result_wps2(
 
 function calculator_wps2(): WpsPointCalculator
 {
-    return new WpsPointCalculator;
+    // Über den Container, da der Rechner seit Phase 5 den Umrechnungsservice benötigt.
+    return app(WpsPointCalculator::class);
 }

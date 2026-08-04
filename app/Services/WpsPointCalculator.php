@@ -7,6 +7,7 @@ use App\Models\SwimEvent;
 use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
 use App\Support\WpsPointResult;
+use App\Support\WpsSportClass;
 
 /**
  * Berechnet die World-Para-Swimming-Punkte eines Ergebnisses.
@@ -59,6 +60,10 @@ final readonly class WpsPointCalculator
         WpsPointParameter::COURSE_SCM,
     ];
 
+    public function __construct(
+        private WpsScmConversionService $conversionService
+    ) {}
+
     /**
      * Berechnet die Punkte eines Ergebnisses mit der übergebenen Version.
      *
@@ -95,7 +100,8 @@ final readonly class WpsPointCalculator
             return WpsPointResult::skipped("Bahnlänge $meetCourse wird nicht unterstützt");
         }
 
-        $sportClass = $this->normalizeSportClass($result->sport_class);
+        // Bildet zugleich S21/SB21/SM21 auf die Gruppe 14 ab (Spec [S3]).
+        $sportClass = WpsSportClass::mapToWps($result->sport_class);
 
         if ($sportClass === null) {
             return WpsPointResult::skipped('keine auswertbare Sportklasse');
@@ -107,7 +113,7 @@ final readonly class WpsPointCalculator
             return WpsPointResult::skipped('Schwimmstil ohne WPS-Zuordnung');
         }
 
-        if ($this->categoryOf($sportClass) !== $expectedCategory) {
+        if (WpsSportClass::category($sportClass) !== $expectedCategory) {
             return WpsPointResult::skipped(
                 "Sportklasse $sportClass passt nicht zum Schwimmstil (erwartet: $expectedCategory)"
             );
@@ -119,12 +125,46 @@ final readonly class WpsPointCalculator
             return WpsPointResult::skipped('kein auswertbares Geschlecht');
         }
 
+        $distance = $event->distance;
+        $stroke = $event->strokeType?->lenex_code ?? '?';
+
+        // Zuerst ein offizieller Parametersatz für die tatsächliche Bahnlänge (Spec §9.5).
         $parameter = $this->findParameter($version, $course, $gender, $event, $sportClass);
 
-        if ($parameter === null) {
-            $distance = $event->distance;
-            $stroke = $event->strokeType?->lenex_code ?? '?';
+        $factor = null;
+        $estimatedLcm = null;
 
+        if ($parameter === null && $course === WpsPointParameter::COURSE_SCM) {
+            // Keine offiziellen Kurzbahnwerte vorhanden: Zeit auf ein Langbahn-Äquivalent
+            // umrechnen und die offizielle Tabelle anwenden (Spec [S1], §9.2).
+            $factor = $this->conversionService->resolveFactor(
+                $event->stroke_type_id,
+                $distance,
+                $sportClass,
+                $gender,
+            );
+
+            if ($factor === null) {
+                return WpsPointResult::skipped(
+                    "kein Umrechnungsfaktor für SCM/$gender/$distance$stroke/$sportClass"
+                );
+            }
+
+            $parameter = $this->findParameter(
+                $version,
+                WpsPointParameter::COURSE_LCM,
+                $gender,
+                $event,
+                $sportClass,
+            );
+
+            if ($parameter !== null) {
+                $estimatedLcm = $this->conversionService->convert($result->swim_time, $factor);
+                $seconds = $estimatedLcm / 100;
+            }
+        }
+
+        if ($parameter === null) {
             return WpsPointResult::skipped(
                 "kein WPS-Parametersatz für $course/$gender/$distance$stroke/$sportClass"
             );
@@ -136,7 +176,7 @@ final readonly class WpsPointCalculator
             return WpsPointResult::skipped('Berechnung lieferte kein gültiges Ergebnis');
         }
 
-        return WpsPointResult::calculated($points, $parameter, $version);
+        return WpsPointResult::calculated($points, $parameter, $version, $estimatedLcm, $factor);
     }
 
     /**
@@ -206,43 +246,6 @@ final readonly class WpsPointCalculator
         $gender = $result->athlete?->gender;
 
         return in_array($gender, WpsPointParameter::GENDERS, true) ? $gender : null;
-    }
-
-    /**
-     * Bringt die Sportklasse auf Großbuchstaben ohne Leerzeichen und weist alles ab, was
-     * keinem WPS-Parametersatz entsprechen kann.
-     *
-     * Aussortiert werden dabei die nicht-numerischen nationalen Klassen (GER.AB, GER.GB)
-     * und die Staffelklassen (S20, S34, S49) — für beide gibt es keine WPS-Parameter.
-     */
-    private function normalizeSportClass(?string $sportClass): ?string
-    {
-        if ($sportClass === null) {
-            return null;
-        }
-
-        $normalized = strtoupper(str_replace(' ', '', trim($sportClass)));
-
-        // Alternation absteigend nach Länge: /^(S|SB|SM)/ träfe bei "SB9" zuerst auf "S".
-        // Hier fängt der Anker $ das noch ab, in categoryOf() nicht — deshalb überall gleich.
-        return preg_match('/^(SB|SM|S)([1-9]|1[0-4])$/', $normalized) === 1
-            ? $normalized
-            : null;
-    }
-
-    /**
-     * "SB8" → "SB". Setzt eine bereits normalisierte Klasse voraus.
-     *
-     * Die Reihenfolge der Alternation ist entscheidend: Reguläre Ausdrücke prüfen die
-     * Alternativen von links nach rechts und nehmen den ERSTEN Treffer. Mit /^(S|SB|SM)/
-     * liefert "SB8" die Kategorie "S" — ohne nachfolgenden Anker gibt es kein Backtracking,
-     * das den Fehler noch korrigieren würde. Die längeren Präfixe müssen deshalb vorn stehen.
-     */
-    private function categoryOf(string $sportClass): string
-    {
-        preg_match('/^(SB|SM|S)/', $sportClass, $matches);
-
-        return $matches[1];
     }
 
     private function expectedCategory(?string $lenexCode): ?string

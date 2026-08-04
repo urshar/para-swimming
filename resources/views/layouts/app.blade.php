@@ -150,6 +150,10 @@
                                    :current="request()->routeIs('wps.import*')">
                     Importieren
                 </flux:navlist.item>
+                <flux:navlist.item icon="arrows-right-left" href="{{ route('wps.factors.index') }}"
+                                   :current="request()->routeIs('wps.factors.*')">
+                    Kurzbahn-Umrechnung
+                </flux:navlist.item>
             </flux:navlist.group>
         @endif
 

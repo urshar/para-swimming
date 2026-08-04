@@ -35,6 +35,8 @@ class Result extends Model
         'wps_point_parameter_id',
         'wps_calculation_type',
         'wps_calculated_at',
+        'wps_estimated_lcm_time',
+        'wps_conversion_factor_id',
         'heat',
         'lane',
         'place',
@@ -58,6 +60,7 @@ class Result extends Model
         'is_regional_junior_record' => 'boolean',
         'wps_points' => 'integer',
         'wps_calculated_at' => 'datetime',
+        'wps_estimated_lcm_time' => 'integer',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
@@ -90,6 +93,11 @@ class Result extends Model
     public function wpsPointParameter(): BelongsTo
     {
         return $this->belongsTo(WpsPointParameter::class, 'wps_point_parameter_id');
+    }
+
+    public function wpsConversionFactor(): BelongsTo
+    {
+        return $this->belongsTo(WpsScmConversionFactor::class, 'wps_conversion_factor_id');
     }
 
     public function splits(): HasMany
@@ -131,6 +139,25 @@ class Result extends Model
     public function hasEstimatedWpsPoints(): bool
     {
         return $this->wps_calculation_type === self::WPS_TYPE_ESTIMATED;
+    }
+
+    /** Ob die WPS-Punkte auf einer umgerechneten Kurzbahnzeit beruhen. */
+    public function hasConvertedWpsTime(): bool
+    {
+        return $this->wps_estimated_lcm_time !== null;
+    }
+
+    /**
+     * Die geschätzte Langbahnzeit im Anzeigeformat.
+     *
+     * Fachlich oft wichtiger als die Punktzahl: Sie lässt sich unmittelbar gegen
+     * internationale Melde- und Finalzeiten halten (Spec §2.3).
+     */
+    public function getFormattedEstimatedLcmTimeAttribute(): ?string
+    {
+        return $this->wps_estimated_lcm_time !== null
+            ? TimeParser::display($this->wps_estimated_lcm_time)
+            : null;
     }
 
     public function hasRecords(): bool

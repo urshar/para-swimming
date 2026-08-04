@@ -2,7 +2,7 @@
 
 ## Modul
 
-**Name:** WPS Points Engine **Modul-ID:** wps-points **Version:** 1.1 — Implementierungsfassung **Status:** Ready for
+**Name:** WPS Points Engine **Modul-ID:** wps-points **Version:** 1.2 — Implementierungsfassung **Status:** Ready for
 Implementation
 
 > **Änderungen gegenüber Version 1.0:** Diese Fassung integriert die Ergebnisse der Phase-0-Bestandsanalyse
@@ -14,6 +14,12 @@ Implementation
 > Das Importformat ist in §11.4 vollständig festgelegt, die Berechnungsformel gegen die Datei verifiziert.
 > Zwei inhaltliche Korrekturen gegenüber Version 1.0: die Punkte werden **abgerundet** (nicht kaufmännisch
 > gerundet, §5.3), und der Parameter `a` beträgt **1200** — WPS-Punkte können über 1000 liegen (§5.2).
+>
+> **Änderungen in Version 1.2** (nach Abschluss der Phasen 1–4 und Prüfung der Produktivdaten):
+> Die SCM-Unterstützung wurde grundlegend neu konzipiert — statt abgeleiteter Parametersätze wird die
+> **Zeit** umgerechnet und darauf die offizielle Tabelle angewandt (**[S1]**, §9). Ergänzt wurden die
+> Zuordnung der Sportklassen 21 → 14 (**[S3]**, §7.1) und der fachliche Zweck des Moduls für die
+> Kaderplanung (§2.3).
 
 ---
 
@@ -87,6 +93,63 @@ Feld würde beim Reimport in ein anderes System als WA-Punkte fehlinterpretiert.
 Optionale Erweiterung (nicht Teil der Definition of Done, siehe §21): Setzen eines `POINTTABLE`-Elements, das das
 tatsächlich verwendete System benennt.
 
+### [S1] SCM — Zeitumrechnung statt abgeleiteter Parametersätze
+
+Version 1.0 und 1.1 sahen vor, für Kurzbahn eigene Gompertz-Parameter abzuleiten und als zweiten Datensatz zu führen.
+Mathematisch ist das gleichwertig zur Zeitumrechnung: in
+`q = a · e^(-e^(b - c/p))` hängt das Ergebnis allein von `c/p` ab, eine Zeitskalierung um `k`
+entspricht also exakt `c × k`.
+
+**Entscheidung:** Es wird die **Zeit** umgerechnet, nicht der Parameter:
+
+```
+p_LCM_äquivalent = p_SCM × k     →     offizielle Parameter anwenden
+```
+
+Begründung — praktisch, nicht mathematisch:
+
+- **Erklärbar.** "Die Zeit wurde auf eine Langbahnzeit umgerechnet, darauf die offizielle Tabelle" ist gegenüber
+  Trainern und dem Verband vertretbar. "Der Gompertz-Parameter c wurde skaliert" nicht.
+- **Nachprüfbar.** Die geschätzte Langbahnzeit wird gespeichert und angezeigt. Sie ist die fachlich eigentlich gesuchte
+  Größe (§2.3) und lässt sich gegen internationale Melde- und Finalzeiten halten.
+- **Wartungsarm.** Es entsteht keine parallele Parametertabelle mit 384 abgeleiteten Sätzen, die bei jeder neuen
+  offiziellen Veröffentlichung neu abgeleitet werden müsste. Eine neue Version gilt sofort auch für Kurzbahn.
+- **Korrigierbar.** Wird ein Faktor angepasst, ändern sich die Punkte durch Neuberechnung — ohne Neuableitung, ohne
+  Reimport.
+
+`wps_point_parameters.official` und `course = SCM` bleiben in der Struktur erhalten, damit offizielle SCM-Parameter
+aufgenommen werden können, falls World Para Swimming sie je veröffentlicht. Sie haben dann **Vorrang** vor der
+Umrechnung (§9.5).
+
+### [S2] Herkunft der Umrechnungsfaktoren — eigene Daten vor Literatur
+
+Es existieren **keine** veröffentlichten LCM/SCM-Umrechnungsfaktoren für den Para-Schwimmsport. Die verbreiteten
+Faktoren (Colorado Timing und ähnliche, rund 2 % je 100 m, größere Abstände bei Rücken und Schmetterling) stammen aus
+dem nicht behinderten Schwimmsport und setzen den vollen Wendenvorteil voraus — genau der ist im Para-Schwimmsport
+klassenabhängig sehr unterschiedlich.
+
+**Entscheidung:** zweistufig.
+
+1. **Aus eigenen Daten**, wo die Datenbasis trägt (§9.3). Faktor als **Median** der Einzelverhältnisse, nicht als
+   Mittelwert.
+2. **Literaturwert je Schwimmstil** als Rückfall, ausdrücklich mit `confidence_level = low` und Quellenvermerk
+   "allgemeiner Schwimmsport".
+
+Faktoren werden **als Daten geführt**, nicht im Code. Herkunft, Stichprobengröße und Vertrauensgrad sind je Faktor
+sichtbar.
+
+### [S3] Sportklassen 21 → 14
+
+`S21`, `SB21` und `SM21` sind nationale Sportklassen für Athletinnen und Athleten, die fachlich Teil der Klassen `S14`/
+`SB14`/`SM14` sind. World Para Swimming kennt diese Klassen nicht und veröffentlicht dafür keine Parameter.
+
+**Entscheidung:** Vor der Parametersuche wird `21` auf `14` abgebildet, in allen drei Kategorien. Ohne diese Zuordnung
+fielen die betroffenen Athleten stillschweigend aus jeder WPS-Wertung — der Rechner der Phase 2 wies sie als "keine
+auswertbare Sportklasse" ab.
+
+Die Zuordnung wirkt **nur** bei der Parametersuche. `results.sport_class` bleibt unverändert, und in Anzeigen erscheint
+weiterhin die tatsächlich geschwommene Klasse.
+
 ---
 
 # 1. Übersicht
@@ -128,6 +191,20 @@ Zusätzlich ausgeschlossen (Ergebnis Phase 0): Umbau von `WorldAquaticsPointsSer
 
 ---
 
+## 2.3 Fachlicher Zweck der SCM-Unterstützung
+
+**In Österreich finden ausschließlich Kurzbahn-Veranstaltungen im Para-Schwimmen statt.** Internationale Meisterschaften
+(EM, WM, Paralympics) werden dagegen auf der Langbahn ausgetragen.
+
+Daraus ergibt sich die eigentliche Fragestellung des Verbandes: *Hat diese Athletin, dieser Athlet auf Basis der
+vorliegenden Kurzbahnzeit international eine Chance?* Weder eine reine Zeitangabe noch die World-Aquatics-Punkte oder
+die ÖBSV-1000-Punkte beantworten das — sie stellen keinen Bezug zum internationalen Para-Leistungsniveau her. Für den
+Nachwuchs, wo noch keine Auslandsstarts vorliegen, ist die Frage besonders schwer zu beantworten.
+
+Die SCM-Unterstützung ist damit **kein Randfall, sondern der Regelfall der nationalen Datenlage**. Die geschätzte
+Langbahnzeit (§9) ist dabei ebenso wichtig wie die Punktzahl: Sie lässt sich unmittelbar gegen internationale Melde- und
+Finalzeiten halten.
+
 # 3. Architekturprinzip
 
 Die Engine folgt dem im Repository etablierten Muster (siehe `docs/architecture.md`):
@@ -140,7 +217,7 @@ Route → Middleware (auth, RequireAdmin) → Controller/Livewire (dünn)
 Services werden als `final readonly class` mit Constructor-Injection implementiert.
 
 Die Berechnungsmethode **rechnet und speichert nicht in einem Aufruf**. Vorbild ist
-`WorldAquaticsPointsService`, der zwischen `calculatePoints()` (rein lesend) und `recalculateForMeet()`
+`WorldAquaticsPointsService`, der zwischen `calculatePoints()` (reinlesend) und `recalculateForMeet()`
 (persistierend) trennt. Dieses Muster ist zwingend, weil `wps-rankings` und spätere Wertungen die Punkte mit einer
 bestimmten Version neu berechnen können müssen, **ohne** gespeicherte Werte zu verändern — genau wie es
 `DailyRankingService` heute für die Cup-Wertung tut.
@@ -162,7 +239,13 @@ results
   + wps_point_parameter_id   FK → wps_point_parameters, nullable
   + wps_calculation_type     string(10), nullable: 'official' | 'estimated'
   + wps_calculated_at        timestamp, nullable
+  + wps_estimated_lcm_time   int, nullable       (Hundertstel; nur bei SCM gesetzt)
+  + wps_conversion_factor_id FK → wps_scm_conversion_factors, nullable
 ```
+
+`wps_estimated_lcm_time` ist eine Ergänzung der Version 1.2. Sie hält die umgerechnete Langbahnzeit fest, auf der die
+Punkte beruhen — die fachlich zentrale Größe (§2.3). `wps_conversion_factor_id` macht nachvollziehbar, welcher Faktor
+verwendet wurde.
 
 `wps_calculated_at` ist eine Ergänzung gegenüber Version 1.0 und dient der Erkennung veralteter Berechnungen (analog zum
 bestehenden `CupStalenessService`).
@@ -259,7 +342,7 @@ Konstanz je Parametersatz gespeichert, da spätere Versionen davon abweichen kö
 Verbindlich zu implementieren:
 
 - `p <= 0` → keine Berechnung, Begründung `keine gültige Schwimmzeit`
-- der Exponent `b - c/p` wird vor dem inneren `exp()` auf ein sicheres Intervall geklemmt, um Überlauf zu vermeiden; bei
+- der Exponent `b - c/p` wird vor dem Inneren `exp()` auf ein sicheres Intervall geklemmt, um Überlauf zu vermeiden; bei
   sehr großem Exponenten strebt `q` gegen 0, bei sehr kleinem gegen `a`
 - **Ergebnis wird abgerundet, nicht kaufmännisch gerundet:** `(int) floor($q)`. Die offizielle WPS-Rechenvorschrift
   lautet ausdrücklich *"final points for certain time are rounded down"*; die Datei verwendet `FLOOR(...;1)`. `round()`
@@ -325,8 +408,13 @@ Treffer; mit `/^(S|SB|SM)/` liefert
 `SB9` die Kategorie `S`. Ein nachfolgender Anker (`$`) erzwingt zwar Backtracking und korrigiert den Fehler zufällig,
 ein Ausdruck ohne Anker aber nicht. Beide Varianten sind deshalb einheitlich zu schreiben.
 
-Nicht-numerische Klassen (`GER.AB`, `GER.GB`) sowie die Staffelklassen (`S14`, `S20`, `S21`, `S34`, `S49`) haben keine
-WPS-Parameter und führen zum Übersprungen-Status.
+**Zuordnung der Klassen 21 → 14 [S3]:** `S21`, `SB21` und `SM21` sind nationale Sportklassen, deren Athletinnen und
+Athleten fachlich zur Gruppe `S14`/`SB14`/`SM14` gehören. World Para Swimming kennt sie nicht. Vor der Parametersuche
+wird die Nummer `21` deshalb auf `14` abgebildet — ausschließlich für die Suche. `results.sport_class` bleibt
+unverändert, Anzeigen zeigen weiterhin die geschwommene Klasse.
+
+Nicht-numerische Klassen (`GER.AB`, `GER.GB`) sowie die reinen Staffelklassen (`S20`, `S34`, `S49`) haben keine
+WPS-Parameter und führen zum Übersprungen-Status. `S15` existiert im WPS-Regelwerk nicht.
 
 ## 7.2 Zuordnung Geschlecht
 
@@ -420,22 +508,34 @@ Zusätzlicher Suchindex in Auflösungsreihenfolge:
 Präzision **vor** dem ersten Produktivimport anzuheben — eine nachträgliche Änderung würde alle bestehenden Berechnungen
 unmerklich verschieben.
 
-## 8.4 `wps_scm_derivations`
+## 8.4 `wps_scm_conversion_factors`
 
-Dokumentiert, wie eine SCM-Parametergruppe abgeleitet wurde (Spec 1.0 §9.3).
+> **Ersetzt** die in Version 1.1 vorgesehene Tabelle `wps_scm_derivations`. Da nicht mehr Parameter, sondern
+> Zeiten umgerechnet werden **[S1]**, hält die Tabelle jetzt die Umrechnungsfaktoren selbst statt
+> nur Metadaten zu einer Ableitung. Die Migration aus Phase 1 ist entsprechend anzupassen; sie enthält in
+> der Produktivdatenbank keine Daten, ein Umbau ist daher gefahrlos.
 
-| Feld                 | Typ                                | Beschreibung                                                        |
-|----------------------|------------------------------------|---------------------------------------------------------------------|
-| id                   | bigint                             | PK                                                                  |
-| wps_point_version_id | FK, cascadeOnDelete                |                                                                     |
-| conversion_method    | string(50)                         | z. B. `performance_ratio`, `distance_adjustment`, `federation_data` |
-| source               | string(255), nullable              | Datenquelle                                                         |
-| confidence_level     | string(20), nullable               | `high` / `medium` / `low`                                           |
-| sample_size          | integer, nullable                  | Anzahl der Vergleichspaare                                          |
-| approved_by          | FK → users, nullable, nullOnDelete |                                                                     |
-| approved_at          | timestamp, nullable                |                                                                     |
-| notes                | text, nullable                     |                                                                     |
-| timestamps           |                                    |                                                                     |
+| Feld             | Typ                                 | Beschreibung                                           |
+|------------------|-------------------------------------|--------------------------------------------------------|
+| id               | bigint                              | PK                                                     |
+| stroke_type_id   | FK → stroke_types, restrictOnDelete |                                                        |
+| distance         | smallint unsigned, nullable         | `null` = gilt für alle Strecken dieses Stils           |
+| sport_class      | string(15), nullable                | `null` = gilt für alle Klassen (Sammelwert)            |
+| gender           | string(1), nullable                 | `null` = geschlechtsunabhängig                         |
+| factor           | decimal(8,5)                        | `p_LCM = p_SCM × factor`; > 1, da Kurzbahn schneller   |
+| source           | string(50)                          | `own_data` / `literature` / `manual`                   |
+| sample_size      | integer, nullable                   | Anzahl der Athleten hinter dem Faktor (nur `own_data`) |
+| confidence_level | string(20)                          | `high` / `medium` / `low`                              |
+| notes            | text, nullable                      |                                                        |
+| approved_by      | FK → users, nullable, nullOnDelete  |                                                        |
+| approved_at      | timestamp, nullable                 |                                                        |
+| active           | boolean, default true               |                                                        |
+| timestamps       |                                     |                                                        |
+
+Unique: `(stroke_type_id, distance, sport_class, gender)` → Indexname `wps_scm_factors_unique_combo`.
+
+`factor` mit fünf Nachkommastellen: die Faktoren liegen typischerweise zwischen 1,01 und 1,04, eine zu grobe Auflösung
+verschiebt die Punkte spürbar.
 
 ## 8.5 `meet_point_system`
 
@@ -462,20 +562,88 @@ Siehe §4.1. Eigene Migration, ausschließlich additiv.
 
 ## 9.1 Hintergrund
 
-World Para Swimming veröffentlicht derzeit keine offiziellen SCM-Point-Score-Parameter. Da SCM-Ergebnisse für nationale
-Auswertungen und Jugendanalysen benötigt werden, wird eine abgeleitete Berechnung ermöglicht.
+World Para Swimming veröffentlicht ausschließlich Langbahn-Point-Scores. In Österreich finden im Para-Schwimmen
+ausschließlich Kurzbahn-Veranstaltungen statt (§2.3). Ohne SCM-Unterstützung wäre das Modul für den nationalen Alltag
+praktisch wirkungslos.
 
-## 9.2 Grundprinzip
+## 9.2 Verfahren
 
-SCM ist keine offizielle WPS-Berechnung. Die Anwendung unterscheidet eindeutig zwischen `official` und
-`estimated`. Der Berechnungstyp ergibt sich **ausschließlich** aus dem Feld `official` des verwendeten Parametersatzes,
-nicht aus dem Kurs — damit bleibt korrekt gekennzeichnet, falls WPS später offizielle SCM-Parameter veröffentlicht.
+Die Kurzbahnzeit wird auf ein Langbahn-Äquivalent umgerechnet, darauf werden die **offiziellen**
+Parameter angewandt **[S1]**:
 
-## 9.3 Verwaltung der Ableitung
+```
+p_LCM = p_SCM × k
+q     = a · e^(-e^(b - c / p_LCM))
+```
 
-Über `wps_scm_derivations` (§8.4). Auch die Ableitung ist versioniert; feste Werte im Code sind unzulässig.
+`k` ist der Umrechnungsfaktor aus `wps_scm_conversion_factors` (§8.4), stets `> 1` — auf der Kurzbahn wird schneller
+geschwommen.
 
----
+Gespeichert werden `wps_estimated_lcm_time`, `wps_conversion_factor_id` und
+`wps_calculation_type = estimated`.
+
+## 9.3 Ermittlung der Faktoren aus eigenen Daten
+
+**Datengrundlage:** Athletinnen und Athleten, die in derselben Sportklasse und demselben Bewerb sowohl eine LCM- als
+auch eine SCM-Zeit haben. Je Athlet wird das Verhältnis `beste LCM-Zeit / beste SCM-Zeit`
+gebildet; der Faktor ist der **Median** dieser Einzelverhältnisse.
+
+Median statt Mittelwert: Bei Stichprobengrößen von drei bis neun Athleten würde ein einzelner Ausreißer — etwa eine Zeit
+aus einem Formtief — den Mittelwert spürbar verziehen.
+
+**Mindestgröße:** 3 Athleten. Darunter wird kein eigener Faktor gebildet.
+
+**Auflösung (Kaskade):** Für einen Bewerb und eine Klasse wird der spezifischste vorhandene Faktor verwendet:
+
+1. Stil + Strecke + Sportklasse
+2. Stil + Strecke
+3. Stil
+4. kein Faktor → Berechnung wird übersprungen
+
+Damit erhalten gut besetzte Kombinationen einen eigenen, klassenspezifisch geeichten Faktor, während dünn besetzte auf
+den Sammelwert zurückfallen. Das ist fachlich geboten: Der Wendenvorteil ist genau das, was sich zwischen den
+Sportklassen am stärksten unterscheidet — ein S3-Athlet zieht aus einer zusätzlichen Wende deutlich weniger Nutzen als
+ein S14-Athlet. Ein einziger Pauschalfaktor über alle Klassen würde die unteren Klassen systematisch benachteiligen.
+
+**Ausschlüsse bei der Ermittlung:** Ergebnisse mit Status `DNS`/`DNF`/`DSQ`/`SICK`/`WDR`, Staffeln, fehlende oder nicht
+positive Zeiten. `EXH` wird berücksichtigt.
+
+## 9.4 Rückfall auf Literaturwerte
+
+Für Kombinationen ohne ausreichende eigene Datenbasis wird ein Startwert je Schwimmstil ausgeliefert, abgeleitet aus den
+im allgemeinen Schwimmsport gebräuchlichen Umrechnungen (Größenordnung rund 2 % je 100 m, größere Abstände bei Rücken
+und Schmetterling wegen der längeren Unterwasserphasen).
+
+Diese Werte tragen zwingend `source = literature` und `confidence_level = low`. Sie sind **nicht** für den
+Para-Schwimmsport erhoben und setzen den vollen Wendenvorteil voraus.
+
+Die konkreten Startwerte sind vor der Umsetzung von Phase 5 mit dem ÖBSV abzustimmen und im Seeder zu hinterlegen —
+**nicht** im Code.
+
+## 9.5 Vorrang offizieller SCM-Parameter
+
+Existiert für die Merkmalskombination ein Parametersatz mit `course = SCM`, wird dieser verwendet und **keine**
+Umrechnung vorgenommen. Der Berechnungstyp ergibt sich dann aus `parameter.official` (§10.3). Damit bleibt das Modell
+tragfähig, falls World Para Swimming später offizielle Kurzbahnwerte veröffentlicht.
+
+## 9.6 Aussagekraft und ihre Grenzen
+
+Diese Einschränkungen sind in der Oberfläche sichtbar zu machen, nicht nur zu dokumentieren:
+
+- **Positivauswahl.** Athletinnen und Athleten mit LCM- *und* SCM-Zeiten sind überwiegend jene, die international
+  gestartet sind — also die nationale Spitze. Für Nachwuchsathleten fällt der so ermittelte Faktor tendenziell zu
+  optimistisch aus, weil schwächere Schwimmer den Wendenvorteil auf der Langbahn meist weniger ausgleichen können. Die
+  geschätzten Punkte liegen dort eher zu hoch.
+- **Kleine Stichproben.** Auch bei drei bis neun Athleten bleibt der Faktor eine Schätzung.
+- **Keine offizielle Anerkennung.** Die Werte sind von World Para Swimming weder erhoben noch anerkannt.
+
+## 9.7 Faktorenbericht
+
+Eine Übersicht stellt je Kombination gegenüber: angesetzter Faktor, Herkunft, Stichprobengröße, Vertrauensgrad und —
+sofern eigene Daten vorliegen — der tatsächlich beobachtete Wert.
+
+Zweck: Der Verband sieht, wo die Schätzung trägt und wo nicht, und kann die Faktoren jährlich nachziehen, sobald neue
+Auslandsstarts hinzukommen. Ein Faktor, der stark vom beobachteten Wert abweicht, ist damit sofort erkennbar.
 
 # 10. Berechnungsservice
 
@@ -485,13 +653,14 @@ Die gesamte Berechnung liegt in Services. Keine Berechnungslogik in Livewire-Kom
 
 Vorgesehene Services:
 
-| Service                      | Aufgabe                                                              |
-|------------------------------|----------------------------------------------------------------------|
-| `WpsPointCalculator`         | Parameterauflösung, Validierung, Gompertz, Rundung — **rein lesend** |
-| `WpsPointVersionResolver`    | Versionsbestimmung nach Priorität (§10.3 Schritt 2)                  |
-| `WpsPointCalculationService` | Persistenz: einzelnes Ergebnis, Meet, Saison                         |
-| `WpsParameterImportService`  | Import der Point-Score-Dateien (Phase 3)                             |
-| `WpsScmDerivationService`    | SCM-Ableitung (Phase 5)                                              |
+| Service                          | Aufgabe                                                              |
+|----------------------------------|----------------------------------------------------------------------|
+| `WpsPointCalculator`             | Parameterauflösung, Validierung, Gompertz, Rundung — **rein lesend** |
+| `WpsPointVersionResolver`        | Versionsbestimmung nach Priorität (§10.3 Schritt 2)                  |
+| `WpsPointCalculationService`     | Persistenz: einzelnes Ergebnis, Meet, Saison                         |
+| `WpsParameterImportService`      | Import der Point-Score-Dateien (Phase 3)                             |
+| `WpsScmConversionService`        | Faktorauflösung (Kaskade §9.3) und Zeitumrechnung                    |
+| `WpsScmFactorCalibrationService` | Faktoren aus eigenen Daten ermitteln, Faktorenbericht (§9.7)         |
 
 Rückgabetyp der Berechnung: ein Support-Objekt `App\Support\WpsPointResult` mit
 `points`, `parameter`, `version`, `calculationType`, `skipReason` — analog zum vorhandenen Muster
@@ -516,19 +685,27 @@ $result = $calculator->calculate(Result $result, WpsPointVersion $version): WpsP
 3. Version, deren Gültigkeitszeitraum `meets.start_date` umfasst (`validOn()`)
 4. keine → Berechnung wird übersprungen
 
-Gegenüber Version 1.0 wurde die Reihenfolge angepasst: die manuelle Auswahl steht **vorn**, weil sie sonst durch die
+Gegenüber Version 1.0 wurde die Reihenfolge angepasst: Die manuelle Auswahl steht **vorn**, weil sie sonst durch die
 automatische Zuordnung nie erreichbar wäre — dasselbe Verhalten hat der bestehende
 `WorldAquaticsPointsController` mit seinem `version_id`-Override.
 
-**Schritt 3 — Parametersatz suchen.** Kriterien: Version, `course`, `gender`, `stroke_type_id`, `distance`,
-`relay_count`, `sport_class` (§7.1, §7.2).
+**Schritt 3 — Sportklasse abbilden.** `21` → `14` in allen drei Kategorien (**[S3]**, §7.1).
 
-**Schritt 4 — Gültigkeit prüfen.** §7.3 und §5.3.
+**Schritt 4 — Parametersatz suchen.** Kriterien: Version, `course`, `gender`, `stroke_type_id`,
+`distance`, `relay_count`, `sport_class` (§7.1, §7.2).
 
-**Schritt 5 — Punkte berechnen.** §5.2 mit `p = swim_time / 100`.
+Bei `course = SCM` zuerst nach einem offiziellen SCM-Satz suchen (§9.5). Wird keiner gefunden, wird auf LCM umgestellt:
+Faktor auflösen (§9.3), Zeit umrechnen, LCM-Parametersatz suchen. Fehlt der Faktor, wird die Berechnung mit Begründung
+übersprungen.
 
-**Schritt 6 — Speichern** (nur in `WpsPointCalculationService`): `wps_points`, `wps_point_version_id`,
-`wps_point_parameter_id`, `wps_calculation_type`, `wps_calculated_at`.
+**Schritt 5 — Gültigkeit prüfen.** §7.3 und §5.3.
+
+**Schritt 6 — Punkte berechnen.** §5.2 mit `p = swim_time / 100`, bei umgerechneten Zeiten mit
+`p = wps_estimated_lcm_time / 100`.
+
+**Schritt 7 — Speichern** (nur in `WpsPointCalculationService`): `wps_points`, `wps_point_version_id`,
+`wps_point_parameter_id`, `wps_calculation_type`, `wps_calculated_at`, sowie bei Umrechnung
+`wps_estimated_lcm_time` und `wps_conversion_factor_id`.
 
 ## 10.4 Übersprungene Ergebnisse
 
@@ -610,10 +787,11 @@ ausreichend und verlustfrei.
 ### 11.4.3 Nicht enthalten
 
 - **Nur LCM.** Die Datei enthält ausschließlich Langbahn-Parameter. Beim Import wird `course = LCM` und
-  `official = true` gesetzt. SCM-Parameter existieren nicht und werden über Phase 5 abgeleitet.
+  `official = true` gesetzt. SCM-Parameter existieren nicht; Kurzbahnzeiten werden stattdessen umgerechnet (§9).
 - **Keine Staffeln.** Bestätigt §7.2.
 - **Keine Sportklasse `SB10`** — existiert im Regelwerk nicht.
-- **Keine Klassen `S15`+, `GER.AB`, `GER.GB`** — bestätigt §7.1.
+- **Keine Klassen `S15`+, `GER.AB`, `GER.GB`** — bestätigt §7.1. Die nationalen Klassen `S21`/`SB21`/`SM21`
+  werden auf `14` abgebildet (**[S3]**).
 
 ### 11.4.4 Zuordnung `Event` → Bewerb
 
@@ -687,7 +865,7 @@ ergäbe sich `940`.
 
 ## 12.1 Massenberechnung
 
-`app/Jobs/CalculateWpsPointsJob` — das **erste** Job im Projekt. `app/Jobs` existiert noch nicht und wird angelegt.
+`app/Jobs/CalculateWpsPointsJob` — der **erste** Job im Projekt. `app/Jobs` existiert noch nicht und wird angelegt.
 Queue ist bereits konfiguriert (`QUEUE_CONNECTION=database`, `jobs`-Tabelle vorhanden).
 
 Aufgaben: Ergebnisse eines Meets laden, Parameter auflösen, Punkte berechnen, Ergebnisse aktualisieren.
@@ -740,17 +918,22 @@ Versionsauswahl. Bei `course` ≠ `LCM` wird der SCM-Hinweis eingeblendet.
 
 ## 14.3 Ergebnisanzeige
 
-In `resources/views/results/show.blade.php` ein WPS-Block:
+In `resources/views/results/show.blade.php` einem WPS-Block:
 
 ```text
 Zeit: 01:05.20     WPS Punkte: 856     Berechnung: Official     Version: WPS 2026
 ```
 
-Bei SCM:
+Bei umgerechneter Kurzbahnzeit wird die geschätzte Langbahnzeit **mit ausgewiesen** — sie ist die fachlich gesuchte
+Größe (§2.3) und macht die Punktzahl überprüfbar:
 
 ```text
-WPS Punkte: 842    Berechnung: Estimated SCM
-Hinweis: Nicht offizielle WPS-Wertung
+Zeit (SCM):          01:24.84
+Geschätzt LCM:       01:27.10     (Faktor 1,0266 — eigene Daten, 7 Athleten)
+WPS Punkte:          712          Berechnung: Estimated
+
+Hinweis: Kurzbahnzeit auf Langbahn umgerechnet. Nicht offiziell von World Para
+Swimming anerkannt. Bei Nachwuchsathleten tendenziell zu optimistisch (§9.6).
 ```
 
 Ist kein Wert vorhanden, wird der Block ausgeblendet — kein „—“, keine Fehlermeldung.
@@ -783,6 +966,14 @@ Phasensuffix (`makeAdmin_wps1()` usw.). `->group()` auf File-Ebene in `uses()`. 
 - numerische Extremwerte erzeugen keinen Overflow und kein `NaN`
 - Kategorie-Zerlegung: `SB9` ergibt `SB` und `SM10` ergibt `SM`, nicht `S`
 - Versionsauflösung greift am **ersten** und am **letzten** Gültigkeitstag
+- Sportklassen `S21`/`SB21`/`SM21` werden auf `14` abgebildet und ergeben Punkte
+- `results.sport_class` bleibt dabei unverändert
+- SCM: Zeit wird umgerechnet, `wps_estimated_lcm_time` gesetzt, Typ `estimated`
+- SCM mit offiziellem Parametersatz: **keine** Umrechnung, Typ `official` (§9.5)
+- Faktorkaskade: Klasse vor Bewerb vor Stil (§9.3)
+- fehlender Faktor → übersprungen, nicht Berechnung mit Faktor 1
+- Median: ein Ausreißer verschiebt den Faktor nicht wie ein Mittelwert
+- Mindestgröße 3 Athleten wird eingehalten
 
 **Gleitkomma:** Erwartungen mit Toleranz formulieren, nicht auf exakte Gleichheit — MySQL und SQLite runden
 `decimal` unterschiedlich.
@@ -840,11 +1031,15 @@ Pivot-Verwaltung im Meet-Formular, Auslösen der Berechnung, `CalculateWpsPoints
 
 ## Phase 5 — SCM-Unterstützung
 
-`WpsScmDerivationService`, Verwaltung der Ableitungen, Kennzeichnung.
+Migration `wps_scm_conversion_factors` (ersetzt `wps_scm_derivations`, §8.4), Erweiterung `results` um
+`wps_estimated_lcm_time` und `wps_conversion_factor_id`, Model `WpsScmConversionFactor`,
+`WpsScmConversionService`, `WpsScmFactorCalibrationService`, Zuordnung 21 → 14 im Rechner, Faktorenverwaltung und
+Faktorenbericht in der Oberfläche, Seeder mit den abgestimmten Literaturwerten.
 
-*Voraussetzung:* Prüfung auf Produktivdaten, wie viele Athleten mit LCM- **und** SCM-Ergebnis in identischer Klasse und
-identischem Bewerb existieren. Reicht die Datenbasis nicht, greift die Alternativmethode. *DoD:* SCM-Berechnung
-funktioniert; Ergebnisse sind eindeutig als `estimated` markiert.
+*Voraussetzung:* Die Startwerte aus §9.4 sind mit dem ÖBSV abgestimmt. *DoD:* Ein Kurzbahn-Wettkampf liefert Punkte; die
+geschätzte Langbahnzeit ist sichtbar; der Faktorenbericht stellt angesetzte und beobachtete Werte gegenüber; alle Werte
+sind als `estimated`
+gekennzeichnet.
 
 ## Phase 6 — Admin-UI, Optimierung, Tests
 
@@ -879,7 +1074,10 @@ Benutzer können Punkte inklusive Version und Berechnungstyp nachvollziehen.
 | R3  | Einheiten: `swim_time` in Hundertstel, Formel erwartet Sekunden                  | §5.2, eigener Testfall                                 |
 | R4  | Parameterpräzision zu gering → Punkte weichen von offiziellen Tabellen ab        | `decimal(14,6)`, Präzision vor Erstimport verifizieren |
 | R5  | Gompertz-Overflow / `NaN` bei Extremwerten                                       | §5.3                                                   |
-| R6  | SCM-Datenbasis reicht für die Ableitung nicht                                    | Prüfung vor Phase 5, Alternativmethode                 |
+| R6  | SCM-Datenbasis dünn: 19 von 384 Kombinationen mit ≥3 Athleten                    | Faktorkaskade §9.3, Literaturrückfall §9.4             |
+| R13 | Positivauswahl verzerrt den Faktor zugunsten der Spitze                          | §9.6, Hinweis in der Anzeige                           |
+| R14 | Klassen 21 fallen ohne Zuordnung stillschweigend aus der Wertung                 | **[S3]**, eigener Testfall                             |
+| R15 | Fehlender Faktor wird als 1 behandelt statt zu überspringen                      | §9.3, eigener Testfall                                 |
 | R7  | Queue-Worker läuft produktiv nicht → Berechnungen bleiben liegen                 | Schwellenwert §12.1, Betriebshinweis                   |
 | R8  | ~~Importformat unbekannt~~                                                       | **erledigt** — Format festgelegt in §11.4              |
 | R9  | Abrunden statt Runden übersehen → jeder zweite Wert um 1 zu hoch                 | §5.3, Testvektor S2 in §11.4.7                         |
@@ -894,6 +1092,7 @@ Benutzer können Punkte inklusive Version und Berechnungstyp nachvollziehen.
 - generische `PointsEngine`-Fassade **[E3]**
 - Umbenennung `results.points` → `wa_points`
 - gemeinsame Stammtabellen `disciplines` / `sport_classes` **[E1]**
+- abgeleitete SCM - **Parametersätze** — durch Zeitumrechnung ersetzt **[S1]**
 - Rollensystem **[E2]**
 - WPS-Punkte im LENEX-Export **[E5]**
 - Staffelparameter (§7.2)

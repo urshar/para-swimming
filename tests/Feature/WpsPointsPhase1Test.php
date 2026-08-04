@@ -8,10 +8,8 @@ use App\Models\PointSystem;
 use App\Models\Result;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
-use App\Models\User;
 use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
-use App\Models\WpsScmDerivation;
 use Database\Seeders\PointSystemsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -262,38 +260,12 @@ describe('WpsPointParameter', function () {
     });
 });
 
-// ── wps_scm_derivations ──────────────────────────────────────────────────────
-
-describe('WpsScmDerivation', function () {
-    it('dokumentiert eine Ableitung inklusive Freigabe', function () {
-        $version = makeVersion_wps1();
-        $user = User::factory()->create(['is_admin' => true]);
-
-        $derivation = WpsScmDerivation::create([
-            'wps_point_version_id' => $version->id,
-            'conversion_method' => WpsScmDerivation::METHOD_PERFORMANCE_RATIO,
-            'confidence_level' => WpsScmDerivation::CONFIDENCE_MEDIUM,
-            'sample_size' => 42,
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-        ]);
-
-        expect($derivation->isApproved())->toBeTrue()
-            ->and($derivation->sample_size)->toBe(42)
-            ->and($derivation->approvedBy->is($user))->toBeTrue()
-            ->and($derivation->version->is($version))->toBeTrue();
-    });
-
-    it('gilt ohne approved_at als nicht freigegeben', function () {
-        $derivation = WpsScmDerivation::create([
-            'wps_point_version_id' => makeVersion_wps1()->id,
-            'conversion_method' => WpsScmDerivation::METHOD_DISTANCE_ADJUSTMENT,
-        ]);
-
-        expect($derivation->isApproved())->toBeFalse()
-            ->and($derivation->approved_by)->toBeNull();
-    });
-});
+// ── wps_scm_conversion_factors ───────────────────────────────────────────────
+//
+// Die in Phase 1 angelegte Tabelle wps_scm_derivations wurde in Phase 5 durch
+// wps_scm_conversion_factors ersetzt (Spec [S1]): Für Kurzbahn werden keine eigenen
+// Parametersätze mehr abgeleitet, sondern die Zeit wird umgerechnet. Die zugehörigen
+// Tests liegen daher in WpsPointsPhase5Test.
 
 // ── meet_point_system ────────────────────────────────────────────────────────
 

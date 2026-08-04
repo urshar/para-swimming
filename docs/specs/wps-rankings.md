@@ -2,7 +2,7 @@
 
 ## Modul
 
-**Name:** WPS Rankings & Reports **Modul-ID:** wps-rankings **Version:** 1.1 — Implementierungsfassung **Status:**
+**Name:** WPS Rankings & Reports **Modul-ID:** wps-rankings **Version:** 1.2 — Implementierungsfassung **Status:**
 Blocked — Voraussetzung: `wps-points` Phase 4 abgeschlossen
 
 > **Änderungen gegenüber Version 1.0:** Diese Fassung integriert die Ergebnisse der Phase-0-Bestandsanalyse.
@@ -151,9 +151,17 @@ erzieltes Ergebnis dort nicht platziert werden soll.
 **Beste Leistung je Athlet und Bewerb:** In Saison- und Jugendranglisten zählt je Athlet und Bewerb die höchste
 WPS-Punktzahl. Bei Gleichstand entscheidet die schnellere Zeit, danach das frühere Wettkampfdatum.
 
-**LCM/SCM-Trennung:** Offizielle und geschätzte Punkte werden **standardmäßig nicht vermischt**. Die Standardansicht
-zeigt LCM. SCM ist per Filter wählbar und dann durchgängig gekennzeichnet. Eine gemischte Ansicht ist möglich, blendet
-aber den SCM-Hinweis (§11.4) verpflichtend ein.
+**LCM/SCM-Trennung:** Offizielle und geschätzte Punkte werden **standardmäßig nicht vermischt** und durchgängig
+gekennzeichnet.
+
+**Abweichende Vorbelegung gegenüber Version 1.1:** Da in Österreich ausschließlich Kurzbahn geschwommen wird
+(`wps-points` §2.3), zeigt die Standardansicht **SCM**. Eine Standardansicht auf LCM wäre für nationale Auswertungen
+nahezu leer. LCM ist per Filter wählbar; eine gemischte Ansicht ist möglich, blendet dann aber den Hinweis nach §11.4
+verpflichtend ein.
+
+**Geschätzte Langbahnzeit:** Bei umgerechneten Kurzbahnergebnissen wird `wps_estimated_lcm_time` als eigene Spalte
+ausgewiesen. Für die Kaderplanung ist sie oft aussagekräftiger als die Punktzahl, weil sie sich unmittelbar gegen
+internationale Melde- und Finalzeiten halten lässt.
 
 ---
 
@@ -319,8 +327,8 @@ Enthält die Rangliste Ergebnisse aus **mehreren** WPS-Versionen, werden alle au
 
 ## 11.3 Spalten
 
-Rang, Name, Verein, Nation, Jahrgang, Altersgruppe, Sportklasse, Bewerb, Zeit, WPS-Punkte, Veranstaltung. Sichtbare
-Spalten sind konfigurierbar (§10).
+Rang, Name, Verein, Nation, Jahrgang, Altersgruppe, Sportklasse, Bewerb, Zeit, geschätzte Langbahnzeit (bei Umrechnung),
+WPS-Punkte, Veranstaltung. Sichtbare Spalten sind konfigurierbar (§10).
 
 Sortierung der Sportklassen über `SportClassSorter`. Mehrkriterien-Sortierung über zusammengesetzte
 `sprintf()`-Sortierschlüssel, **nicht** über `sortBy()` mit Closure-Arrays (bekannter Fallstrick im Projekt).
@@ -336,7 +344,9 @@ Diese Werte sind nicht offiziell von World Para Swimming anerkannt.
 ```
 
 Der Hinweis erscheint automatisch, sobald mindestens ein Ergebnis mit `wps_calculation_type = estimated`
-enthalten ist.
+enthalten ist. Bei Jugend- und Nachwuchsranglisten wird er um den Hinweis aus `wps-points` §9.6 ergänzt:
+Der Umrechnungsfaktor beruht überwiegend auf international startenden Athletinnen und Athleten und fällt für den
+Nachwuchs tendenziell zu optimistisch aus.
 
 ---
 
@@ -402,7 +412,7 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 
 - Saisonrangliste: Jahr wählen, Filter setzen, korrekte Athleten in korrekter Reihenfolge
 - Jugendrangliste: Altersgrenze wirkt, historische Altersberechnung korrekt
-- PDF-Export: vollständige Tabelle, korrekter Kopfbereich, SCM-Hinweis vorhanden wenn nötig
+- PDF-Export: vollständige Tabelle, korrekter Kopfbereich, SCM-Hinweis vorhanden, wenn nötig
 - mehrere WPS-Versionen in einer Rangliste werden im Kopfbereich alle ausgewiesen
 
 ## 14.3 Berechtigungstests
