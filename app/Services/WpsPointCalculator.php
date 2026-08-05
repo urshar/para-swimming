@@ -26,7 +26,7 @@ final readonly class WpsPointCalculator
     /**
      * Klemmgrenze für den inneren Exponenten (b - c/p).
      *
-     * exp(709) ist der größte in PHP darstellbare double; darüber liefert exp() INF und das
+     * exp(709) ist der größte in PHP darstellbare double. darüber liefert exp() INF und das
      * äußere exp(-INF) ergibt 0. Das Klemmen vermeidet den Zwischenschritt über INF und damit
      * plattformabhängige Warnungen — das Ergebnis ist dasselbe: sehr großer Exponent → q → 0,
      * sehr kleiner Exponent → q → a.

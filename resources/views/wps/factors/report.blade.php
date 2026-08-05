@@ -26,11 +26,21 @@
         @endif
 
         <div class="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400">
-            Gegenübergestellt wird der tatsächlich <strong>angesetzte</strong> Faktor und der aus den
-            eigenen Ergebnissen <strong>beobachtete</strong> Wert. Grundlage sind Athletinnen und
-            Athleten mit Zeiten auf beiden Bahnlängen im selben Bewerb und derselben Sportklasse.
-            Ab {{ $minSampleSize }} Athleten gilt eine Kombination als ausreichend belegt; darunter
-            wird kein eigener Faktor gebildet.
+            <p>
+                Gegenübergestellt wird der tatsächlich <strong>angesetzte</strong> Faktor und der aus
+                den eigenen Ergebnissen <strong>beobachtete</strong> Wert. Grundlage sind Athletinnen
+                und Athleten mit Zeiten auf beiden Bahnlängen im selben Bewerb und derselben
+                Sportklasse. Ab {{ $minSampleSize }} Athleten gilt eine Kombination als ausreichend
+                belegt; darunter wird kein eigener Faktor gebildet.
+            </p>
+            <p class="mt-2">
+                Verglichen werden nur Zeiten, die höchstens <strong>{{ $windowMonths }} Monate</strong>
+                auseinander liegen — sonst misst der Vergleich die Leistungsentwicklung des Athleten
+                statt des Bahnunterschieds. Einzelverhältnisse außerhalb von
+                {{ number_format($plausibleRange['min'], 2, ',', '.') }}–{{ number_format($plausibleRange['max'], 2, ',', '.') }}
+                gelten als unplausibel und fließen nicht in den Median ein; sie erscheinen in der
+                Spalte <em>verworfen</em>.
+            </p>
         </div>
 
         @if($rows->isEmpty())
@@ -46,6 +56,7 @@
                         <flux:table.column>Bewerb</flux:table.column>
                         <flux:table.column>Klasse</flux:table.column>
                         <flux:table.column align="end">Athleten</flux:table.column>
+                        <flux:table.column align="end">verworfen</flux:table.column>
                         <flux:table.column align="end">beobachtet</flux:table.column>
                         <flux:table.column align="end">Spanne</flux:table.column>
                         <flux:table.column align="end">angesetzt</flux:table.column>
@@ -60,6 +71,15 @@
                                     <span @class(['text-zinc-400' => ! $row['sufficient']])>
                                         {{ $row['sample_size'] }}
                                     </span>
+                                </flux:table.cell>
+                                <flux:table.cell align="end">
+                                    @if($row['rejected'] > 0)
+                                        <span class="text-amber-600 dark:text-amber-400">
+                                            {{ $row['rejected'] }}
+                                        </span>
+                                    @else
+                                        –
+                                    @endif
                                 </flux:table.cell>
                                 <flux:table.cell align="end" class="font-mono">
                                     {{ number_format($row['median'], 4, ',', '.') }}

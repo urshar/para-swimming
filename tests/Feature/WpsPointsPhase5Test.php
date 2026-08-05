@@ -44,13 +44,18 @@ function calibration_wps5(): WpsScmFactorCalibrationService
 }
 
 /** Legt für einen Athleten je eine LCM- und eine SCM-Zeit im selben Bewerb an. */
-function paar_wps5(int $lcmZeit, int $scmZeit, string $sportClass = 'S14'): void
-{
+function paar_wps5(
+    int $lcmZeit,
+    int $scmZeit,
+    string $sportClass = 'S14',
+    string $scmDatum = '2026-03-01',
+): void {
+    // result_wps2() legt die Langbahnveranstaltung auf den 01.05.2026.
     $lcm = result_wps2(result: ['swim_time' => $lcmZeit, 'sport_class' => $sportClass]);
 
     $scmMeet = Meet::create([
         'name' => 'Kurzbahn', 'nation_id' => nation_wps2()->id,
-        'course' => 'SCM', 'start_date' => '2026-03-01',
+        'course' => 'SCM', 'start_date' => $scmDatum,
     ]);
 
     $scmEvent = SwimEvent::create([
@@ -285,10 +290,10 @@ describe('Kurzbahn-Berechnung', function () {
 
 describe('Kalibrierung', function () {
     it('bildet den Median der Einzelverhältnisse', function () {
-        // Verhältnisse: 1,02 / 1,04 / 1,10 → Median 1,04
+        // Verhältnisse: 1,02 / 1,04 / 1,05 → Median 1,04
         paar_wps5(5100, 5000);
         paar_wps5(5200, 5000);
-        paar_wps5(5500, 5000);
+        paar_wps5(5250, 5000);
 
         $beobachtet = calibration_wps5()->observedRatios()->first();
 
@@ -297,14 +302,16 @@ describe('Kalibrierung', function () {
     });
 
     it('lässt sich von einem Ausreißer nicht verziehen — anders als ein Mittelwert', function () {
-        // Mittelwert wäre 1,3533; der Median bleibt bei 1,03.
+        // Alle drei innerhalb der Plausibilitätsgrenzen: 1,02 / 1,03 / 1,058.
+        // Mittelwert wäre 1,036; der Median bleibt bei 1,03.
         paar_wps5(5100, 5000);
         paar_wps5(5150, 5000);
-        paar_wps5(10000, 5000);
+        paar_wps5(5290, 5000);
 
         $beobachtet = calibration_wps5()->observedRatios()->first();
 
-        expect(round($beobachtet['median'], 4))->toBe(1.03);
+        expect(round($beobachtet['median'], 4))->toBe(1.03)
+            ->and($beobachtet['rejected'])->toBe(0);
     });
 
     it('schreibt einen Faktor erst ab drei Athleten', function () {
@@ -321,7 +328,7 @@ describe('Kalibrierung', function () {
     it('legt ab drei Athleten einen Faktor aus eigenen Daten an', function () {
         paar_wps5(5100, 5000);
         paar_wps5(5200, 5000);
-        paar_wps5(5300, 5000);
+        paar_wps5(5250, 5000);
 
         $summary = calibration_wps5()->calibrate();
         $factor = WpsScmConversionFactor::first();
@@ -336,7 +343,7 @@ describe('Kalibrierung', function () {
     it('überschreibt einen manuell gesetzten Faktor nicht', function () {
         paar_wps5(5100, 5000);
         paar_wps5(5200, 5000);
-        paar_wps5(5300, 5000);
+        paar_wps5(5250, 5000);
 
         $manuell = factor_wps5([
             'distance' => 50,
@@ -362,7 +369,7 @@ describe('Kalibrierung', function () {
     it('erzeugt einen Bericht mit angesetztem und beobachtetem Wert', function () {
         paar_wps5(5100, 5000);
         paar_wps5(5200, 5000);
-        paar_wps5(5300, 5000);
+        paar_wps5(5250, 5000);
         factor_wps5(['factor' => 1.02]);
 
         $bericht = calibration_wps5()->report(conversion_wps5());
@@ -375,13 +382,116 @@ describe('Kalibrierung', function () {
     });
 });
 
+// ── Zeitfenster und Plausibilität ────────────────────────────────────────────
+
+describe('Zeitfenster', function () {
+    it('verwirft Paare außerhalb des Fensters', function () {
+        config(['wps.calibration.window_months' => 6]);
+
+        // Langbahn am 01.05.2026, Kurzbahn zwei Jahre davor: der Vergleich misst die
+        // Entwicklung des Athleten, nicht den Bahnunterschied.
+        paar_wps5(5100, 5000, 'S14', '2024-03-01');
+
+        expect(calibration_wps5()->observedRatios())->toBeEmpty();
+    });
+
+    it('berücksichtigt Paare innerhalb des Fensters', function () {
+        config(['wps.calibration.window_months' => 6]);
+        paar_wps5(5100, 5000);
+
+        expect(calibration_wps5()->observedRatios())->toHaveCount(1);
+    });
+
+    it('lässt sich über die Konfiguration erweitern', function () {
+        paar_wps5(5100, 5000, 'S14', '2025-06-01');
+
+        config(['wps.calibration.window_months' => 6]);
+        expect(calibration_wps5()->observedRatios())->toBeEmpty();
+
+        config(['wps.calibration.window_months' => 24]);
+        expect(calibration_wps5()->observedRatios())->toHaveCount(1);
+    });
+
+    it('nimmt bei mehreren Kurzbahnzeiten die zeitlich nächste', function () {
+        config(['wps.calibration.window_months' => 24]);
+
+        // Zwei Kurzbahnstarts desselben Athleten: einer knapp vor der Langbahnzeit,
+        // einer weit davor. Maßgeblich ist der nähere.
+        $lcm = result_wps2(result: ['swim_time' => 5100, 'sport_class' => 'S14']);
+
+        foreach ([['2026-04-01', 5000], ['2025-01-01', 4000]] as [$datum, $zeit]) {
+            $meet = Meet::create([
+                'name' => 'Kurzbahn '.$datum, 'nation_id' => nation_wps2()->id,
+                'course' => 'SCM', 'start_date' => $datum,
+            ]);
+
+            $event = SwimEvent::create([
+                'meet_id' => $meet->id,
+                'stroke_type_id' => $lcm->swimEvent->stroke_type_id,
+                'distance' => $lcm->swimEvent->distance,
+                'relay_count' => 1,
+                'gender' => 'M',
+            ]);
+
+            Result::create([
+                'meet_id' => $meet->id, 'swim_event_id' => $event->id,
+                'athlete_id' => $lcm->athlete_id, 'club_id' => $lcm->club_id,
+                'swim_time' => $zeit, 'sport_class' => 'S14',
+            ]);
+        }
+
+        // 5100/5000 = 1,02 — nicht 5100/4000 = 1,275
+        expect(round(calibration_wps5()->observedRatios()->first()['median'], 4))->toBe(1.02);
+    });
+});
+
+describe('Plausibilitätsgrenzen', function () {
+    it('verwirft unplausible Verhältnisse und weist sie aus', function () {
+        // 1,02 / 1,03 plausibel, 1,50 nicht.
+        paar_wps5(5100, 5000);
+        paar_wps5(5150, 5000);
+        paar_wps5(7500, 5000);
+
+        $beobachtet = calibration_wps5()->observedRatios()->first();
+
+        expect($beobachtet['sample_size'])->toBe(2)
+            ->and($beobachtet['rejected'])->toBe(1)
+            ->and($beobachtet['max'])->toBeLessThan(1.06);
+    });
+
+    it('verwirft auch zu niedrige Verhältnisse', function () {
+        // Kurzbahn langsamer als Langbahn — praktisch immer ein Formunterschied.
+        paar_wps5(4500, 5000);
+
+        expect(calibration_wps5()->observedRatios())->toBeEmpty();
+    });
+
+    it('lässt die Grenzen über die Konfiguration verschieben', function () {
+        paar_wps5(5400, 5000);
+
+        expect(calibration_wps5()->observedRatios())->toBeEmpty();
+
+        config(['wps.calibration.max_ratio' => 1.10]);
+
+        expect(calibration_wps5()->observedRatios())->toHaveCount(1);
+    });
+
+    it('meldet verworfene Paare in der Zusammenfassung', function () {
+        paar_wps5(5100, 5000);
+        paar_wps5(5150, 5000);
+        paar_wps5(7500, 5000);
+
+        expect(calibration_wps5()->calibrate()['rejected_pairs'])->toBe(1);
+    });
+});
+
 // ── Zuordnung 21 → 14 bei der Kalibrierung ───────────────────────────────────
 
 describe('Kalibrierung und Sportklassen 21', function () {
     it('führt S21-Athleten mit S14 zusammen', function () {
         paar_wps5(5100, 5000);
         paar_wps5(5200, 5000);
-        paar_wps5(5300, 5000, 'S21');
+        paar_wps5(5250, 5000, 'S21');
 
         $beobachtet = calibration_wps5()->observedRatios();
 
@@ -395,7 +505,7 @@ describe('Kalibrierung und Sportklassen 21', function () {
     it('legt keinen eigenen Faktor für S21 an', function () {
         paar_wps5(5100, 5000, 'S21');
         paar_wps5(5200, 5000, 'S21');
-        paar_wps5(5300, 5000, 'S21');
+        paar_wps5(5250, 5000, 'S21');
 
         calibration_wps5()->calibrate();
 

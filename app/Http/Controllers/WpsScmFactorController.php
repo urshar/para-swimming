@@ -41,7 +41,9 @@ class WpsScmFactorController extends Controller
     {
         return view('wps.factors.report', [
             'rows' => $this->calibrationService->report($this->conversionService),
-            'minSampleSize' => WpsScmFactorCalibrationService::MIN_SAMPLE_SIZE,
+            'minSampleSize' => $this->calibrationService->minSampleSize(),
+            'windowMonths' => $this->calibrationService->windowMonths(),
+            'plausibleRange' => $this->calibrationService->plausibleRange(),
         ]);
     }
 
@@ -50,13 +52,22 @@ class WpsScmFactorController extends Controller
     {
         $summary = $this->calibrationService->calibrate();
 
-        return redirect()->route('wps.factors.report')->with('success', sprintf(
+        $meldung = sprintf(
             '%d Faktor(en) neu angelegt, %d aktualisiert, %d übersprungen '
             .'(zu wenige Athleten oder manuell gesetzt).',
             $summary['created'],
             $summary['updated'],
             $summary['skipped'],
-        ));
+        );
+
+        if ($summary['rejected_pairs'] > 0) {
+            $meldung .= sprintf(
+                ' %d Vergleichspaar(e) als unplausibel verworfen — siehe Spalte "verworfen".',
+                $summary['rejected_pairs'],
+            );
+        }
+
+        return redirect()->route('wps.factors.report')->with('success', $meldung);
     }
 
     public function update(Request $request, WpsScmConversionFactor $factor): RedirectResponse

@@ -4,48 +4,89 @@ namespace App\Services;
 
 use App\Models\WpsScmConversionFactor;
 use App\Support\WpsSportClass;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Ermittelt Umrechnungsfaktoren aus den eigenen Ergebnissen (Spec §9.3).
  *
- * Datengrundlage sind Athletinnen und Athleten, die in derselben Sportklasse und demselben
- * Bewerb sowohl eine Langbahn- als auch eine Kurzbahnzeit haben. Je Athlet wird
- * `beste LCM-Zeit / beste SCM-Zeit` gebildet; der Faktor ist der MEDIAN dieser Verhältnisse.
+ * Grundlage sind Athletinnen und Athleten, die denselben Bewerb in derselben Sportklasse
+ * sowohl auf der Lang- als auch auf der Kurzbahn geschwommen sind. Der Faktor ist der MEDIAN
+ * der Einzelverhältnisse `LCM-Zeit / SCM-Zeit`.
  *
- * Median statt Mittelwert: Bei drei bis neun Athleten würde ein einzelner Ausreißer — etwa
- * eine Zeit aus einem Formtief — den Mittelwert spürbar verziehen.
+ * Zwei Vorkehrungen, ohne die das Verfahren nicht den Bahnunterschied misst:
  *
- * Wichtige Einschränkung (Spec §9.6): Athleten mit Zeiten auf beiden Bahnlängen sind
- * überwiegend jene, die international gestartet sind, also die nationale Spitze. Für den
- * Nachwuchs fällt ein so ermittelter Faktor tendenziell zu optimistisch aus.
+ * 1. ZEITFENSTER. Verglichen werden nur Zeiten, die höchstens `window_months` auseinander
+ *    liegen. Sonst fließt die Leistungsentwicklung zwischen den beiden Starts mit ein — ein
+ *    Nachwuchsathlet mit einer alten Langbahnzeit und einer aktuellen Kurzbahn-Bestzeit
+ *    lieferte einen viel zu hohen Faktor.
+ *
+ * 2. PLAUSIBILITÄTSGRENZEN. Einzelverhältnisse außerhalb von `min_ratio`/`max_ratio` fließen
+ *    nicht in den Median ein. Auf 100 m hat die Kurzbahn zwei Wenden mehr; daraus ergeben
+ *    sich realistisch ein bis drei Prozent. Ein Verhältnis von 1,08 beruht praktisch immer
+ *    auf einem Vergleich ungleicher Formzustände.
+ *
+ * Verworfene Paare werden gezählt und im Faktorenbericht ausgewiesen.
+ *
+ * Bleibende Einschränkung (Spec §9.6): Athleten mit Zeiten auf beiden Bahnlängen sind
+ * überwiegend jene, die international starten. Für den Nachwuchs fällt ein so ermittelter
+ * Faktor tendenziell zu optimistisch aus.
  */
 final readonly class WpsScmFactorCalibrationService
 {
-    /** Unter dieser Zahl von Athleten wird kein eigener Faktor gebildet. */
-    public const int MIN_SAMPLE_SIZE = 3;
-
     /** Ergebnisstatus ohne wertbare Leistung. EXH fehlt bewusst — es liegt eine Zeit vor. */
     private const array NON_SCORING_STATUSES = ['DNS', 'DNF', 'DSQ', 'SICK', 'WDR'];
+
+    public function minSampleSize(): int
+    {
+        return (int) config('wps.calibration.min_sample_size', 3);
+    }
+
+    public function windowMonths(): int
+    {
+        return (int) config('wps.calibration.window_months', 6);
+    }
+
+    /** @return array{min: float, max: float} */
+    public function plausibleRange(): array
+    {
+        return [
+            'min' => (float) config('wps.calibration.min_ratio', 0.98),
+            'max' => (float) config('wps.calibration.max_ratio', 1.06),
+        ];
+    }
 
     /**
      * Beobachtete Verhältnisse je Kombination aus Bewerb und Sportklasse.
      *
      * @return Collection<string, array{
      *     stroke_type_id: int, lenex_code: string, distance: int, sport_class: string,
-     *     sample_size: int, median: float, min: float, max: float
+     *     sample_size: int, median: float, min: float, max: float, rejected: int
      * }>
      */
     public function observedRatios(): Collection
     {
-        return $this->athleteRatios()
-            ->groupBy(static fn (array $zeile): string => $zeile['stroke_type_id']
-                .'|'.$zeile['distance']
-                .'|'.$zeile['sport_class'])
-            ->map(function (Collection $gruppe): array {
-                $verhaeltnisse = $gruppe->pluck('ratio')->sort()->values();
-                $erste = $gruppe->first();
+        return $this->athletePairs()
+            ->groupBy(static fn (array $paar): string => $paar['stroke_type_id']
+                .'|'.$paar['distance']
+                .'|'.$paar['sport_class'])
+            ->map(function (Collection $gruppe): ?array {
+                $grenzen = $this->plausibleRange();
+
+                $plausibel = $gruppe
+                    ->filter(static fn (array $paar): bool => $paar['ratio'] >= $grenzen['min']
+                        && $paar['ratio'] <= $grenzen['max'])
+                    ->values();
+
+                $verworfen = $gruppe->count() - $plausibel->count();
+
+                if ($plausibel->isEmpty()) {
+                    return null;
+                }
+
+                $verhaeltnisse = $plausibel->pluck('ratio')->sort()->values();
+                $erste = $plausibel->first();
 
                 return [
                     'stroke_type_id' => $erste['stroke_type_id'],
@@ -56,26 +97,29 @@ final readonly class WpsScmFactorCalibrationService
                     'median' => $this->median($verhaeltnisse),
                     'min' => (float) $verhaeltnisse->first(),
                     'max' => (float) $verhaeltnisse->last(),
+                    'rejected' => $verworfen,
                 ];
             })
+            ->filter()
             ->sortByDesc('sample_size');
     }
 
     /**
      * Schreibt für alle ausreichend belegten Kombinationen einen Faktor aus eigenen Daten.
      *
-     * Bestehende Einträge derselben Kombination werden aktualisiert; Faktoren mit
-     * source = manual bleiben unangetastet, damit eine bewusste Korrektur nicht
+     * Faktoren mit source = manual bleiben unangetastet, damit eine bewusste Korrektur nicht
      * überschrieben wird.
      *
-     * @return array{created: int, updated: int, skipped: int}
+     * @return array{created: int, updated: int, skipped: int, rejected_pairs: int}
      */
     public function calibrate(): array
     {
-        $ergebnis = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $ergebnis = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'rejected_pairs' => 0];
 
         foreach ($this->observedRatios() as $beobachtung) {
-            if ($beobachtung['sample_size'] < self::MIN_SAMPLE_SIZE) {
+            $ergebnis['rejected_pairs'] += $beobachtung['rejected'];
+
+            if ($beobachtung['sample_size'] < $this->minSampleSize()) {
                 $ergebnis['skipped']++;
 
                 continue;
@@ -126,32 +170,32 @@ final readonly class WpsScmFactorCalibrationService
                     'M',
                 );
 
-                $abweichung = $angesetzt !== null
-                    ? $beobachtung['median'] - $angesetzt->factor
-                    : null;
-
                 return $beobachtung + [
                     'applied_factor' => $angesetzt?->factor,
                     'applied_source' => $angesetzt?->source,
                     'applied_sample_size' => $angesetzt?->sample_size,
-                    'deviation' => $abweichung,
-                    'sufficient' => $beobachtung['sample_size'] >= self::MIN_SAMPLE_SIZE,
+                    'deviation' => $angesetzt !== null
+                        ? $beobachtung['median'] - $angesetzt->factor
+                        : null,
+                    'sufficient' => $beobachtung['sample_size'] >= $this->minSampleSize(),
                 ];
             })
             ->values();
     }
 
     /**
-     * Ein Verhältnis je Athlet, Bewerb und Sportklasse.
+     * Je Athlet, Bewerb und Sportklasse das zeitlich engste Paar aus LCM- und SCM-Ergebnis.
      *
-     * Bewusst in PHP zusammengeführt statt per SQL-Fensterfunktion: Die Datenmenge ist klein,
-     * und die Abfrage bleibt auf MySQL wie auf SQLite identisch.
+     * Bewusst NICHT die jeweilige Bestzeit über die gesamte Historie: Zwei Bestzeiten aus
+     * verschiedenen Jahren messen die Entwicklung des Athleten, nicht den Bahnunterschied.
+     * Gesucht wird deshalb das Paar mit dem geringsten zeitlichen Abstand innerhalb des
+     * konfigurierten Fensters.
      *
-     * @return Collection<int, array{stroke_type_id: int, lenex_code: string, distance: int, sport_class: string, ratio: float}>
+     * @return Collection<int, array{stroke_type_id: int, lenex_code: string, distance: int, sport_class: string, ratio: float, gap_days: int}>
      */
-    private function athleteRatios(): Collection
+    private function athletePairs(): Collection
     {
-        $bestzeiten = DB::table('results as r')
+        $ergebnisse = DB::table('results as r')
             ->join('meets as m', 'm.id', '=', 'r.meet_id')
             ->join('swim_events as e', 'e.id', '=', 'r.swim_event_id')
             ->join('stroke_types as s', 's.id', '=', 'e.stroke_type_id')
@@ -159,58 +203,73 @@ final readonly class WpsScmFactorCalibrationService
             ->where('r.swim_time', '>', 0)
             ->where('e.relay_count', 1)
             ->whereNotNull('r.sport_class')
+            ->whereNotNull('m.start_date')
             ->whereIn('m.course', ['LCM', 'SCM'])
-            // Zwingend in eine Gruppierung gefasst: ein freistehendes orWhere würde die
-            // gesamte vorangehende Bedingungskette zu einer ODER-Verknüpfung machen. In SQL
-            // liefert NOT IN bei NULL zudem nie true — die Null-Prüfung ist also nötig.
+            // Zwingend gruppiert: ein freistehendes orWhere würde die gesamte vorangehende
+            // Bedingungskette zu einer ODER-Verknüpfung machen. NOT IN liefert bei NULL
+            // zudem nie true, daher die zusätzliche Null-Prüfung.
             ->where(static function ($query): void {
                 $query->whereNull('r.status')
                     ->orWhereNotIn('r.status', self::NON_SCORING_STATUSES);
             })
             ->select([
-                'r.athlete_id',
-                'e.stroke_type_id',
-                's.lenex_code',
-                'e.distance',
-                'r.sport_class',
-                'm.course',
-            ])
-            ->selectRaw('MIN(r.swim_time) as best_time')
-            ->groupBy([
-                'r.athlete_id', 'e.stroke_type_id', 's.lenex_code',
-                'e.distance', 'r.sport_class', 'm.course',
+                'r.athlete_id', 'e.stroke_type_id', 's.lenex_code', 'e.distance',
+                'r.sport_class', 'm.course', 'r.swim_time', 'm.start_date',
             ])
             ->get();
 
-        return $bestzeiten
-            ->groupBy(static fn (object $zeile): string => $zeile->athlete_id
-                .'|'.$zeile->stroke_type_id
-                .'|'.$zeile->distance
-                .'|'.$zeile->sport_class)
-            ->map(static function (Collection $gruppe): ?array {
-                $lcm = $gruppe->firstWhere('course', 'LCM');
-                $scm = $gruppe->firstWhere('course', 'SCM');
+        $fenster = $this->windowMonths();
 
-                if ($lcm === null || $scm === null || (int) $scm->best_time <= 0) {
-                    return null;
-                }
-
-                // Dieselbe Abbildung wie bei der Berechnung: Sonst entstünde ein Faktor für
-                // eine Klasse, die zur Rechenzeit nie abgefragt wird — und die betroffenen
-                // Athleten fehlten in der Stichprobe der Zielklasse.
-                $sportClass = WpsSportClass::mapToWps($lcm->sport_class);
+        return $ergebnisse
+            ->map(static function (object $zeile): ?object {
+                $sportClass = WpsSportClass::mapToWps($zeile->sport_class);
 
                 if ($sportClass === null) {
                     return null;
                 }
 
-                return [
-                    'stroke_type_id' => (int) $lcm->stroke_type_id,
-                    'lenex_code' => (string) $lcm->lenex_code,
-                    'distance' => (int) $lcm->distance,
-                    'sport_class' => $sportClass,
-                    'ratio' => (int) $lcm->best_time / (int) $scm->best_time,
-                ];
+                $zeile->sport_class = $sportClass;
+
+                return $zeile;
+            })
+            ->filter()
+            ->groupBy(static fn (object $zeile): string => $zeile->athlete_id
+                .'|'.$zeile->stroke_type_id
+                .'|'.$zeile->distance
+                .'|'.$zeile->sport_class)
+            ->map(static function (Collection $gruppe) use ($fenster): ?array {
+                $lcm = $gruppe->where('course', 'LCM');
+                $scm = $gruppe->where('course', 'SCM');
+
+                if ($lcm->isEmpty() || $scm->isEmpty()) {
+                    return null;
+                }
+
+                $bestes = null;
+
+                foreach ($lcm as $langbahn) {
+                    foreach ($scm as $kurzbahn) {
+                        $abstand = Carbon::parse($langbahn->start_date)
+                            ->diffInDays(Carbon::parse($kurzbahn->start_date), absolute: true);
+
+                        if ($abstand > $fenster * 30 || (int) $kurzbahn->swim_time <= 0) {
+                            continue;
+                        }
+
+                        if ($bestes === null || $abstand < $bestes['gap_days']) {
+                            $bestes = [
+                                'stroke_type_id' => (int) $langbahn->stroke_type_id,
+                                'lenex_code' => (string) $langbahn->lenex_code,
+                                'distance' => (int) $langbahn->distance,
+                                'sport_class' => (string) $langbahn->sport_class,
+                                'ratio' => (int) $langbahn->swim_time / (int) $kurzbahn->swim_time,
+                                'gap_days' => (int) $abstand,
+                            ];
+                        }
+                    }
+                }
+
+                return $bestes;
             })
             ->filter()
             ->values();
