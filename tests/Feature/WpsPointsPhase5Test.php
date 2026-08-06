@@ -15,10 +15,16 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class)->group('wps-points-p5');
 
+beforeEach(function () {
+    // Die Produktivvorgabe liegt bei 6 Athleten. Die Testfälle prüfen das Verhalten der
+    // Kalibrierung, nicht die Schwelle selbst — diese hat einen eigenen Block weiter unten.
+    config(['wps.calibration.min_sample_size' => 3]);
+});
+
 // Die Helper (result_wps2, parameter_wps2, version_wps2, stroke_wps2, …) stammen aus
 // tests/helpers_wps2.php.
 
-/** @param  array<string, mixed>  $overrides */
+/** @param array<string, mixed> $overrides */
 function factor_wps5(array $overrides = []): WpsScmConversionFactor
 {
     return WpsScmConversionFactor::create(array_merge([
@@ -390,7 +396,7 @@ describe('Zeitfenster', function () {
 
         // Langbahn am 01.05.2026, Kurzbahn zwei Jahre davor: der Vergleich misst die
         // Entwicklung des Athleten, nicht den Bahnunterschied.
-        paar_wps5(5100, 5000, 'S14', '2024-03-01');
+        paar_wps5(5100, 5000, scmDatum: '2024-03-01');
 
         expect(calibration_wps5()->observedRatios())->toBeEmpty();
     });
@@ -403,7 +409,7 @@ describe('Zeitfenster', function () {
     });
 
     it('lässt sich über die Konfiguration erweitern', function () {
-        paar_wps5(5100, 5000, 'S14', '2025-06-01');
+        paar_wps5(5100, 5000, scmDatum: '2025-06-01');
 
         config(['wps.calibration.window_months' => 6]);
         expect(calibration_wps5()->observedRatios())->toBeEmpty();
@@ -532,29 +538,220 @@ describe('Kalibrierung und Sportklassen 21', function () {
     });
 });
 
+// ── Mindestgröße und Untergrenze des Medians ─────────────────────────────────
+
+describe('Belastbarkeit', function () {
+    it('verlangt produktiv sechs Athleten', function () {
+        expect(config('wps.calibration.min_sample_size'))->toBe(3);
+
+        // Der Standardwert der Anwendung — hier gegen die Konfigurationsdatei geprüft,
+        // da beforeEach ihn für die übrigen Tests herabsetzt.
+        config(['wps.calibration.min_sample_size' => 6]);
+
+        paar_wps5(5100, 5000);
+        paar_wps5(5150, 5000);
+        paar_wps5(5200, 5000);
+        paar_wps5(5250, 5000);
+
+        expect(calibration_wps5()->calibrate())
+            ->toMatchArray(['created' => 0, 'skipped' => 1]);
+    });
+
+    it('schreibt keinen Faktor unter 1', function () {
+        // Verhältnisse 0,98 / 0,99 / 1,00 → Median 0,99. Ein Kurzbahnvorteil kann nicht
+        // negativ sein; der Wert misst Formunterschiede.
+        paar_wps5(4900, 5000);
+        paar_wps5(4950, 5000);
+        paar_wps5(5000, 5000);
+
+        $beobachtung = calibration_wps5()->observedRatios()->first();
+        $summary = calibration_wps5()->calibrate();
+
+        expect($beobachtung['plausible_median'])->toBeFalse()
+            ->and($summary['created'])->toBe(0)
+            ->and($summary['implausible_medians'])->toBe(1)
+            ->and(WpsScmConversionFactor::where('source', WpsScmConversionFactor::SOURCE_OWN_DATA)->count())
+            ->toBe(0);
+    });
+
+    it('schreibt einen Faktor von genau 1 nicht als unplausibel ab', function () {
+        paar_wps5(5000, 5000);
+        paar_wps5(5100, 5000);
+        paar_wps5(5000, 5000);
+
+        expect(calibration_wps5()->observedRatios()->first()['plausible_median'])->toBeTrue();
+    });
+
+    it('lässt die betroffene Kombination auf den Sammelwert zurückfallen', function () {
+        $sammelwert = factor_wps5(['factor' => 1.02]);
+        paar_wps5(4900, 5000);
+        paar_wps5(4950, 5000);
+        paar_wps5(5000, 5000);
+
+        calibration_wps5()->calibrate();
+
+        // Ohne eigenen Faktor greift die Kaskade und findet den Sammelwert je Stil.
+        expect(conversion_wps5()->resolveFactor(stroke_wps2('FREE')->id, 50, 'S14', 'M')->id)
+            ->toBe($sammelwert->id);
+    });
+
+    it('weist einen unplausiblen Median im Bericht aus', function () {
+        paar_wps5(4900, 5000);
+        paar_wps5(4950, 5000);
+        paar_wps5(5000, 5000);
+
+        $zeile = calibration_wps5()->report(conversion_wps5())->first();
+
+        expect($zeile['plausible_median'])->toBeFalse()
+            ->and($zeile['sufficient'])->toBeFalse();
+    });
+});
+
 // ── Seeder ───────────────────────────────────────────────────────────────────
 
-describe('Literatur-Startwerte', function () {
-    it('legt je Schwimmstil einen Sammelwert an', function () {
+describe('Startwerte aus den World-Aquatics-Basiszeiten', function () {
+    beforeEach(function () {
         foreach (['FREE', 'BACK', 'BREAST', 'FLY', 'MEDLEY'] as $code) {
             stroke_wps2($code);
         }
+    });
 
+    it('legt Faktoren je Stil, Strecke und Geschlecht an', function () {
         (new WpsScmConversionFactorsSeeder)->run();
         (new WpsScmConversionFactorsSeeder)->run();
 
-        expect(WpsScmConversionFactor::count())->toBe(5)
-            ->and(WpsScmConversionFactor::where('source', '!=',
-                WpsScmConversionFactor::SOURCE_LITERATURE)->count())->toBe(0)
-            ->and(WpsScmConversionFactor::where('confidence_level', '!=',
-                WpsScmConversionFactor::CONFIDENCE_LOW)->count())->toBe(0);
+        // 17 Bewerbe × 2 Geschlechter + 5 Sammelwerte × 2 Geschlechter
+        expect(WpsScmConversionFactor::count())->toBe(44)
+            ->and(WpsScmConversionFactor::whereNull('distance')->count())->toBe(10);
+    });
+
+    it('liefert ausschließlich Faktoren über 1', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        // Ein Faktor unter 1 hieße, auf der Kurzbahn werde langsamer geschwommen. Genau daran
+        // sind die para-spezifischen Quellen gescheitert (Spec §9.8).
+        expect(WpsScmConversionFactor::where('factor', '<=', 1.0)->count())->toBe(0)
+            ->and(WpsScmConversionFactor::where('factor', '>', 1.1)->count())->toBe(0);
+    });
+
+    it('gibt Rücken die höchsten Faktoren', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        // Fachliche Plausibilitätsprüfung: Beim Rücken wiegt die Unterwasserphase nach der
+        // Wende am schwersten, der Kurzbahnvorteil ist dort am größten.
+        $ruecken = WpsScmConversionFactor::where('stroke_type_id', stroke_wps2('BACK')->id)
+            ->whereNull('distance')->where('gender', 'M')->value('factor');
+        $freistil = WpsScmConversionFactor::where('stroke_type_id', stroke_wps2('FREE')->id)
+            ->whereNull('distance')->where('gender', 'M')->value('factor');
+
+        expect($ruecken)->toBeGreaterThan($freistil);
+    });
+
+    it('lässt den Faktor mit der Streckenlänge sinken', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        // Je länger die Strecke, desto weniger fällt der Wendenvorteil relativ ins Gewicht.
+        $free = fn (int $d) => WpsScmConversionFactor::where('stroke_type_id', stroke_wps2('FREE')->id)
+            ->where('distance', $d)->where('gender', 'M')->value('factor');
+
+        expect($free(50))->toBeGreaterThan($free(1500));
     });
 
     it('kennzeichnet die Werte als nicht para-spezifisch', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        expect(WpsScmConversionFactor::first())
+            ->notes->toContain('nicht para-spezifisch')
+            ->notes->toContain('World Aquatics')
+            ->confidence_level->toBe(WpsScmConversionFactor::CONFIDENCE_MEDIUM)
+            ->source->toBe(WpsScmConversionFactor::SOURCE_LITERATURE);
+    });
+
+    it('überschreibt einen von Hand gesetzten Faktor nicht', function () {
+        $manuell = factor_wps5([
+            'distance' => 50,
+            'gender' => 'M',
+            'factor' => 1.011,
+            'source' => WpsScmConversionFactor::SOURCE_MANUAL,
+        ]);
+
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        expect($manuell->fresh()->factor)->toBe(1.011);
+    });
+
+    it('deckt Bewerbe ohne World-Aquatics-Entsprechung über den Sammelwert ab', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        // 150 m Lagen gibt es nur im Para-Schwimmsport — es greift der Stilwert.
+        $factor = conversion_wps5()->resolveFactor(stroke_wps2('MEDLEY')->id, 150, 'SM4', 'M');
+
+        expect($factor)->not->toBeNull()
+            ->and($factor->distance)->toBeNull();
+    });
+
+    it('bevorzugt den streckengenauen Wert vor dem Sammelwert', function () {
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        $factor = conversion_wps5()->resolveFactor(stroke_wps2('FREE')->id, 50, 'S10', 'M');
+
+        expect($factor->distance)->toBe(50)
+            ->and($factor->gender)->toBe('M');
+    });
+});
+
+// ── Kennzeichnung der Herkunft ───────────────────────────────────────────────
+
+describe('Herkunftsanzeige', function () {
+    it('benennt die konkrete Quelle statt der technischen Kategorie', function () {
         stroke_wps2('FREE');
         (new WpsScmConversionFactorsSeeder)->run();
 
-        expect(WpsScmConversionFactor::first()->notes)->toContain('nicht para-spezifisch');
+        $factor = WpsScmConversionFactor::first();
+
+        // Gespeichert bleibt 'literature' — daran hängt, ob die Kalibrierung überschreiben
+        // darf. Angezeigt wird die tatsächliche Quelle.
+        expect($factor->source)->toBe(WpsScmConversionFactor::SOURCE_LITERATURE)
+            ->and($factor->sourceLabel())->toBe('World Aquatics')
+            ->and($factor->sourceColor())->toBe('blue');
+    });
+
+    it('hebt manuell gesetzte Faktoren farblich ab', function () {
+        $manuell = factor_wps5(['source' => WpsScmConversionFactor::SOURCE_MANUAL]);
+
+        // Amber statt blau: der einzige Zustand, den der Kalibrierungslauf nie aktualisiert.
+        expect($manuell->sourceLabel())->toBe('manuell')
+            ->and($manuell->sourceColor())->toBe('amber')
+            ->and($manuell->isManual())->toBeTrue();
+    });
+
+    it('kennzeichnet eigene Daten grün', function () {
+        $eigen = factor_wps5(['source' => WpsScmConversionFactor::SOURCE_OWN_DATA, 'sample_size' => 7]);
+
+        expect($eigen->sourceLabel())->toBe('eigene Daten')
+            ->and($eigen->sourceColor())->toBe('green');
+    });
+
+    it('zeigt Freigabedatum und Person bei manuell gesetzten Faktoren', function () {
+        $admin = admin_wps5();
+        $factor = factor_wps5();
+
+        $this->actingAs($admin)->put(route('wps.factors.update', $factor), [
+            'factor' => '1.035',
+            'active' => '1',
+        ]);
+
+        $this->actingAs($admin)->get(route('wps.factors.index'))
+            ->assertOk()
+            ->assertSee('manuell')
+            ->assertSee($admin->name);
+    });
+
+    it('zeigt keine Freigabe bei abgeleiteten Faktoren', function () {
+        stroke_wps2('FREE');
+        (new WpsScmConversionFactorsSeeder)->run();
+
+        expect(WpsScmConversionFactor::first()->approved_at)->toBeNull();
     });
 });
 

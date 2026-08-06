@@ -4,7 +4,7 @@
 
 **Name:** WPS Points Engine
 **Modul-ID:** wps-points
-**Version:** 1.3 — Implementierungsfassung
+**Version:** 1.7 — Implementierungsfassung
 **Status:** Ready for Implementation
 
 > **Änderungen gegenüber Version 1.0:** Diese Fassung integriert die Ergebnisse der Phase-0-Bestandsanalyse
@@ -27,6 +27,20 @@
 > Faktorermittlung erhält ein **Zeitfenster** und **Plausibilitätsgrenzen** (**[S4]**, §9.3). Der erste
 > Lauf hatte Faktoren bis 1,097 erzeugt — fachlich unmöglich, da auf 100 m realistisch ein bis drei
 > Prozent zu erwarten sind.
+>
+> **Änderungen in Version 1.4** (nach dem zweiten Lauf): Die Mindestgröße steigt auf **6 Athleten**, und
+> ein errechneter Median unter 1,0 wird **verworfen** (**[S5]**, §9.3). Der zweite Lauf hatte drei
+> Faktoren unter 1 ergeben — als Bahneffekt ausgeschlossen.
+>
+> **Ergänzung in Version 1.5:** §9.8 dokumentiert geprüfte und verworfene Ansätze zur Ermittlung der
+> Umrechnungsfaktoren, damit sie nicht erneut untersucht werden.
+>
+> **Ergänzung in Version 1.6:** §9.8 hält zusätzlich fest, dass auch die **eigene
+> ÖBSV-Basiszeitentabelle** als Faktorquelle ausscheidet — sie folgt dem MCPS-Protokoll und trägt
+> deshalb denselben Defekt.
+>
+> **Änderung in Version 1.7:** §9.4 ersetzt die pauschalen Faustregeln durch Faktoren aus den
+> **World-Aquatics-Basiszeiten**, aufgelöst nach Stil, Strecke und Geschlecht.
 
 ---
 
@@ -651,7 +665,23 @@ Kalibrierung gemeinsam genutzt.
 Median statt Mittelwert: Bei Stichprobengrößen von drei bis neun Athleten würde ein einzelner Ausreißer —
 etwa eine Zeit aus einem Formtief — den Mittelwert spürbar verziehen.
 
-**Mindestgröße:** 3 Athleten. Darunter wird kein eigener Faktor gebildet.
+**Mindestgröße [S5]:** `wps.calibration.min_sample_size` Athleten (Vorgabe: **6**). Darunter wird kein
+eigener Faktor gebildet.
+
+Die Formschwankung eines Schwimmers zwischen zwei Rennen liegt in derselben Größenordnung wie der
+Bahnunterschied selbst — ein bis drei Prozent. Bei drei Athleten lässt sich das eine vom anderen nicht
+trennen: Der Faktor sieht präzise aus, bildet aber überwiegend Zufall ab. Erkennbar war das im zweiten
+Lauf daran, dass die Faktoren über die Strecken hinweg sprangen statt zu verlaufen.
+
+**Untergrenze des Medians [S5]:** Liegt der errechnete Median unter `wps.calibration.min_median`
+(Vorgabe: **1,0**), wird kein Faktor geschrieben. Ein Wert unter 1 hieße, dass auf der Kurzbahn
+langsamer geschwommen wird — als Bahneffekt ausgeschlossen, da zusätzliche Wenden niemanden langsamer
+machen. Solche Medianwerte messen Formunterschiede.
+
+Bewusst **keine** Untergrenze für die Einzelverhältnisse: Würde man nur die niedrigen Einzelwerte
+entfernen, zöge man den Median künstlich nach oben. Die Einzelwerte bleiben, verworfen wird das
+Ergebnis. Die Kombination fällt dann auf den Sammelwert je Schwimmstil zurück (§9.3 Kaskade), und der
+Faktorenbericht weist sie hervorgehoben aus.
 
 **Auflösung (Kaskade):** Für einen Bewerb und eine Klasse wird der spezifischste vorhandene Faktor
 verwendet:
@@ -670,17 +700,49 @@ unteren Klassen systematisch benachteiligen.
 **Ausschlüsse bei der Ermittlung:** Ergebnisse mit Status `DNS`/`DNF`/`DSQ`/`SICK`/`WDR`, Staffeln,
 fehlende oder nicht positive Zeiten. `EXH` wird berücksichtigt.
 
-## 9.4 Rückfall auf Literaturwerte
+## 9.4 Rückfall auf die World-Aquatics-Basiszeiten
 
-Für Kombinationen ohne ausreichende eigene Datenbasis wird ein Startwert je Schwimmstil ausgeliefert,
-abgeleitet aus den im allgemeinen Schwimmsport gebräuchlichen Umrechnungen (Größenordnung rund 2 % je
-100 m, größere Abstände bei Rücken und Schmetterling wegen der längeren Unterwasserphasen).
+Für Kombinationen ohne ausreichende eigene Datenbasis greifen Faktoren, die aus den offiziellen
+**World Aquatics Points — Base Times** abgeleitet sind:
 
-Diese Werte tragen zwingend `source = literature` und `confidence_level = low`. Sie sind **nicht** für
-den Para-Schwimmsport erhoben und setzen den vollen Wendenvorteil voraus.
+```
+factor = Basiszeit LCM / Basiszeit SCM
+```
 
-Die konkreten Startwerte sind vor der Umsetzung von Phase 5 mit dem ÖBSV abzustimmen und im Seeder zu
-hinterlegen — **nicht** im Code.
+Grundlage: LCM (50 m) 2026 und SCM (25 m) 2025. Beide Tabellen setzen die Basiszeit auf den zum Beginn
+des Gültigkeitszeitraums anerkannten Weltrekord.
+
+**Warum diese Quelle trägt, wo die para-spezifischen scheitern:** Bei World Aquatics werden **beide**
+Bahnlängen bei Weltmeisterschaften voll ausgeschwommen. Der Bahneffekt ist dort sauber gemessen und wird
+nicht von der Wettbewerbsdichte überlagert (§9.8).
+
+Alle 34 abgeleiteten Faktoren liegen zwischen **1,0135 und 1,0677**, Median 1,0343, **keiner unter 1**.
+Die Struktur ist fachlich stimmig:
+
+- **Rücken hat die höchsten Werte** (1,043–1,068) — dort wiegt die Unterwasserphase nach der Wende am
+  schwersten.
+- **Die Faktoren fallen mit der Streckenlänge** (Freistil Männer: 1,0508 auf 50 m bis 1,0281 auf
+  1500 m) — der Wendenvorteil verliert relativ an Gewicht.
+- **Nach Geschlecht getrennt**, da die Unterschiede bis zu zwei Prozentpunkte betragen (Freistil 50 m:
+  1,0508 gegen 1,0342) und damit in derselben Größenordnung liegen wie der Effekt selbst.
+
+**Sammelwerte je Stil** (Median über die Strecken) decken Bewerbe ohne World-Aquatics-Entsprechung ab —
+vor allem 150 m Lagen, das nur im Para-Schwimmsport ausgetragen wird.
+
+**Grenzen:** Die Werte stammen von nichtbehinderten Weltrekordhaltern mit vollem Wendenvorteil. Für die
+Klassen S1–S4, wo eine Wende physiologisch weniger einbringt, sind sie vermutlich zu hoch. Sie tragen
+deshalb `source = literature` und `confidence_level = medium` und greifen nur als Rückfall: Wo eine
+ausreichende eigene Stichprobe vorliegt, überschreibt die Kalibrierung sie mit einem
+klassenspezifischen Wert (§9.3).
+
+**Erster Abgleich mit eigenen Daten:** Die belastbaren eigenen Werte lagen bei Freistil 50 m S14 um
+1,0146 und Brust 50 m SB14 um 1,0181 — durchweg **niedriger** als die World-Aquatics-Werte für dieselben
+Bewerbe (1,0508 beziehungsweise 1,0401). Das könnte genau der erwartete Klasseneffekt sein. Bestätigt
+sich das mit wachsender Datenbasis, ist es ein Argument, eigene Faktoren dort zu bevorzugen, wo sie
+existieren — wie es die Kaskade bereits tut.
+
+**Jährlich zu aktualisieren**, sobald World Aquatics neue Basiszeiten veröffentlicht. Der Seeder ist
+wiederholt ausführbar; von Hand gesetzte Faktoren (`source = manual`) bleiben dabei unangetastet.
 
 ## 9.5 Vorrang offizieller SCM-Parameter
 
@@ -709,6 +771,92 @@ der tatsächlich beobachtete Wert.
 Zweck: Der Verband sieht, wo die Schätzung trägt und wo nicht, und kann die Faktoren jährlich nachziehen,
 sobald neue Auslandsstarts hinzukommen. Ein Faktor, der stark vom beobachteten Wert abweicht, ist damit
 sofort erkennbar.
+
+## 9.8 Geprüfte und verworfene Ansätze
+
+Diese Ansätze wurden untersucht und mit Begründung verworfen. Der Abschnitt existiert, damit sie nicht
+erneut geprüft werden.
+
+### Weltrekorde als Bezug
+
+**Idee:** Das Verhältnis der Weltrekordzeiten LCM/SCM je Sportklasse und Bewerb als Faktor verwenden.
+Rekorde sind Bestleistungen aus einer weltweiten Grundgesamtheit, also frei von der Tagesform, die
+unsere kleinen eigenen Stichproben verzerrt.
+
+**Geprüft an:** *2026 Long Course* und *2026 Short Course Multi-Class Point Score Calculator* von
+Swimming Australia. Beide Dateien führen je Bewerb, Geschlecht und Sportklasse eine Basiszeit, die auf
+den Weltrekorden beruht. Sie verwenden dieselbe Gompertz-Funktion mit `a = 1200` wie die WPS-Tabelle.
+Auswertbar waren 355 Kombinationen der Klassen 1–14 in beiden Bahnlängen.
+
+**Ergebnis — der Ansatz ist nicht tragfähig:**
+
+| Kennzahl | Wert |
+|---|---|
+| Kombinationen | 355 |
+| davon Verhältnis **unter 1,0** | **301** |
+| Median über alle | **0,9511** |
+
+Die Kurzbahn-Basiszeiten sind im Mittel rund 5 % **langsamer** als die Langbahn-Basiszeiten. Beispiele:
+50 m Brust F SB14 → 31,40 s (LC) gegen 36,23 s (SC), Verhältnis 0,8666; 100 m Freistil M S7 → 56,64 s
+gegen 60,14 s, Verhältnis 0,9418.
+
+**Ursache:** Para-Kurzbahn wird international kaum ausgetragen — Weltmeisterschaften und Paralympics
+sind Langbahn. Die Kurzbahnrekorde sind nicht ausgeschwommen. Der Vergleich stellt einen ausgereizten
+Langbahnwert einem Gelegenheitsrekord gegenüber und misst damit die Wettbewerbsdichte, nicht die
+Bahnlänge.
+
+**Nebenbefund, der erhalten bleibt:** Die 54 Kombinationen mit einem Verhältnis über 1 liegen zwischen
+1,00 und 1,06. Das deckt sich mit der Größenordnung der Literaturwerte (§9.4) und bestätigt sie
+unabhängig.
+
+**Umkehrschluss:** Die eigenen Daten sind der besseren Quelle überlegen, weil dieselben Athletinnen und
+Athleten beide Bahnlängen unter vergleichbaren Bedingungen schwimmen.
+
+### Die eigene ÖBSV-Basiszeitentabelle
+
+**Idee:** Die im System gepflegten Basiszeiten (`base_time_categories` führt `LCM` und `SCM`) sind
+para-spezifisch und nach Sportklassen aufgelöst — genau das, was den allgemeinen Literaturwerten fehlt.
+Das Verhältnis LC/SC je Kombination läge damit unmittelbar vor.
+
+**Warum das nicht funktioniert:** Die ÖBSV-Basiszeiten folgen dem Protokoll der *Multi Class Point Score
+Guidelines* von Swimming Australia (Version 3.0, September 2021). Dort legt **Priority A** fest, dass die
+Basiszeit der offizielle Weltrekord zum 30. Oktober ist; fehlt einer, greift nach **Priority B** die
+bestplatzierte Weltranglistenzeit der vergangenen zwölf Monate.
+
+Damit tragen die Kurzbahn-Basiszeiten denselben Defekt wie die australischen (siehe oben): Sie beruhen
+auf Rekorden aus einem international kaum ausgetragenen Bewerb.
+
+**Geprüft an der ÖBSV-Tabelle selbst:**
+
+| Kennzahl | Wert |
+|---|---|
+| Kombinationen der Klassen 1–14 | 412 |
+| davon Verhältnis **unter 1,0** | **310 (75 %)** |
+| Median | 0,9732 |
+| Spannweite | 0,4521 bis 1,4431 |
+
+Eine Spannweite von 0,45 bis 1,44 bildet keinen Bahneffekt ab, sondern die Wettbewerbsdichte.
+
+**Fachlicher Kern:** Das MCPS-Protokoll ist für einen anderen Zweck gebaut — es macht **innerhalb** einer
+Bahnlänge die Sportklassen vergleichbar, nicht die Bahnlängen untereinander. Swimming Australia kennt
+das Problem und beschreibt es in denselben Guidelines: Punktvergleiche würden durch die Feldtiefe
+verzerrt, und in international selten ausgetragenen Bewerben seien hohe Punktzahlen leichter zu
+erreichen. Korrigiert wird das dort über Gewichtungsaufschläge für nicht-paralympische Bewerbe — also
+innerhalb der Langbahn, nicht zwischen den Bahnlängen.
+
+**Folgerung:** Eine para-spezifische Quelle für den Bahnvergleich existiert derzeit nicht. Es bleibt bei
+einer Näherung aus dem nichtbehinderten Schwimmsport (§9.4), ergänzt um eigene Daten, wo die Stichprobe
+trägt (§9.3).
+
+### Australische Kurzbahn-Basiszeiten unmittelbar als SCM-Referenz
+
+**Idee:** Statt umzurechnen die australischen SC-Basiszeiten als eigene SCM-Parameter verwenden.
+
+**Verworfen:** Die Punkte wären dann gegenüber den Langbahnpunkten systematisch überhöht, weil die
+Bezugszeiten zu langsam sind (siehe oben). Genau die Vergleichbarkeit mit dem internationalen Niveau,
+um die es dem Verband geht (§2.3), ginge verloren.
+
+---
 
 # 10. Berechnungsservice
 
@@ -1050,6 +1198,9 @@ Testgruppen: `wps-points-p1` … `wps-points-p6`.
 - unplausible Verhältnisse werden verworfen **und gezählt**
 - Fenster und Grenzen lassen sich über die Konfiguration verschieben
 - `S21` fließt in die Stichprobe von `S14` ein und erzeugt keinen eigenen Faktor
+- ein Median unter 1,0 erzeugt keinen Faktor und wird im Bericht ausgewiesen
+- genau 1,0 gilt noch als zulässig
+- die betroffene Kombination fällt auf den Sammelwert je Stil zurück
 
 **Gleitkomma:** Erwartungen mit Toleranz formulieren, nicht auf exakte Gleichheit — MySQL und SQLite runden
 `decimal` unterschiedlich.
@@ -1160,6 +1311,8 @@ starten; Benutzer können Punkte inklusive Version und Berechnungstyp nachvollzi
 | R16 | Bestzeitvergleich misst Leistungsentwicklung statt Bahnunterschied | **[S4]** Zeitfenster, §9.3 |
 | R17 | Einzelner Ausreißer kippt den Median bei kleiner Stichprobe | **[S4]** Plausibilitätsgrenzen |
 | R18 | Zuordnung 21 → 14 an zwei Stellen gepflegt und auseinandergelaufen | `WpsSportClass`, §9.3 |
+| R19 | Formschwankung ist so groß wie der gemessene Effekt | **[S5]** Mindestgröße 6, §9.3 |
+| R20 | Median unter 1 wird als Faktor geschrieben | **[S5]** Untergrenze, §9.3 |
 | R7 | Queue-Worker läuft produktiv nicht → Berechnungen bleiben liegen | Schwellenwert §12.1, Betriebshinweis |
 | R8 | ~~Importformat unbekannt~~ | **erledigt** — Format festgelegt in §11.4 |
 | R9 | Abrunden statt Runden übersehen → jeder zweite Wert um 1 zu hoch | §5.3, Testvektor S2 in §11.4.7 |
@@ -1189,3 +1342,6 @@ starten; Benutzer können Punkte inklusive Version und Berechnungstyp nachvollzi
 - automatische WPS-Dateiimporte
 - Vergleich WPS / World Aquatics / ÖBSV am selben Ergebnis
 - Kaderanalysen, Leistungsentwicklung, Talentidentifikation (überwiegend in `wps-rankings`)
+- Umrechnungsfaktoren aus den World-Aquatics-Basiszeiten (LCM gegen SCM) ableiten — die Werte liegen
+  bereits im System (`base_time_categories.course`) und beruhen auf voll ausgeschwommenen Rekorden
+  beider Bahnlängen; sie sind allerdings nicht para-spezifisch (§9.8)

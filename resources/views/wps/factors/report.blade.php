@@ -41,6 +41,14 @@
                 gelten als unplausibel und fließen nicht in den Median ein; sie erscheinen in der
                 Spalte <em>verworfen</em>.
             </p>
+            <p class="mt-2">
+                Ein errechneter Median unter
+                {{ number_format($minMedian, 2, ',', '.') }} wird nicht als Faktor übernommen: Er
+                hieße, dass auf der Kurzbahn langsamer geschwommen wird — als Bahneffekt
+                ausgeschlossen. Solche Kombinationen verwenden weiterhin den Sammelwert je
+                Schwimmstil und sind unten <span class="text-amber-600 dark:text-amber-400">farblich
+                hervorgehoben</span>.
+            </p>
         </div>
 
         @if($rows->isEmpty())
@@ -82,7 +90,11 @@
                                     @endif
                                 </flux:table.cell>
                                 <flux:table.cell align="end" class="font-mono">
-                                    {{ number_format($row['median'], 4, ',', '.') }}
+                                    <span @class([
+                                        'text-amber-600 dark:text-amber-400' => ! $row['plausible_median'],
+                                    ])>
+                                        {{ number_format($row['median'], 4, ',', '.') }}
+                                    </span>
                                 </flux:table.cell>
                                 <flux:table.cell align="end" class="font-mono text-xs text-zinc-500">
                                     {{ number_format($row['min'], 3, ',', '.') }}–{{ number_format($row['max'], 3, ',', '.') }}

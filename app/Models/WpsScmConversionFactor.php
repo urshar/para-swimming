@@ -24,7 +24,11 @@ class WpsScmConversionFactor extends Model
     /** Aus eigenen Ergebnissen ermittelt (Median der Einzelverhältnisse). */
     public const string SOURCE_OWN_DATA = 'own_data';
 
-    /** Startwert aus dem allgemeinen Schwimmsport — nicht para-spezifisch erhoben. */
+    /**
+     * Aus einer externen, benannten Quelle abgeleitet — derzeit den
+     * World-Aquatics-Basiszeiten. Nicht para-spezifisch, aber reproduzierbar und jährlich
+     * aktualisierbar.
+     */
     public const string SOURCE_LITERATURE = 'literature';
 
     /** Von einem Administrator gesetzt. */
@@ -111,6 +115,49 @@ class WpsScmConversionFactor extends Model
     public function isFromOwnData(): bool
     {
         return $this->source === self::SOURCE_OWN_DATA;
+    }
+
+    public function isManual(): bool
+    {
+        return $this->source === self::SOURCE_MANUAL;
+    }
+
+    /**
+     * Anzeigename der Herkunft.
+     *
+     * Der gespeicherte Wert bleibt technisch `literature` — daran hängt die Entscheidung, ob
+     * die Kalibrierung einen Faktor überschreiben darf. Für die Anzeige ist die konkrete
+     * Quelle aber aussagekräftiger als die Kategorie.
+     *
+     * Bewusst eine Methode statt eines Accessors: Ein Accessor wäre nur über die magische
+     * Property-Auflösung erreichbar und für die IDE nicht nachvollziehbar.
+     */
+    public function sourceLabel(): string
+    {
+        return match (true) {
+            $this->isFromOwnData() => 'eigene Daten',
+            $this->isManual() => 'manuell',
+            str_contains((string) $this->notes, 'World Aquatics') => 'World Aquatics',
+            default => 'externe Quelle',
+        };
+    }
+
+    /**
+     * Farbe der Herkunftskennzeichnung.
+     *
+     * Manuell gesetzte Faktoren erhalten bewusst amber statt blau: Sie sind der EINZIGE
+     * Zustand, der sich nie von selbst aktualisiert — der Kalibrierungslauf lässt sie
+     * unangetastet. Sie können also jahrelang stehen bleiben, während sich die Datenlage
+     * ringsum ändert. Amber steht in dieser Anwendung durchgängig für "hier lohnt ein
+     * zweiter Blick" (geschätzte Punkte, verworfene Vergleichspaare).
+     */
+    public function sourceColor(): string
+    {
+        return match (true) {
+            $this->isFromOwnData() => 'green',
+            $this->isManual() => 'amber',
+            default => 'blue',
+        };
     }
 
     /** Kurzbeschreibung für Anzeige und Berichte, z.B. "1,0266 (eigene Daten, 7 Athleten)". */

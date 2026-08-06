@@ -43,6 +43,17 @@ final readonly class WpsScmFactorCalibrationService
         return (int) config('wps.calibration.min_sample_size', 3);
     }
 
+    /**
+     * Untergrenze für den errechneten Median.
+     *
+     * Ein Faktor unter 1 hieße, dass auf der Kurzbahn langsamer geschwommen wird — als
+     * Bahneffekt ausgeschlossen.
+     */
+    public function minMedian(): float
+    {
+        return (float) config('wps.calibration.min_median', 1.0);
+    }
+
     public function windowMonths(): int
     {
         return (int) config('wps.calibration.window_months', 6);
@@ -62,7 +73,8 @@ final readonly class WpsScmFactorCalibrationService
      *
      * @return Collection<string, array{
      *     stroke_type_id: int, lenex_code: string, distance: int, sport_class: string,
-     *     sample_size: int, median: float, min: float, max: float, rejected: int
+     *     sample_size: int, median: float, min: float, max: float, rejected: int,
+     *     plausible_median: bool
      * }>
      */
     public function observedRatios(): Collection
@@ -98,6 +110,8 @@ final readonly class WpsScmFactorCalibrationService
                     'min' => (float) $verhaeltnisse->first(),
                     'max' => (float) $verhaeltnisse->last(),
                     'rejected' => $verworfen,
+                    // Ein Median unter 1 misst Formunterschiede, nicht die Bahnlänge.
+                    'plausible_median' => $this->median($verhaeltnisse) >= $this->minMedian(),
                 ];
             })
             ->filter()
@@ -110,16 +124,27 @@ final readonly class WpsScmFactorCalibrationService
      * Faktoren mit source = manual bleiben unangetastet, damit eine bewusste Korrektur nicht
      * überschrieben wird.
      *
-     * @return array{created: int, updated: int, skipped: int, rejected_pairs: int}
+     * @return array{created: int, updated: int, skipped: int, rejected_pairs: int, implausible_medians: int}
      */
     public function calibrate(): array
     {
-        $ergebnis = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'rejected_pairs' => 0];
+        $ergebnis = [
+            'created' => 0, 'updated' => 0, 'skipped' => 0,
+            'rejected_pairs' => 0, 'implausible_medians' => 0,
+        ];
 
         foreach ($this->observedRatios() as $beobachtung) {
             $ergebnis['rejected_pairs'] += $beobachtung['rejected'];
 
             if ($beobachtung['sample_size'] < $this->minSampleSize()) {
+                $ergebnis['skipped']++;
+
+                continue;
+            }
+
+            // Kein Faktor unter 1 — die Kombination fällt auf den Sammelwert je Stil zurück.
+            if (! $beobachtung['plausible_median']) {
+                $ergebnis['implausible_medians']++;
                 $ergebnis['skipped']++;
 
                 continue;
@@ -177,7 +202,8 @@ final readonly class WpsScmFactorCalibrationService
                     'deviation' => $angesetzt !== null
                         ? $beobachtung['median'] - $angesetzt->factor
                         : null,
-                    'sufficient' => $beobachtung['sample_size'] >= $this->minSampleSize(),
+                    'sufficient' => $beobachtung['sample_size'] >= $this->minSampleSize()
+                        && $beobachtung['plausible_median'],
                 ];
             })
             ->values();

@@ -27,7 +27,9 @@ class WpsScmFactorController extends Controller
     public function index(): View
     {
         return view('wps.factors.index', [
-            'factors' => WpsScmConversionFactor::with('strokeType')
+            // approvedBy wird in der Freigabespalte angezeigt — ohne Eager Loading eine
+            // Abfrage je Zeile.
+            'factors' => WpsScmConversionFactor::with(['strokeType', 'approvedBy'])
                 ->orderBy('stroke_type_id')
                 ->orderBy('distance')
                 ->orderBy('sport_class')
@@ -44,6 +46,7 @@ class WpsScmFactorController extends Controller
             'minSampleSize' => $this->calibrationService->minSampleSize(),
             'windowMonths' => $this->calibrationService->windowMonths(),
             'plausibleRange' => $this->calibrationService->plausibleRange(),
+            'minMedian' => $this->calibrationService->minMedian(),
         ]);
     }
 
@@ -64,6 +67,14 @@ class WpsScmFactorController extends Controller
             $meldung .= sprintf(
                 ' %d Vergleichspaar(e) als unplausibel verworfen — siehe Spalte "verworfen".',
                 $summary['rejected_pairs'],
+            );
+        }
+
+        if ($summary['implausible_medians'] > 0) {
+            $meldung .= sprintf(
+                ' %d Kombination(en) ergaben einen Faktor unter 1 und wurden verworfen; '
+                .'sie verwenden weiterhin den Sammelwert je Schwimmstil.',
+                $summary['implausible_medians'],
             );
         }
 

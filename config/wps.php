@@ -54,8 +54,30 @@ return [
 
         /*
          | Mindestzahl an Athleten, ab der ein eigener Faktor gebildet wird.
+         |
+         | Bewusst hoch angesetzt: Die Formschwankung eines Schwimmers zwischen zwei Rennen
+         | liegt in derselben Größenordnung wie der Bahnunterschied selbst (ein bis drei
+         | Prozent). Bei drei Athleten lässt sich das eine vom anderen nicht trennen — der
+         | errechnete Faktor sieht präzise aus, bildet aber überwiegend Zufall ab.
+         |
+         | Kombinationen unterhalb dieser Grenze fallen auf den Sammelwert je Schwimmstil
+         | zurück. Lieber wenige belastbare Faktoren als viele scheingenaue.
          */
-        'min_sample_size' => (int) env('WPS_CALIBRATION_MIN_SAMPLE_SIZE', 3),
+        'min_sample_size' => (int) env('WPS_CALIBRATION_MIN_SAMPLE_SIZE', 6),
+
+        /*
+         | Untergrenze für den errechneten Median.
+         |
+         | Ein Faktor unter 1 hieße, dass auf der Kurzbahn langsamer geschwommen wird als auf
+         | der Langbahn. Als Bahneffekt ist das ausgeschlossen — zusätzliche Wenden machen
+         | niemanden langsamer. Ein solcher Median beruht auf Formunterschieden, nicht auf
+         | der Bahnlänge, und wird verworfen.
+         |
+         | Bewusst NICHT als Untergrenze für die Einzelverhältnisse: Würde man nur die
+         | niedrigen Einzelwerte entfernen, zöge man den Median künstlich nach oben. Die
+         | Einzelwerte bleiben, verworfen wird das Ergebnis.
+         */
+        'min_median' => (float) env('WPS_CALIBRATION_MIN_MEDIAN', 1.0),
 
     ],
 

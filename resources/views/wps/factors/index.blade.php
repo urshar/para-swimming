@@ -1,4 +1,3 @@
-@php use App\Models\WpsScmConversionFactor; @endphp
 @extends('layouts.app')
 
 @section('title', 'Kurzbahn-Umrechnung')
@@ -15,14 +14,12 @@
         </div>
 
         @if(session('success'))
-            <div
-                class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
+            <div class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
                 {{ session('success') }}
             </div>
         @endif
 
-        <div
-            class="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
+        <div class="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
             <p class="font-medium mb-1">Wozu diese Faktoren dienen</p>
             <p>
                 In Österreich wird im Para-Schwimmen ausschließlich Kurzbahn geschwommen,
@@ -39,14 +36,12 @@
         </div>
 
         @if($factors->isEmpty())
-            <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Noch keine Faktoren hinterlegt. Ohne Faktor werden Kurzbahnergebnisse bei der
                 Berechnung übersprungen.
             </div>
         @else
-            <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                 <flux:table>
                     <flux:table.columns>
                         <flux:table.column>Stil</flux:table.column>
@@ -54,6 +49,7 @@
                         <flux:table.column>Klasse</flux:table.column>
                         <flux:table.column align="end">Faktor</flux:table.column>
                         <flux:table.column>Herkunft</flux:table.column>
+                        <flux:table.column>Freigabe</flux:table.column>
                         <flux:table.column align="end">Athleten</flux:table.column>
                         <flux:table.column>Vertrauen</flux:table.column>
                         <flux:table.column></flux:table.column>
@@ -70,12 +66,22 @@
                                     {{ number_format($factor->factor, 4, ',', '.') }}
                                 </flux:table.cell>
                                 <flux:table.cell>
-                                    @if($factor->isFromOwnData())
-                                        <flux:badge color="green" size="sm">eigene Daten</flux:badge>
-                                    @elseif($factor->source === WpsScmConversionFactor::SOURCE_LITERATURE)
-                                        <flux:badge color="amber" size="sm">Literatur</flux:badge>
+                                    <flux:badge :color="$factor->sourceColor()" size="sm">
+                                        {{ $factor->sourceLabel() }}
+                                    </flux:badge>
+                                </flux:table.cell>
+                                {{-- Freigabe nur bei manuell gesetzten Faktoren: Sie sind die
+                                     einzigen, die der Kalibrierungslauf nie aktualisiert. Wer
+                                     sie wann gesetzt hat, ist deshalb die entscheidende
+                                     Zusatzinformation. --}}
+                                <flux:table.cell class="text-xs text-zinc-500 dark:text-zinc-400">
+                                    @if($factor->isManual() && $factor->approved_at)
+                                        {{ $factor->approved_at->format('d.m.Y') }}
+                                        @if($factor->approvedBy)
+                                            <span class="block">{{ $factor->approvedBy->name }}</span>
+                                        @endif
                                     @else
-                                        <flux:badge color="blue" size="sm">manuell</flux:badge>
+                                        –
                                     @endif
                                 </flux:table.cell>
                                 <flux:table.cell align="end">{{ $factor->sample_size ?? '–' }}</flux:table.cell>
