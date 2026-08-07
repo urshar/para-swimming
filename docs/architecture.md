@@ -83,10 +83,32 @@ Merkmale, die sich durchziehen:
 - **World-Aquatics-Basiszeiten** – `BaseTimeImportService`,
   `BaseTimeExportService`, `BaseTimeCalculationService`,
   `WorldAquaticsPointsService`
+- **WPS-Punkte** – `WpsPointCalculator` (reinlesend), `WpsPointCalculationService`
+  (persistierend), `WpsPointVersionResolver`, `WpsParameterImportService`,
+  `WpsScmConversionService`, `WpsScmFactorCalibrationService`
 - **LENEX** – `LenexParserService`, `LenexResolverService`, `LenexExportService`
 - **Statistik** – `StatisticsService` (Fassade), `ParticipationStatisticsService`,
   `StatisticsExportService`
 - **PDF** – `PdfExportService`
+
+## WPS-Punkte im Besonderen
+
+Das Modul berechnet World-Para-Swimming-Punkte über eine Gompertz-Funktion
+`q = a · e^(-e^(b - c/p))`. Drei Eigenheiten, die beim Anfassen des Moduls wichtig sind:
+
+- **`results.points` gehört World Aquatics.** WPS-Punkte liegen in eigenen Spalten (`wps_points` und weitere). Ein
+  Überschreiben von `points` bräche Cup-Wertung, Richtzeiten und Statistik.
+- **Rechnen und Speichern sind getrennt.** `WpsPointCalculator` liefert ein
+  `App\Support\WpsPointResult` und schreibt nichts; nur `WpsPointCalculationService`
+  persistiert. Ranglisten können damit mit einer bestimmten Version rechnen, ohne gespeicherte Werte zu verändern.
+- **Kurzbahn wird umgerechnet, nicht abgeleitet.** Für SCM existieren keine offiziellen Parameter. Die Zeit wird über
+  einen Faktor auf ein Langbahn-Äquivalent gebracht (`wps_estimated_lcm_time`), darauf die offizielle Tabelle angewandt.
+  Da in Österreich ausschließlich Kurzbahn geschwommen wird, ist das der Regelfall, nicht die Ausnahme. Hintergrund und
+  verworfene Alternativen in `docs/specs/wps-points-engine.md` §9.
+
+Bei einer Massenberechnung werden Parametersätze und Umrechnungsfaktoren **einmal** geladen und in PHP nachgeschlagen
+(`once()`), nicht je Ergebnis abgefragt. Der Testfall dazu liegt in
+`tests/Feature/WpsPointsPhase6Test.php`.
 
 ## Import-/Export-Pipelines
 
@@ -94,6 +116,9 @@ Merkmale, die sich durchziehen:
   (`LenexParserService`) → mehrstufige Auflösung von Vereinen/Athleten (`LenexResolverService`). Export: umgekehrt,
   Ergebnis wieder als `.lxf`-ZIP. Details je Modul in `docs/specs/`.
 - **Excel** – World-Aquatics-Basiszeiten via PhpSpreadsheet (`BaseTimeImportService`).
+- **Excel** – WPS Point Scores via PhpSpreadsheet (`WpsParameterImportService`). Dreistufig:
+  Formular → Vorschau (parst und validiert, schreibt nichts) → Import in einer Transaktion. Der Vorschauschritt ist
+  verbindlich.
 - **PDF** – Berichte und Wertungslisten via dompdf (`PdfExportService`, Views unter `resources/views/pdf`).
 
 ## Views

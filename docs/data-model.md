@@ -127,6 +127,35 @@ sich über `supersedes_id`/`superseded_by_id` zur Historie.
 **BaseTimeDerivationRule** — leitet längere aus kürzeren Disziplinen ab (`shorter_discipline_id`,
 `longer_discipline_id`, `ratio_reference_category_id`).
 
+## WPS-Punkte
+
+**PointSystem** — `name`, `code` (unique: `WA`, `WPS`, `OBSV1000`), `active`. Registry der
+Punktesysteme; über den Pivot **meet_point_system** (`meet_id`, `point_system_id`,
+`wps_point_version_id`) je Wettkampf zugeordnet. Die Versionsangabe am Pivot übersteuert die
+automatische Zuordnung nach Wettkampfdatum.
+
+**WpsPointVersion** — `label`, `year`, `version`, `source`, `official`, `status`
+(`active`/`archived`), `valid_from`, `valid_until`. Unique über `(year, version)`.
+`scopeValidOn()` löst nach Wettkampfdatum auf — die obere Grenze von `valid_from` wird mit
+Uhrzeit verglichen, da date-Spalten je nach Treiber mit `00:00:00` abgelegt werden.
+
+**WpsPointParameter** — Gompertz-Parameter `parameter_a/b/c` (decimal 14,6) je
+`(version, course, gender, stroke_type_id, distance, relay_count, sport_class)`, unique über
+diese Kombination. `official` unterscheidet veröffentlichte von abgeleiteten Sätzen. Bewusst
+**keine** Fremdschlüssel auf `base_time_*` — jene Dimensionstabellen gehören zum
+World-Aquatics-Modul und führen Sportklassen ohne S/SB/SM-Differenzierung.
+
+**WpsScmConversionFactor** — Umrechnung Kurzbahn → Langbahn: `stroke_type_id`, `distance`
+(nullable), `sport_class` (nullable), `gender` (nullable), `factor` (decimal 8,5), `source`
+(`own_data`/`literature`/`manual`), `sample_size`, `confidence_level`, `approved_by`,
+`approved_at`, `active`. `null` bedeutet jeweils "gilt für alle"; aufgelöst wird über eine
+Kaskade vom Spezifischen zum Allgemeinen.
+
+**Erweiterung `results`** — `wps_points`, `wps_point_version_id`, `wps_point_parameter_id`,
+`wps_calculation_type` (`official`/`estimated`), `wps_calculated_at`,
+`wps_estimated_lcm_time` (Hundertstel, nur bei Umrechnung), `wps_conversion_factor_id`.
+`results.points` bleibt davon unberührt und trägt weiterhin die World-Aquatics-Punkte.
+
 ## Cup-Wertung
 
 **Cup** — `name`, `base_time_version_id`, `is_active`. Ein Meet gehört über

@@ -8,6 +8,7 @@ use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
 use App\Support\WpsPointResult;
 use App\Support\WpsSportClass;
+use Illuminate\Support\Collection;
 
 /**
  * Berechnet die World-Para-Swimming-Punkte eines Ergebnisses.
@@ -26,7 +27,7 @@ final readonly class WpsPointCalculator
     /**
      * Klemmgrenze für den inneren Exponenten (b - c/p).
      *
-     * exp(709) ist der größte in PHP darstellbare double. darüber liefert exp() INF und das
+     * exp(709) ist der größte in PHP darstellbare double; darüber liefert exp() INF und das
      * äußere exp(-INF) ergibt 0. Das Klemmen vermeidet den Zwischenschritt über INF und damit
      * plattformabhängige Warnungen — das Ergebnis ist dasselbe: sehr großer Exponent → q → 0,
      * sehr kleiner Exponent → q → a.
@@ -255,6 +256,14 @@ final readonly class WpsPointCalculator
             : null;
     }
 
+    /**
+     * Sucht den Parametersatz im vorgeladenen Bestand.
+     *
+     * Bewusst keine Abfrage je Ergebnis: Bei einem Wettkampf mit 500 Ergebnissen wären das
+     * 500 Abfragen, auf der Kurzbahn sogar bis zu 1000 (erst SCM, dann LCM). Die
+     * Parametertabelle umfasst je Version rund 384 Zeilen und wird deshalb einmal geladen und
+     * in PHP nachgeschlagen.
+     */
     private function findParameter(
         WpsPointVersion $version,
         string $course,
@@ -262,14 +271,36 @@ final readonly class WpsPointCalculator
         SwimEvent $event,
         string $sportClass,
     ): ?WpsPointParameter {
-        return WpsPointParameter::query()
-            ->where('wps_point_version_id', $version->id)
-            ->where('course', $course)
-            ->where('gender', $gender)
-            ->where('stroke_type_id', $event->stroke_type_id)
-            ->where('distance', $event->distance)
-            ->where('relay_count', 1)
-            ->where('sport_class', $sportClass)
-            ->first();
+        $schluessel = implode('|', [
+            $course, $gender, $event->stroke_type_id, $event->distance, 1, $sportClass,
+        ]);
+
+        return $this->parameters()->get($version->id)?->get($schluessel);
+    }
+
+    /**
+     * Alle Parametersätze, nach Version und Merkmalskombination indiziert.
+     *
+     * once() memoisiert je Service-Instanz und Aufrufstelle — die Tabelle wird während einer
+     * Massenberechnung also einmal geladen, ohne dass der Service seinen readonly-Charakter
+     * verliert.
+     *
+     * Der gesamte Bestand wird geladen, nicht nur eine Version: Bei rund 384 Zeilen je
+     * Version und wenigen Versionen je Jahr bleibt das klein, und die Jahresberechnung
+     * (recalculateForYear) greift ohnehin auf mehrere Versionen zu.
+     *
+     * @return Collection<int, Collection<string, WpsPointParameter>>
+     */
+    private function parameters(): Collection
+    {
+        return once(static fn (): Collection => WpsPointParameter::query()
+            ->get()
+            ->groupBy('wps_point_version_id')
+            ->map(static fn (Collection $gruppe): Collection => $gruppe->keyBy(
+                static fn (WpsPointParameter $p): string => implode('|', [
+                    $p->course, $p->gender, $p->stroke_type_id,
+                    $p->distance, $p->relay_count, $p->sport_class,
+                ])
+            )));
     }
 }
