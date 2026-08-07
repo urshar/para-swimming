@@ -172,6 +172,64 @@ final readonly class ChampionshipStandardService
     }
 
     /**
+     * Anzahl der Normen, bei denen die ÖBSV-Verschärfung noch nicht festgelegt ist.
+     *
+     * Eigene Zählabfrage statt openStandards()->count(): Die Übersicht (§10) zeigt die Zahl
+     * für jede Meisterschaft, das Laden der Zeilen wäre dort reine Verschwendung.
+     */
+    public function countOpenStandards(Championship $championship): int
+    {
+        return $championship->standards()
+            ->whereNull('obsv_percent')
+            ->count();
+    }
+
+    // ── Kopieren ──────────────────────────────────────────────────────────────
+
+    /**
+     * Übernimmt die Normen einer Meisterschaft als Ausgangspunkt für die nächste (§9.1).
+     *
+     * Kopiert ausschließlich MQS und MET. Die ÖBSV-Verschärfung wird bewusst NICHT
+     * übernommen: Sie hängt an der Startplatzlage der jeweiligen Meisterschaft. Mitzukopieren
+     * hieße, eine Festlegung vorzutäuschen, die niemand getroffen hat — und die Zielzeilen
+     * sähen aus wie bearbeitet, obwohl sie es nicht sind (Risiko Q-R7).
+     *
+     * Zeilen, die im Ziel bereits existieren, bleiben unangetastet. Damit ist die Aktion
+     * gefahrlos wiederholbar und überschreibt keine bereits gepflegten Werte.
+     *
+     * @return int Anzahl der neu angelegten Zeilen
+     */
+    public function copyStandards(Championship $von, Championship $nach): int
+    {
+        $vorhanden = $nach->standards()
+            ->get(['stroke_type_id', 'distance', 'gender', 'sport_class'])
+            ->map(fn (ChampionshipStandard $s): string => $this->rowKey($s))
+            ->all();
+
+        $neu = 0;
+
+        foreach ($von->standards()->get() as $quelle) {
+            if (in_array($this->rowKey($quelle), $vorhanden, true)) {
+                continue;
+            }
+
+            ChampionshipStandard::query()->create([
+                'championship_id' => $nach->getKey(),
+                'stroke_type_id' => $quelle->getAttribute('stroke_type_id'),
+                'distance' => $quelle->getAttribute('distance'),
+                'gender' => $quelle->getAttribute('gender'),
+                'sport_class' => $quelle->getAttribute('sport_class'),
+                'mqs_centiseconds' => $quelle->getAttribute('mqs_centiseconds'),
+                'met_centiseconds' => $quelle->getAttribute('met_centiseconds'),
+            ]);
+
+            $neu++;
+        }
+
+        return $neu;
+    }
+
+    /**
      * Errechnet die ÖBSV-Zeit aus MQS und Prozentsatz.
      *
      * Gerundet wird mit floor(): Das Ergebnis ist nie langsamer als die exakt
@@ -185,5 +243,16 @@ final readonly class ChampionshipStandardService
         }
 
         return (int) floor($mqsCentiseconds * (1 - $percent / 100));
+    }
+
+    /** Fachlicher Schlüssel einer Normzeile als Vergleichsstring. */
+    private function rowKey(ChampionshipStandard $standard): string
+    {
+        return implode('|', [
+            $standard->getAttribute('stroke_type_id'),
+            $standard->getAttribute('distance'),
+            $standard->getAttribute('gender'),
+            $standard->getAttribute('sport_class'),
+        ]);
     }
 }

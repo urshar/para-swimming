@@ -7,6 +7,7 @@ use App\Http\Controllers\BaseTimeCategoryController;
 use App\Http\Controllers\BaseTimeExportController;
 use App\Http\Controllers\BaseTimeImportController;
 use App\Http\Controllers\BaseTimeVersionController;
+use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
@@ -184,6 +185,29 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
     Route::resource('classifiers', ClassifierController::class);
+
+    // ── Meisterschaften und Qualifikationsnormen ──────────────────────────────
+    // Ansichten für alle Angemeldeten, Verwaltung nur für Admins (Spec §4).
+    Route::get('championships', [ChampionshipController::class, 'index'])->name('championships.index');
+
+    // create MUSS vor der {championship}-Route stehen, sonst bindet Laravel "create"
+    // als Modell-Schlüssel und liefert 404.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::get('championships/create', [ChampionshipController::class, 'create'])
+            ->name('championships.create');
+        Route::post('championships', [ChampionshipController::class, 'store'])->name('championships.store');
+        Route::get('championships/{championship}/edit', [ChampionshipController::class, 'edit'])
+            ->name('championships.edit');
+        Route::put('championships/{championship}', [ChampionshipController::class, 'update'])
+            ->name('championships.update');
+        Route::delete('championships/{championship}', [ChampionshipController::class, 'destroy'])
+            ->name('championships.destroy');
+        Route::post('championships/{championship}/copy-from', [ChampionshipController::class, 'copyFrom'])
+            ->name('championships.copy-from');
+    });
+
+    Route::get('championships/{championship}', [ChampionshipController::class, 'show'])
+        ->name('championships.show');
 
     // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
     Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {

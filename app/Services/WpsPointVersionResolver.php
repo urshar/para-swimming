@@ -31,6 +31,23 @@ final readonly class WpsPointVersionResolver
     }
 
     /**
+     * Die zu einem beliebigen Datum gültige, nicht archivierte Version.
+     *
+     * Gebraucht von wps-qualification: Eine Meisterschaft hat kein Wettkampfdatum im Sinne
+     * von Meet::start_date, wohl aber ein Ende des Qualifikationszeitraums — das ist der
+     * Stichtag, zu dem die Normen bewertet werden.
+     */
+    public function resolveForDate(string $date): ?WpsPointVersion
+    {
+        return WpsPointVersion::query()
+            ->active()
+            ->validOn($date)
+            ->orderByDesc('valid_from')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
      * Die am Pivot meet_point_system hinterlegte Version.
      *
      * Archivierte Versionen werden hier bewusst nicht ausgefiltert: wurde eine Version einem
@@ -68,11 +85,6 @@ final readonly class WpsPointVersionResolver
             return null;
         }
 
-        return WpsPointVersion::query()
-            ->active()
-            ->validOn($meet->start_date->format('Y-m-d'))
-            ->orderByDesc('valid_from')
-            ->orderByDesc('id')
-            ->first();
+        return $this->resolveForDate($meet->start_date->format('Y-m-d'));
     }
 }

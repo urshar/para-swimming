@@ -140,6 +140,13 @@
             @endif
         </flux:navlist.group>
 
+        <flux:navlist.group heading="Meisterschaften">
+            <flux:navlist.item icon="trophy" href="{{ route('championships.index') }}"
+                               :current="request()->routeIs('championships.*')">
+                Qualifikationsnormen
+            </flux:navlist.item>
+        </flux:navlist.group>
+
         @if(auth()->user()?->is_admin)
             <flux:navlist.group heading="WPS Punkte">
                 <flux:navlist.item icon="calculator" href="{{ route('wps.versions.index') }}"

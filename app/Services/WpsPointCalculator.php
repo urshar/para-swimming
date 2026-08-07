@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Result;
-use App\Models\SwimEvent;
 use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
 use App\Support\WpsPointResult;
@@ -130,7 +129,9 @@ final readonly class WpsPointCalculator
         $stroke = $event->strokeType?->lenex_code ?? '?';
 
         // Zuerst ein offizieller Parametersatz für die tatsächliche Bahnlänge (Spec §9.5).
-        $parameter = $this->findParameter($version, $course, $gender, $event, $sportClass);
+        $parameter = $this->findParameter(
+            $version, $course, $gender, $event->stroke_type_id, $distance, $sportClass
+        );
 
         $factor = null;
         $estimatedLcm = null;
@@ -155,7 +156,8 @@ final readonly class WpsPointCalculator
                 $version,
                 WpsPointParameter::COURSE_LCM,
                 $gender,
-                $event,
+                $event->stroke_type_id,
+                $distance,
                 $sportClass,
             );
 
@@ -178,6 +180,56 @@ final readonly class WpsPointCalculator
         }
 
         return WpsPointResult::calculated($points, $parameter, $version, $estimatedLcm, $factor);
+    }
+
+    /**
+     * Punkte für eine frei stehende Zeit, ohne Ergebnisdatensatz.
+     *
+     * Gebraucht von wps-qualification §5.3: Neben einer Qualifikationsnorm soll die
+     * zugehörige Punktzahl stehen, damit erkennbar ist, ob die Normen über die Bewerbe
+     * hinweg gleich streng sind. Eine Norm ist kein Ergebnis — es gibt weder Meet noch
+     * SwimEvent noch Athlet, calculate() ist dafür also nicht verwendbar.
+     *
+     * Bewusst OHNE die Kurzbahn-Umrechnung aus calculate(): Der Aufrufer gibt die
+     * Bahnlänge ausdrücklich an, und eine Norm ohne passenden Parametersatz soll als
+     * "keine Punktzahl" erscheinen statt still über einen Schätzfaktor zu laufen.
+     *
+     * Liefert null, wenn Zeit, Sportklasse oder Parametersatz nicht auswertbar sind.
+     */
+    public function pointsForTime(
+        int $centiseconds,
+        string $course,
+        string $gender,
+        int $strokeTypeId,
+        int $distance,
+        string $sportClass,
+        WpsPointVersion $version,
+    ): ?int {
+        if ($centiseconds <= 0) {
+            return null;
+        }
+
+        $seconds = $centiseconds / 100;
+
+        if ($seconds < self::MIN_TIME_SECONDS) {
+            return null;
+        }
+
+        if (! in_array($course, self::SUPPORTED_COURSES, true)
+            || ! in_array($gender, WpsPointParameter::GENDERS, true)) {
+            return null;
+        }
+
+        // Bildet zugleich S21/SB21/SM21 auf die Gruppe 14 ab (Spec [S3]).
+        $mapped = WpsSportClass::mapToWps($sportClass);
+
+        if ($mapped === null) {
+            return null;
+        }
+
+        $parameter = $this->findParameter($version, $course, $gender, $strokeTypeId, $distance, $mapped);
+
+        return $parameter === null ? null : $this->gompertz($seconds, $parameter);
     }
 
     /**
@@ -268,11 +320,12 @@ final readonly class WpsPointCalculator
         WpsPointVersion $version,
         string $course,
         string $gender,
-        SwimEvent $event,
+        int $strokeTypeId,
+        int $distance,
         string $sportClass,
     ): ?WpsPointParameter {
         $schluessel = implode('|', [
-            $course, $gender, $event->stroke_type_id, $event->distance, 1, $sportClass,
+            $course, $gender, $strokeTypeId, $distance, 1, $sportClass,
         ]);
 
         return $this->parameters()->get($version->id)?->get($schluessel);
