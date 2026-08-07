@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\BaseTimeSportClass;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
+use App\Support\SportClassValidator;
 use App\Support\TimeParser;
 use Illuminate\Validation\ValidationException;
 
@@ -45,7 +45,7 @@ class QualifyingTimeService
      */
     public function upsertTargetPoint(QualifyingTimeList $list, string $sportClass, int $points): QualifyingTargetPoint
     {
-        $sportClass = $this->normalizeAndValidateSportClass($sportClass);
+        $sportClass = SportClassValidator::normalize($sportClass);
 
         return QualifyingTargetPoint::updateOrCreate(
             ['qualifying_time_list_id' => $list->id, 'sport_class' => $sportClass],
@@ -73,7 +73,7 @@ class QualifyingTimeService
         string $sportClass,
         ?string $time,
     ): QualifyingTime {
-        $sportClass = $this->normalizeAndValidateSportClass($sportClass);
+        $sportClass = SportClassValidator::normalize($sportClass);
 
         $valueCentiseconds = null;
         if ($time !== null && trim($time) !== '') {
@@ -103,36 +103,5 @@ class QualifyingTimeService
     public function deleteTime(QualifyingTime $time): void
     {
         $time->delete();
-    }
-
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
-
-    /**
-     * Prüft das Format "S9"/"SB9"/"SM9" und, dass die Klassenzahl in der
-     * bestehenden, admin-verwalteten Basiswert-Sportklassen-Tabelle
-     * (base_time_sport_classes) existiert — keine Hardcodierung der Zahlen,
-     * keine doppelte Sportklassen-Verwaltung.
-     *
-     * @throws ValidationException
-     */
-    private function normalizeAndValidateSportClass(string $sportClass): string
-    {
-        $upper = strtoupper(trim($sportClass));
-
-        if (! preg_match('/^(S|SB|SM)(\d+)$/', $upper, $m)) {
-            throw ValidationException::withMessages([
-                'sport_class' => "Ungültige Sportklasse \"$sportClass\". Format: S, SB oder SM gefolgt von einer Zahl (z.B. S9, SB4, SM3).",
-            ]);
-        }
-
-        $numericCode = 'S'.$m[2];
-
-        if (! BaseTimeSportClass::where('code', $numericCode)->exists()) {
-            throw ValidationException::withMessages([
-                'sport_class' => "Sportklasse \"$upper\" ist keiner bekannten Basiswert-Sportklasse ($numericCode) zugeordnet. Bitte zuerst unter Basiswerte → Sportklassen anlegen.",
-            ]);
-        }
-
-        return $upper;
     }
 }
