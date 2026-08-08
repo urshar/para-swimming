@@ -24,6 +24,10 @@
                     Zur Übersicht
                 </flux:button>
                 @if(auth()->user()?->is_admin)
+                    <flux:button href="{{ route('championships.import', $championship) }}"
+                                 variant="filled" size="sm" icon="arrow-up-tray">
+                        Importieren
+                    </flux:button>
                     <flux:button href="{{ route('championships.edit', $championship) }}"
                                  variant="ghost" size="sm" icon="pencil"/>
                 @endif
@@ -65,9 +69,7 @@
                         Übernehmen
                     </flux:button>
                 </form>
-                @error('source_id')
-                <p class="mt-2 text-xs text-red-500">{{ $message }}</p>
-                @enderror
+                <flux:error name="source_id"/>
                 <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                     Übernommen werden nur MQS und MET. Die ÖBSV-Verschärfung hängt an der
                     Startplatzlage der jeweiligen Meisterschaft und wird deshalb nicht mitkopiert.

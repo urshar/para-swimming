@@ -329,25 +329,53 @@ Prozentsatz (§5.3); Kopieren aller Normen einer Meisterschaft als Ausgangspunkt
 Dreistufig nach dem Muster von `WpsParameterImportService`: Formular → Vorschau (parst und validiert, schreibt nichts) →
 Import. Der Vorschauschritt ist verbindlich.
 
-**Aufbau der bekannten Datei** (Beispiel EM 2026, aus dem PDF nach Excel konvertiert):
+**Aufbau der bekannten Datei** (geprüft an *Para Swimming European Open Championships*, Madeira 2024, aus dem PDF nach
+Excel konvertiert):
 
-| Spalte | Inhalt                                                                   |
-|--------|--------------------------------------------------------------------------|
-| A      | Bewerb — **nur in der ersten Zeile einer Gruppe** gefüllt, darunter leer |
-| B      | Sportklasse                                                              |
-| C      | MQS Männer                                                               |
-| D      | MQS Frauen                                                               |
+| Zeile | Inhalt                                                   |
+|-------|----------------------------------------------------------|
+| 1     | Titel, enthält den Qualifikationszeitraum im Klartext    |
+| 2     | Kopfzeile: A Events, B Class, C Men, E Women             |
+| 3     | Unterkopf: C MQS, D MET, E MQS, F MET                    |
+| ab 4  | Daten                                                    |
 
-Zeile 1 Titel, Zeile 2 Kopfzeile, Zeile 3 Unterkopf. Zeiten als Excel-Zeitwerte, nicht als Text — entsprechend über
-`PhpSpreadsheet\Shared\Date` zu lesen, sonst erscheinen Serienwerte.
+| Spalte | Inhalt                                                |
+|--------|-------------------------------------------------------|
+| A      | Bewerb — nur in der ersten Zeile einer Gruppe gefüllt |
+| B      | Sportklasse                                           |
+| C      | MQS Männer                                            |
+| D      | MET Männer                                            |
+| E      | MQS Frauen                                            |
+| F      | MET Frauen                                            |
+
+**Korrektur gegenüber Fassung 1.0 dieser Spec.** Die frühere Beschreibung nannte vier Spalten (A–D) und Zeiten als
+Excel-Zeitwerte. Beides trifft auf die geprüfte Datei nicht zu:
+
+- Es sind **sechs Spalten**; MET ist je Geschlecht vorhanden.
+- Die Zeiten stehen als **Text** ("01:00.94"), nicht als Excel-Zeitwerte. Gelesen wird deshalb primär über
+  `TimeParser::parse()`; ein numerischer Wert wird als Excel-Serienwert behandelt, falls eine künftige Datei es anders
+  hält.
 
 **Verbindliche Regeln:**
 
-- Der Bewerbsname wird mitgeführt, bis ein neuer erscheint (Gruppenkopf).
+- Der Bewerbsname wird mitgeführt, bis ein neuer erscheint (Gruppenkopf). Er steht in **verbundenen Zellen**
+  (`A4:A13` …); PhpSpreadsheet liefert den Wert am Anker, die übrigen Zellen leer.
+- Es gibt auch **verbundene Zeitzellen** (`C8:C9`, `E27:F29` …) — Überbleibsel der PDF-Konvertierung, die jeweils leere
+  Nachbarn überspannen. Verbundene Werte dürfen **nicht** nach unten aufgelöst werden: In Zeile 9 bekäme die Klasse S8
+  sonst die Zeit von S7 zugewiesen, eine falsche Norm, die niemandem auffällt. Gelesen wird nur der Ankerwert.
+- Zwischen den Bewerbsgruppen stehen **Leerzeilen**. Eine leere Zeile beendet den Datenbereich also **nicht** (anders
+  als beim Import der Punkteparameter). Schluss ist erst beim Staffelabschnitt.
 - Leere Zellen bedeuten "nicht ausgeschrieben" und erzeugen **keine** Zeile — kein Fehler.
-- Der Staffelabschnitt am Ende wird übersprungen; Staffelnormen sind in Punkten angegeben und nicht Teil dieses Moduls.
+- Der Staffelabschnitt am Ende (Zeile mit `Relays*`, darunter Klassen wie `34 Points`) wird übersprungen und in der
+  Vorschau als Hinweis ausgewiesen; Staffelnormen sind in Punkten angegeben und nicht Teil dieses Moduls.
 - Der Import füllt **ausschließlich** MQS und MET. ÖBSV-Prozentsätze und -Zeiten bleiben unberührt, damit ein erneuter
-  Import eure Festlegungen nicht überschreibt.
+  Import eure Festlegungen nicht überschreibt. Dafür sorgt die Feld-Whitelist in
+  `ChampionshipStandardService::upsertStandard()`.
+- Normen, die in der Meisterschaft stehen und in der Datei fehlen, werden **nicht gelöscht**, sondern in der Vorschau
+  ausgewiesen. Löschen wäre bei einem Formatfehler in der Datei ein stiller Datenverlust.
+- Der Qualifikationszeitraum aus der Titelzeile wird als **Vorschlag** angezeigt, aber nicht übernommen: Die
+  Formulierung ist nicht garantiert stabil, und ein still falsch gesetzter Zeitraum nähme später Ergebnisse aus der
+  Wertung, ohne dass jemand die Ursache sieht.
 - Erkennt der Import das Format nicht, bricht er mit einer verständlichen Meldung ab und verweist auf die manuelle
   Pflege.
 

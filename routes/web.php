@@ -8,6 +8,7 @@ use App\Http\Controllers\BaseTimeExportController;
 use App\Http\Controllers\BaseTimeImportController;
 use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ChampionshipController;
+use App\Http\Controllers\ChampionshipStandardImportController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
@@ -190,8 +191,8 @@ Route::middleware(['auth'])->group(function () {
     // Ansichten für alle Angemeldeten, Verwaltung nur für Admins (Spec §4).
     Route::get('championships', [ChampionshipController::class, 'index'])->name('championships.index');
 
-    // create MUSS vor der {championship}-Route stehen, sonst bindet Laravel "create"
-    // als Modell-Schlüssel und liefert 404.
+    // create und import MÜSSEN vor der {championship}-Route stehen, sonst bindet Laravel
+    // das Wort als Modell-Schlüssel und liefert 404.
     Route::middleware(RequireAdmin::class)->group(function () {
         Route::get('championships/create', [ChampionshipController::class, 'create'])
             ->name('championships.create');
@@ -204,6 +205,14 @@ Route::middleware(['auth'])->group(function () {
             ->name('championships.destroy');
         Route::post('championships/{championship}/copy-from', [ChampionshipController::class, 'copyFrom'])
             ->name('championships.copy-from');
+
+        // Normimport, dreistufig: Formular → Vorschau → Import (Spec §9.2).
+        Route::get('championships/{championship}/import',
+            [ChampionshipStandardImportController::class, 'showForm'])->name('championships.import');
+        Route::post('championships/{championship}/import/preview',
+            [ChampionshipStandardImportController::class, 'preview'])->name('championships.import.preview');
+        Route::post('championships/{championship}/import/run',
+            [ChampionshipStandardImportController::class, 'run'])->name('championships.import.run');
     });
 
     Route::get('championships/{championship}', [ChampionshipController::class, 'show'])
