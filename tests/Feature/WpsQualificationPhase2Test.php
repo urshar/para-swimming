@@ -35,7 +35,7 @@ function stroke_wq2(string $code): StrokeType
     );
 }
 
-function championship_wq2(array $ueberschreibungen): Championship
+function championship_wq2(array $abweichungen): Championship
 {
     return Championship::query()->create(array_merge([
         'name' => 'World Para Swimming European Championships 2026',
@@ -44,10 +44,10 @@ function championship_wq2(array $ueberschreibungen): Championship
         'year' => 2026,
         'qualification_start' => '2025-01-01',
         'qualification_end' => '2026-07-06',
-    ], $ueberschreibungen));
+    ], $abweichungen));
 }
 
-function standard_wq2(Championship $championship, array $ueberschreibungen): ChampionshipStandard
+function standard_wq2(Championship $championship, array $abweichungen): ChampionshipStandard
 {
     return ChampionshipStandard::query()->create(array_merge([
         'championship_id' => $championship->getKey(),
@@ -56,7 +56,7 @@ function standard_wq2(Championship $championship, array $ueberschreibungen): Cha
         'gender' => 'M',
         'sport_class' => 'S7',
         'mqs_centiseconds' => 7319,
-    ], $ueberschreibungen));
+    ], $abweichungen));
 }
 
 /** Gültige WPS-Version mit einem Parametersatz für 100 m Freistil M S7 LCM. */
@@ -122,7 +122,7 @@ it('verwehrt Club-Nutzern das Bearbeiten über die Livewire-Komponente', functio
 
     Livewire::actingAs(clubUser_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.mqs", '01:10.00')
+        ->call('saveCell', $standard->id, 'mqs', '01:10.00')
         ->assertForbidden();
 
     expect($standard->fresh()->mqs_centiseconds)->toBe(7319);
@@ -206,7 +206,7 @@ it('speichert eine MQS über die Inline-Bearbeitung', function () {
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.mqs", '01:13.19')
+        ->call('saveCell', $standard->id, 'mqs', '01:13.19')
         ->assertHasNoErrors();
 
     expect($standard->fresh()->mqs_centiseconds)->toBe(7319);
@@ -218,25 +218,25 @@ it('weist ein ungültiges Zeitformat ab ohne zu speichern', function () {
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.mqs", 'keine Zeit')
+        ->call('saveCell', $standard->id, 'mqs', 'keine Zeit')
         ->assertHasErrors("rows.$standard->id.mqs");
 
     expect($standard->fresh()->mqs_centiseconds)->toBe(7319);
 });
 
-it('rechnet die OeBSV-Zeit nach wenn die MQS geändert wird', function () {
+it('rechnet die ÖBSV-Zeit nach wenn die MQS geändert wird', function () {
     $championship = championship_wq2([]);
     $standard = standard_wq2($championship, ['obsv_percent' => 2.0, 'obsv_centiseconds' => 7172]);
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.mqs", '01:10.00');
+        ->call('saveCell', $standard->id, 'mqs', '01:10.00');
 
     // 7000 × 0,98 = 6860
     expect($standard->fresh()->obsv_centiseconds)->toBe(6860);
 });
 
-it('lässt eine von Hand gesetzte OeBSV-Zeit bei geänderter MQS unangetastet', function () {
+it('lässt eine von Hand gesetzte ÖBSV-Zeit bei geänderter MQS unangetastet', function () {
     $championship = championship_wq2([]);
     $standard = standard_wq2($championship, [
         'obsv_percent' => 2.0,
@@ -246,18 +246,18 @@ it('lässt eine von Hand gesetzte OeBSV-Zeit bei geänderter MQS unangetastet', 
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.mqs", '01:10.00');
+        ->call('saveCell', $standard->id, 'mqs', '01:10.00');
 
     expect($standard->fresh()->obsv_centiseconds)->toBe(7000);
 });
 
-it('setzt beim Eintragen einer OeBSV-Zeit das Handzeichen', function () {
+it('setzt beim Eintragen einer ÖBSV-Zeit das Handzeichen', function () {
     $championship = championship_wq2([]);
     $standard = standard_wq2($championship, ['obsv_percent' => 2.0, 'obsv_centiseconds' => 7172]);
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.obsv", '01:09.00');
+        ->call('saveCell', $standard->id, 'obsv', '01:09.00');
 
     expect($standard->fresh()->obsv_centiseconds)->toBe(6900)
         ->and($standard->fresh()->isObsvManual())->toBeTrue()
@@ -270,10 +270,36 @@ it('setzt eine Zeile mit leerem Prozentfeld wieder auf offen', function () {
 
     Livewire::actingAs(admin_wq2())
         ->test(ChampionshipStandardTable::class, ['championship' => $championship])
-        ->set("rows.$standard->id.percent", '');
+        ->call('saveCell', $standard->id, 'percent', '');
 
     expect($standard->fresh()->isObsvOpen())->toBeTrue()
         ->and($standard->fresh()->obsv_centiseconds)->toBeNull();
+});
+
+it('nimmt einen Prozentsatz mit Komma entgegen', function () {
+    $championship = championship_wq2([]);
+    $standard = standard_wq2($championship, []);
+
+    Livewire::actingAs(admin_wq2())
+        ->test(ChampionshipStandardTable::class, ['championship' => $championship])
+        ->call('saveCell', $standard->id, 'percent', '2,5')
+        ->assertHasNoErrors();
+
+    // 7319 × 0,975 = 7136,025 → floor → 7136
+    expect($standard->fresh()->obsv_percent)->toBe(2.5)
+        ->and($standard->fresh()->obsv_centiseconds)->toBe(7136);
+});
+
+it('ignoriert einen unbekannten Feldnamen statt ihn zu schreiben', function () {
+    $championship = championship_wq2([]);
+    $standard = standard_wq2($championship, []);
+
+    Livewire::actingAs(admin_wq2())
+        ->test(ChampionshipStandardTable::class, ['championship' => $championship])
+        ->call('saveCell', $standard->id, 'sport_class', 'S1')
+        ->assertHasNoErrors();
+
+    expect($standard->fresh()->sport_class)->toBe('S7');
 });
 
 // ── Zeilen anlegen und löschen ───────────────────────────────────────────────
@@ -335,7 +361,7 @@ it('wendet die Massenaktion nur auf offene Zeilen an', function () {
         'obsv_centiseconds' => 3300,
         'obsv_is_manual' => true,
     ]);
-    $uebernommen = standard_wq2($championship, [
+    $festgelegt = standard_wq2($championship, [
         'distance' => 200,
         'mqs_centiseconds' => 15000,
         'obsv_percent' => 0,
@@ -350,7 +376,7 @@ it('wendet die Massenaktion nur auf offene Zeilen an', function () {
 
     expect($offen->fresh()->obsv_centiseconds)->toBe(7172)
         ->and($vonHand->fresh()->obsv_centiseconds)->toBe(3300)
-        ->and($uebernommen->fresh()->obsv_centiseconds)->toBe(15000);
+        ->and($festgelegt->fresh()->obsv_centiseconds)->toBe(15000);
 });
 
 it('wendet die Massenaktion auch auf ausgefilterte Zeilen an', function () {
@@ -397,7 +423,7 @@ it('filtert die Normtabelle nach Bewerb, Geschlecht und Sportklasse', function (
 
 // ── Kopierfunktion (§9.1) ────────────────────────────────────────────────────
 
-it('kopiert MQS und MET, aber keine OeBSV-Werte', function () {
+it('kopiert MQS und MET, aber keine ÖBSV-Werte', function () {
     $quelle = championship_wq2([]);
     $ziel = championship_wq2(['name' => 'EM 2028', 'short_name' => 'EM 2028', 'year' => 2028]);
 
@@ -489,7 +515,7 @@ it('liefert ohne passenden Parametersatz keine Punkte statt einer Null', functio
     ))->toBeNull();
 });
 
-it('zeigt in der Normtabelle die Punkte neben MQS und OeBSV-Zeit', function () {
+it('zeigt in der Normtabelle die Punkte neben MQS und ÖBSV-Zeit', function () {
     pointVersion_wq2();
     $championship = championship_wq2([]);
     $standard = standard_wq2($championship, ['obsv_percent' => 2.0, 'obsv_centiseconds' => 7172]);

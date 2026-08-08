@@ -35,6 +35,9 @@ use Livewire\Component;
  */
 class ChampionshipStandardTable extends Component
 {
+    /** Von saveCell() entgegengenommene Feldnamen — begrenzt, was von außen setzbar ist. */
+    private const array EDITABLE_FIELDS = ['mqs', 'met', 'percent', 'obsv'];
+
     public Championship $championship;
 
     /** @var array<int, array<string, string>> [standardId] => ['mqs' => …, 'met' => …, 'percent' => …, 'obsv' => …] */
@@ -67,22 +70,12 @@ class ChampionshipStandardTable extends Component
         $this->loadRows();
     }
 
-    /** Livewire-Lifecycle-Hook: reagiert auf jede Änderung an rows.{id}.{feld}. */
+    /** Livewire-Lifecycle-Hook — greift nur für die Filterfelder. */
     public function updated(string $name): void
     {
         if (str_starts_with($name, 'filter')) {
             $this->loadRows();
-
-            return;
         }
-
-        if (! str_starts_with($name, 'rows.')) {
-            return;
-        }
-
-        [, $standardId, $feld] = explode('.', $name);
-
-        $this->saveCell((int) $standardId, $feld);
     }
 
     public function addRow(ChampionshipStandardService $service): void
@@ -258,12 +251,100 @@ class ChampionshipStandardTable extends Component
         );
     }
 
+    /**
+     * Speichert eine einzelne bearbeitete Zelle.
+     *
+     * Wird von der Alpine-Komponente timeMaskCell beim Verlassen des Feldes aufgerufen und
+     * bekommt den Wert ausdrücklich mitgeliefert. Bewusst KEINE Bindung über wire:model:
+     * Flux rendert ein inneres <input>, an dem wire:model nicht greift — im Projekt wird
+     * deshalb durchgehend x-model verwendet (CLAUDE.md).
+     *
+     * MQS und MET werden direkt gesetzt. Beim Prozentsatz greift applyPercent() (Zeit wird
+     * errechnet, obsv_is_manual zurückgesetzt), bei der ÖBSV-Zeit setObsvTimeManually()
+     * (obsv_is_manual wird gesetzt, der Prozentsatz bleibt zur Information stehen) — §5.3.
+     */
+    public function saveCell(int $standardId, string $feld, string $wert): void
+    {
+        $this->requireAdmin();
+
+        if (! in_array($feld, self::EDITABLE_FIELDS, true)) {
+            return;
+        }
+
+        $standard = $this->findStandard($standardId);
+
+        if ($standard === null) {
+            return;
+        }
+
+        $eingabe = trim($wert);
+        $fehlerSchluessel = "rows.$standardId.$feld";
+
+        $this->resetErrorBag($fehlerSchluessel);
+        $this->statusMessage = null;
+
+        $service = app(ChampionshipStandardService::class);
+
+        if ($feld === 'percent') {
+            // Komma erlauben — auf einer deutschen Tastatur ist es die naheliegende Eingabe.
+            $normalisiert = str_replace(',', '.', $eingabe);
+
+            if ($normalisiert !== '' && ! is_numeric($normalisiert)) {
+                $this->addError($fehlerSchluessel, 'Bitte eine Zahl eingeben, z.B. 2 oder 2,5.');
+
+                return;
+            }
+
+            $service->applyPercent($standard, $normalisiert === '' ? null : (float) $normalisiert);
+            $this->afterSave();
+
+            return;
+        }
+
+        $centiseconds = null;
+
+        if ($eingabe !== '') {
+            $centiseconds = TimeParser::parse($eingabe);
+
+            if ($centiseconds === null) {
+                $this->addError($fehlerSchluessel, 'Ungültiges Zeitformat. Beispiel: 01:13.19');
+
+                return;
+            }
+        }
+
+        if ($feld === 'obsv') {
+            $service->setObsvTimeManually($standard, $centiseconds);
+            $this->afterSave();
+
+            return;
+        }
+
+        $spalte = $feld === 'mqs' ? 'mqs_centiseconds' : 'met_centiseconds';
+
+        $standard->update([$spalte => $centiseconds]);
+
+        // Ändert sich die MQS, ist die daraus errechnete ÖBSV-Zeit veraltet. Von Hand
+        // gesetzte Zeiten bleiben stehen — sie hängen nicht am Prozentsatz (§5.3).
+        if ($spalte === 'mqs_centiseconds' && $standard->hasObsvPercent() && ! $standard->isObsvManual()) {
+            $service->applyPercent($standard, (float) $standard->getAttribute('obsv_percent'));
+        }
+
+        $this->afterSave();
+    }
+
     public function render(): View
     {
         return view('livewire.admin.championship-standard-table');
     }
 
     /** Lädt die Eingabefelder aus den gespeicherten Werten neu. */
+    private function afterSave(): void
+    {
+        $this->statusMessage = 'Gespeichert.';
+        $this->loadRows();
+    }
+
     private function loadRows(): void
     {
         unset($this->standards, $this->availableSportClasses);
@@ -287,75 +368,6 @@ class ChampionshipStandardTable extends Component
     private function displayTime(?int $centiseconds): string
     {
         return $centiseconds === null ? '' : TimeParser::display($centiseconds);
-    }
-
-    /**
-     * Speichert eine einzelne bearbeitete Zelle.
-     *
-     * MQS und MET werden direkt gesetzt. Beim Prozentsatz greift applyPercent() (Zeit wird
-     * errechnet, obsv_is_manual zurückgesetzt), bei der ÖBSV-Zeit setObsvTimeManually()
-     * (obsv_is_manual wird gesetzt, der Prozentsatz bleibt zur Information stehen) — §5.3.
-     */
-    private function saveCell(int $standardId, string $feld): void
-    {
-        $this->requireAdmin();
-
-        $standard = $this->findStandard($standardId);
-
-        if ($standard === null) {
-            return;
-        }
-
-        $eingabe = trim($this->rows[$standardId][$feld] ?? '');
-        $fehlerSchluessel = "rows.$standardId.$feld";
-
-        $this->resetErrorBag($fehlerSchluessel);
-
-        $service = app(ChampionshipStandardService::class);
-
-        if ($feld === 'percent') {
-            if ($eingabe !== '' && ! is_numeric($eingabe)) {
-                $this->addError($fehlerSchluessel, 'Bitte eine Zahl eingeben, z.B. 2 oder 2,5.');
-
-                return;
-            }
-
-            $service->applyPercent($standard, $eingabe === '' ? null : (float) $eingabe);
-            $this->loadRows();
-
-            return;
-        }
-
-        $centiseconds = null;
-
-        if ($eingabe !== '') {
-            $centiseconds = TimeParser::parse($eingabe);
-
-            if ($centiseconds === null) {
-                $this->addError($fehlerSchluessel, 'Ungültiges Zeitformat. Beispiel: 01:13.19');
-
-                return;
-            }
-        }
-
-        if ($feld === 'obsv') {
-            $service->setObsvTimeManually($standard, $centiseconds);
-            $this->loadRows();
-
-            return;
-        }
-
-        $spalte = $feld === 'mqs' ? 'mqs_centiseconds' : 'met_centiseconds';
-
-        $standard->update([$spalte => $centiseconds]);
-
-        // Ändert sich die MQS, ist die daraus errechnete ÖBSV-Zeit veraltet. Von Hand
-        // gesetzte Zeiten bleiben stehen — sie hängen nicht am Prozentsatz (§5.3).
-        if ($spalte === 'mqs_centiseconds' && $standard->hasObsvPercent() && ! $standard->isObsvManual()) {
-            $service->applyPercent($standard, (float) $standard->getAttribute('obsv_percent'));
-        }
-
-        $this->loadRows();
     }
 
     private function findStandard(int $standardId): ?ChampionshipStandard

@@ -58,11 +58,31 @@ interface MeetPointSystemsConfig {
     course?: string;
 }
 
+/**
+ * Inhalt des data-cell-Attributs einer Zelle in der Normtabelle.
+ *
+ * Kein Argument von standardCell(): Die Werte stammen aus PHP und werden über ein
+ * data-Attribut übergeben, damit x-data reines JavaScript bleibt. Diese Schnittstelle
+ * beschreibt also das, was standardCell() zur Laufzeit aus dem Attribut liest.
+ */
+interface StandardCellConfig {
+    /** Angezeigter Ausgangswert, leer für "nicht ausgeschrieben" bzw. "offen". */
+    value: string;
+    /** Primärschlüssel der Normzeile, an die der Wert zurückgeschickt wird. */
+    standardId: number;
+    /** Feldname innerhalb der Zeile: mqs, met, obsv oder percent. */
+    field: string;
+    /** Zeitmaske MM:SS.hh anwenden? Für den Prozentsatz false. */
+    masked: boolean;
+}
+
 declare function singleEntryForm(config: SingleEntryFormConfig): Record<string, unknown>;
 
 declare function relayEntryForm(config: RelayEntryFormConfig): Record<string, unknown>;
 
 declare function meetPointSystems(config: MeetPointSystemsConfig): Record<string, unknown>;
+
+declare function standardCell(): Record<string, unknown>;
 
 /**
  * Kein `export` in dieser Datei: nur eine globale Skriptdatei — also eine ohne import oder

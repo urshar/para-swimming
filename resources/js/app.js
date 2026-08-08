@@ -3,6 +3,7 @@ import IMask from 'imask';
 import meetPointSystems from './meet-point-systems';
 import relayEntryForm from './relay-entry-form';
 import singleEntryForm from './single-entry-form';
+import standardCell from './standard-cell';
 
 window.IMask = IMask;
 
@@ -16,4 +17,5 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('meetPointSystems', meetPointSystems);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('singleEntryForm', singleEntryForm);
+    window.Alpine.data('standardCell', standardCell);
 });

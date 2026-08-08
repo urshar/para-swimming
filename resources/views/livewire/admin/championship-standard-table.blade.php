@@ -21,6 +21,13 @@
         </p>
     @endif
 
+    @if($istAdmin)
+        <p class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+            Zeitfelder: nur Ziffern tippen — „011319" wird zu 01:13.19. Gespeichert wird beim
+            Verlassen des Feldes oder mit Enter.
+        </p>
+    @endif
+
     {{-- ── Filter ──────────────────────────────────────────────────────────── --}}
     <div class="mb-4 flex flex-wrap items-end gap-3">
         <flux:field class="w-48">
@@ -108,15 +115,15 @@
 
                     {{-- MQS --}}
                     <td class="px-3 py-1">
-                        @if($istAdmin)
-                            <flux:input wire:model.blur="rows.{{ $standard->id }}.mqs"
-                                        size="sm" class="w-28 font-mono text-xs"/>
-                            @error('rows.'.$standard->id.'.mqs')
-                            <span class="block text-red-500 text-xs mt-0.5">{{ $message }}</span>
-                            @enderror
-                        @else
-                            <span class="font-mono text-xs">{{ $standard->formatted_mqs ?? '–' }}</span>
-                        @endif
+                        <x-championship-standard-cell
+                            :standard="$standard"
+                            field="mqs"
+                            :value="$rows[$standard->getKey()]['mqs'] ?? ''"
+                            :masked="true"
+                            :editable="$istAdmin"
+                            :display="$standard->formatted_mqs"
+                            width="w-32"
+                            placeholder="__:__.__"/>
                     </td>
                     <td class="px-3 py-1.5 text-right font-mono text-xs text-zinc-500">
                         {{ $this->pointsFor($standard->mqs_centiseconds, $standard) ?? '' }}
@@ -124,43 +131,41 @@
 
                     {{-- MET --}}
                     <td class="px-3 py-1">
-                        @if($istAdmin)
-                            <flux:input wire:model.blur="rows.{{ $standard->id }}.met"
-                                        size="sm" class="w-28 font-mono text-xs"/>
-                            @error('rows.'.$standard->id.'.met')
-                            <span class="block text-red-500 text-xs mt-0.5">{{ $message }}</span>
-                            @enderror
-                        @else
-                            <span class="font-mono text-xs">{{ $standard->formatted_met ?? '–' }}</span>
-                        @endif
+                        <x-championship-standard-cell
+                            :standard="$standard"
+                            field="met"
+                            :value="$rows[$standard->getKey()]['met'] ?? ''"
+                            :masked="true"
+                            :editable="$istAdmin"
+                            :display="$standard->formatted_met"
+                            width="w-32"
+                            placeholder="__:__.__"/>
                     </td>
 
                     {{-- ÖBSV-Prozentsatz --}}
                     <td class="px-3 py-1">
-                        @if($istAdmin)
-                            <flux:input wire:model.blur="rows.{{ $standard->id }}.percent"
-                                        size="sm" class="w-20 font-mono text-xs" placeholder="offen"/>
-                            @error('rows.'.$standard->id.'.percent')
-                            <span class="block text-red-500 text-xs mt-0.5">{{ $message }}</span>
-                            @enderror
-                        @else
-                            <span class="font-mono text-xs">
-                                {{ $standard->hasObsvPercent() ? $standard->obsv_percent.' %' : 'offen' }}
-                            </span>
-                        @endif
+                        <x-championship-standard-cell
+                            :standard="$standard"
+                            field="percent"
+                            :value="$rows[$standard->getKey()]['percent'] ?? ''"
+                            :masked="false"
+                            :editable="$istAdmin"
+                            :display="$standard->hasObsvPercent() ? $standard->obsv_percent.' %' : 'offen'"
+                            width="w-20"
+                            placeholder="offen"/>
                     </td>
 
                     {{-- ÖBSV-Zeit --}}
                     <td class="px-3 py-1">
-                        @if($istAdmin)
-                            <flux:input wire:model.blur="rows.{{ $standard->id }}.obsv"
-                                        size="sm" class="w-28 font-mono text-xs"/>
-                            @error('rows.'.$standard->id.'.obsv')
-                            <span class="block text-red-500 text-xs mt-0.5">{{ $message }}</span>
-                            @enderror
-                        @else
-                            <span class="font-mono text-xs">{{ $standard->formatted_obsv ?? '–' }}</span>
-                        @endif
+                        <x-championship-standard-cell
+                            :standard="$standard"
+                            field="obsv"
+                            :value="$rows[$standard->getKey()]['obsv'] ?? ''"
+                            :masked="true"
+                            :editable="$istAdmin"
+                            :display="$standard->formatted_obsv"
+                            width="w-32"
+                            placeholder="__:__.__"/>
                         @if($standard->isObsvManual())
                             <flux:badge color="amber" size="sm">von Hand</flux:badge>
                         @elseif($standard->isObsvOpen())
@@ -235,7 +240,7 @@
                 <flux:button wire:click="addRow" variant="primary" size="sm" icon="plus">Hinzufügen</flux:button>
             </div>
             <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Zeiten im Format 01:13.19 eingeben. Ein leeres Feld bedeutet „nicht ausgeschrieben".
+                Zeiten: nur Ziffern tippen, die Maske setzt Doppelpunkt und Punkt — „011319" wird zu 01:13.19. Gespeichert wird beim Verlassen des Feldes oder mit Enter. Ein leeres Feld bedeutet „nicht ausgeschrieben".
             </p>
         </div>
     @endif
