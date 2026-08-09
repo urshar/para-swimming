@@ -11,11 +11,13 @@ use App\Services\WpsPointCalculator;
 use App\Services\WpsPointVersionResolver;
 use App\Support\SportClassSorter;
 use App\Support\TimeParser;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * ChampionshipStandardTable
@@ -32,11 +34,19 @@ use Livewire\Component;
  * Die Komponente prüft die Adminrechte selbst. Die Route-Middleware greift beim
  * Livewire-Update nicht erneut — ohne eigene Prüfung wäre die Tabelle für jeden
  * angemeldeten Nutzer beschreibbar.
+ *
+ * Seitenweise Anzeige: Eine vollständige EM-Normliste umfasst über 300 Zeilen mit je vier
+ * Eingabefeldern. Alle auf einmal zu rendern kostet spürbar Zeit, ohne dass jemand mehr als
+ * einen Ausschnitt bearbeitet.
  */
 class ChampionshipStandardTable extends Component
 {
+    use WithPagination;
+
     /** Von saveCell() entgegengenommene Feldnamen — begrenzt, was von außen setzbar ist. */
     private const array EDITABLE_FIELDS = ['mqs', 'met', 'percent', 'obsv'];
+
+    private const int PER_PAGE = 25;
 
     public Championship $championship;
 
@@ -64,18 +74,43 @@ class ChampionshipStandardTable extends Component
 
     public ?string $statusMessage = null;
 
+    /**
+     * Zwischengespeicherte Calculator-Instanz.
+     *
+     * Der WpsPointCalculator hält seine Parametertabelle über once() je Instanz. Wird er wie
+     * zuvor in jeder Zelle frisch aus dem Container geholt, lädt er die Tabelle für jede der
+     * gut sechshundert Punktangaben erneut — das waren die zehn Sekunden. Nicht öffentlich,
+     * damit Livewire nichts davon zu serialisieren versucht.
+     */
+    private ?WpsPointCalculator $calculator = null;
+
     public function mount(Championship $championship): void
     {
         $this->championship = $championship;
         $this->loadRows();
     }
 
-    /** Livewire-Lifecycle-Hook — greift nur für die Filterfelder. */
-    public function updated(string $name): void
+    /**
+     * Setzt einen Filter und lädt die Tabelle neu.
+     *
+     * Wird vom change-Ereignis der Auswahlfelder aufgerufen und bekommt den Wert
+     * ausdrücklich mitgeliefert, statt sich auf eine Bindung zu verlassen — dieselbe
+     * Entscheidung wie bei saveCell(). Ein eigener "Anwenden"-Knopf entfällt damit: Der
+     * Filter greift, sobald etwas ausgewählt ist.
+     */
+    public function setFilter(string $feld, string $wert): void
     {
-        if (str_starts_with($name, 'filter')) {
-            $this->loadRows();
-        }
+        match ($feld) {
+            'stroke' => $this->filterStroke = $wert,
+            'gender' => $this->filterGender = $wert,
+            'sportClass' => $this->filterSportClass = $wert,
+            default => null,
+        };
+
+        // Ohne Rücksprung auf Seite 1 landet man nach dem Filtern auf einer Seite, die es
+        // in der kleineren Treffermenge nicht mehr gibt, und sieht eine leere Tabelle.
+        $this->resetPage();
+        $this->loadRows();
     }
 
     public function addRow(ChampionshipStandardService $service): void
@@ -130,9 +165,9 @@ class ChampionshipStandardTable extends Component
     /**
      * Massenaktion: Prozentsatz auf alle offenen Zeilen anwenden (§5.3).
      *
-     * Wirkt auf alle offenen Zeilen der Meisterschaft, nicht nur auf die gerade
-     * gefilterten — ein Filter ist eine Sicht, keine Auswahl. Andernfalls hinge das
-     * Ergebnis davon ab, was gerade im Filterfeld stand.
+     * Wirkt auf alle offenen Zeilen der Meisterschaft, nicht nur auf die gerade gefilterten
+     * oder die angezeigte Seite — ein Filter ist eine Sicht, keine Auswahl. Andernfalls hinge
+     * das Ergebnis davon ab, was gerade im Filterfeld stand.
      */
     public function applyBulkPercent(ChampionshipStandardService $service): void
     {
@@ -158,106 +193,17 @@ class ChampionshipStandardTable extends Component
         $this->filterGender = '';
         $this->filterSportClass = '';
 
+        $this->resetPage();
         $this->loadRows();
-    }
-
-    /**
-     * Die WPS-Punkteversion, mit der die Punktanzeige rechnet.
-     *
-     * Stichtag ist das Ende des Qualifikationszeitraums — zu diesem Zeitpunkt wird
-     * abschließend bewertet, ob eine Norm erfüllt ist.
-     */
-    #[Computed]
-    public function pointVersion(): ?WpsPointVersion
-    {
-        return app(WpsPointVersionResolver::class)
-            ->resolveForDate($this->championship->qualification_end->format('Y-m-d'));
-    }
-
-    /** @return Collection<int, ChampionshipStandard> */
-    #[Computed]
-    public function standards(): Collection
-    {
-        $abfrage = $this->championship->standards()->with('strokeType');
-
-        if ($this->filterStroke !== '') {
-            $abfrage->where('stroke_type_id', (int) $this->filterStroke);
-        }
-
-        if ($this->filterGender !== '') {
-            $abfrage->where('gender', $this->filterGender);
-        }
-
-        if ($this->filterSportClass !== '') {
-            $abfrage->where('sport_class', $this->filterSportClass);
-        }
-
-        // Zusammengesetzter Sortierschlüssel statt sortBy() mit Closure-Array: Letzteres
-        // ist bei mehreren Kriterien unzuverlässig. SportClassSorter sortiert S2 vor S10.
-        return $abfrage->get()->sortBy(fn (ChampionshipStandard $s): string => sprintf(
-            '%-10s|%05d|%s|%s',
-            $s->strokeType?->lenex_code ?? '',
-            $s->getAttribute('distance'),
-            $s->getAttribute('gender'),
-            SportClassSorter::key($s->getAttribute('sport_class')),
-        ))->values();
-    }
-
-    /** @return Collection<int, StrokeType> */
-    #[Computed]
-    public function strokeTypes(): Collection
-    {
-        return StrokeType::query()->orderBy('id')->get();
-    }
-
-    /**
-     * Sportklassen, die in dieser Meisterschaft tatsächlich vorkommen — Grundlage des
-     * Filters. Bewusst nicht alle denkbaren Klassen: Die Normlisten sind lückenhaft (§2.2),
-     * ein Filter auf eine nirgends ausgeschriebene Klasse wäre nur irreführend.
-     *
-     * @return array<int, string>
-     */
-    #[Computed]
-    public function availableSportClasses(): array
-    {
-        return $this->championship->standards()
-            ->distinct()
-            ->pluck('sport_class')
-            ->sortBy(static fn (string $klasse): string => SportClassSorter::key($klasse))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * WPS-Punkte einer Zeit, oder null, wenn keine Version oder kein Parametersatz
-     * vorliegt. Die Anzeige lässt die Spalte dann leer, statt eine Null vorzutäuschen.
-     */
-    public function pointsFor(?int $centiseconds, ChampionshipStandard $standard): ?int
-    {
-        $version = $this->pointVersion();
-
-        if ($centiseconds === null || $version === null) {
-            return null;
-        }
-
-        return app(WpsPointCalculator::class)->pointsForTime(
-            $centiseconds,
-            $this->championship->course,
-            $standard->getAttribute('gender'),
-            $standard->getAttribute('stroke_type_id'),
-            $standard->getAttribute('distance'),
-            $standard->getAttribute('sport_class'),
-            $version,
-        );
     }
 
     /**
      * Speichert eine einzelne bearbeitete Zelle.
      *
-     * Wird von der Alpine-Komponente timeMaskCell beim Verlassen des Feldes aufgerufen und
+     * Wird von der Alpine-Komponente standardCell beim Verlassen des Feldes aufgerufen und
      * bekommt den Wert ausdrücklich mitgeliefert. Bewusst KEINE Bindung über wire:model:
-     * Flux rendert ein inneres <input>, an dem wire:model nicht greift — im Projekt wird
-     * deshalb durchgehend x-model verwendet (CLAUDE.md).
+     * flux:input rendert einen Wrapper mit innerem Eingabefeld, an dem wire:model nicht
+     * greift — im Projekt wird deshalb durchgehend x-model verwendet (CLAUDE.md).
      *
      * MQS und MET werden direkt gesetzt. Beim Prozentsatz greift applyPercent() (Zeit wird
      * errechnet, obsv_is_manual zurückgesetzt), bei der ÖBSV-Zeit setObsvTimeManually()
@@ -333,21 +279,154 @@ class ChampionshipStandardTable extends Component
         $this->afterSave();
     }
 
+    /**
+     * Die WPS-Punkteversion, mit der die Punktanzeige rechnet.
+     *
+     * Stichtag ist das Ende des Qualifikationszeitraums — zu diesem Zeitpunkt wird
+     * abschließend bewertet, ob eine Norm erfüllt ist.
+     */
+    #[Computed]
+    public function pointVersion(): ?WpsPointVersion
+    {
+        return app(WpsPointVersionResolver::class)
+            ->resolveForDate($this->championship->qualification_end->format('Y-m-d'));
+    }
+
+    /** @return LengthAwarePaginator<int, ChampionshipStandard> */
+    #[Computed]
+    public function standards(): LengthAwarePaginator
+    {
+        $abfrage = $this->championship->standards()->with('strokeType');
+
+        if ($this->filterStroke !== '') {
+            $abfrage->where('stroke_type_id', (int) $this->filterStroke);
+        }
+
+        if ($this->filterGender !== '') {
+            $abfrage->where('gender', $this->filterGender);
+        }
+
+        if ($this->filterSportClass !== '') {
+            $abfrage->where('sport_class', $this->filterSportClass);
+        }
+
+        // In der Datenbank sortiert, damit die Seiteneinteilung stabil bleibt: Würde erst
+        // nach dem Blättern sortiert, ergäbe jede Seite eine eigene Reihenfolge.
+        $seite = $abfrage
+            ->orderBy('stroke_type_id')
+            ->orderBy('distance')
+            ->orderBy('gender')
+            ->orderBy('sport_class')
+            ->paginate(self::PER_PAGE);
+
+        // Innerhalb der Seite nachsortiert: In einer Textspalte steht S10 vor S2.
+        // Zusammengesetzter Sortierschlüssel statt sortBy() mit Closure-Array, das bei
+        // mehreren Kriterien unzuverlässig ist.
+        return $seite->setCollection(
+            $seite->getCollection()
+                ->sortBy(static fn (ChampionshipStandard $s): string => sprintf(
+                    '%-10s|%05d|%s|%s',
+                    $s->strokeType?->lenex_code ?? '',
+                    $s->getAttribute('distance'),
+                    $s->getAttribute('gender'),
+                    SportClassSorter::key($s->getAttribute('sport_class')),
+                ))
+                ->values()
+        );
+    }
+
+    /**
+     * Punkte zu MQS und ÖBSV-Norm für alle Zeilen der aktuellen Seite.
+     *
+     * Einmal je Rendervorgang statt einmal je Zelle: Der Calculator lädt seine
+     * Parametertabelle beim ersten Zugriff und hält sie danach in derselben Instanz.
+     *
+     * @return array<int, array{mqs: int|null, obsv: int|null}>
+     */
+    #[Computed]
+    public function pointsByStandard(): array
+    {
+        $version = $this->pointVersion();
+
+        if ($version === null) {
+            return [];
+        }
+
+        $punkte = [];
+
+        foreach ($this->standards() as $standard) {
+            $punkte[$standard->getKey()] = [
+                'mqs' => $this->pointsFor($standard->getAttribute('mqs_centiseconds'), $standard),
+                'obsv' => $this->pointsFor($standard->getAttribute('obsv_centiseconds'), $standard),
+            ];
+        }
+
+        return $punkte;
+    }
+
+    /** @return Collection<int, StrokeType> */
+    #[Computed]
+    public function strokeTypes(): Collection
+    {
+        return StrokeType::query()->orderBy('id')->get();
+    }
+
+    /**
+     * Sportklassen, die in dieser Meisterschaft tatsächlich vorkommen — Grundlage des
+     * Filters. Bewusst nicht alle denkbaren Klassen: Die Normlisten sind lückenhaft (§2.2),
+     * ein Filter auf eine nirgends ausgeschriebene Klasse wäre nur irreführend.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function availableSportClasses(): array
+    {
+        return $this->championship->standards()
+            ->distinct()
+            ->pluck('sport_class')
+            ->sortBy(static fn (string $klasse): string => SportClassSorter::key($klasse))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * WPS-Punkte einer Zeit, oder null, wenn keine Version oder kein Parametersatz vorliegt.
+     * Die Anzeige lässt die Spalte dann leer, statt eine Null vorzutäuschen.
+     */
+    public function pointsFor(?int $centiseconds, ChampionshipStandard $standard): ?int
+    {
+        $version = $this->pointVersion();
+
+        if ($centiseconds === null || $version === null) {
+            return null;
+        }
+
+        return $this->calculator()->pointsForTime(
+            $centiseconds,
+            $this->championship->course,
+            $standard->getAttribute('gender'),
+            $standard->getAttribute('stroke_type_id'),
+            $standard->getAttribute('distance'),
+            $standard->getAttribute('sport_class'),
+            $version,
+        );
+    }
+
     public function render(): View
     {
         return view('livewire.admin.championship-standard-table');
     }
 
-    /** Lädt die Eingabefelder aus den gespeicherten Werten neu. */
     private function afterSave(): void
     {
         $this->statusMessage = 'Gespeichert.';
         $this->loadRows();
     }
 
+    /** Lädt die Eingabefelder aus den gespeicherten Werten neu. */
     private function loadRows(): void
     {
-        unset($this->standards, $this->availableSportClasses);
+        unset($this->standards, $this->availableSportClasses, $this->pointsByStandard);
 
         $this->rows = [];
 
@@ -363,6 +442,11 @@ class ChampionshipStandardTable extends Component
                 'obsv' => $this->displayTime($standard->getAttribute('obsv_centiseconds')),
             ];
         }
+    }
+
+    private function calculator(): WpsPointCalculator
+    {
+        return $this->calculator ??= app(WpsPointCalculator::class);
     }
 
     private function displayTime(?int $centiseconds): string

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Championship;
 use App\Services\ChampionshipStandardImportService;
+use App\Services\ChampionshipStandardService;
+use App\Support\ChampionshipStandardImportPreview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -33,7 +35,8 @@ class ChampionshipStandardImportController extends Controller
     private const string STORAGE_DIRECTORY = 'championship-standard-imports';
 
     public function __construct(
-        private readonly ChampionshipStandardImportService $importService
+        private readonly ChampionshipStandardImportService $importService,
+        private readonly ChampionshipStandardService $standardService,
     ) {}
 
     public function showForm(Championship $championship): View
@@ -76,7 +79,7 @@ class ChampionshipStandardImportController extends Controller
         ]);
     }
 
-    public function run(Championship $championship): RedirectResponse
+    public function run(Request $request, Championship $championship): RedirectResponse
     {
         $session = Session::get(self::SESSION_KEY);
 
@@ -96,11 +99,20 @@ class ChampionshipStandardImportController extends Controller
                 ->withErrors(['standards_file' => 'Die hochgeladene Datei ist nicht mehr vorhanden. Bitte erneut hochladen.']);
         }
 
+        $uebernommen = [];
+
         try {
             // Bewusst erneut geparst statt die Vorschau in der Session zu halten: Ein
             // serialisiertes Vorschauobjekt könnte nach einem Deployment nicht mehr zur
             // Klasse passen, und die Datei ist die verlässlichere Quelle.
             $preview = $this->importService->parse(Storage::disk('local')->path($path), $championship);
+
+            // Vor dem Import, damit die aktualisierte Meisterschaft schon für die
+            // Erfolgsmeldung zur Verfügung steht.
+            if ($request->boolean('adopt_metadata')) {
+                $uebernommen = $this->adoptMetadata($championship, $preview);
+            }
+
             $ergebnis = $this->importService->import($championship, $preview);
         } catch (Throwable $e) {
             $this->cleanUp($path);
@@ -114,14 +126,60 @@ class ChampionshipStandardImportController extends Controller
         // die statische Analyse) nicht mehr erkennbar, dass $ergebnis danach gesetzt ist.
         $this->cleanUp($path);
 
+        $meldung = sprintf(
+            '%d Norm(en) neu angelegt, %d aktualisiert. ÖBSV-Prozentsätze und -Zeiten '
+            .'blieben unverändert.',
+            $ergebnis['created'],
+            $ergebnis['updated'],
+        );
+
+        if ($uebernommen !== []) {
+            $meldung .= ' Aus der Datei übernommen: '.implode(', ', $uebernommen).'.';
+        }
+
         return redirect()
             ->route('championships.show', $championship)
-            ->with('success', sprintf(
-                '%d Norm(en) neu angelegt, %d aktualisiert. ÖBSV-Prozentsätze und -Zeiten '
-                .'blieben unverändert.',
-                $ergebnis['created'],
-                $ergebnis['updated'],
-            ));
+            ->with('success', $meldung);
+    }
+
+    /**
+     * Übernimmt Qualifikationszeitraum und Herkunft aus der Datei (Spec §9.2).
+     *
+     * Nur auf ausdrückliche Nachfrage — die Checkbox in der Vorschau ist nicht vorbelegt.
+     * Ein vorhandenes source wird überschrieben: Wer die Übernahme anhakt, will die Angaben
+     * aus dieser Datei.
+     *
+     * Konnte kein Zeitraum gelesen werden, bleibt der hinterlegte stehen, statt geleert zu
+     * werden. Ein fehlender Zeitraum nähme später Ergebnisse aus der Wertung, ohne dass
+     * jemand die Ursache sieht.
+     *
+     * @return list<string> Bezeichnungen des Übernommenen, für die Erfolgsmeldung
+     */
+    private function adoptMetadata(
+        Championship $championship,
+        ChampionshipStandardImportPreview $preview,
+    ): array {
+        $daten = [];
+        $uebernommen = [];
+
+        if ($preview->suggestedPeriod !== null) {
+            $daten['qualification_start'] = $preview->suggestedPeriod['start'];
+            $daten['qualification_end'] = $preview->suggestedPeriod['end'];
+            $uebernommen[] = 'Qualifikationszeitraum';
+        }
+
+        if ($preview->title !== null) {
+            // Der Titel steht in der Datei über mehrere Zeilen; in einem einzeiligen Feld
+            // würde der Umbruch sonst als Leerzeichen-Lücke erscheinen.
+            $daten['source'] = trim((string) preg_replace('/\s+/u', ' ', $preview->title));
+            $uebernommen[] = 'Herkunft';
+        }
+
+        if ($daten !== []) {
+            $this->standardService->updateChampionship($championship, $daten);
+        }
+
+        return $uebernommen;
     }
 
     /** Hochgeladene Datei und Sitzungsdaten entfernen — nach Erfolg wie nach Fehlschlag. */

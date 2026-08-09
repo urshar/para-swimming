@@ -373,9 +373,15 @@ Excel-Zeitwerte. Beides trifft auf die geprüfte Datei nicht zu:
   `ChampionshipStandardService::upsertStandard()`.
 - Normen, die in der Meisterschaft stehen und in der Datei fehlen, werden **nicht gelöscht**, sondern in der Vorschau
   ausgewiesen. Löschen wäre bei einem Formatfehler in der Datei ein stiller Datenverlust.
-- Der Qualifikationszeitraum aus der Titelzeile wird als **Vorschlag** angezeigt, aber nicht übernommen: Die
-  Formulierung ist nicht garantiert stabil, und ein still falsch gesetzter Zeitraum nähme später Ergebnisse aus der
-  Wertung, ohne dass jemand die Ursache sieht.
+- Qualifikationszeitraum und Titel werden **auf Nachfrage** übernommen, nie automatisch: Die Vorschau zeigt beide
+  Werte und bietet dazu eine nicht vorbelegte Checkbox an. Die Formulierung der Titelzeile ist nicht garantiert stabil,
+  und ein still falsch gesetzter Zeitraum nähme später Ergebnisse aus der Wertung, ohne dass jemand die Ursache sieht.
+    - Der Titel geht in `source` (Herkunft der Normdatei) und **überschreibt** einen vorhandenen Eintrag — wer die
+      Übernahme anhakt, will die Angaben aus dieser Datei. Zeilenumbrüche werden zu Leerzeichen zusammengezogen.
+    - Der **Name** der Meisterschaft bleibt unangetastet. Die Titelzeile lautet etwa "List of MQS and MET Times for the
+      Madeira 2024 Para Swimming European Open Championships" und taugt nicht als Name, der in Übersicht, Auswahlfeldern
+      und PDF erscheint.
+    - Enthält die Datei keinen lesbaren Zeitraum, bleibt der hinterlegte stehen, statt geleert zu werden.
 - Erkennt der Import das Format nicht, bricht er mit einer verständlichen Meldung ab und verweist auf die manuelle
   Pflege.
 

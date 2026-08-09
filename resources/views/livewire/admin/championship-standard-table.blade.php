@@ -1,5 +1,6 @@
 <div>
     @php($istAdmin = auth()->user()?->is_admin)
+    @php($punkte = $this->pointsByStandard())
 
     @if($statusMessage)
         <div
@@ -32,29 +33,31 @@
     <div class="mb-4 flex flex-wrap items-end gap-3">
         <flux:field class="w-48">
             <flux:label>Bewerb</flux:label>
-            <flux:select x-model="$wire.filterStroke">
+            <flux:select x-on:change="$wire.setFilter('stroke', $event.target.value)">
                 <option value="">Alle</option>
                 @foreach($this->strokeTypes() as $strokeType)
-                    <option value="{{ $strokeType->id }}">{{ $strokeType->name_de }}</option>
+                    <option value="{{ $strokeType->id }}"
+                        @selected($filterStroke === (string) $strokeType->id)>{{ $strokeType->name_de }}</option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Geschlecht</flux:label>
-            <flux:select x-model="$wire.filterGender">
+            <flux:select x-on:change="$wire.setFilter('gender', $event.target.value)">
                 <option value="">Alle</option>
-                <option value="M">männlich</option>
-                <option value="F">weiblich</option>
+                <option value="M" @selected($filterGender === 'M')>männlich</option>
+                <option value="F" @selected($filterGender === 'F')>weiblich</option>
             </flux:select>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Sportklasse</flux:label>
-            <flux:select x-model="$wire.filterSportClass">
+            <flux:select x-on:change="$wire.setFilter('sportClass', $event.target.value)">
                 <option value="">Alle</option>
                 @foreach($this->availableSportClasses() as $sportClass)
-                    <option value="{{ $sportClass }}">{{ $sportClass }}</option>
+                    <option value="{{ $sportClass }}"
+                        @selected($filterSportClass === $sportClass)>{{ $sportClass }}</option>
                 @endforeach
             </flux:select>
         </flux:field>
@@ -75,12 +78,11 @@
                     Auf alle offenen Zeilen anwenden
                 </flux:button>
             </div>
-            @error('bulkPercent')
-            <p class="mt-2 text-xs text-red-500">{{ $message }}</p>
-            @enderror
+            <flux:error name="bulkPercent"/>
             <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Wirkt ausschließlich auf Zeilen ohne Prozentsatz. Von Hand gesetzte Zeiten und
-                bewusst auf 0 gesetzte Zeilen bleiben unverändert.
+                Wirkt auf alle offenen Zeilen der Meisterschaft — auch auf die, die der Filter
+                gerade ausblendet oder die auf einer anderen Seite stehen. Von Hand gesetzte
+                Zeiten und bewusst auf 0 gesetzte Zeilen bleiben unverändert.
             </p>
         </div>
     @endif
@@ -97,6 +99,7 @@
                 <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">MET</th>
                 <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">%</th>
                 <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">ÖBSV-Norm</th>
+                <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Status</th>
                 <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 text-right">Pkt.</th>
                 <th class="px-3 py-2"></th>
             </tr>
@@ -104,16 +107,15 @@
             <tbody class="divide-y divide-zinc-100 dark:divide-zinc-700/50">
             @forelse($this->standards() as $standard)
                 <tr wire:key="standard-{{ $standard->id }}"
-                    class="{{ $standard->isObsvOpen() ? 'bg-amber-50/40 dark:bg-amber-950/10' : '' }}">
-                    <td class="px-4 py-1.5 whitespace-nowrap">
+                    @class(['bg-amber-50/40 dark:bg-amber-950/10' => $standard->isObsvOpen()])>
+                    <td class="px-4 py-1.5 whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                         {{ $standard->distance }} m {{ $standard->strokeType?->name_de }}
                     </td>
-                    <td class="px-3 py-1.5 whitespace-nowrap font-mono text-xs">
+                    <td class="px-3 py-1.5 whitespace-nowrap font-mono text-xs text-zinc-900 dark:text-zinc-100">
                         {{ $standard->sport_class }}
-                        <span class="text-zinc-400">{{ $standard->gender === 'M' ? 'm' : 'w' }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400">{{ $standard->gender === 'M' ? 'm' : 'w' }}</span>
                     </td>
 
-                    {{-- MQS --}}
                     <td class="px-3 py-1">
                         <x-championship-standard-cell
                             :standard="$standard"
@@ -126,10 +128,9 @@
                             placeholder="__:__.__"/>
                     </td>
                     <td class="px-3 py-1.5 text-right font-mono text-xs text-zinc-500">
-                        {{ $this->pointsFor($standard->mqs_centiseconds, $standard) ?? '' }}
+                        {{ $punkte[$standard->getKey()]['mqs'] ?? '' }}
                     </td>
 
-                    {{-- MET --}}
                     <td class="px-3 py-1">
                         <x-championship-standard-cell
                             :standard="$standard"
@@ -142,7 +143,6 @@
                             placeholder="__:__.__"/>
                     </td>
 
-                    {{-- ÖBSV-Prozentsatz --}}
                     <td class="px-3 py-1">
                         <x-championship-standard-cell
                             :standard="$standard"
@@ -155,7 +155,6 @@
                             placeholder="offen"/>
                     </td>
 
-                    {{-- ÖBSV-Zeit --}}
                     <td class="px-3 py-1">
                         <x-championship-standard-cell
                             :standard="$standard"
@@ -166,6 +165,8 @@
                             :display="$standard->formatted_obsv"
                             width="w-32"
                             placeholder="__:__.__"/>
+                    </td>
+                    <td class="px-3 py-1.5 whitespace-nowrap">
                         @if($standard->isObsvManual())
                             <flux:badge color="amber" size="sm">von Hand</flux:badge>
                         @elseif($standard->isObsvOpen())
@@ -173,7 +174,7 @@
                         @endif
                     </td>
                     <td class="px-3 py-1.5 text-right font-mono text-xs text-zinc-500">
-                        {{ $this->pointsFor($standard->obsv_centiseconds, $standard) ?? '' }}
+                        {{ $punkte[$standard->getKey()]['obsv'] ?? '' }}
                     </td>
 
                     <td class="px-3 py-1.5 text-right">
@@ -186,7 +187,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    <td colspan="10" class="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
                         Keine Normen — mit dem Filter oder dem Formular unten beginnen.
                     </td>
                 </tr>
@@ -195,6 +196,12 @@
         </table>
     </div>
 
+    @if($this->standards()->hasPages())
+        <div class="mt-4">
+            {{ $this->standards()->links() }}
+        </div>
+    @endif
+
     @if($istAdmin)
         {{-- ── Neue Zeile ──────────────────────────────────────────────────── --}}
         <div class="mt-6 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
@@ -202,45 +209,40 @@
             <div class="flex flex-wrap items-end gap-3">
                 <flux:field class="w-48">
                     <flux:label>Bewerb</flux:label>
-                    <flux:select x-model="$wire.newStrokeTypeId">
+                    <flux:select x-on:change="$wire.newStrokeTypeId = $event.target.value">
                         <option value="">Bitte wählen</option>
                         @foreach($this->strokeTypes() as $strokeType)
-                            <option value="{{ $strokeType->id }}">{{ $strokeType->name_de }}</option>
+                            <option value="{{ $strokeType->id }}"
+                                @selected($newStrokeTypeId === (string) $strokeType->id)>{{ $strokeType->name_de }}</option>
                         @endforeach
                     </flux:select>
-                    @error('newStrokeTypeId')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="newStrokeTypeId"/>
                 </flux:field>
 
                 <flux:field class="w-28">
                     <flux:label>Strecke</flux:label>
                     <flux:input x-model="$wire.newDistance" type="number" placeholder="100"/>
-                    @error('newDistance')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="newDistance"/>
                 </flux:field>
 
                 <flux:field class="w-36">
                     <flux:label>Geschlecht</flux:label>
-                    <flux:select x-model="$wire.newGender">
-                        <option value="M">männlich</option>
-                        <option value="F">weiblich</option>
+                    <flux:select x-on:change="$wire.newGender = $event.target.value">
+                        <option value="M" @selected($newGender === 'M')>männlich</option>
+                        <option value="F" @selected($newGender === 'F')>weiblich</option>
                     </flux:select>
                 </flux:field>
 
                 <flux:field class="w-32">
                     <flux:label>Sportklasse</flux:label>
                     <flux:input x-model="$wire.newSportClass" placeholder="S7"/>
-                    @error('newSportClass')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="newSportClass"/>
                 </flux:field>
 
                 <flux:button wire:click="addRow" variant="primary" size="sm" icon="plus">Hinzufügen</flux:button>
             </div>
             <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Zeiten: nur Ziffern tippen, die Maske setzt Doppelpunkt und Punkt — „011319" wird zu 01:13.19. Gespeichert wird beim Verlassen des Feldes oder mit Enter. Ein leeres Feld bedeutet „nicht ausgeschrieben".
+                Ein leeres Zeitfeld bedeutet „nicht ausgeschrieben".
             </p>
         </div>
     @endif

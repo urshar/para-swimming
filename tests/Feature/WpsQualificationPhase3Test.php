@@ -99,7 +99,7 @@ function standardFile_wq3(array $dataRows): string
     return xlsx_wq3(
         $dataRows,
         "List of MQS and MET Times for the Madeira 2024 Para Swimming European Open Championships\n"
-        .'Qualification Period - 1 January 2023 to 26 February 2024',
+            .'Qualification Period - 1 January 2023 to 26 February 2024',
         ['Events', 'Class', 'Men', 'Women'],
         ['MQS', 'MET', 'MQS', 'MET'],
     );
@@ -445,4 +445,103 @@ it('verweist auf einen neuen Upload, wenn keine Vorschau in der Sitzung liegt', 
         ->post(route('championships.import.run', $championship))
         ->assertRedirect(route('championships.import', $championship))
         ->assertSessionHasErrors('standards_file');
+});
+
+// ── Übernahme von Zeitraum und Herkunft (§9.2) ───────────────────────────────
+
+it('übernimmt Zeitraum und Herkunft nur auf ausdrücklichen Wunsch', function () {
+    $championship = championship_wq3();
+    $admin = admin_wq3();
+
+    $pfad = standardFile_wq3([
+        ['50m Freestyle', 'S7', '00:31.62', null, null, null],
+    ]);
+
+    $this->actingAs($admin)->post(route('championships.import.preview', $championship), [
+        'standards_file' => new UploadedFile($pfad, 'normen.xlsx', null, null, true),
+    ])->assertOk();
+
+    // Ohne die Checkbox sendet der Browser das Feld gar nicht mit.
+    $this->actingAs($admin)->post(route('championships.import.run', $championship))->assertRedirect();
+
+    $frisch = $championship->fresh();
+
+    expect($frisch->qualification_start->format('Y-m-d'))->toBe('2023-01-01')
+        ->and($frisch->qualification_end->format('Y-m-d'))->toBe('2024-02-26')
+        ->and($frisch->source)->toBeNull();
+});
+
+it('übernimmt Zeitraum und Herkunft, wenn die Checkbox gesetzt ist', function () {
+    $championship = championship_wq3();
+    $championship->update([
+        'qualification_start' => '2020-01-01',
+        'qualification_end' => '2020-12-31',
+        'source' => 'Alte Angabe',
+    ]);
+
+    $admin = admin_wq3();
+    $pfad = standardFile_wq3([
+        ['50m Freestyle', 'S7', '00:31.62', null, null, null],
+    ]);
+
+    $this->actingAs($admin)->post(route('championships.import.preview', $championship), [
+        'standards_file' => new UploadedFile($pfad, 'normen.xlsx', null, null, true),
+    ])->assertOk();
+
+    $this->actingAs($admin)
+        ->post(route('championships.import.run', $championship), ['adopt_metadata' => '1'])
+        ->assertRedirect();
+
+    $frisch = $championship->fresh();
+
+    expect($frisch->qualification_start->format('Y-m-d'))->toBe('2023-01-01')
+        ->and($frisch->qualification_end->format('Y-m-d'))->toBe('2024-02-26')
+        // Überschreibt die vorhandene Angabe — wer die Übernahme anhakt, will diese Datei.
+        ->and($frisch->source)->toContain('Madeira 2024')
+        // Der Name bleibt unangetastet; die Titelzeile taugt nicht als Meisterschaftsname.
+        ->and($frisch->name)->toBe('Para Swimming European Open Championships 2024');
+});
+
+it('zieht den mehrzeiligen Titel zu einer Zeile zusammen', function () {
+    $championship = championship_wq3();
+    $admin = admin_wq3();
+
+    $pfad = standardFile_wq3([
+        ['50m Freestyle', 'S7', '00:31.62', null, null, null],
+    ]);
+
+    $this->actingAs($admin)->post(route('championships.import.preview', $championship), [
+        'standards_file' => new UploadedFile($pfad, 'normen.xlsx', null, null, true),
+    ]);
+    $this->actingAs($admin)
+        ->post(route('championships.import.run', $championship), ['adopt_metadata' => '1']);
+
+    expect($championship->fresh()->source)->not->toContain("\n")
+        ->and($championship->fresh()->source)->toContain('Qualification Period');
+});
+
+it('lässt den Zeitraum stehen, wenn die Datei keinen enthält, und setzt die Herkunft dennoch', function () {
+    $championship = championship_wq3();
+    $admin = admin_wq3();
+
+    $pfad = xlsx_wq3(
+        [['50m Freestyle', 'S7', '00:31.62', null, null, null]],
+        'Normliste ohne Zeitraumangabe',
+        ['Events', 'Class', 'Men', 'Women'],
+        ['MQS', 'MET', 'MQS', 'MET'],
+    );
+
+    $this->actingAs($admin)->post(route('championships.import.preview', $championship), [
+        'standards_file' => new UploadedFile($pfad, 'normen.xlsx', null, null, true),
+    ]);
+    $this->actingAs($admin)
+        ->post(route('championships.import.run', $championship), ['adopt_metadata' => '1']);
+
+    $frisch = $championship->fresh();
+
+    // Ein leerer Zeitraum nähme später Ergebnisse aus der Wertung — deshalb bleibt der
+    // hinterlegte stehen.
+    expect($frisch->qualification_start->format('Y-m-d'))->toBe('2023-01-01')
+        ->and($frisch->qualification_end->format('Y-m-d'))->toBe('2024-02-26')
+        ->and($frisch->source)->toBe('Normliste ohne Zeitraumangabe');
 });

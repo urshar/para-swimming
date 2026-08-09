@@ -7,6 +7,23 @@
         use App\Support\TimeParser;
         use Illuminate\Support\Carbon;
 
+        // Nur anbieten, wenn die Datei überhaupt etwas Übernehmbares enthält.
+        $uebernehmbar = $preview->suggestedPeriod !== null || $preview->title !== null;
+
+        // Die Zeiträume hier zusammenbauen statt im Markup: Vier Carbon-Aufrufe zwischen
+        // den Textbausteinen machen den Satz unlesbar.
+        $zeitraumAusDatei = $preview->suggestedPeriod === null ? null : sprintf(
+            '%s bis %s',
+            Carbon::parse($preview->suggestedPeriod['start'])->format('d.m.Y'),
+            Carbon::parse($preview->suggestedPeriod['end'])->format('d.m.Y'),
+        );
+
+        $zeitraumHinterlegt = sprintf(
+            '%s bis %s',
+            $championship->qualification_start->format('d.m.Y'),
+            $championship->qualification_end->format('d.m.Y'),
+        );
+
         $kennzahlen = [
             'Normen' => $preview->counts['rows'],
             'Bewerbe' => $preview->counts['events'],
@@ -33,16 +50,21 @@
             @endforeach
         </div>
 
-        @if($preview->suggestedPeriod)
+        @if($uebernehmbar)
             <div
-                class="mb-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
-                Die Titelzeile nennt den Qualifikationszeitraum
-                {{ Carbon::parse($preview->suggestedPeriod['start'])->format('d.m.Y') }} bis
-                {{ Carbon::parse($preview->suggestedPeriod['end'])->format('d.m.Y') }}.
-                Er wird <strong>nicht</strong> übernommen — bei der Meisterschaft ist
-                {{ $championship->qualification_start->format('d.m.Y') }} bis
-                {{ $championship->qualification_end->format('d.m.Y') }} hinterlegt.
-                Weichen die Angaben ab, bitte zuerst die Meisterschaft bearbeiten.
+                class="mb-4 p-4 space-y-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
+                @if($zeitraumAusDatei)
+                    <p>
+                        Die Titelzeile nennt den Qualifikationszeitraum
+                        <strong>{{ $zeitraumAusDatei }}</strong>.
+                        Bei der Meisterschaft ist derzeit {{ $zeitraumHinterlegt }} hinterlegt.
+                    </p>
+                @endif
+                <p>
+                    Angaben werden nur auf ausdrücklichen Wunsch übernommen. Der Titel landet im
+                    Feld „Herkunft der Normdatei" und überschreibt einen dort vorhandenen Eintrag;
+                    der Name der Meisterschaft bleibt unangetastet.
+                </p>
             </div>
         @endif
 
@@ -110,11 +132,16 @@
 
         <div class="flex gap-3">
             @if($preview->isValid())
-                <form method="POST" action="{{ route('championships.import.run', $championship) }}">
+                <form method="POST" action="{{ route('championships.import.run', $championship) }}"
+                      class="flex flex-wrap items-center gap-4">
                     @csrf
                     <flux:button type="submit" variant="primary">
                         {{ $preview->rowCount() }} Normen importieren
                     </flux:button>
+                    @if($uebernehmbar)
+                        <flux:checkbox name="adopt_metadata" value="1"
+                                       label="Qualifikationszeitraum und Herkunft aus der Datei übernehmen"/>
+                    @endif
                 </form>
             @endif
             <flux:button href="{{ route('championships.import', $championship) }}" variant="ghost">
