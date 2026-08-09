@@ -8,6 +8,7 @@ use App\Http\Controllers\BaseTimeExportController;
 use App\Http\Controllers\BaseTimeImportController;
 use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ChampionshipController;
+use App\Http\Controllers\ChampionshipQualificationController;
 use App\Http\Controllers\ChampionshipStandardImportController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
@@ -214,6 +215,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('championships/{championship}/import/run',
             [ChampionshipStandardImportController::class, 'run'])->name('championships.import.run');
     });
+
+    // Erfüllungsübersicht — lesend, deshalb ohne RequireAdmin. Vereinsnutzer sehen nur die
+    // Athleten ihres Vereins; das regelt der Controller.
+    Route::get('championships/{championship}/qualified',
+        [ChampionshipQualificationController::class, 'qualified'])->name('championships.qualified');
+    Route::get('championships/{championship}/development',
+        [ChampionshipQualificationController::class, 'development'])->name('championships.development');
 
     Route::get('championships/{championship}', [ChampionshipController::class, 'show'])
         ->name('championships.show');

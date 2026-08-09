@@ -25,13 +25,37 @@
                 </flux:button>
                 @if(auth()->user()?->is_admin)
                     <flux:button href="{{ route('championships.import', $championship) }}"
-                                 variant="filled" size="sm" icon="arrow-up-tray">
+                                 variant="ghost" size="sm" icon="arrow-up-tray">
                         Importieren
                     </flux:button>
                     <flux:button href="{{ route('championships.edit', $championship) }}"
                                  variant="ghost" size="sm" icon="pencil"/>
                 @endif
             </div>
+        </div>
+
+        {{-- Einstieg in die beiden Auswertungen. Sie beantworten verschiedene Fragen (§7.5);
+             die Beschreibung steht deshalb am Knopf und nicht erst in der Ansicht. --}}
+        <div class="mb-6 grid gap-3 sm:grid-cols-2">
+            <a href="{{ route('championships.qualified', $championship) }}"
+               class="block p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl
+                      hover:border-zinc-300 dark:hover:border-zinc-600 transition">
+                <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Qualifikanten</span>
+                <span class="block mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Wer hat die Norm nachweislich erfüllt? Nur reale Zeiten aus WPS-anerkannten
+                    Wettkämpfen.
+                </span>
+            </a>
+
+            <a href="{{ route('championships.development', $championship) }}"
+               class="block p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl
+                      hover:border-zinc-300 dark:hover:border-zinc-600 transition">
+                <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Förderansicht</span>
+                <span class="block mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Wie weit ist ein Athlet von der Norm entfernt? Mit umgerechneten Kurzbahnzeiten
+                    und Zielzeiten — Planungswerkzeug, kein Nachweis.
+                </span>
+            </a>
         </div>
 
         @if(session('success'))

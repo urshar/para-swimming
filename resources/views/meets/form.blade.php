@@ -143,6 +143,35 @@
 
                 @if(auth()->user()?->is_admin)
                     <flux:field>
+                        <flux:label>WPS-anerkannter Wettkampf</flux:label>
+                        <div class="flex items-center gap-3 mt-1">
+                            <input type="checkbox" name="wps_approved" value="1" id="wps_approved"
+                                   class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
+                                          text-blue-600 bg-white dark:bg-zinc-800
+                                          focus:ring-blue-500 focus:ring-2"
+                                {{ old('wps_approved', $meet->wps_approved ?? false) ? 'checked' : '' }}>
+                            <label for="wps_approved" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                Von World Para Swimming sanktioniert
+                            </label>
+                        </div>
+                        <flux:description>
+                            Nur Zeiten aus sanktionierten Wettkämpfen gelten als Qualifikationsnachweis
+                            für internationale Meisterschaften. Ohne diese Kennzeichnung erscheint ein
+                            Ergebnis nicht in der Qualifikantenliste — in der Förderansicht sehr wohl,
+                            dort mit entsprechendem Vermerk.
+                        </flux:description>
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Fundstelle der Anerkennung</flux:label>
+                        <flux:input name="wps_approved_note"
+                                    value="{{ old('wps_approved_note', $meet->wps_approved_note ?? '') }}"
+                                    placeholder="z.B. WPS Sanctioned Competitions 2026, Nr. 14"/>
+                        <flux:description>Optional — wo die Anerkennung nachzulesen ist.</flux:description>
+                        <flux:error name="wps_approved_note"/>
+                    </flux:field>
+
+                    <flux:field>
                         <flux:label>ÖBSV Cup</flux:label>
                         <flux:select name="cup_id">
                             <option value="">Kein Cup</option>
@@ -211,10 +240,16 @@
                                      und überschreibt eine gespeicherte Auswahl stillschweigend.
                                      Stattdessen entscheidet allein der Server; Alpine liest den
                                      Zustand nur mit, um die Versionsauswahl ein- und
-                                     auszublenden. --}}
+                                     auszublenden.
+
+                                     Aus demselben Grund kein x-init: Den Ausgangszustand kennt
+                                     die Komponente bereits aus wpsAlpineConfig.wpsSelected, das
+                                     aus derselben PHP-Quelle stammt wie das @checked darunter.
+                                     Ihn zusätzlich aus dem DOM zu lesen wäre eine zweite Quelle
+                                     für denselben Zustand. --}}
                                 <input type="checkbox" name="point_systems[]" value="{{ $system->id }}"
                                        @if((int) $system->id === $wpsSystemId)
-                                           x-init="wps = $el.checked" @change="wps = $el.checked"
+                                           @change="wps = $event.target.checked"
                                        @endif
                                        @checked(in_array((int) $system->id, $selectedIds, true))
                                        class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">

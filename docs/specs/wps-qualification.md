@@ -177,6 +177,17 @@ Index auf `(year, type)`.
 `course` ist vorhanden, obwohl die Normen bislang stets Langbahn sind — eine Kurzbahn-Meisterschaft ist denkbar, und
 ohne das Feld wäre die Umrechnung dann still falsch.
 
+## 5.1a `meets.wps_approved`
+
+Zwei Spalten an der bestehenden Tabelle `meets`:
+
+| Spalte              | Typ                    | Bedeutung                                              |
+|---------------------|------------------------|--------------------------------------------------------|
+| `wps_approved`      | boolean, Default false | Wettkampf von World Para Swimming sanktioniert          |
+| `wps_approved_note` | string(255), nullable  | Fundstelle der Anerkennung, für die Nachvollziehbarkeit |
+
+Begründung siehe §7.1. Gesetzt wird das Merkmal im Wettkampfformular, nur für Admins.
+
 ## 5.2 `championship_standards`
 
 | Feld              | Typ                                 | Beschreibung                            |
@@ -247,8 +258,8 @@ Bewertung ist verbindlich (**[Q4]**).
 
 ## 7.1 Ergebnisauswahl
 
-Berücksichtigt werden Ergebnisse mit Wettkampfdatum im Qualifikationszeitraum, mit gültiger Zeit, ohne Status `DNS`/
-`DNF`/`DSQ`/`SICK`/`WDR`, aus Einzelbewerben. `EXH` wird berücksichtigt — die Bewertung, ob ein außer Konkurrenz
+Berücksichtigt werden Ergebnisse mit Wettkampfdatum im Qualifikationszeitraum **der Meisterschaft**, mit gültiger Zeit,
+ohne Status `DNS`/`DNF`/`DSQ`/`SICK`/`WDR`, aus Einzelbewerben. `EXH` wird berücksichtigt — die Bewertung, ob ein außer Konkurrenz
 erzieltes Ergebnis international anerkannt wird, liegt bei World Para Swimming. Die Kennzeichnung bleibt sichtbar.
 
 Maßgeblich ist `results.sport_class`, nicht der Athletenstammsatz. Vor dem Abgleich greift die Zuordnung 21 → 14
@@ -256,6 +267,21 @@ Maßgeblich ist `results.sport_class`, nicht der Athletenstammsatz. Vor dem Abgl
 
 Je Athlet, Bewerb und Norm zählt die beste Leistung im Zeitraum — getrennt nach realer Langbahnzeit und umgerechneter
 Kurzbahnzeit, da beide unterschiedlichen Rang haben (**[Q4]**).
+
+**Eine reale Zeit auf der Bahnlänge der Meisterschaft schlägt eine umgerechnete immer**, auch wenn die umgerechnete
+schneller ist. Die Schätzung wird nur herangezogen, wenn gar keine reale Zeit vorliegt. Grund: Der Status trägt eine
+Zeit. Gewönne die Schätzung, verschwände die reale Zeit aus der Zeile — angezeigt stünde "rechnerisch erreicht" bei
+jemandem, der auf der Zielbahnlänge nachweislich langsamer war, und die Zahl, die das widerlegt, wäre nirgends zu sehen.
+Eine reale Zeit ist der stärkere Beleg, auch wenn sie ein Nein ist.
+
+**Nur WPS-anerkannte Wettkämpfe liefern Nachweise.** `meets.wps_approved` kennzeichnet Wettkämpfe, die von World Para
+Swimming sanktioniert sind. Zeiten aus nicht gekennzeichneten Wettkämpfen erscheinen **nicht** in der
+Qualifikantenliste (§7.5), in der Förderansicht dagegen sehr wohl — dort mit dem Vermerk "Wettkampf nicht
+WPS-anerkannt".
+
+Der Default ist `false`, ausdrücklich auch für den Altbestand: Ein Default `true` behauptete über jeden bestehenden
+Wettkampf eine Anerkennung, die niemand geprüft hat. Damit eine leere Liste nicht mit einer korrekt leeren verwechselt
+wird, weist die Qualifikantenliste aus, wie viele Ergebnisse mangels Kennzeichnung ausgeschlossen wurden.
 
 ## 7.2 Status je Athlet und Bewerb
 
@@ -298,6 +324,24 @@ Bewerbe ohne Norm für die betreffende Klasse erscheinen als eigener Abschnitt "
 verschwinden nicht aus der Liste. Grund: Ein Trainer soll erkennen, dass dieser Bewerb international nicht zur Verfügung
 steht — nicht, dass er vergessen wurde.
 
+## 7.5 Zwei getrennte Ansichten, kein Statusfilter
+
+Die Erfüllungsübersicht beantwortet zwei verschiedene Fragen. Sie werden als **zwei eigenständige Ansichten** umgesetzt,
+nicht als eine Liste mit Statusfilter — ein Filter wäre die Möglichkeit, sich umgerechnete Zeiten doch wieder in die
+Nachweisliste zu holen (Q-R1).
+
+| Ansicht                                    | Frage                                            | Enthält                                                                                                       |
+|--------------------------------------------|--------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| **Qualifikanten** (`/qualified`)           | Wer hat sich qualifiziert?                       | ausschließlich `mqs_met` und `obsv_met` aus WPS-anerkannten Wettkämpfen; keine umgerechneten Zeiten, kein `met_only` |
+| **Förderansicht** (`/development`)         | Hat der Athlet international eine Chance?        | alles: umgerechnete Zeiten, Abstand zur Norm auch bei Nichterfüllung, Zielzeit auf der anderen Bahnlänge, Bewerbe ohne Norm |
+
+Beide teilen sich `QualificationEvaluationService` — es darf nur **eine** Stelle geben, die entscheidet, ob eine Norm
+erfüllt ist. Getrennt sind ausschließlich Zeilenauswahl und Darstellung. Die Unterscheidung selbst liegt in
+`QualificationStatus::isProof()`.
+
+Die Auswahl-Rangliste (§8) beantwortet die dritte Frage — *wer fährt?* — und greift erst, wenn aus der
+Qualifikantenliste mehr Namen kommen als Startplätze vorhanden sind.
+
 ---
 
 # 8. Auswahl-Rangliste
@@ -329,59 +373,25 @@ Prozentsatz (§5.3); Kopieren aller Normen einer Meisterschaft als Ausgangspunkt
 Dreistufig nach dem Muster von `WpsParameterImportService`: Formular → Vorschau (parst und validiert, schreibt nichts) →
 Import. Der Vorschauschritt ist verbindlich.
 
-**Aufbau der bekannten Datei** (geprüft an *Para Swimming European Open Championships*, Madeira 2024, aus dem PDF nach
-Excel konvertiert):
+**Aufbau der bekannten Datei** (Beispiel EM 2026, aus dem PDF nach Excel konvertiert):
 
-| Zeile | Inhalt                                                   |
-|-------|----------------------------------------------------------|
-| 1     | Titel, enthält den Qualifikationszeitraum im Klartext    |
-| 2     | Kopfzeile: A Events, B Class, C Men, E Women             |
-| 3     | Unterkopf: C MQS, D MET, E MQS, F MET                    |
-| ab 4  | Daten                                                    |
+| Spalte | Inhalt                                                                   |
+|--------|--------------------------------------------------------------------------|
+| A      | Bewerb — **nur in der ersten Zeile einer Gruppe** gefüllt, darunter leer |
+| B      | Sportklasse                                                              |
+| C      | MQS Männer                                                               |
+| D      | MQS Frauen                                                               |
 
-| Spalte | Inhalt                                                |
-|--------|-------------------------------------------------------|
-| A      | Bewerb — nur in der ersten Zeile einer Gruppe gefüllt |
-| B      | Sportklasse                                           |
-| C      | MQS Männer                                            |
-| D      | MET Männer                                            |
-| E      | MQS Frauen                                            |
-| F      | MET Frauen                                            |
-
-**Korrektur gegenüber Fassung 1.0 dieser Spec.** Die frühere Beschreibung nannte vier Spalten (A–D) und Zeiten als
-Excel-Zeitwerte. Beides trifft auf die geprüfte Datei nicht zu:
-
-- Es sind **sechs Spalten**; MET ist je Geschlecht vorhanden.
-- Die Zeiten stehen als **Text** ("01:00.94"), nicht als Excel-Zeitwerte. Gelesen wird deshalb primär über
-  `TimeParser::parse()`; ein numerischer Wert wird als Excel-Serienwert behandelt, falls eine künftige Datei es anders
-  hält.
+Zeile 1 Titel, Zeile 2 Kopfzeile, Zeile 3 Unterkopf. Zeiten als Excel-Zeitwerte, nicht als Text — entsprechend über
+`PhpSpreadsheet\Shared\Date` zu lesen, sonst erscheinen Serienwerte.
 
 **Verbindliche Regeln:**
 
-- Der Bewerbsname wird mitgeführt, bis ein neuer erscheint (Gruppenkopf). Er steht in **verbundenen Zellen**
-  (`A4:A13` …); PhpSpreadsheet liefert den Wert am Anker, die übrigen Zellen leer.
-- Es gibt auch **verbundene Zeitzellen** (`C8:C9`, `E27:F29` …) — Überbleibsel der PDF-Konvertierung, die jeweils leere
-  Nachbarn überspannen. Verbundene Werte dürfen **nicht** nach unten aufgelöst werden: In Zeile 9 bekäme die Klasse S8
-  sonst die Zeit von S7 zugewiesen, eine falsche Norm, die niemandem auffällt. Gelesen wird nur der Ankerwert.
-- Zwischen den Bewerbsgruppen stehen **Leerzeilen**. Eine leere Zeile beendet den Datenbereich also **nicht** (anders
-  als beim Import der Punkteparameter). Schluss ist erst beim Staffelabschnitt.
+- Der Bewerbsname wird mitgeführt, bis ein neuer erscheint (Gruppenkopf).
 - Leere Zellen bedeuten "nicht ausgeschrieben" und erzeugen **keine** Zeile — kein Fehler.
-- Der Staffelabschnitt am Ende (Zeile mit `Relays*`, darunter Klassen wie `34 Points`) wird übersprungen und in der
-  Vorschau als Hinweis ausgewiesen; Staffelnormen sind in Punkten angegeben und nicht Teil dieses Moduls.
+- Der Staffelabschnitt am Ende wird übersprungen; Staffelnormen sind in Punkten angegeben und nicht Teil dieses Moduls.
 - Der Import füllt **ausschließlich** MQS und MET. ÖBSV-Prozentsätze und -Zeiten bleiben unberührt, damit ein erneuter
-  Import eure Festlegungen nicht überschreibt. Dafür sorgt die Feld-Whitelist in
-  `ChampionshipStandardService::upsertStandard()`.
-- Normen, die in der Meisterschaft stehen und in der Datei fehlen, werden **nicht gelöscht**, sondern in der Vorschau
-  ausgewiesen. Löschen wäre bei einem Formatfehler in der Datei ein stiller Datenverlust.
-- Qualifikationszeitraum und Titel werden **auf Nachfrage** übernommen, nie automatisch: Die Vorschau zeigt beide
-  Werte und bietet dazu eine nicht vorbelegte Checkbox an. Die Formulierung der Titelzeile ist nicht garantiert stabil,
-  und ein still falsch gesetzter Zeitraum nähme später Ergebnisse aus der Wertung, ohne dass jemand die Ursache sieht.
-    - Der Titel geht in `source` (Herkunft der Normdatei) und **überschreibt** einen vorhandenen Eintrag — wer die
-      Übernahme anhakt, will die Angaben aus dieser Datei. Zeilenumbrüche werden zu Leerzeichen zusammengezogen.
-    - Der **Name** der Meisterschaft bleibt unangetastet. Die Titelzeile lautet etwa "List of MQS and MET Times for the
-      Madeira 2024 Para Swimming European Open Championships" und taugt nicht als Name, der in Übersicht, Auswahlfeldern
-      und PDF erscheint.
-    - Enthält die Datei keinen lesbaren Zeitraum, bleibt der hinterlegte stehen, statt geleert zu werden.
+  Import eure Festlegungen nicht überschreibt.
 - Erkennt der Import das Format nicht, bricht er mit einer verständlichen Meldung ab und verweist auf die manuelle
   Pflege.
 
@@ -402,7 +412,8 @@ Routen unter `/championships`, Verwaltung hinter `RequireAdmin`, Ansichten in de
 | Übersicht | Meisterschaften mit Zeitraum, Anzahl Normen, offenen ÖBSV-Zeilen |
 | Normen    | Tabelle mit Filterung, Massenaktion, Inline-Bearbeitung          |
 | Import    | Formular, Vorschau                                               |
-| Erfüllung | je Athlet oder je Bewerb, mit Statusfilter                       |
+| Qualifikanten | ausschließlich Nachweise, nach Bewerb/Geschlecht/Klasse gruppiert |
+| Förderansicht | je Athlet über alle Bewerbe, mit Suche                            |
 | Auswahl   | Rangliste nach Punkten                                           |
 
 Blade- und Flux-Konventionen wie in `wps-points` §14.4: `@extends('layouts.app')` +
@@ -531,6 +542,7 @@ durchgängig als "kein Nachweis" gekennzeichnet.
 | Q-R6 | Prozentsatz auf die Zeit wirkt über die Bewerbe ungleich | Punktanzeige neben der Zeit (§5.3)                                     |
 | Q-R7 | Offene Zeilen sehen aus wie bewusst gesetzte             | `null` ≠ `0` (**[Q3]**), Kennzeichnung offener Zeilen                  |
 | Q-R8 | Umrechnung für Nachwuchs zu optimistisch                 | Übernahme des Hinweises aus `wps-points` §9.6                          |
+| Q-R9 | Nicht gekennzeichnete Wettkämpfe lassen die Qualifikantenliste leer aussehen | Ausschlusshinweis mit Anzahl und betroffenen Wettkämpfen über der Liste (§7.1) |
 
 ---
 

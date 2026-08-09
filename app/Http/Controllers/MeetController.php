@@ -60,6 +60,9 @@ class MeetController extends Controller
     {
         $data = $this->validateMeet($request);
         $data['is_open'] = $request->boolean('is_open');
+        // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
+        // sich die WPS-Anerkennung nie wieder zurücknehmen.
+        $data['wps_approved'] = $request->boolean('wps_approved');
 
         if (! auth()->user()?->is_admin) {
             unset($data['cup_id'], $data['qualifying_time_list_id']);
@@ -101,6 +104,9 @@ class MeetController extends Controller
     {
         $data = $this->validateMeet($request);
         $data['is_open'] = $request->boolean('is_open');
+        // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
+        // sich die WPS-Anerkennung nie wieder zurücknehmen.
+        $data['wps_approved'] = $request->boolean('wps_approved');
 
         if (! auth()->user()?->is_admin) {
             unset($data['cup_id'], $data['qualifying_time_list_id']);
@@ -206,6 +212,8 @@ class MeetController extends Controller
             'timing' => 'nullable|in:AUTOMATIC,SEMIAUTOMATIC,MANUAL3,MANUAL2,MANUAL1',
             'entry_type' => 'nullable|in:OPEN,INVITATION',
             'is_open' => 'boolean',
+            'wps_approved' => 'boolean',
+            'wps_approved_note' => 'nullable|string|max:255',
             'cup_id' => 'nullable|exists:cups,id',
             'qualifying_time_list_id' => 'nullable|exists:qualifying_time_lists,id',
         ]);

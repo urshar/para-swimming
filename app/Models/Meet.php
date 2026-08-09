@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -27,6 +28,8 @@ class Meet extends Model
         'entry_type',
         'lenex_status',
         'is_open',
+        'wps_approved',
+        'wps_approved_note',
         'swrid',
         'lenex_meet_id',
         'entries_deadline',
@@ -34,10 +37,19 @@ class Meet extends Model
         'qualifying_time_list_id',
     ];
 
+    /**
+     * Defaults auch im Model, nicht nur in der Migration: Ein DB-Default füllt die Spalte
+     * beim INSERT, wird aber nicht in die im Speicher liegende Instanz zurückgelesen.
+     */
+    protected $attributes = [
+        'wps_approved' => false,
+    ];
+
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_open' => 'boolean',
+        'wps_approved' => 'boolean',
         'entries_deadline' => 'date',
     ];
 
@@ -61,6 +73,16 @@ class Meet extends Model
     }
 
     // ── Relationen ────────────────────────────────────────────────────────────
+
+    /**
+     * Von World Para Swimming sanktionierte Wettkämpfe.
+     *
+     * Nur deren Zeiten gelten als Qualifikationsnachweis (Spec "WPS Qualification" §7.1).
+     */
+    public function scopeWpsApproved(Builder $query): Builder
+    {
+        return $query->where('wps_approved', true);
+    }
 
     public function nation(): BelongsTo
     {
