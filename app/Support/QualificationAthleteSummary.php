@@ -32,6 +32,17 @@ final readonly class QualificationAthleteSummary
         public Collection $rowsWithoutStandard,
     ) {}
 
+    /**
+     * Alter und Geburtsjahr zum Stichtag 31.12. des Meisterschaftsjahres.
+     *
+     * Delegiert an AthleteAge, damit die Stichtagsregel nur an einer Stelle steht — die
+     * Auswahl-Rangliste braucht dieselbe Angabe, arbeitet aber nicht mit diesem Objekt.
+     */
+    public function ageLabel(int $year): ?string
+    {
+        return AthleteAge::label($this->athlete, $year);
+    }
+
     /** Sportklasse für die Kopfzeile — die S-Klasse, nicht SB oder SM. */
     public function displaySportClass(): ?string
     {

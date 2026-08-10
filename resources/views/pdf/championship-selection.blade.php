@@ -1,5 +1,6 @@
 @php
     use App\Http\Controllers\ChampionshipSelectionController as Auswahl;
+    use App\Support\AthleteAge;
     use App\Support\TimeParser;
 
     // Der Hinweis aus §11 erscheint nur, wenn tatsächlich eine umgerechnete Zeit enthalten
@@ -92,13 +93,14 @@
 <table>
     <thead>
     <tr>
-        <th style="width: 7%;">Rang</th>
-        <th style="width: 22%;">Athlet</th>
-        <th style="width: 20%;">Verein</th>
-        <th style="width: 22%;">Bester Bewerb</th>
-        <th style="width: 11%;">Zeit</th>
-        <th style="width: 9%;">Punkte</th>
-        <th style="width: 9%;">Normen</th>
+        <th style="width: 6%;">Rang</th>
+        <th style="width: 20%;">Athlet</th>
+        <th style="width: 13%;">Alter</th>
+        <th style="width: 16%;">Verein</th>
+        <th style="width: 20%;">Bester Bewerb</th>
+        <th style="width: 10%;">Zeit</th>
+        <th style="width: 8%;">Punkte</th>
+        <th style="width: 7%;">Normen</th>
     </tr>
     </thead>
     <tbody>
@@ -106,6 +108,7 @@
         <tr>
             <td class="num">{{ $eintrag->rank ?? '–' }}</td>
             <td>{{ $eintrag->athlete->full_name }}</td>
+            <td>{{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}</td>
             <td>{{ $eintrag->athlete->club?->name }}</td>
             <td>{{ $eintrag->row->eventLabel }} {{ $eintrag->row->sportClass }}</td>
             <td class="num">{{ TimeParser::display($eintrag->row->status->swimTime) }}</td>
@@ -120,7 +123,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="7" class="muted">Bislang hat niemand eine Norm nachweislich erfüllt.</td>
+            <td colspan="8" class="muted">Bislang hat niemand eine Norm nachweislich erfüllt.</td>
         </tr>
     @endforelse
     </tbody>
@@ -133,12 +136,13 @@
     <table>
         <thead>
         <tr>
-            <th style="width: 7%;">Rang</th>
-            <th style="width: 26%;">Athlet</th>
-            <th style="width: 22%;">Verein</th>
-            <th style="width: 12%;">Zeit</th>
-            <th style="width: 10%;">Punkte</th>
-            <th style="width: 23%;">Wettkampf</th>
+            <th style="width: 6%;">Rang</th>
+            <th style="width: 22%;">Athlet</th>
+            <th style="width: 13%;">Alter</th>
+            <th style="width: 18%;">Verein</th>
+            <th style="width: 11%;">Zeit</th>
+            <th style="width: 9%;">Punkte</th>
+            <th style="width: 21%;">Wettkampf</th>
         </tr>
         </thead>
         <tbody>
@@ -146,6 +150,7 @@
             <tr>
                 <td class="num">{{ $eintrag->rank ?? '–' }}</td>
                 <td>{{ $eintrag->athlete->full_name }}</td>
+                <td>{{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}</td>
                 <td>{{ $eintrag->athlete->club?->name }}</td>
                 <td class="num">{{ TimeParser::display($eintrag->row->status->swimTime) }}</td>
                 <td class="num">

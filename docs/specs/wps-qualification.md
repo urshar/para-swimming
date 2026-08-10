@@ -360,8 +360,15 @@ Qualifikantenliste mehr Namen kommen als Startplätze vorhanden sind.
 Gegliedert nach **Kaderart → Athlet → Bewerb**. Athleten ohne Kaderzugehörigkeit stehen in einem eigenen Abschnitt am
 Ende, damit sie nicht stillschweigend verschwinden — auch sie können eine Norm erfüllt haben.
 
-Je Athlet eine Kopfzeile mit Name, Geschlecht, Sportklasse, Verein und der Zählung erfüllter MQS, erfüllter MET und
-offener Bewerbe.
+Je Athlet eine Kopfzeile mit Name, Geschlecht, Sportklasse, **Alter und Geburtsjahr**, Verein und der Zählung erfüllter
+MQS, erfüllter MET und offener Bewerbe.
+
+**Alter** wird nach der im Schwimmsport üblichen Stichtagsregel zum **31. Dezember des Meisterschaftsjahres** gerechnet,
+wie im Projekt bereits für die Altersgruppen der Cup-Wertung (`GroupResolverService::resolveAgeGroup()`). Bezugsjahr ist
+`championships.year` und nicht das laufende Jahr: Eine Auswertung der EM 2026 soll auch 2028 dieselben Altersangaben
+zeigen. Das Geburtsjahr steht daneben, weil das Alter jedes Jahr wechselt und das Geburtsjahr nicht — bei einem
+ausgedruckten Blatt ohne Datumsangabe ist nur daran noch erkennbar, um wen es geht. Ohne hinterlegtes Geburtsdatum
+entfällt die Angabe ganz. Die Regel liegt in `App\Support\AthleteAge`, weil alle drei Ansichten sie brauchen.
 
 Je Bewerb eine Zeile mit der **Bestleistung**: Platz, Zeit, WPS-Punkte, Wettkampf mit Datum, Normstatus und — bei
 Nichterfüllung — der Abstand. Bewerbe **ohne** Norm entfallen; sie sagen über die Qualifikation nichts aus. Bewerbe mit
@@ -470,7 +477,7 @@ behauptete etwas, einmal dass es die Leistung nicht gibt, einmal dass sie die sc
 Neben der Rangliste je Bewerb steht eine Gesamtsicht über alle Athleten. Gemessen wird die **beste einzelne Punktzahl**
 über alle Bewerbe, **nicht die Summe**: Eine Summe belohnte, wer viele Bewerbe schwimmt, und das sagt über
 internationale Chancen nichts — ein Athlet mit 850 Punkten in einem Bewerb ist stärker aufgestellt als einer mit fünfmal
-"700".
+700.
 
 Die Zeile nennt zusätzlich den Bewerb, aus dem die Bestpunktzahl stammt, und die Zahl der insgesamt erfüllten Normen.
 Beides gehört zur Einschätzung, ohne die Reihenfolge zu bestimmen.
@@ -597,6 +604,7 @@ Qualifikationszeitraums.
 | `QualificationAthleteSummary` | ein Athlet mit seinen Bewerbszeilen, Kaderart und Zählung erfüllter Normen                                                                      |
 | `QualificationRankingEntry`   | ein Platz in einer Auswahl-Rangliste; `rank = null` heißt "ohne Punktbewertung"                                                                 |
 | `QualificationOverviewFilter` | Filterstand der Qualifikantenansicht; von Bildschirm und PDF gemeinsam genutzt                                                                  |
+| `AthleteAge`                  | Alter zum 31.12. des Bezugsjahres und Geburtsjahr — von allen drei Ansichten genutzt                                                            |
 
 Durchgehend Wertobjekte statt assoziativer Arrays: Bei einem Array ist jeder Zugriff für die statische Analyse ein
 `mixed` — Tippfehler in Schlüsseln fallen erst zur Laufzeit auf, und Methodenaufrufe lassen sich nicht auflösen.
@@ -643,6 +651,8 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Gruppen `w
 - unbekannte Filterwerte in der Adresse ergeben ein vollständiges PDF, kein leeres
 - die Athletenauswahl der Förderansicht überlebt den Seitenwechsel
 - ohne Auswahl enthält das Förder-PDF alle gefilterten Athleten
+- das Alter wird zum 31.12. des Meisterschaftsjahres gerechnet, nicht zum heutigen Tag
+- ohne Geburtsdatum entfällt die Altersangabe, statt "0 Jahre" zu zeigen
 - PDF enthält den Hinweis, sobald eine umgerechnete Zeit vorkommt
 
 ---

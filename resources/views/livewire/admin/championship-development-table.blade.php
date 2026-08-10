@@ -77,6 +77,9 @@
                     <span class="block text-xs text-zinc-500 dark:text-zinc-400">
                         {{ $eintrag->athlete->gender === 'M' ? 'männlich' : 'weiblich' }}
                         · {{ $eintrag->displaySportClass() ?? '–' }}
+                        @if($eintrag->ageLabel($championship->year))
+                            · {{ $eintrag->ageLabel($championship->year) }}
+                        @endif
                         · {{ $eintrag->athlete->club?->name }}
                         @if($eintrag->kaderName)
                             · {{ $eintrag->kaderName }}

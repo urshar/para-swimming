@@ -91,6 +91,9 @@
                         <span class="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
                             {{ $eintrag->athlete->gender === 'M' ? 'männlich' : 'weiblich' }}
                             · {{ $eintrag->displaySportClass() }}
+                            @if($eintrag->ageLabel($championship->year))
+                                · {{ $eintrag->ageLabel($championship->year) }}
+                            @endif
                             · {{ $eintrag->athlete->club?->name }}
                         </span>
                     </div>

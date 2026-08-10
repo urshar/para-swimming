@@ -71,6 +71,7 @@
     <p class="athlete-meta">
         {{ $eintrag->athlete->gender === 'M' ? 'männlich' : 'weiblich' }}
         · {{ $eintrag->displaySportClass() ?? '–' }}
+        @if($eintrag->ageLabel($championship->year)) · {{ $eintrag->ageLabel($championship->year) }} @endif
         · {{ $eintrag->athlete->club?->name }}
     </p>
 

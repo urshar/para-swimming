@@ -5,6 +5,7 @@
 @section('content')
     @php
         use App\Http\Controllers\ChampionshipSelectionController as Auswahl;
+        use App\Support\AthleteAge;
         use App\Support\TimeParser;
     @endphp
 
@@ -66,6 +67,7 @@
                 <flux:table.columns>
                     <flux:table.column>Rang</flux:table.column>
                     <flux:table.column>Athlet</flux:table.column>
+                    <flux:table.column>Alter</flux:table.column>
                     <flux:table.column>Verein</flux:table.column>
                     <flux:table.column>Bester Bewerb</flux:table.column>
                     <flux:table.column>Zeit</flux:table.column>
@@ -77,6 +79,9 @@
                         <flux:table.row>
                             <flux:table.cell class="font-mono">{{ $eintrag->rank ?? '–' }}</flux:table.cell>
                             <flux:table.cell>{{ $eintrag->athlete->full_name }}</flux:table.cell>
+                            <flux:table.cell class="text-xs whitespace-nowrap">
+                                {{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}
+                            </flux:table.cell>
                             <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->name }}</flux:table.cell>
                             <flux:table.cell class="text-xs">
                                 {{ $eintrag->row->eventLabel }}
@@ -96,7 +101,7 @@
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="7">
+                            <flux:table.cell colspan="8">
                                 <span class="text-sm text-zinc-500 dark:text-zinc-400">
                                     Bislang hat niemand eine Norm nachweislich erfüllt.
                                 </span>
@@ -121,6 +126,7 @@
                         <flux:table.columns>
                             <flux:table.column>Rang</flux:table.column>
                             <flux:table.column>Athlet</flux:table.column>
+                            <flux:table.column>Alter</flux:table.column>
                             <flux:table.column>Verein</flux:table.column>
                             <flux:table.column>Zeit</flux:table.column>
                             <flux:table.column>Punkte</flux:table.column>
@@ -131,6 +137,9 @@
                                 <flux:table.row>
                                     <flux:table.cell class="font-mono">{{ $eintrag->rank ?? '–' }}</flux:table.cell>
                                     <flux:table.cell>{{ $eintrag->athlete->full_name }}</flux:table.cell>
+                                    <flux:table.cell class="text-xs whitespace-nowrap">
+                                        {{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}
+                                    </flux:table.cell>
                                     <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->name }}</flux:table.cell>
                                     <flux:table.cell class="font-mono text-xs">
                                         {{ TimeParser::display($eintrag->row->status->swimTime) }}
