@@ -9,6 +9,7 @@ use App\Http\Controllers\BaseTimeImportController;
 use App\Http\Controllers\BaseTimeVersionController;
 use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\ChampionshipQualificationController;
+use App\Http\Controllers\ChampionshipSelectionController;
 use App\Http\Controllers\ChampionshipStandardImportController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
@@ -216,12 +217,20 @@ Route::middleware(['auth'])->group(function () {
             [ChampionshipStandardImportController::class, 'run'])->name('championships.import.run');
     });
 
-    // Erfüllungsübersicht — lesend, deshalb ohne RequireAdmin. Vereinsnutzer sehen nur die
-    // Athleten ihres Vereins; das regelt der Controller.
+    // Auswertungen — lesend, deshalb ohne RequireAdmin. Vereinsnutzer sehen nur die
+    // Athleten ihres Vereins; das regelt der jeweilige Controller.
     Route::get('championships/{championship}/qualified',
         [ChampionshipQualificationController::class, 'qualified'])->name('championships.qualified');
+    Route::get('championships/{championship}/qualified/pdf',
+        [ChampionshipQualificationController::class, 'qualifiedPdf'])->name('championships.qualified.pdf');
     Route::get('championships/{championship}/development',
         [ChampionshipQualificationController::class, 'development'])->name('championships.development');
+    Route::get('championships/{championship}/development/pdf',
+        [ChampionshipQualificationController::class, 'developmentPdf'])->name('championships.development.pdf');
+    Route::get('championships/{championship}/selection',
+        [ChampionshipSelectionController::class, 'show'])->name('championships.selection');
+    Route::get('championships/{championship}/selection/pdf',
+        [ChampionshipSelectionController::class, 'pdf'])->name('championships.selection.pdf');
 
     Route::get('championships/{championship}', [ChampionshipController::class, 'show'])
         ->name('championships.show');

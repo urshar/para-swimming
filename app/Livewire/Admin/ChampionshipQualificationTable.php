@@ -6,8 +6,8 @@ use App\Models\Championship;
 use App\Models\KaderType;
 use App\Services\QualificationEvaluationService;
 use App\Support\QualificationAthleteSummary;
+use App\Support\QualificationOverviewFilter;
 use App\Support\QualificationRow;
-use App\Support\QualificationStatus;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -48,6 +48,36 @@ class ChampionshipQualificationTable extends Component
         $this->clubId = $clubId;
     }
 
+    /**
+     * Der Filterstand als Objekt — dieselbe Fassung, die auch der PDF-Controller verwendet.
+     *
+     * Zwei Ausprägungen derselben Regeln liefen früher oder später auseinander, und dann
+     * zeigte das PDF etwas anderes als der Bildschirm, von dem aus es erzeugt wurde.
+     */
+    #[Computed]
+    public function filter(): QualificationOverviewFilter
+    {
+        return new QualificationOverviewFilter(
+            $this->filterFulfilment,
+            $this->filterKader,
+            $this->search,
+        );
+    }
+
+    /**
+     * Vollständige Adresse der PDF-Ausgabe, mit dem aktuellen Filterstand.
+     *
+     * Im Code gebaut, nicht im Blade-Attribut: Dort wäre es eine Ternäroperation mit leerem
+     * String, an der sich der Blade-Parser von PhpStorm verschluckt.
+     */
+    public function pdfUrl(): string
+    {
+        $parameter = $this->filter()->toQuery();
+
+        return route('championships.qualified.pdf', $this->championship)
+            .($parameter === [] ? '' : '?'.http_build_query($parameter));
+    }
+
     public function setFilter(string $feld, string $wert): void
     {
         match ($feld) {
@@ -59,6 +89,8 @@ class ChampionshipQualificationTable extends Component
         // Aufgeklappte Zeilen zurücksetzen: Nach dem Filtern zeigen sie auf Bewerbe, die
         // womöglich gar nicht mehr sichtbar sind.
         $this->expanded = [];
+
+        unset($this->filter, $this->groups);
     }
 
     public function toggle(string $schluessel): void
@@ -72,12 +104,19 @@ class ChampionshipQualificationTable extends Component
         $this->expanded[] = $schluessel;
     }
 
+    public function updatedSearch(): void
+    {
+        unset($this->filter, $this->groups);
+    }
+
     public function resetFilters(): void
     {
         $this->filterFulfilment = 'alle';
         $this->filterKader = '';
         $this->search = '';
         $this->expanded = [];
+
+        unset($this->filter, $this->groups);
     }
 
     /**
@@ -91,20 +130,9 @@ class ChampionshipQualificationTable extends Component
     #[Computed]
     public function groups(): Collection
     {
-        $athleten = $this->service()->qualificationOverview($this->championship, $this->clubId);
-
-        if ($this->search !== '') {
-            $athleten = $athleten->filter(fn (QualificationAthleteSummary $e): bool => str_contains(
-                mb_strtolower((string) $e->athlete->full_name),
-                mb_strtolower($this->search)
-            ));
-        }
-
-        if ($this->filterKader !== '') {
-            $athleten = $athleten->filter(
-                fn (QualificationAthleteSummary $e): bool => $e->kaderName === $this->filterKader
-            );
-        }
+        $athleten = $this->filter()->applyToAthletes(
+            $this->service()->qualificationOverview($this->championship, $this->clubId)
+        );
 
         /** @var Collection<string, Collection<int, QualificationAthleteSummary>> $gruppen */
         $gruppen = $athleten
@@ -124,17 +152,7 @@ class ChampionshipQualificationTable extends Component
      */
     public function visibleRows(QualificationAthleteSummary $eintrag): Collection
     {
-        return match ($this->filterFulfilment) {
-            'met' => $eintrag->rows->filter(
-                static fn (QualificationRow $z): bool => $z->status->isProof()
-                    || $z->status->status === QualificationStatus::MET_ONLY
-            )->values(),
-            'open' => $eintrag->rows->filter(
-                static fn (QualificationRow $z): bool => ! $z->status->isProof()
-                    && $z->status->status !== QualificationStatus::MET_ONLY
-            )->values(),
-            default => $eintrag->rows,
-        };
+        return $this->filter()->visibleRows($eintrag);
     }
 
     public function isExpanded(string $schluessel): bool

@@ -19,6 +19,8 @@ final readonly class QualificationAthleteSummary
 {
     /**
      * @param  Collection<int, QualificationRow>  $rows  Bewerbe mit Norm, gemischt erfüllt/offen
+     * @param  Collection<int, QualificationRow>  $rowsWithoutStandard  Bewerbe ohne Norm — nicht
+     *                                                                  als Zeile geführt, aber benannt (§7.4)
      * @param  string|null  $kaderName  Kaderart zum Stichtag, null wenn keine Zugehörigkeit
      * @param  int  $kaderSortOrder  Sortierung der Kaderart; ohne Zugehörigkeit ans Ende
      */
@@ -27,6 +29,7 @@ final readonly class QualificationAthleteSummary
         public Collection $rows,
         public ?string $kaderName,
         public int $kaderSortOrder,
+        public Collection $rowsWithoutStandard,
     ) {}
 
     /** Sportklasse für die Kopfzeile — die S-Klasse, nicht SB oder SM. */

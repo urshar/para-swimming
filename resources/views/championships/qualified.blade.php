@@ -14,6 +14,9 @@
                 </p>
             </div>
             <div class="flex gap-2">
+                <flux:button href="{{ route('championships.selection', $championship) }}"
+                             variant="ghost" size="sm">Auswahl
+                </flux:button>
                 <flux:button href="{{ route('championships.development', $championship) }}"
                              variant="ghost" size="sm">Förderansicht
                 </flux:button>

@@ -410,6 +410,15 @@ Angezeigt wird die **S-Klasse**, nicht SB oder SM: Die gelten nur für Brust und
 Kennzeichnung des Athleten taugt allein die S-Klasse. Die Regel liegt in
 `QualificationAthleteSummary::primarySportClass()` — beide Ansichten nutzen dieselbe.
 
+**Athletenauswahl.** Je Athlet eine Checkbox; die Auswahl bestimmt, wer ins PDF kommt. Ohne Auswahl enthält das PDF alle
+gefilterten Athleten — der häufigere Fall soll keinen zusätzlichen Handgriff kosten. Eine Umschaltung "nur Auswahl
+anzeigen" wendet sie zusätzlich auf den Bildschirm an; standardmäßig ist sie aus, damit sich die übrigen Athleten
+weiterhin vergleichen lassen.
+
+Die Ansicht ist deshalb eine **Livewire-Komponente**: Auf einer gewöhnlichen Seite mit Seiteneinteilung verfiele jedes
+Häkchen beim Blättern, weil jeder Seitenwechsel ein neuer Aufruf ist — und genau die Auswahl über mehrere Seiten hinweg
+wird gebraucht, wenn dreißig Athleten in der Liste stehen.
+
 **Seitenweise Ausgabe**, zehn Athleten je Seite. Gezählt werden Athleten, nicht Zeilen: Jeder Athlet ist eine eigene
 Tabelle, ihn über zwei Seiten zu zerreißen wäre unlesbar. Paginiert wird in PHP und nicht über die Abfrage — die
 Bewertung findet ohnehin in PHP statt, weil je Athlet alle Bewerbe gegeneinander aufgelöst werden müssen (bedingte
@@ -421,6 +430,12 @@ die Blätter-Links angehängt, sonst fiele sie beim Blättern weg.
 Erfüllung (alle Bewerbe mit Norm / nur erfüllte / nur nicht erfüllte), Kaderart, Namenssuche. Der Erfüllungsfilter wirkt
 auf die **Bewerbszeilen**, nicht auf die Athleten; ein Athlet ohne passende Zeile wird ausgeblendet.
 
+Der Filterstand liegt im Wertobjekt `QualificationOverviewFilter`, das Bildschirm **und** PDF-Ausgabe verwenden. Zweimal
+ausprogrammiert liefen die Regeln früher oder später auseinander, und dann zeigte das PDF etwas anderes als der
+Bildschirm, von dem aus es erzeugt wurde. Der PDF-Link trägt den Stand als Abfrageparameter mit; unbekannte Werte fallen
+auf den Standard zurück, damit ein vertippter Parameter ein vollständiges PDF liefert und kein leeres. Das PDF nennt den
+aktiven Filter im Kopf.
+
 ---
 
 # 8. Auswahl-Rangliste
@@ -431,8 +446,34 @@ Beantwortet die Frage bei mehr Bewerbern als Startplätzen: Rangliste je Bewerb,
 Punkte statt Zeiten, weil sie über Klassen und Bewerbe hinweg vergleichbar sind. Die Berechnung erfolgt über
 `WpsPointCalculator` mit der zum Ergebnisdatum gültigen Version; geschätzte Kurzbahnpunkte sind gekennzeichnet.
 
-Angezeigt werden Rang, Athlet, Verein, Zeit, Bahnlänge, geschätzte Langbahnzeit, WPS-Punkte, Normstatus (§7.2). Eine
-wählbare Obergrenze ("beste n") blendet die weiteren Plätze aus, ohne sie zu löschen.
+Angezeigt werden Rang, Athlet, Verein, Zeit, WPS-Punkte und Wettkampf. Eine wählbare Obergrenze ("beste n") blendet die
+weiteren Plätze aus, ohne sie zu löschen.
+
+Die Punkte stammen aus `results.wps_points` und werden nicht neu berechnet — damit stimmt die Rangliste zwangsläufig mit
+dem überein, was anderswo im System an diesem Ergebnis steht.
+
+**Grundlage sind ausschließlich Nachweise.** Umgerechnete Zeiten, `met_only` und Ergebnisse aus nicht anerkannten
+Wettkämpfen gehen nicht ein: Wer nicht qualifiziert ist, steht in keiner Auswahlliste.
+
+**Startplätze werden nicht hinterlegt.** Die Rangliste liefert die Reihenfolge; die Auswahl trifft ein Mensch. Eine im
+System gepflegte Quote würde eine Entscheidungsautomatik suggerieren, die es nicht gibt.
+
+**Gleichstand:** Punktgleiche teilen sich den Rang, der darauffolgende Rang springt entsprechend (1, 2, 2, 4) — wie in
+der Cup-Wertung. Sie unterschiedlich zu platzieren hieße, eine Reihenfolge zu behaupten, die die Zahlen nicht hergeben.
+
+**Ohne Punktbewertung** — etwa wenn für die Kombination kein Parametersatz vorliegt — steht ein Athlet mit `rank = null`
+in einem eigenen Abschnitt unterhalb der Rangliste. Weder weglassen noch mit null Punkten einsortieren: Beides
+behauptete etwas, einmal dass es die Leistung nicht gibt, einmal dass sie die schlechteste ist.
+
+## 8.1 Gesamtrangliste der Athleten
+
+Neben der Rangliste je Bewerb steht eine Gesamtsicht über alle Athleten. Gemessen wird die **beste einzelne Punktzahl**
+über alle Bewerbe, **nicht die Summe**: Eine Summe belohnte, wer viele Bewerbe schwimmt, und das sagt über
+internationale Chancen nichts — ein Athlet mit 850 Punkten in einem Bewerb ist stärker aufgestellt als einer mit fünfmal
+"700".
+
+Die Zeile nennt zusätzlich den Bewerb, aus dem die Bestpunktzahl stammt, und die Zahl der insgesamt erfüllten Normen.
+Beides gehört zur Einschätzung, ohne die Reihenfolge zu bestimmen.
 
 ---
 
@@ -518,7 +559,14 @@ Blade- und Flux-Konventionen wie in `wps-points` §14.4: `@extends('layouts.app'
 Kopfbereich: Meisterschaft, Qualifikationszeitraum, Stand der Auswertung, verwendete WPS-Punkteversion,
 Umrechnungsfaktoren.
 
-**Verpflichtender Hinweis**, sobald eine umgerechnete Zeit enthalten ist:
+Drei Vorlagen: `championship-qualified`, `championship-development`, `championship-selection`. Das PDF kennt keine
+Filter und keine Seiteneinteilung — es ist die vollständige Fassung, dafür ist es da. Der Leistungsverlauf (§7.6) fehlt
+darin: Aufklappen gibt es auf Papier nicht, und alle Ergebnisse auszuschreiben machte aus zwei Seiten zwanzig.
+
+**Verpflichtender Hinweis**, sobald eine umgerechnete Zeit enthalten ist — und nur dann. Ein Hinweis, der immer dasteht,
+wird nicht mehr gelesen und fehlt dann dort, wo er zählt. In der Qualifikantenansicht und der Auswahl-Rangliste kommen
+keine umgerechneten Zeiten vor, dort entfällt er also regelmäßig; die Prüfung bleibt in der Vorlage stehen, falls sich
+die Grundlage je ändert.
 
 ```
 Hinweis:
@@ -532,12 +580,12 @@ Qualifikationszeitraums.
 
 # 12. Services
 
-| Service                             | Aufgabe                                                                                                                            |
-|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| `ChampionshipStandardService`       | Normen anlegen, Prozentsatz anwenden, Massenaktion, Kopieren                                                                       |
-| `ChampionshipStandardImportService` | Import der WPS-Datei (§9.2)                                                                                                        |
-| `QualificationEvaluationService`    | Erfüllungsübersicht (§7), rein lesend — `evaluate()` für die Förderansicht, `qualificationOverview()` für die Qualifikantenansicht |
-| `QualificationSelectionService`     | Auswahl-Rangliste (§8)                                                                                                             |
+| Service                             | Aufgabe                                                                                                                                       |
+|-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `ChampionshipStandardService`       | Normen anlegen, Prozentsatz anwenden, Massenaktion, Kopieren                                                                                  |
+| `ChampionshipStandardImportService` | Import der WPS-Datei (§9.2)                                                                                                                   |
+| `QualificationEvaluationService`    | Erfüllungsübersicht (§7), rein lesend — `qualificationOverview()` für die Qualifikantenansicht, `developmentOverview()` für die Förderansicht |
+| `QualificationSelectionService`     | Auswahl-Rangliste je Bewerb und je Athlet (§8), rein lesend                                                                                   |
 
 **Wertobjekte** unter `App\Support`:
 
@@ -547,6 +595,8 @@ Qualifikationszeitraums.
 | `QualificationRow`            | ein Athlet in einem Bewerb: Norm, Zielzeit, Status, MET-Verwertbarkeit, Leistungsverlauf                                                        |
 | `QualificationResultEntry`    | ein Einzelergebnis im Leistungsverlauf                                                                                                          |
 | `QualificationAthleteSummary` | ein Athlet mit seinen Bewerbszeilen, Kaderart und Zählung erfüllter Normen                                                                      |
+| `QualificationRankingEntry`   | ein Platz in einer Auswahl-Rangliste; `rank = null` heißt "ohne Punktbewertung"                                                                 |
+| `QualificationOverviewFilter` | Filterstand der Qualifikantenansicht; von Bildschirm und PDF gemeinsam genutzt                                                                  |
 
 Durchgehend Wertobjekte statt assoziativer Arrays: Bei einem Array ist jeder Zugriff für die statische Analyse ein
 `mixed` — Tippfehler in Schlüsseln fallen erst zur Laufzeit auf, und Methodenaufrufe lassen sich nicht auflösen.
@@ -583,7 +633,16 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Gruppen `w
 - bei einem einzelnen Ergebnis wird keine Tendenz ausgewiesen
 - eine zum Stichtag abgelaufene Kaderzugehörigkeit wird nicht berücksichtigt
 - bei laufendem Zeitraum gilt der heutige Tag als Kader-Stichtag, bei abgelaufenem dessen Ende
-- Auswahl-Rangliste sortiert nach Punkten, geschätzte gekennzeichnet
+- Auswahl-Rangliste sortiert nach Punkten, nicht nach Zeit
+- in die Auswahl-Rangliste gehen nur Nachweise ein
+- Punktgleichheit teilt den Rang, der folgende Rang springt
+- die Athletenrangliste nimmt die beste Einzelpunktzahl, nicht die Summe
+- Athleten ohne Punktbewertung stehen mit `rank = null` am Ende
+- die Obergrenze blendet aus, ohne die zugrunde liegende Menge zu verändern
+- der Filterstand der Qualifikantenansicht landet im PDF-Link und wirkt dort gleich
+- unbekannte Filterwerte in der Adresse ergeben ein vollständiges PDF, kein leeres
+- die Athletenauswahl der Förderansicht überlebt den Seitenwechsel
+- ohne Auswahl enthält das Förder-PDF alle gefilterten Athleten
 - PDF enthält den Hinweis, sobald eine umgerechnete Zeit vorkommt
 
 ---
@@ -633,7 +692,16 @@ gehalten, verbessert oder verschlechtert wurde. — **abgeschlossen**
 
 `QualificationSelectionService` (§8), PDF-Ausgabe beider Ansichten (§11).
 
-*DoD:* Auswahl nach Punkten nachvollziehbar; PDF entspricht dem bestehenden Layout und trägt den Hinweis.
+*DoD:* Auswahl nach Punkten nachvollziehbar; PDF entspricht dem bestehenden Layout und trägt den Hinweis. —
+**abgeschlossen**
+
+## Phase 5b — Filterübernahme und Athletenauswahl im PDF
+
+Qualifikanten-PDF folgt dem Filterstand des Bildschirms (`QualificationOverviewFilter`); die Förderansicht wird eine
+Livewire-Komponente mit Athletenauswahl, Kaderart-Filter und Namenssuche.
+
+*DoD:* Ein gefilterter Bildschirm ergibt ein gleich gefiltertes PDF; eine Athletenauswahl überlebt das Blättern und
+bestimmt den Inhalt des Förder-PDF.
 
 ---
 

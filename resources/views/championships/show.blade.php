@@ -34,16 +34,16 @@
             </div>
         </div>
 
-        {{-- Einstieg in die beiden Auswertungen. Sie beantworten verschiedene Fragen (§7.5);
-             die Beschreibung steht deshalb am Knopf und nicht erst in der Ansicht. --}}
-        <div class="mb-6 grid gap-3 sm:grid-cols-2">
+        {{-- Die drei Auswertungen beantworten verschiedene Fragen (§7.5, §8); die Beschreibung
+             steht deshalb am Einstieg und nicht erst in der jeweiligen Ansicht. --}}
+        <div class="mb-6 grid gap-3 sm:grid-cols-3">
             <a href="{{ route('championships.qualified', $championship) }}"
                class="block p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl
                       hover:border-zinc-300 dark:hover:border-zinc-600 transition">
                 <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Qualifikanten</span>
                 <span class="block mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    Wer hat die Norm nachweislich erfüllt? Nur reale Zeiten aus WPS-anerkannten
-                    Wettkämpfen.
+                    Wer hat die Norm nachweislich erfüllt, und wie weit fehlt den übrigen? Nur reale
+                    Zeiten aus WPS-anerkannten Wettkämpfen.
                 </span>
             </a>
 
@@ -52,8 +52,17 @@
                       hover:border-zinc-300 dark:hover:border-zinc-600 transition">
                 <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Förderansicht</span>
                 <span class="block mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    Wie weit ist ein Athlet von der Norm entfernt? Mit umgerechneten Kurzbahnzeiten
-                    und Zielzeiten — Planungswerkzeug, kein Nachweis.
+                    Hat ein Athlet international eine Chance? Mit umgerechneten Kurzbahnzeiten und
+                    Zielzeiten — Planungswerkzeug, kein Nachweis.
+                </span>
+            </a>
+
+            <a href="{{ route('championships.selection', $championship) }}"
+               class="block p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl
+                      hover:border-zinc-300 dark:hover:border-zinc-600 transition">
+                <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">Auswahl-Rangliste</span>
+                <span class="block mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Wer fährt? Reihenfolge der Qualifizierten nach WPS-Punkten, je Bewerb und gesamt.
                 </span>
             </a>
         </div>

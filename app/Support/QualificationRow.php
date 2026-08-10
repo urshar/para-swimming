@@ -7,7 +7,7 @@ use App\Models\ChampionshipStandard;
 use Illuminate\Support\Collection;
 
 /**
- * Eine Zeile der Erfüllungsübersicht: ein Athlet in einem Bewerb, bewertet gegen die Norm
+ * Eine Zeile der Erfüllungsübersicht: ein Athlet in einem Bewerb bewertet gegen die Norm
  * (Spec "WPS Qualification" §7).
  *
  * Bewusst ein Wertobjekt und kein assoziatives Array. Als Array ist jeder Zugriff für die
@@ -74,6 +74,32 @@ final readonly class QualificationRow
             $athlete,
             $this->history,
         );
+    }
+
+    /**
+     * Das Ergebnis, auf dem der Status beruht — die Bestleistung.
+     *
+     * Gebraucht für Platz und Punkte, die am Ergebnis hängen und nicht am Status. Gesucht
+     * wird über die Zeit, weil der Status keine Ergebniskennung mitführt, wohl aber die Zeit,
+     * mit der er ermittelt wurde.
+     *
+     * Liefert null, wenn keine Zeit vorliegt oder der Verlauf leer ist.
+     */
+    public function bestEntry(): ?QualificationResultEntry
+    {
+        if ($this->status->swimTime === null) {
+            return null;
+        }
+
+        return $this->history->first(
+            fn (QualificationResultEntry $eintrag): bool => $eintrag->swimTime === $this->status->swimTime
+        );
+    }
+
+    /** WPS-Punkte der Bestleistung, oder null. */
+    public function points(): ?int
+    {
+        return $this->bestEntry()?->points;
     }
 
     /**

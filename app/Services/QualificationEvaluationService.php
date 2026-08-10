@@ -115,9 +115,51 @@ final readonly class QualificationEvaluationService
                     )->values(),
                     $kader['name'] ?? null,
                     $kader['sort_order'] ?? PHP_INT_MAX,
+                    // In der Qualifikantenansicht sind Bewerbe ohne Norm bereits ausgefiltert.
+                    collect(),
                 );
             })
             ->filter(static fn (QualificationAthleteSummary $eintrag): bool => $eintrag->rows->isNotEmpty())
+            ->values();
+    }
+
+    /**
+     * Die Förderansicht (§7.7): je Athlet alle Bewerbe, mit Kaderart.
+     *
+     * Anders als qualificationOverview() ohne Einschränkung auf anerkannte Wettkämpfe und
+     * ohne Einschränkung auf die Bahnlänge der Meisterschaft — hier zählt jede Auskunft über
+     * das Leistungsvermögen, nur eben nicht als Nachweis.
+     *
+     * Bewerbe ohne Norm werden getrennt geführt statt weggeworfen: Sie erscheinen nicht als
+     * Zeile, werden aber benannt, sonst entstünde der Eindruck, der Athlet sei dort gar nicht
+     * angetreten (§7.4).
+     *
+     * @return Collection<int, QualificationAthleteSummary>
+     */
+    public function developmentOverview(Championship $championship, ?int $clubId): Collection
+    {
+        $kaderarten = $this->kaderByAthlete($this->kaderReferenceDate($championship));
+
+        return $this->evaluate($championship, $clubId, null)
+            ->map(function (array $eintrag) use ($kaderarten): QualificationAthleteSummary {
+                $kader = $kaderarten[$eintrag['athlete']->getKey()] ?? null;
+
+                return new QualificationAthleteSummary(
+                    $eintrag['athlete'],
+                    $eintrag['rows']
+                        ->filter(static fn (QualificationRow $z): bool => $z->standard !== null)
+                        ->sortBy(static fn (QualificationRow $z): string => $z->eventLabel)
+                        ->values(),
+                    $kader['name'] ?? null,
+                    $kader['sort_order'] ?? PHP_INT_MAX,
+                    $eintrag['rows']
+                        ->filter(static fn (QualificationRow $z): bool => $z->standard === null)
+                        ->values(),
+                );
+            })
+            // Athleten, bei denen kein einziger Bewerb eine Norm hat, tragen zur Frage
+            // "wie weit fehlt zur Norm" nichts bei.
+            ->filter(static fn (QualificationAthleteSummary $e): bool => $e->rows->isNotEmpty())
             ->values();
     }
 
