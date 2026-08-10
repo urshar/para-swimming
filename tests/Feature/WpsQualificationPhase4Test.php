@@ -13,6 +13,7 @@ use App\Models\SwimEvent;
 use App\Models\User;
 use App\Models\WpsScmConversionFactor;
 use App\Services\QualificationEvaluationService;
+use App\Support\QualificationAthleteSummary;
 use App\Support\QualificationRow;
 use App\Support\QualificationStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -385,10 +386,15 @@ it('nimmt nur Nachweise in die Qualifikantenliste auf', function () {
     $nurMet = athlete_wq4($this->club, 'NurMet', 'M');
     result_wq4(event_wq4($lcm, 'FREE', 100, 'M'), $nurMet, 7700, 'S7', null);
 
-    $liste = $this->service->qualified($this->championship, null);
+    // Die Qualifikantenansicht führt je Athlet nur Bewerbe mit Norm; als Nachweis zählt
+    // ausschließlich, was isProof() bejaht.
+    $nachweise = $this->service->qualificationOverview($this->championship, null)
+        ->flatMap(fn (QualificationAthleteSummary $eintrag): Collection => $eintrag->rows
+            ->filter(fn (QualificationRow $zeile): bool => $zeile->status->isProof())
+            ->map(fn (): Athlete => $eintrag->athlete));
 
-    expect($liste)->toHaveCount(1)
-        ->and($liste->first()->athlete->last_name)->toBe('Nachweis');
+    expect($nachweise)->toHaveCount(1)
+        ->and($nachweise->first()->last_name)->toBe('Nachweis');
 });
 
 it('schließt Ergebnisse aus nicht WPS-anerkannten Wettkämpfen aus und weist sie aus', function () {
@@ -398,10 +404,12 @@ it('schließt Ergebnisse aus nicht WPS-anerkannten Wettkämpfen aus und weist si
     $meet = meet_wq4('Vereinsmeeting', 'LCM', '2025-06-01', false);
     result_wq4(event_wq4($meet, 'FREE', 100, 'M'), $athlet, 7200, 'S7', null);
 
-    $liste = $this->service->qualified($this->championship, null);
+    $uebersicht = $this->service->qualificationOverview($this->championship, null);
     $ausgeschlossen = $this->service->excludedForMissingApproval($this->championship, null);
 
-    expect($liste)->toBeEmpty()
+    // Ergebnisse aus nicht anerkannten Wettkämpfen kommen in der Qualifikantenansicht gar
+    // nicht vor — der Athlet erscheint dort also überhaupt nicht.
+    expect($uebersicht)->toBeEmpty()
         ->and($ausgeschlossen)->toHaveCount(1)
         ->and($ausgeschlossen->first()->athlete->last_name)->toBe('NichtAnerkannt');
 });

@@ -4,9 +4,10 @@ namespace App\Support;
 
 use App\Models\Athlete;
 use App\Models\ChampionshipStandard;
+use Illuminate\Support\Collection;
 
 /**
- * Eine Zeile der Erfüllungsübersicht: ein Athlet in einem Bewerb bewertet gegen die Norm
+ * Eine Zeile der Erfüllungsübersicht: ein Athlet in einem Bewerb, bewertet gegen die Norm
  * (Spec "WPS Qualification" §7).
  *
  * Bewusst ein Wertobjekt und kein assoziatives Array. Als Array ist jeder Zugriff für die
@@ -23,6 +24,8 @@ final readonly class QualificationRow
      * @param  int|null  $targetTimeOtherCourse  Zielzeit auf der abweichenden Bahnlänge (§6)
      * @param  bool|null  $metUsable  nur bei met_only gesetzt: Hat der Athlet anderswo die MQS?
      * @param  Athlete|null  $athlete  gesetzt, wo die Zeile für sich steht (Qualifikantenliste)
+     * @param  Collection<int, QualificationResultEntry>  $history  alle Ergebnisse des Zeitraums,
+     *                                                              chronologisch, für den Leistungsverlauf
      */
     public function __construct(
         public string $eventLabel,
@@ -33,6 +36,7 @@ final readonly class QualificationRow
         public QualificationStatus $status,
         public ?bool $metUsable,
         public ?Athlete $athlete,
+        public Collection $history,
     ) {}
 
     /**
@@ -52,6 +56,7 @@ final readonly class QualificationRow
             $this->status,
             $metUsable,
             $this->athlete,
+            $this->history,
         );
     }
 
@@ -67,6 +72,27 @@ final readonly class QualificationRow
             $this->status,
             $this->metUsable,
             $athlete,
+            $this->history,
         );
+    }
+
+    /**
+     * Zeigt der Verlauf eine Verbesserung gegenüber dem ersten Ergebnis des Zeitraums?
+     *
+     * Liefert null, wenn weniger als zwei Ergebnisse vorliegen — aus einem einzelnen Wert
+     * lässt sich keine Entwicklung ablesen, und eine erfundene Tendenz wäre schlimmer als
+     * gar keine.
+     */
+    public function trend(): ?int
+    {
+        if ($this->history->count() < 2) {
+            return null;
+        }
+
+        $erstes = $this->history->first();
+        $letztes = $this->history->last();
+
+        // Negativ = schneller geworden.
+        return $letztes->swimTime - $erstes->swimTime;
     }
 }

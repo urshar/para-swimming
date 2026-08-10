@@ -4,6 +4,7 @@
 
 @section('content')
     @php
+        use App\Support\QualificationAthleteSummary;
         use App\Support\TimeParser;
     @endphp
 
@@ -49,6 +50,13 @@
             @endif
         </form>
 
+        @if($entries->total() > 0)
+            <p class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
+                {{ $entries->firstItem() }}–{{ $entries->lastItem() }} von
+                {{ $entries->total() }} Athleten
+            </p>
+        @endif
+
         @forelse($entries as $eintrag)
             <div
                 class="mb-6 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -57,7 +65,9 @@
                         {{ $eintrag['athlete']->full_name }}
                     </h2>
                     <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                        {{ $eintrag['athlete']->club?->name }}
+                        {{ $eintrag['athlete']->gender === 'M' ? 'männlich' : 'weiblich' }}
+                        · {{ QualificationAthleteSummary::primarySportClass($eintrag['rows']) ?? '–' }}
+                        · {{ $eintrag['athlete']->club?->name }}
                     </p>
                 </div>
 
@@ -141,6 +151,14 @@
                         @endforeach
                     </flux:table.rows>
                 </flux:table>
+
+                @if($eintrag['events_without_standard']->isNotEmpty())
+                    <p class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-400">
+                        {{ $eintrag['events_without_standard']->count() }} weitere(r) Bewerb(e) ohne
+                        ausgeschriebene Norm:
+                        {{ $eintrag['events_without_standard']->join(', ') }}
+                    </p>
+                @endif
             </div>
         @empty
             <div
@@ -148,5 +166,11 @@
                 Keine Athleten mit Ergebnissen im Qualifikationszeitraum.
             </div>
         @endforelse
+
+        @if($entries->hasPages())
+            <div class="mt-6">
+                {{ $entries->links() }}
+            </div>
+        @endif
     </div>
 @endsection

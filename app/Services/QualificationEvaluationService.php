@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Models\Athlete;
+use App\Models\AthleteKaderMembership;
 use App\Models\Championship;
 use App\Models\ChampionshipStandard;
 use App\Models\Result;
+use App\Support\QualificationAthleteSummary;
+use App\Support\QualificationResultEntry;
 use App\Support\QualificationRow;
 use App\Support\QualificationStatus;
 use App\Support\WpsSportClass;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -19,17 +23,24 @@ use Illuminate\Support\Collection;
  *
  * Eine Bewertungsstelle für zwei Fragen
  * -------------------------------------
- * Die Qualifikantenliste ("wer hat sich qualifiziert") und die Förderansicht ("hat der
- * Athlet international eine Chance") teilen sich diesen Service. Getrennt sind nur die
- * Auswahl der Zeilen und die Darstellung — es darf nur eine Stelle geben, die entscheidet,
- * ob eine Norm erfüllt ist.
- *
- * Der Unterschied liegt in QualificationStatus::isProof(): Die Qualifikantenliste zeigt
- * ausschließlich Nachweise, die Förderansicht alles.
+ * Die Qualifikantenansicht ("wer hat sich qualifiziert, und wie weit fehlt den übrigen") und
+ * die Förderansicht ("hat der Athlet international eine Chance") teilen sich diesen Service.
+ * Getrennt sind nur die Auswahl der Zeilen und die Darstellung — es darf nur eine Stelle
+ * geben, die entscheidet, ob eine Norm erfüllt ist. Die Unterscheidung liegt in
+ * QualificationStatus::isProof().
  */
 final readonly class QualificationEvaluationService
 {
-    /** Ergebnisstatus ohne wertbare Leistung. EXH fehlt bewusst — siehe evaluate(). */
+    /**
+     * Kürzeste Strecke, die überhaupt betrachtet wird.
+     *
+     * 25-m-Bewerbe werden auf internationalen Meisterschaften nicht ausgetragen. Sie in der
+     * Bewertung mitzuführen erzeugt Zeilen, zu denen es nie eine Norm geben wird, und
+     * verlängert beide Ansichten ohne Erkenntnisgewinn.
+     */
+    private const int MIN_DISTANCE = 50;
+
+    /** Ergebnisstatus ohne wertbare Leistung. EXH fehlt bewusst — siehe relevantResults(). */
     private const array NON_SCORING_STATUSES = ['DNS', 'DNF', 'DSQ', 'SICK', 'WDR'];
 
     public function __construct(
@@ -46,13 +57,12 @@ final readonly class QualificationEvaluationService
     public function evaluate(Championship $championship, ?int $clubId, ?int $athleteId): Collection
     {
         $normen = $this->standardsByKey($championship);
-        $ergebnisse = $this->relevantResults($championship, $clubId, $athleteId);
+        $ergebnisse = $this->relevantResults($championship, $clubId, $athleteId, false);
 
         return $ergebnisse
             ->groupBy(fn (Result $result): int => (int) $result->getAttribute('athlete_id'))
             ->map(function (Collection $desAthleten) use ($championship, $normen): array {
                 $zeilen = $desAthleten
-                    // Je Athlet, Bewerb und Klasse eine Zeile — die Bestleistung entscheidet.
                     ->groupBy(fn (Result $r): string => $this->rowKey($r))
                     ->map(fn (Collection $gruppe): QualificationRow => $this->buildRow($championship, $normen, $gruppe))
                     ->values();
@@ -66,24 +76,70 @@ final readonly class QualificationEvaluationService
     }
 
     /**
-     * Die Qualifikantenliste (Frage A): ausschließlich Nachweise.
+     * Die Qualifikantenansicht (Frage A): je Athlet alle Bewerbe, für die eine Norm
+     * ausgeschrieben ist — erfüllte wie offene.
      *
-     * Umgerechnete Kurzbahnzeiten und Zeiten aus nicht sanktionierten Wettkämpfen kommen
-     * hier GAR NICHT vor — nicht ausgegraut, nicht mit Hinweis, sondern nicht. In einer
-     * Liste, die dem Verband vorgelegt wird, darf kein Eintrag stehen, den man für einen
-     * Nachweis halten könnte ([Q4], Q-R1). met_only ebenfalls nicht: Die MET allein
-     * qualifiziert niemanden.
+     * Nur reale Zeiten auf der Bahnlänge der Meisterschaft aus WPS-anerkannten Wettkämpfen.
+     * Umgerechnete Kurzbahnzeiten kommen hier GAR NICHT vor — nicht ausgegraut, nicht mit
+     * Hinweis, sondern nicht. In einer Liste, die dem Verband vorgelegt wird, darf kein
+     * Eintrag stehen, den man für einen Nachweis halten könnte ([Q4], Q-R1).
      *
-     * @return Collection<int, QualificationRow> nach Bewerb, Geschlecht, Klasse gruppierbar
+     * Bewerbe ohne Norm entfallen: Sie sagen über die Qualifikation nichts aus. Nicht
+     * erfüllte Bewerbe mit Norm bleiben drin — der Abstand ist die eigentliche Information.
+     *
+     * @return Collection<int, QualificationAthleteSummary>
      */
-    public function qualified(Championship $championship, ?int $clubId): Collection
+    public function qualificationOverview(Championship $championship, ?int $clubId): Collection
     {
-        return $this->evaluate($championship, $clubId, null)
-            ->flatMap(static fn (array $eintrag): Collection => $eintrag['rows']
-                ->filter(static fn (QualificationRow $zeile): bool => $zeile->status->isProof())
-                ->map(static fn (QualificationRow $zeile): QualificationRow => $zeile
-                    ->withAthlete($eintrag['athlete'])))
+        $normen = $this->standardsByKey($championship);
+        $stichtag = $this->kaderReferenceDate($championship);
+        $kaderarten = $this->kaderByAthlete($stichtag);
+
+        return $this->relevantResults($championship, $clubId, null, true)
+            ->groupBy(fn (Result $result): int => (int) $result->getAttribute('athlete_id'))
+            ->map(function (Collection $desAthleten) use ($championship, $normen, $kaderarten): QualificationAthleteSummary {
+                $zeilen = $desAthleten
+                    ->groupBy(fn (Result $r): string => $this->rowKey($r))
+                    ->map(fn (Collection $gruppe): QualificationRow => $this->buildRow($championship, $normen, $gruppe))
+                    // Bewerbe ohne Norm entfallen.
+                    ->filter(static fn (QualificationRow $zeile): bool => $zeile->standard !== null)
+                    ->values();
+
+                $athlet = $desAthleten->first()->athlete;
+                $kader = $kaderarten[$athlet->getKey()] ?? null;
+
+                return new QualificationAthleteSummary(
+                    $athlet,
+                    $this->resolveMetOnly($zeilen)->sortBy(
+                        static fn (QualificationRow $z): string => $z->eventLabel
+                    )->values(),
+                    $kader['name'] ?? null,
+                    $kader['sort_order'] ?? PHP_INT_MAX,
+                );
+            })
+            ->filter(static fn (QualificationAthleteSummary $eintrag): bool => $eintrag->rows->isNotEmpty())
             ->values();
+    }
+
+    /**
+     * Stichtag der Kaderzugehörigkeit.
+     *
+     * Läuft der Qualifikationszeitraum noch, gilt der heutige Tag: Die Liste stützt eine
+     * Nominierungsentscheidung, die jetzt getroffen wird, und dafür zählt der Kader, in dem
+     * jemand jetzt ist.
+     *
+     * Ist der Zeitraum abgelaufen, gilt sein Ende. Die Liste ist dann ein Rückblick und muss
+     * reproduzierbar bleiben — mit dem heutigen Tag stünde bei einer Auswertung der EM 2026
+     * im Jahr 2028 die Kadereinteilung von 2028, nicht die von damals.
+     */
+    public function kaderReferenceDate(Championship $championship): string
+    {
+        // Datumsstrings im Format Y-m-d lassen sich als Zeichenketten vergleichen; min()
+        // liefert damit den früheren der beiden Tage.
+        return min(
+            Carbon::now()->format('Y-m-d'),
+            $championship->qualification_end->format('Y-m-d'),
+        );
     }
 
     /**
@@ -143,9 +199,7 @@ final readonly class QualificationEvaluationService
      *
      * Kern der Trennung aus [Q4]: Es werden ZWEI Bestleistungen ermittelt — die beste reale
      * Zeit auf der Bahnlänge der Meisterschaft und die beste umgerechnete. Eine gemeinsame
-     * Bestenermittlung verlöre die Unterscheidung genau dort, wo sie zählt: Eine schnellere
-     * umgerechnete Zeit würde die langsamere reale verdrängen, und aus einem Nachweis würde
-     * eine Schätzung.
+     * Bestenermittlung verlöre die Unterscheidung genau dort, wo sie zählt.
      *
      * @param  array<string, ChampionshipStandard>  $normen
      * @param  Collection<int, Result>  $gruppe
@@ -191,18 +245,51 @@ final readonly class QualificationEvaluationService
             $norm === null
                 ? null
                 : $this->targetTimeOnOtherCourse($norm, $norm->getAttribute('obsv_centiseconds')
-                ?? $norm->getAttribute('mqs_centiseconds')),
+                    ?? $norm->getAttribute('mqs_centiseconds')),
             $this->determineStatus($norm, $realeBeste, $umgerechnetBeste),
             null,
             null,
+            $this->buildHistory($gruppe, $norm),
         );
     }
 
     /**
-     * Ermittelt den Status nach §7.2.
+     * Der Leistungsverlauf eines Bewerbs: alle Ergebnisse des Zeitraums, chronologisch.
      *
-     * Reihenfolge ist bedeutsam: Eine reale Zeit schlägt eine umgerechnete IMMER, auch wenn
-     * die umgerechnete schneller ist. Nur die reale ist ein Nachweis.
+     * Chronologisch und nicht nach Zeit sortiert — aus einer nach Zeit sortierten Liste ist
+     * keine Entwicklung ablesbar, und genau darum geht es hier.
+     *
+     * @param  Collection<int, Result>  $gruppe
+     * @return Collection<int, QualificationResultEntry>
+     */
+    private function buildHistory(Collection $gruppe, ?ChampionshipStandard $norm): Collection
+    {
+        $mqs = $norm?->getAttribute('mqs_centiseconds');
+        $met = $norm?->getAttribute('met_centiseconds');
+
+        return $gruppe
+            ->sortBy(static fn (Result $r): string => $r->meet?->start_date?->format('Y-m-d') ?? '')
+            ->map(static function (Result $r) use ($mqs, $met): QualificationResultEntry {
+                $zeit = (int) $r->getAttribute('swim_time');
+                $erfuelltMqs = $mqs !== null && $zeit <= $mqs;
+
+                return new QualificationResultEntry(
+                    $r->getKey(),
+                    $zeit,
+                    $r->getAttribute('wps_points'),
+                    $r->getAttribute('place'),
+                    $r->meet?->name,
+                    $r->meet?->start_date?->format('Y-m-d'),
+                    $r->getAttribute('status') === 'EXH',
+                    $erfuelltMqs,
+                    ! $erfuelltMqs && $met !== null && $zeit <= $met,
+                );
+            })
+            ->values();
+    }
+
+    /**
+     * Ermittelt den Status nach §7.2.
      *
      * @param  array{result: Result, estimated: int|null, factor: float|null, note: string|null}|null  $umgerechnet
      */
@@ -247,10 +334,9 @@ final readonly class QualificationEvaluationService
 
         // Die Schätzung greift nur, wenn gar keine reale Zeit auf der Bahnlänge der
         // Meisterschaft vorliegt. Läge eine vor und die Schätzung gewönne, verschwände die
-        // reale Zeit aus der Zeile — in der Anzeige stünde "rechnerisch erreicht" bei
-        // jemandem, der auf der Zielbahnlänge nachweislich langsamer war, und die Zahl, die
-        // das widerlegt, wäre nirgends zu sehen. Eine reale Zeit ist der stärkere Beleg,
-        // auch wenn sie ein Nein ist ([Q4]).
+        // reale Zeit aus der Zeile — angezeigt stünde "rechnerisch erreicht" bei jemandem,
+        // der auf der Zielbahnlänge nachweislich langsamer war, und die Zahl, die das
+        // widerlegt, wäre nirgends zu sehen ([Q4]).
         if ($real === null
             && $umgerechnet !== null
             && $umgerechnet['estimated'] !== null
@@ -374,16 +460,46 @@ final readonly class QualificationEvaluationService
     }
 
     /**
+     * Kaderzugehörigkeit je Athlet zum Stichtag.
+     *
+     * Einmal geladen statt je Athlet abgefragt. Gibt es mehrere gültige Zugehörigkeiten,
+     * gewinnt die mit der kleinsten Sortierung — also die höchste Kaderstufe.
+     *
+     * @return array<int, array{name: string, sort_order: int}>
+     */
+    private function kaderByAthlete(string $stichtag): array
+    {
+        return AthleteKaderMembership::query()
+            ->with('kaderType')
+            ->activeOn($stichtag)
+            ->get()
+            ->filter(static fn ($mitgliedschaft): bool => $mitgliedschaft->kaderType !== null)
+            ->sortBy(static fn ($mitgliedschaft): int => (int) $mitgliedschaft->kaderType->sort_order)
+            ->groupBy(static fn ($mitgliedschaft): int => (int) $mitgliedschaft->athlete_id)
+            ->map(static fn (Collection $desAthleten): array => [
+                'name' => $desAthleten->first()->kaderType->name_de,
+                'sort_order' => (int) $desAthleten->first()->kaderType->sort_order,
+            ])
+            ->all();
+    }
+
+    /**
      * Ergebnisse im Qualifikationszeitraum (§7.1).
      *
      * Der Zeitraum stammt aus der Meisterschaft. Verglichen wird über whereBetween mit
      * Datumsstrings statt über whereDate() oder YEAR() — beides ist nicht DB-portabel, und
      * start_date kann eine Uhrzeit tragen.
      *
+     * @param  bool  $onlyApprovedMeets  für die Qualifikantenansicht: nur sanktionierte
+     *                                   Wettkämpfe, weil nur deren Zeiten Nachweise sind
      * @return Collection<int, Result>
      */
-    private function relevantResults(Championship $championship, ?int $clubId, ?int $athleteId): Collection
-    {
+    private function relevantResults(
+        Championship $championship,
+        ?int $clubId,
+        ?int $athleteId,
+        bool $onlyApprovedMeets,
+    ): Collection {
         [$von, $bis] = $championship->qualificationPeriodBounds();
 
         $abfrage = Result::query()
@@ -392,14 +508,21 @@ final readonly class QualificationEvaluationService
             ->where('swim_time', '>', 0)
             // EXH bleibt drin: Ob ein außer Konkurrenz erzieltes Ergebnis international
             // anerkannt wird, entscheidet World Para Swimming (§7.1, offener Punkt).
-            // Die Kennzeichnung bleibt sichtbar.
             ->where(function ($query) {
                 $query->whereNull('status')
                     ->orWhereNotIn('status', self::NON_SCORING_STATUSES);
             })
-            ->whereHas('meet', static fn ($query) => $query
-                ->whereBetween('start_date', [$von, "$bis 23:59:59"]))
-            ->whereHas('swimEvent', static fn ($query) => $query->where('relay_count', 1))
+            ->whereHas('meet', function ($query) use ($von, $bis, $championship, $onlyApprovedMeets) {
+                $query->whereBetween('start_date', [$von, "$bis 23:59:59"]);
+
+                if ($onlyApprovedMeets) {
+                    $query->where('wps_approved', true)
+                        ->where('course', $championship->course);
+                }
+            })
+            ->whereHas('swimEvent', static fn ($query) => $query
+                ->where('relay_count', 1)
+                ->where('distance', '>=', self::MIN_DISTANCE))
             ->whereNotNull('sport_class');
 
         if ($clubId !== null) {

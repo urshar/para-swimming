@@ -63,7 +63,7 @@ final readonly class QualificationStatus
     /**
      * Taugt diese Bewertung als Qualifikationsnachweis?
      *
-     * Drei Bedingungen müssen zusammenkommen: reale (nicht umgerechnete) Zeit unterhalb der
+     * Zwei Bedingungen müssen zusammenkommen: reale (nicht umgerechnete) Zeit unterhalb der
      * MQS, und ein von World Para Swimming sanktionierter Wettkampf. Fällt eine davon weg,
      * ist es ein Planungswert und gehört nicht in die Qualifikantenliste ([Q4], Q-R1).
      */
@@ -85,10 +85,15 @@ final readonly class QualificationStatus
     }
 
     /**
-     * Farbe der Statuskennzeichnung (§10) — die im Projekt bestehende Bedeutung.
+     * Farbe der Statuskennzeichnung (§10).
      *
      * amber für "rechnerisch erreicht": Hier lohnt ein zweiter Blick, weil die Zahl gut
      * aussieht, aber nichts beweist.
+     *
+     * rot für "nicht erreicht": In einer Liste, in der die meisten Zeilen erfüllt sind, geht
+     * ein neutrales Grau unter — gerade die offenen Bewerbe sind aber das, worauf der Blick
+     * fallen soll. "Ohne Norm" bleibt grau: Das ist keine verfehlte Leistung, sondern eine
+     * Aussage über die Ausschreibung.
      */
     public function colour(): string
     {
@@ -96,6 +101,7 @@ final readonly class QualificationStatus
             self::OBSV_MET => 'green',
             self::MQS_MET => 'blue',
             self::ESTIMATED_MQS, self::MET_ONLY => 'amber',
+            self::NOT_MET => 'red',
             default => 'zinc',
         };
     }

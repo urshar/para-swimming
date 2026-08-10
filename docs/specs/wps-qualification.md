@@ -181,8 +181,8 @@ ohne das Feld wäre die Umrechnung dann still falsch.
 
 Zwei Spalten an der bestehenden Tabelle `meets`:
 
-| Spalte              | Typ                    | Bedeutung                                              |
-|---------------------|------------------------|--------------------------------------------------------|
+| Spalte              | Typ                    | Bedeutung                                               |
+|---------------------|------------------------|---------------------------------------------------------|
 | `wps_approved`      | boolean, Default false | Wettkampf von World Para Swimming sanktioniert          |
 | `wps_approved_note` | string(255), nullable  | Fundstelle der Anerkennung, für die Nachvollziehbarkeit |
 
@@ -259,8 +259,9 @@ Bewertung ist verbindlich (**[Q4]**).
 ## 7.1 Ergebnisauswahl
 
 Berücksichtigt werden Ergebnisse mit Wettkampfdatum im Qualifikationszeitraum **der Meisterschaft**, mit gültiger Zeit,
-ohne Status `DNS`/`DNF`/`DSQ`/`SICK`/`WDR`, aus Einzelbewerben. `EXH` wird berücksichtigt — die Bewertung, ob ein außer Konkurrenz
-erzieltes Ergebnis international anerkannt wird, liegt bei World Para Swimming. Die Kennzeichnung bleibt sichtbar.
+ohne Status `DNS`/`DNF`/`DSQ`/`SICK`/`WDR`, aus Einzelbewerben. `EXH` wird berücksichtigt — die Bewertung, ob ein außer
+Konkurrenz erzieltes Ergebnis international anerkannt wird, liegt bei World Para Swimming. Die Kennzeichnung bleibt
+sichtbar.
 
 Maßgeblich ist `results.sport_class`, nicht der Athletenstammsatz. Vor dem Abgleich greift die Zuordnung 21 → 14
 (`WpsSportClass`).
@@ -274,10 +275,13 @@ Zeit. Gewönne die Schätzung, verschwände die reale Zeit aus der Zeile — ang
 jemandem, der auf der Zielbahnlänge nachweislich langsamer war, und die Zahl, die das widerlegt, wäre nirgends zu sehen.
 Eine reale Zeit ist der stärkere Beleg, auch wenn sie ein Nein ist.
 
+**Strecken unter 50 m bleiben außen vor.** 25-m-Bewerbe werden auf internationalen Meisterschaften nicht ausgetragen;
+sie mitzuführen erzeugt Zeilen, zu denen es nie eine Norm geben wird. Konstante `MIN_DISTANCE` im
+`QualificationEvaluationService`, wirkt in beiden Ansichten.
+
 **Nur WPS-anerkannte Wettkämpfe liefern Nachweise.** `meets.wps_approved` kennzeichnet Wettkämpfe, die von World Para
-Swimming sanktioniert sind. Zeiten aus nicht gekennzeichneten Wettkämpfen erscheinen **nicht** in der
-Qualifikantenliste (§7.5), in der Förderansicht dagegen sehr wohl — dort mit dem Vermerk "Wettkampf nicht
-WPS-anerkannt".
+Swimming sanktioniert sind. Zeiten aus nicht gekennzeichneten Wettkämpfen erscheinen **nicht** in der Qualifikantenliste
+(§7.5), in der Förderansicht dagegen sehr wohl — dort mit dem Vermerk "Wettkampf nicht WPS-anerkannt".
 
 Der Default ist `false`, ausdrücklich auch für den Altbestand: Ein Default `true` behauptete über jeden bestehenden
 Wettkampf eine Anerkennung, die niemand geprüft hat. Damit eine leere Liste nicht mit einer korrekt leeren verwechselt
@@ -324,16 +328,25 @@ Bewerbe ohne Norm für die betreffende Klasse erscheinen als eigener Abschnitt "
 verschwinden nicht aus der Liste. Grund: Ein Trainer soll erkennen, dass dieser Bewerb international nicht zur Verfügung
 steht — nicht, dass er vergessen wurde.
 
+**Darstellung.** In beiden Ansichten werden Bewerbe ohne Norm **nicht** als Zeile geführt: Die Frage lautet "wie weit
+fehlt zur Norm", und diese Entfernung gibt es dort nicht. Sie verschwinden aber nicht stillschweigend, sondern werden am
+Fuß des Athletenblocks benannt ("3 weitere Bewerbe ohne ausgeschriebene Norm: …"). Sonst entstünde der Eindruck, der
+Athlet sei dort gar nicht angetreten.
+
+Die Trennung geschieht **im Controller, nicht im Service**: Der Status `no_standard` bleibt Teil der Bewertung und
+bleibt geprüft; getrennt wird erst für die Darstellung. Athleten, bei denen kein einziger Bewerb eine Norm hat,
+erscheinen nicht in der Förderansicht.
+
 ## 7.5 Zwei getrennte Ansichten, kein Statusfilter
 
 Die Erfüllungsübersicht beantwortet zwei verschiedene Fragen. Sie werden als **zwei eigenständige Ansichten** umgesetzt,
 nicht als eine Liste mit Statusfilter — ein Filter wäre die Möglichkeit, sich umgerechnete Zeiten doch wieder in die
 Nachweisliste zu holen (Q-R1).
 
-| Ansicht                                    | Frage                                            | Enthält                                                                                                       |
-|--------------------------------------------|--------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| **Qualifikanten** (`/qualified`)           | Wer hat sich qualifiziert?                       | ausschließlich `mqs_met` und `obsv_met` aus WPS-anerkannten Wettkämpfen; keine umgerechneten Zeiten, kein `met_only` |
-| **Förderansicht** (`/development`)         | Hat der Athlet international eine Chance?        | alles: umgerechnete Zeiten, Abstand zur Norm auch bei Nichterfüllung, Zielzeit auf der anderen Bahnlänge, Bewerbe ohne Norm |
+| Ansicht                            | Frage                                                      | Enthält                                                                                                                                                                                                 |
+|------------------------------------|------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Qualifikanten** (`/qualified`)   | Wer hat sich qualifiziert, und wie weit fehlt den übrigen? | je Athlet **alle** Bewerbe mit ausgeschriebener Norm — erfüllte wie offene. Ausschließlich reale Zeiten auf der Bahnlänge der Meisterschaft aus WPS-anerkannten Wettkämpfen; keine umgerechneten Zeiten |
+| **Förderansicht** (`/development`) | Hat der Athlet international eine Chance?                  | alles: umgerechnete Zeiten, Abstand zur Norm auch bei Nichterfüllung, Zielzeit auf der anderen Bahnlänge, Bewerbe ohne Norm                                                                             |
 
 Beide teilen sich `QualificationEvaluationService` — es darf nur **eine** Stelle geben, die entscheidet, ob eine Norm
 erfüllt ist. Getrennt sind ausschließlich Zeilenauswahl und Darstellung. Die Unterscheidung selbst liegt in
@@ -341,6 +354,72 @@ erfüllt ist. Getrennt sind ausschließlich Zeilenauswahl und Darstellung. Die U
 
 Die Auswahl-Rangliste (§8) beantwortet die dritte Frage — *wer fährt?* — und greift erst, wenn aus der
 Qualifikantenliste mehr Namen kommen als Startplätze vorhanden sind.
+
+## 7.6 Aufbau der Qualifikantenansicht
+
+Gegliedert nach **Kaderart → Athlet → Bewerb**. Athleten ohne Kaderzugehörigkeit stehen in einem eigenen Abschnitt am
+Ende, damit sie nicht stillschweigend verschwinden — auch sie können eine Norm erfüllt haben.
+
+Je Athlet eine Kopfzeile mit Name, Geschlecht, Sportklasse, Verein und der Zählung erfüllter MQS, erfüllter MET und
+offener Bewerbe.
+
+Je Bewerb eine Zeile mit der **Bestleistung**: Platz, Zeit, WPS-Punkte, Wettkampf mit Datum, Normstatus und — bei
+Nichterfüllung — der Abstand. Bewerbe **ohne** Norm entfallen; sie sagen über die Qualifikation nichts aus. Bewerbe mit
+Norm, die nicht erfüllt sind, bleiben stehen: Der Abstand ist die eigentliche Information für die
+Nominierungsentscheidung.
+
+Die WPS-Punkte stammen aus `results.wps_points` und werden nicht neu berechnet.
+
+### Leistungsverlauf
+
+Jede Bewerbszeile lässt sich **aufklappen** und zeigt dann alle Ergebnisse dieses Bewerbs im Zeitraum,
+**chronologisch**, mit Zeit, Punkten, Wettkampf und der Kennzeichnung, ob das jeweilige Einzelergebnis MQS oder MET
+erreicht. Dazu die Veränderung vom ersten zum letzten Ergebnis.
+
+Daran ist ablesbar, ob ein Athlet seine Leistung hält, sich verbessert oder nachlässt — die Bestleistung allein sagt
+darüber nichts, weil sie auch zwei Jahre alt sein kann. Chronologisch und **nicht** nach Zeit sortiert: Aus einer nach
+Zeit sortierten Liste ist keine Entwicklung ablesbar, und genau darum geht es hier.
+
+Bei weniger als zwei Ergebnissen wird **keine** Tendenz ausgewiesen. Aus einem einzelnen Wert lässt sich keine
+Entwicklung ablesen, und eine erfundene Tendenz wäre schlimmer als gar keine.
+
+Erreicht ein Einzelergebnis die MQS, wird **nur** MQS ausgewiesen, nicht zusätzlich MET: Wer die MQS erfüllt, erfüllt
+zwangsläufig auch die langsamere MET, und zweimal dieselbe Leistung auszuzeichnen wäre irreführend.
+
+### Stichtag der Kaderzugehörigkeit
+
+Die Zugehörigkeit zu einer Kaderart (`athlete_kader_memberships`) hat einen Gültigkeitszeitraum, es braucht also einen
+Stichtag:
+
+- Läuft der Qualifikationszeitraum noch oder liegt er in der Zukunft → **heutiger Tag**. Die Liste stützt eine
+  Nominierungsentscheidung, die jetzt getroffen wird, und dafür zählt der Kader, in dem jemand jetzt ist.
+- Ist der Zeitraum abgelaufen → **sein Ende**. Die Liste ist dann ein Rückblick und muss reproduzierbar bleiben; mit dem
+  heutigen Tag stünde bei einer Auswertung der EM 2026 im Jahr 2028 die Kadereinteilung von 2028.
+
+Der verwendete Stichtag wird in der Ansicht ausgewiesen, damit nachvollziehbar ist, worauf sich die Kaderangabe bezieht.
+Gibt es zum Stichtag mehrere gültige Zugehörigkeiten, gewinnt die mit der kleinsten `sort_order` — die höchste
+Kaderstufe.
+
+## 7.7 Förderansicht
+
+Je Athlet ein Block mit Kopfzeile (Name, Geschlecht, **Sportklasse**, Verein) und einer Zeile je Bewerb mit Norm:
+Leistung mit Bahnlänge, gegebenenfalls die umgerechnete Zeit samt Faktor, MQS, ÖBSV-Norm, Zielzeit auf der anderen
+Bahnlänge und der Status mit Abstand.
+
+Angezeigt wird die **S-Klasse**, nicht SB oder SM: Die gelten nur für Brust und Lagen und können abweichen; als
+Kennzeichnung des Athleten taugt allein die S-Klasse. Die Regel liegt in
+`QualificationAthleteSummary::primarySportClass()` — beide Ansichten nutzen dieselbe.
+
+**Seitenweise Ausgabe**, zehn Athleten je Seite. Gezählt werden Athleten, nicht Zeilen: Jeder Athlet ist eine eigene
+Tabelle, ihn über zwei Seiten zu zerreißen wäre unlesbar. Paginiert wird in PHP und nicht über die Abfrage — die
+Bewertung findet ohnehin in PHP statt, weil je Athlet alle Bewerbe gegeneinander aufgelöst werden müssen (bedingte
+MET-Auswertung, §7.2); eine Seiteneinteilung auf Datenbankebene würde Athleten mittendrin abschneiden. Die Suche wird an
+die Blätter-Links angehängt, sonst fiele sie beim Blättern weg.
+
+### Filter
+
+Erfüllung (alle Bewerbe mit Norm / nur erfüllte / nur nicht erfüllte), Kaderart, Namenssuche. Der Erfüllungsfilter wirkt
+auf die **Bewerbszeilen**, nicht auf die Athleten; ein Athlet ohne passende Zeile wird ausgeblendet.
 
 ---
 
@@ -407,27 +486,27 @@ Entscheidungen nachvollziehbar bleiben.
 Routen unter `/championships`, Verwaltung hinter `RequireAdmin`, Ansichten in der `auth`-Gruppe. Navigationsgruppe
 "Meisterschaften".
 
-| Ansicht   | Inhalt                                                           |
-|-----------|------------------------------------------------------------------|
-| Übersicht | Meisterschaften mit Zeitraum, Anzahl Normen, offenen ÖBSV-Zeilen |
-| Normen    | Tabelle mit Filterung, Massenaktion, Inline-Bearbeitung          |
-| Import    | Formular, Vorschau                                               |
-| Qualifikanten | ausschließlich Nachweise, nach Bewerb/Geschlecht/Klasse gruppiert |
-| Förderansicht | je Athlet über alle Bewerbe, mit Suche                            |
-| Auswahl   | Rangliste nach Punkten                                           |
+| Ansicht       | Inhalt                                                                      |
+|---------------|-----------------------------------------------------------------------------|
+| Übersicht     | Meisterschaften mit Zeitraum, Anzahl Normen, offenen ÖBSV-Zeilen            |
+| Normen        | Tabelle mit Filterung, Massenaktion, Inline-Bearbeitung                     |
+| Import        | Formular, Vorschau                                                          |
+| Qualifikanten | Kaderart → Athlet → Bewerbe mit Norm, aufklappbarer Leistungsverlauf (§7.6) |
+| Förderansicht | je Athlet über alle Bewerbe, mit umgerechneten Zeiten und Suche             |
+| Auswahl       | Rangliste nach Punkten                                                      |
 
 Blade- und Flux-Konventionen wie in `wps-points` §14.4: `@extends('layouts.app')` +
 `@section('content')`, Flux mit `x-model`, kein `<flux:select.option>` mit `@selected()`.
 
 **Farbgebung der Statuskennzeichnung** (bestehende Bedeutung im Projekt beibehalten):
 
-| Status                 | Farbe                                    |
-|------------------------|------------------------------------------|
-| erfüllt (MQS und ÖBSV) | grün                                     |
-| erfüllt (nur MQS)      | blau                                     |
-| rechnerisch erreicht   | **amber** — hier lohnt ein zweiter Blick |
-| nicht erreicht         | zinc                                     |
-| ohne Norm              | zinc, kursiv                             |
+| Status                 | Farbe                                                                        |
+|------------------------|------------------------------------------------------------------------------|
+| erfüllt (MQS und ÖBSV) | grün                                                                         |
+| erfüllt (nur MQS)      | blau                                                                         |
+| rechnerisch erreicht   | **amber** — hier lohnt ein zweiter Blick                                     |
+| nicht erreicht         | **rot** — die offenen Bewerbe sind das, worauf der Blick fallen soll         |
+| ohne Norm              | zinc — keine verfehlte Leistung, sondern eine Aussage über die Ausschreibung |
 
 ---
 
@@ -453,15 +532,24 @@ Qualifikationszeitraums.
 
 # 12. Services
 
-| Service                             | Aufgabe                                                      |
-|-------------------------------------|--------------------------------------------------------------|
-| `ChampionshipStandardService`       | Normen anlegen, Prozentsatz anwenden, Massenaktion, Kopieren |
-| `ChampionshipStandardImportService` | Import der WPS-Datei (§9.2)                                  |
-| `QualificationEvaluationService`    | Erfüllungsübersicht (§7), rein lesend                        |
-| `QualificationSelectionService`     | Auswahl-Rangliste (§8)                                       |
+| Service                             | Aufgabe                                                                                                                            |
+|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `ChampionshipStandardService`       | Normen anlegen, Prozentsatz anwenden, Massenaktion, Kopieren                                                                       |
+| `ChampionshipStandardImportService` | Import der WPS-Datei (§9.2)                                                                                                        |
+| `QualificationEvaluationService`    | Erfüllungsübersicht (§7), rein lesend — `evaluate()` für die Förderansicht, `qualificationOverview()` für die Qualifikantenansicht |
+| `QualificationSelectionService`     | Auswahl-Rangliste (§8)                                                                                                             |
 
-Wert-Objekt `App\Support\QualificationStatus` mit Status, Abstand zur Norm, verwendetem Faktor, geschätzter Langbahnzeit
-und Begründung bei fehlender Norm.
+**Wertobjekte** unter `App\Support`:
+
+| Objekt                        | Inhalt                                                                                                                                          |
+|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `QualificationStatus`         | Status, Abstand zur Norm, verwendeter Faktor, geschätzte Langbahnzeit, Begründung bei fehlender Norm; `isProof()` entscheidet über den Nachweis |
+| `QualificationRow`            | ein Athlet in einem Bewerb: Norm, Zielzeit, Status, MET-Verwertbarkeit, Leistungsverlauf                                                        |
+| `QualificationResultEntry`    | ein Einzelergebnis im Leistungsverlauf                                                                                                          |
+| `QualificationAthleteSummary` | ein Athlet mit seinen Bewerbszeilen, Kaderart und Zählung erfüllter Normen                                                                      |
+
+Durchgehend Wertobjekte statt assoziativer Arrays: Bei einem Array ist jeder Zugriff für die statische Analyse ein
+`mixed` — Tippfehler in Schlüsseln fallen erst zur Laufzeit auf, und Methodenaufrufe lassen sich nicht auflösen.
 
 Ranglisten und Übersichten werden bei jedem Aufruf berechnet, nicht persistiert — wie im übrigen Projekt.
 
@@ -469,7 +557,8 @@ Ranglisten und Übersichten werden bei jedem Aufruf berechnet, nicht persistiert
 
 # 13. Tests
 
-Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Gruppen `wps-qual-p1` bis `-p5`.
+Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Gruppen `wps-qual-p1` bis `-p5`
+(die Qualifikantenansicht liegt in `wps-qual-p4b`).
 
 **Fachlich zwingend abzudecken:**
 
@@ -485,6 +574,15 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Gruppen `w
 - Zuordnung 21 → 14 greift beim Abgleich
 - Import lässt ÖBSV-Werte unberührt
 - Import erzeugt für leere Zellen keine Zeilen
+- Ergebnisse aus nicht WPS-anerkannten Wettkämpfen erscheinen nicht in der Qualifikantenansicht, in der Förderansicht
+  aber sehr wohl
+- eine reale Zeit schlägt eine umgerechnete, auch wenn die umgerechnete schneller ist
+- Bewerbe ohne Norm fehlen in der Qualifikantenansicht, Bewerbe mit unerfüllter Norm stehen darin
+- der Leistungsverlauf ist chronologisch, nicht nach Zeit sortiert
+- 25-m-Bewerbe erscheinen in keiner der beiden Ansichten
+- bei einem einzelnen Ergebnis wird keine Tendenz ausgewiesen
+- eine zum Stichtag abgelaufene Kaderzugehörigkeit wird nicht berücksichtigt
+- bei laufendem Zeitraum gilt der heutige Tag als Kader-Stichtag, bei abgelaufenem dessen Ende
 - Auswahl-Rangliste sortiert nach Punkten, geschätzte gekennzeichnet
 - PDF enthält den Hinweis, sobald eine umgerechnete Zeit vorkommt
 
@@ -517,14 +615,23 @@ neben der errechneten Zeit.
 
 ## Phase 4 — Erfüllungsübersicht
 
-`QualificationEvaluationService`, Zielzeiten, Status, Abstand, Ansichten.
+`QualificationEvaluationService`, Zielzeiten, Status, Abstand, Förderansicht. `meets.wps_approved` samt Kennzeichnung im
+Wettkampfformular.
 
 *DoD:* Für einen Athleten ist je Bewerb erkennbar, ob und wie die Norm erreicht wurde; umgerechnete Zeiten sind
-durchgängig als "kein Nachweis" gekennzeichnet.
+durchgängig als "kein Nachweis" gekennzeichnet. — **abgeschlossen**
+
+## Phase 4b — Qualifikantenansicht
+
+Gliederung nach Kaderart, aufklappbarer Leistungsverlauf, Filter (§7.6). Wertobjekte `QualificationAthleteSummary` und
+`QualificationResultEntry`.
+
+*DoD:* Je Athlet sind alle Bewerbe mit Norm sichtbar, erfüllte wie offene, und der Verlauf zeigt, ob die Leistung
+gehalten, verbessert oder verschlechtert wurde. — **abgeschlossen**
 
 ## Phase 5 — Auswahl-Rangliste und PDF
 
-`QualificationSelectionService`, PDF-Ausgabe beider Ansichten.
+`QualificationSelectionService` (§8), PDF-Ausgabe beider Ansichten (§11).
 
 *DoD:* Auswahl nach Punkten nachvollziehbar; PDF entspricht dem bestehenden Layout und trägt den Hinweis.
 
@@ -532,16 +639,16 @@ durchgängig als "kein Nachweis" gekennzeichnet.
 
 # 15. Risiken
 
-| #    | Risiko                                                   | Gegenmaßnahme                                                          |
-|------|----------------------------------------------------------|------------------------------------------------------------------------|
-| Q-R1 | Umgerechnete Zeit wird als Qualifikation missverstanden  | **[Q4]**, eigener Status, Hinweis in Anzeige und PDF, eigener Testfall |
-| Q-R2 | Dateiformat ändert sich zwischen Veröffentlichungen      | manuelle Pflege als Regelfall (§9.1), Import bricht verständlich ab    |
-| Q-R3 | Erneuter Import überschreibt ÖBSV-Festlegungen           | Import füllt nur MQS und MET (§9.2)                                    |
-| Q-R4 | Fehlende Norm wird als „nicht erfüllt" gelesen           | eigener Status `no_standard` (§7.2), eigener Abschnitt (§7.4)          |
-| Q-R5 | MET wird ohne MQS als Qualifikation gewertet             | bedingte Auswertung (§7.2), eigener Testfall                           |
-| Q-R6 | Prozentsatz auf die Zeit wirkt über die Bewerbe ungleich | Punktanzeige neben der Zeit (§5.3)                                     |
-| Q-R7 | Offene Zeilen sehen aus wie bewusst gesetzte             | `null` ≠ `0` (**[Q3]**), Kennzeichnung offener Zeilen                  |
-| Q-R8 | Umrechnung für Nachwuchs zu optimistisch                 | Übernahme des Hinweises aus `wps-points` §9.6                          |
+| #    | Risiko                                                                       | Gegenmaßnahme                                                                  |
+|------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| Q-R1 | Umgerechnete Zeit wird als Qualifikation missverstanden                      | **[Q4]**, eigener Status, Hinweis in Anzeige und PDF, eigener Testfall         |
+| Q-R2 | Dateiformat ändert sich zwischen Veröffentlichungen                          | manuelle Pflege als Regelfall (§9.1), Import bricht verständlich ab            |
+| Q-R3 | Erneuter Import überschreibt ÖBSV-Festlegungen                               | Import füllt nur MQS und MET (§9.2)                                            |
+| Q-R4 | Fehlende Norm wird als „nicht erfüllt" gelesen                               | eigener Status `no_standard` (§7.2), eigener Abschnitt (§7.4)                  |
+| Q-R5 | MET wird ohne MQS als Qualifikation gewertet                                 | bedingte Auswertung (§7.2), eigener Testfall                                   |
+| Q-R6 | Prozentsatz auf die Zeit wirkt über die Bewerbe ungleich                     | Punktanzeige neben der Zeit (§5.3)                                             |
+| Q-R7 | Offene Zeilen sehen aus wie bewusst gesetzte                                 | `null` ≠ `0` (**[Q3]**), Kennzeichnung offener Zeilen                          |
+| Q-R8 | Umrechnung für Nachwuchs zu optimistisch                                     | Übernahme des Hinweises aus `wps-points` §9.6                                  |
 | Q-R9 | Nicht gekennzeichnete Wettkämpfe lassen die Qualifikantenliste leer aussehen | Ausschlusshinweis mit Anzahl und betroffenen Wettkämpfen über der Liste (§7.1) |
 
 ---
