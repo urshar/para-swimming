@@ -25,6 +25,7 @@ use Illuminate\Support\Collection;
  */
 final readonly class WpsResultSelectionService
 {
+
     /**
      * Ergebnisstatus ohne wertbare Leistung.
      *
@@ -60,6 +61,37 @@ final readonly class WpsResultSelectionService
             ->map(fn (Result $r): WpsRankingEntry => $this->toEntry($r));
 
         return $this->applyKaderFilter($eintraege, $filter)->values();
+    }
+
+    /**
+     * Kaderfilter (§10).
+     *
+     * In PHP und nicht in der Abfrage: Die Kaderzugehörigkeit gilt zu einem Stichtag und
+     * hängt an einem Gültigkeitszeitraum; das in einer Unterabfrage abzubilden wäre
+     * schwerer zu lesen als der eine Durchgang hier, und die Zugehörigkeiten werden ohnehin
+     * einmal gesammelt geladen.
+     *
+     * Stichtag ist das Ende des Auswertungsjahres, sofern es vergangen ist — eine Auswertung
+     * der Saison 2024 soll auch später dieselbe Kadereinteilung zeigen.
+     *
+     * @param  Collection<int, WpsRankingEntry>  $eintraege
+     * @return Collection<int, WpsRankingEntry>
+     */
+    private function applyKaderFilter(Collection $eintraege, WpsRankingFilter $filter): Collection
+    {
+        if (! $filter->hasKaderFilter()) {
+            return $eintraege;
+        }
+
+        $stichtag = $this->kaderResolver->referenceDateForYear(
+            $filter->year ?? (int) date('Y')
+        );
+
+        $kaderarten = $this->kaderResolver->byAthlete($stichtag);
+
+        return $eintraege->filter(static fn (WpsRankingEntry $e): bool => $filter->allowsKader(
+            $kaderarten[$e->athlete->getKey()]['id'] ?? null
+        ));
     }
 
     /**
@@ -126,58 +158,6 @@ final readonly class WpsResultSelectionService
     }
 
     /**
-     * Die verwendeten WPS-Punkteversionen einer Ergebnismenge.
-     *
-     * Enthält eine Rangliste Ergebnisse aus mehreren Versionen, wird das im Kopfbereich
-     * sichtbar gemacht (**[R3]**, §11.2) — sonst sähe eine Liste aus verschiedenen Jahrgängen
-     * aus wie eine einheitlich gerechnete.
-     *
-     * @param  Collection<int, WpsRankingEntry>  $eintraege
-     * @return list<string>
-     */
-    public function usedVersions(Collection $eintraege): array
-    {
-        return $eintraege
-            ->map(static fn (WpsRankingEntry $e): ?string => $e->versionLabel)
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Kaderfilter (§10).
-     *
-     * In PHP und nicht in der Abfrage: Die Kaderzugehörigkeit gilt zu einem Stichtag und
-     * hängt an einem Gültigkeitszeitraum; das in einer Unterabfrage abzubilden wäre
-     * schwerer zu lesen als der eine Durchgang hier, und die Zugehörigkeiten werden ohnehin
-     * einmal gesammelt geladen.
-     *
-     * Stichtag ist das Ende des Auswertungsjahres, sofern es vergangen ist — eine Auswertung
-     * der Saison 2024 soll auch später dieselbe Kadereinteilung zeigen.
-     *
-     * @param  Collection<int, WpsRankingEntry>  $eintraege
-     * @return Collection<int, WpsRankingEntry>
-     */
-    private function applyKaderFilter(Collection $eintraege, WpsRankingFilter $filter): Collection
-    {
-        if (! $filter->hasKaderFilter()) {
-            return $eintraege;
-        }
-
-        $stichtag = $this->kaderResolver->referenceDateForYear(
-            $filter->year ?? (int) date('Y')
-        );
-
-        $kaderarten = $this->kaderResolver->byAthlete($stichtag);
-
-        return $eintraege->filter(static fn (WpsRankingEntry $e): bool => $filter->allowsKader(
-            $kaderarten[$e->athlete->getKey()]['id'] ?? null
-        ));
-    }
-
-    /**
      * Zusammengesetzter Sortierschlüssel: Punkte absteigend, dann Zeit, dann Datum.
      *
      * Als Zeichenkette statt als Array von Vergleichsfunktionen: sortBy() mit mehreren
@@ -196,6 +176,27 @@ final readonly class WpsResultSelectionService
             $eintrag->swimTime,
             $eintrag->meetDate ?? '9999-99-99',
         );
+    }
+
+    /**
+     * Die verwendeten WPS-Punkteversionen einer Ergebnismenge.
+     *
+     * Enthält eine Rangliste Ergebnisse aus mehreren Versionen, wird das im Kopfbereich
+     * sichtbar gemacht (**[R3]**, §11.2) — sonst sähe eine Liste aus verschiedenen Jahrgängen
+     * aus wie eine einheitlich gerechnete.
+     *
+     * @param  Collection<int, WpsRankingEntry>  $eintraege
+     * @return list<string>
+     */
+    public function usedVersions(Collection $eintraege): array
+    {
+        return $eintraege
+            ->map(static fn (WpsRankingEntry $e): ?string => $e->versionLabel)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     /**

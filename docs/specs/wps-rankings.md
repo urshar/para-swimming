@@ -182,9 +182,29 @@ Athleten **ohne Geburtsdatum** werden aus Altersranglisten ausgeschlossen und al
 Geburtsdatum“ ausgewiesen — analog zur im Statistikmodul bestätigten Regel, dass fehlende Zuordnungen sichtbar bleiben
 und nicht still verschwinden.
 
-**Altersgruppen:** Vor Beginn von Phase 3 ist zu prüfen, ob die bestehende `AgeGroup`-Struktur des Cup-Moduls
-wiederverwendbar ist oder ob `wps-rankings` eigene, frei definierbare Gruppen benötigt. Die Cup-Altersgruppen sind an
-Sportklassengruppen und Cup-Einstellungen gebunden und daher möglicherweise zu speziell.
+**Altersgruppen — Entscheidung getroffen:** Die bestehende `AgeGroup`-Struktur des Cup-Moduls wird **wiederverwendet**.
+
+Die Prüfung ergab, dass die Befürchtung aus Version 1.1 auf die Tabelle nicht zutrifft: `age_groups` ist global
+definiert (`code`, `name_de`, `min_age`, `max_age`, `sort_order`, `is_active`, beide Altersgrenzen nullable für offene
+Intervalle) und laut ihrer Migration ausdrücklich "global administrierbar, damit zukünftig weitere Gruppen ohne
+Änderungen an der Berechnungslogik ergänzt werden können". Die Cup-Bindung liegt in `cup_age_group_settings` und in der
+Übersteuerung durch `GroupResolverService`, nicht in der Tabelle selbst.
+
+Verwendet werden ausschließlich die **statischen** Grenzen über `AgeGroup::matchesAge()`, nicht die cupabhängige
+Übersteuerung. Eine zweite Altersgruppentabelle daneben hieße, dieselbe Gruppe an zwei Stellen zu pflegen — dieselbe
+Begründung wie bei `AthleteAge` und `AthleteKaderResolver`.
+
+*Vorbehalt:* Gruppen, die nur in den Ranglisten gebraucht werden, erscheinen über `is_active` auch im Cup. Falls das
+stört, ließe sich `age_groups` später um ein Merkmal für den Geltungsbereich erweitern — erst, wenn der Bedarf da ist.
+
+**Kein eigener U18-Knopf.** Die Jugendwertung wird über die Altersgruppen-Auswahl ausgedrückt. Ein zusätzlicher Knopf
+neben der Auswahl wäre ein zweiter Weg zur selben Einschränkung, und beide zusammen ergäben eine Schnittmenge, die
+niemand so meint.
+
+Die Altersobergrenze `maxAge` bleibt im Filterobjekt erhalten und ist über die Adresse ansprechbar — sie wird für die
+PDF-Ausgabe in Phase 5 und für abweichende Grenzen gebraucht. Die Oberfläche setzt sie nicht.
+
+Eine **unbekannte** Altersgruppen-Kennung wirkt nicht, statt eine leere Liste zu erzeugen.
 
 ---
 
@@ -539,6 +559,10 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 - ein Kadermodus ohne Auswahl wirkt nicht
 - die Jahresvorbelegung trifft das jüngste Jahr mit Wettkämpfen, nicht das laufende Kalenderjahr
 - die Veranstaltungsliste zeigt nur Wettkämpfe des gewählten Jahres
+- die Altersgruppe grenzt über die statischen Grenzen ein, auch bei offenem Intervall
+- eine unbekannte Altersgruppen-Kennung wirkt nicht
+- der U18-Knopf hebt eine gesetzte Altersgruppe auf
+- der Sammelposten "ohne Geburtsdatum" erscheint auch bei gesetzter Altersgruppe
 
 ## 14.2 Feature-Tests
 
@@ -583,8 +607,10 @@ Vorlauf wie Finale sollen beide sichtbar bleiben.
 
 Altersberechnung nach §5, Altersgruppenentscheidung, U18-Filter.
 
-*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5). *DoD:* Jugendranglisten sind korrekt, Grenzfälle
-getestet.
+*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5) — **getroffen: wird wiederverwendet**. *DoD:*
+Jugendranglisten sind korrekt, Grenzfälle getestet. — **abgeschlossen**
+
+Die Altersberechnung und die U18-Grenze kamen bereits mit Phase 1/2; Phase 3 ergänzt die Altersgruppen-Auswahl.
 
 ## Phase 4 — Athletenanalyse
 

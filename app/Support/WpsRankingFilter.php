@@ -62,6 +62,7 @@ final readonly class WpsRankingFilter
      * @param  int|null  $clubId  Verein
      * @param  int|null  $minPoints  Mindestpunktzahl
      * @param  int|null  $maxAge  Altersobergrenze für die Jugendrangliste (§6.3)
+     * @param  int|null  $ageGroupId  Altersgruppe aus dem Cup-Modul (§5)
      * @param  bool  $includeExhibition  EXH einbeziehen (§4)
      * @param  string  $calculationType  official, estimated oder leer für beide
      */
@@ -79,6 +80,9 @@ final readonly class WpsRankingFilter
         public ?int $maxAge = null,
         public bool $includeExhibition = false,
         public string $calculationType = '',
+        public ?int $ageGroupId = null,
+        /** Bezeichnung der Altersgruppe — nur für describe(), nicht für die Auswahl. */
+        public ?string $ageGroupLabel = null,
         public string $kaderMode = self::KADER_ALL,
         /** @var list<int> Kaderarten-IDs; KADER_NONE steht für "ohne Zuordnung" */
         public array $kaderIds = [],
@@ -110,24 +114,27 @@ final readonly class WpsRankingFilter
         $bahn = strtoupper((string) ($query['course'] ?? self::COURSE_SCM));
         $rechenart = (string) ($query['calc'] ?? '');
 
+        // Benannte Argumente: Bei sechzehn Parametern ist die Reihenfolge nicht mehr
+        // überschaubar, und ein neuer Parameter in der Mitte verschöbe still alle folgenden.
         return new self(
-            in_array($art, self::TYPES, true) ? $art : self::TYPE_SEASON,
-            self::intOrNull($query['year'] ?? null) ?? (int) date('Y'),
-            self::intOrNull($query['meet'] ?? null),
-            self::intOrNull($query['stroke'] ?? null),
-            self::intOrNull($query['distance'] ?? null),
-            in_array($query['gender'] ?? '', ['M', 'F'], true) ? (string) $query['gender'] : '',
-            trim((string) ($query['class'] ?? '')),
-            in_array($bahn, self::courses(), true) ? $bahn : self::COURSE_SCM,
-            self::intOrNull($query['club'] ?? null),
-            self::intOrNull($query['minPoints'] ?? null),
-            self::intOrNull($query['maxAge'] ?? null),
-            filter_var($query['exh'] ?? false, FILTER_VALIDATE_BOOL),
-            in_array($rechenart, Result::WPS_CALCULATION_TYPES, true) ? $rechenart : '',
-            in_array($query['kaderMode'] ?? '', self::KADER_MODES, true)
+            type: in_array($art, self::TYPES, true) ? $art : self::TYPE_SEASON,
+            year: self::intOrNull($query['year'] ?? null) ?? (int) date('Y'),
+            meetId: self::intOrNull($query['meet'] ?? null),
+            strokeTypeId: self::intOrNull($query['stroke'] ?? null),
+            distance: self::intOrNull($query['distance'] ?? null),
+            gender: in_array($query['gender'] ?? '', ['M', 'F'], true) ? (string) $query['gender'] : '',
+            sportClass: trim((string) ($query['class'] ?? '')),
+            course: in_array($bahn, self::courses(), true) ? $bahn : self::COURSE_SCM,
+            clubId: self::intOrNull($query['club'] ?? null),
+            minPoints: self::intOrNull($query['minPoints'] ?? null),
+            maxAge: self::intOrNull($query['maxAge'] ?? null),
+            includeExhibition: filter_var($query['exh'] ?? false, FILTER_VALIDATE_BOOL),
+            calculationType: in_array($rechenart, Result::WPS_CALCULATION_TYPES, true) ? $rechenart : '',
+            ageGroupId: self::intOrNull($query['ageGroup'] ?? null),
+            kaderMode: in_array($query['kaderMode'] ?? '', self::KADER_MODES, true)
                 ? (string) $query['kaderMode']
                 : self::KADER_ALL,
-            self::intList($query['kader'] ?? ''),
+            kaderIds: self::intList($query['kader'] ?? ''),
         );
     }
 
@@ -201,6 +208,10 @@ final readonly class WpsRankingFilter
 
         if ($this->maxAge !== null) {
             $teile[] = "bis $this->maxAge Jahre";
+        }
+
+        if ($this->ageGroupId !== null && $this->ageGroupLabel !== null) {
+            $teile[] = "Altersgruppe $this->ageGroupLabel";
         }
 
         if ($this->minPoints !== null) {

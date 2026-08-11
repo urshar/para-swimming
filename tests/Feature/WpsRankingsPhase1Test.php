@@ -2,6 +2,7 @@
 
 use App\Livewire\WpsRankings;
 use App\Models\Athlete;
+use App\Models\AgeGroup;
 use App\Models\AthleteKaderMembership;
 use App\Models\Club;
 use App\Models\KaderType;
@@ -381,21 +382,6 @@ it('setzt Filter über die Komponente und springt auf Seite 1 zurück', function
         ->and($komponente->instance()->filter()->includeExhibition)->toBeFalse();
 });
 
-it('schaltet die Jugendrangliste um', function () {
-    $komponente = Livewire::actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
-        ->test(WpsRankings::class);
-
-    expect($komponente->instance()->filter()->maxAge)->toBeNull();
-
-    $komponente->call('toggleYouth');
-
-    expect($komponente->instance()->filter()->maxAge)->toBe(18);
-
-    $komponente->call('toggleYouth');
-
-    expect($komponente->instance()->filter()->maxAge)->toBeNull();
-});
-
 // ── Kaderfilter (§10) ────────────────────────────────────────────────────────
 
 function kaderAthlet_wr1(string $nachname, ?KaderType $kaderType): Athlete
@@ -540,4 +526,75 @@ it('schränkt die Veranstaltungsliste auf das gewählte Jahr ein', function () {
 
     expect($komponente->instance()->meets())->toHaveCount(1)
         ->and($komponente->instance()->meets()->first()->name)->toBe('Alt');
+});
+
+// ── Altersgruppen (§5) ───────────────────────────────────────────────────────
+
+function ageGroup_wr1(string $code, ?int $min, ?int $max, int $sortOrder): AgeGroup
+{
+    return AgeGroup::query()->create([
+        'code' => $code,
+        'name_de' => $code,
+        'min_age' => $min,
+        'max_age' => $max,
+        'sort_order' => $sortOrder,
+        'is_active' => true,
+    ]);
+}
+
+it('schränkt auf eine Altersgruppe ein', function () {
+    $jugend = ageGroup_wr1('Jugend', null, 18, 1);
+    ageGroup_wr1('Allgemein', 19, null, 2);
+
+    result_wr1($this->event, athlete_wr1('Jung', '2009-06-01'), 7000, 800);
+    result_wr1($this->event, athlete_wr1('Erwachsen', '1998-06-01'), 7100, 850);
+
+    $filter = new WpsRankingFilter(year: 2026, ageGroupId: $jugend->id);
+
+    expect($this->service->ranking($filter))->toHaveCount(1)
+        ->and($this->service->ranking($filter)->first()->athlete->last_name)->toBe('Jung');
+});
+
+it('verwendet die statischen Grenzen der Altersgruppe, nicht die Cup-Übersteuerung', function () {
+    // Offenes Intervall nach oben — min_age gesetzt, max_age null.
+    $offen = ageGroup_wr1('Offen', 19, null, 1);
+
+    result_wr1($this->event, athlete_wr1('Jung', '2010-06-01'), 7000, 800);
+    result_wr1($this->event, athlete_wr1('Alt', '1980-06-01'), 7100, 850);
+
+    $filter = new WpsRankingFilter(year: 2026, ageGroupId: $offen->id);
+
+    expect($this->service->ranking($filter))->toHaveCount(1)
+        ->and($this->service->ranking($filter)->first()->athlete->last_name)->toBe('Alt');
+});
+
+it('weist auch bei gesetzter Altersgruppe Athleten ohne Geburtsdatum aus', function () {
+    $jugend = ageGroup_wr1('Jugend', null, 18, 1);
+
+    result_wr1($this->event, athlete_wr1('MitDatum', '2009-06-01'), 7000, 800);
+    result_wr1($this->event, athlete_wr1('OhneDatum', null), 6900, 850);
+
+    $filter = new WpsRankingFilter(year: 2026, ageGroupId: $jugend->id);
+
+    expect($this->service->ranking($filter))->toHaveCount(1)
+        ->and($this->service->withoutBirthDate($filter))->toHaveCount(1);
+});
+
+it('ignoriert eine unbekannte Altersgruppe, statt eine leere Liste zu liefern', function () {
+    result_wr1($this->event, athlete_wr1('Irgendwer', '2000-05-01'), 7000, 800);
+
+    $filter = new WpsRankingFilter(year: 2026, ageGroupId: 999999);
+
+    expect($this->service->ranking($filter))->toHaveCount(1);
+});
+
+it('nennt die gewählte Altersgruppe in der Beschreibung des Filterstands', function () {
+    $jugend = ageGroup_wr1('Jugend', null, 18, 1);
+
+    $komponente = Livewire::actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
+        ->test(WpsRankings::class);
+
+    $komponente->call('setFilter', 'ageGroupId', (string) $jugend->id);
+
+    expect($komponente->instance()->filter()->describe())->toContain('Altersgruppe Jugend');
 });

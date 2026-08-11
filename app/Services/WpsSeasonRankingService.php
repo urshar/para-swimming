@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AgeGroup;
 use App\Support\WpsRankingEntry;
 use App\Support\WpsRankingFilter;
 use Illuminate\Support\Collection;
@@ -19,7 +20,8 @@ use Illuminate\Support\Collection;
 final readonly class WpsSeasonRankingService
 {
     public function __construct(
-        private WpsResultSelectionService $selection
+        private WpsResultSelectionService $selection,
+        private GroupResolverService $groupResolver,
     ) {}
 
     /**
@@ -31,7 +33,9 @@ final readonly class WpsSeasonRankingService
             $this->selection->select($filter)
         );
 
-        return $this->selection->rank($this->applyAgeLimit($eintraege, $filter));
+        return $this->selection->rank(
+            $this->applyAgeGroup($this->applyAgeLimit($eintraege, $filter), $filter)
+        );
     }
 
     /**
@@ -45,13 +49,46 @@ final readonly class WpsSeasonRankingService
      */
     public function withoutBirthDate(WpsRankingFilter $filter): Collection
     {
-        if ($filter->maxAge === null) {
+        // Ohne Alterseinschränkung ist niemand ausgeschlossen worden — dann gibt es auch
+        // keinen Sammelposten.
+        if ($filter->maxAge === null && $filter->ageGroupId === null) {
             return collect();
         }
 
         return $this->selection
             ->bestPerAthleteAndEvent($this->selection->select($filter))
             ->filter(static fn (WpsRankingEntry $e): bool => ! $e->hasAge())
+            ->values();
+    }
+
+    /**
+     * Schränkt auf eine Altersgruppe ein (§5).
+     *
+     * Verwendet die bestehende `AgeGroup`-Struktur des Cup-Moduls, und zwar deren **statische**
+     * Grenzen — nicht die cupabhängige Übersteuerung aus `GroupResolverService`, die an
+     * Sportklassengruppen und Cup-Einstellungen hängt. Eine zweite Altersgruppentabelle
+     * daneben hieße, dieselbe Gruppe an zwei Stellen zu pflegen.
+     *
+     * Athleten ohne Geburtsdatum fallen heraus und erscheinen im Sammelposten.
+     *
+     * @param  Collection<int, WpsRankingEntry>  $eintraege
+     * @return Collection<int, WpsRankingEntry>
+     */
+    private function applyAgeGroup(Collection $eintraege, WpsRankingFilter $filter): Collection
+    {
+        if ($filter->ageGroupId === null) {
+            return $eintraege;
+        }
+
+        $gruppe = $this->groupResolver->loadAgeGroups()
+            ->first(static fn (AgeGroup $g): bool => $g->getKey() === $filter->ageGroupId);
+
+        if ($gruppe === null) {
+            return $eintraege;
+        }
+
+        return $eintraege
+            ->filter(static fn (WpsRankingEntry $e): bool => $e->hasAge() && $gruppe->matchesAge($e->age))
             ->values();
     }
 

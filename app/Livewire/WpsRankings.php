@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\AgeGroup;
 use App\Models\Club;
 use App\Models\KaderType;
 use App\Models\Meet;
@@ -58,11 +59,11 @@ class WpsRankings extends Component
 
     public string $minPoints = '';
 
-    public string $maxAge = '';
-
     public bool $includeExhibition = false;
 
     public string $calculationType = '';
+
+    public string $ageGroupId = '';
 
     public string $kaderMode = WpsRankingFilter::KADER_ALL;
 
@@ -95,8 +96,8 @@ class WpsRankings extends Component
             'course' => $this->course = $wert,
             'clubId' => $this->clubId = $wert,
             'minPoints' => $this->minPoints = $wert,
-            'maxAge' => $this->maxAge = $wert,
             'calculationType' => $this->calculationType = $wert,
+            'ageGroupId' => $this->ageGroupId = $wert,
             'kaderMode' => $this->kaderMode = $wert,
             default => null,
         };
@@ -139,14 +140,6 @@ class WpsRankings extends Component
         $this->afterFilterChange();
     }
 
-    /** Jugendrangliste: setzt die Altersgrenze auf 18 oder hebt sie auf (§6.3). */
-    public function toggleYouth(): void
-    {
-        $this->maxAge = $this->maxAge === '' ? '18' : '';
-
-        $this->afterFilterChange();
-    }
-
     public function resetFilters(): void
     {
         $this->type = WpsRankingFilter::TYPE_SEASON;
@@ -159,7 +152,7 @@ class WpsRankings extends Component
         $this->course = WpsRankingFilter::COURSE_SCM;
         $this->clubId = '';
         $this->minPoints = '';
-        $this->maxAge = '';
+        $this->ageGroupId = '';
         $this->includeExhibition = false;
         $this->calculationType = '';
         $this->kaderMode = WpsRankingFilter::KADER_ALL;
@@ -171,22 +164,30 @@ class WpsRankings extends Component
     #[Computed]
     public function filter(): WpsRankingFilter
     {
+        // Benannte Argumente: Der Filter hat sechzehn Parameter; ein neuer in der Mitte
+        // verschöbe bei Positionsangaben still alle folgenden.
         return new WpsRankingFilter(
-            in_array($this->type, WpsRankingFilter::TYPES, true) ? $this->type : WpsRankingFilter::TYPE_SEASON,
-            $this->intOrNull($this->year),
-            $this->intOrNull($this->meetId),
-            $this->intOrNull($this->strokeTypeId),
-            $this->intOrNull($this->distance),
-            $this->gender,
-            $this->sportClass,
-            $this->course,
-            $this->intOrNull($this->clubId),
-            $this->intOrNull($this->minPoints),
-            $this->intOrNull($this->maxAge),
-            $this->includeExhibition,
-            $this->calculationType,
-            $this->kaderMode,
-            array_map(intval(...), $this->kaderIds),
+            type: in_array($this->type, WpsRankingFilter::TYPES, true)
+                ? $this->type
+                : WpsRankingFilter::TYPE_SEASON,
+            year: $this->intOrNull($this->year),
+            meetId: $this->intOrNull($this->meetId),
+            strokeTypeId: $this->intOrNull($this->strokeTypeId),
+            distance: $this->intOrNull($this->distance),
+            gender: $this->gender,
+            sportClass: $this->sportClass,
+            course: $this->course,
+            clubId: $this->intOrNull($this->clubId),
+            minPoints: $this->intOrNull($this->minPoints),
+            // Die Altersgrenze wird über die Altersgruppe ausgedrückt; als eigenes Feld
+            // gäbe es zwei Wege zur selben Einschränkung, die einander widersprechen können.
+            maxAge: null,
+            includeExhibition: $this->includeExhibition,
+            calculationType: $this->calculationType,
+            ageGroupId: $this->intOrNull($this->ageGroupId),
+            ageGroupLabel: $this->ageGroupLabel(),
+            kaderMode: $this->kaderMode,
+            kaderIds: array_map(intval(...), $this->kaderIds),
         );
     }
 
@@ -268,6 +269,13 @@ class WpsRankings extends Component
     {
         return app(AthleteKaderResolver::class)
             ->referenceDateForYear($this->intOrNull($this->year) ?? (int) date('Y'));
+    }
+
+    /** @return Collection<int, AgeGroup> */
+    #[Computed]
+    public function ageGroups(): Collection
+    {
+        return AgeGroup::query()->active()->orderBy('sort_order')->get();
     }
 
     /** @return Collection<int, KaderType> */
@@ -359,7 +367,18 @@ class WpsRankings extends Component
             $this->usedVersions,
             $this->meets,
             $this->kaderReferenceDate,
+            $this->ageGroups,
         );
+    }
+
+    /** Bezeichnung der gewählten Altersgruppe — für die Beschreibung des Filterstands. */
+    private function ageGroupLabel(): ?string
+    {
+        $id = $this->intOrNull($this->ageGroupId);
+
+        return $id === null
+            ? null
+            : $this->ageGroups()->firstWhere('id', $id)?->name_de;
     }
 
     private function intOrNull(string $wert): ?int

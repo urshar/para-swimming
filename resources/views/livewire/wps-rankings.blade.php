@@ -50,9 +50,19 @@
             </flux:select>
         </flux:field>
 
-        <flux:button wire:click="toggleYouth" variant="{{ $maxAge === '' ? 'ghost' : 'filled' }}" size="sm">
-            {{ $maxAge === '' ? 'Nur Jugend (U18)' : 'Altersgrenze aufheben' }}
-        </flux:button>
+        @if($this->ageGroups()->isNotEmpty())
+            <flux:field class="w-44">
+                <flux:label>Altersgruppe</flux:label>
+                <flux:select x-on:change="$wire.setFilter('ageGroupId', $event.target.value)">
+                    <option value="">Alle</option>
+                    @foreach($this->ageGroups() as $ageGroup)
+                        <option value="{{ $ageGroup->id }}" @selected($ageGroupId === (string) $ageGroup->id)>
+                            {{ $ageGroup->name_de }}
+                        </option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+        @endif
 
         <flux:button wire:click="resetFilters" variant="ghost" size="sm">Zurücksetzen</flux:button>
     </div>
