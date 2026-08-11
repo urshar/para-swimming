@@ -7,6 +7,7 @@ use App\Models\KaderType;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\StrokeType;
+use App\Services\AthleteKaderResolver;
 use App\Services\WpsRankingService;
 use App\Support\SportClassSorter;
 use App\Support\WpsRankingEntry;
@@ -35,7 +36,7 @@ class WpsRankings extends Component
 {
     use WithPagination;
 
-    private const int PER_PAGE = 50;
+    private const int PER_PAGE = 25;
 
     public string $type = WpsRankingFilter::TYPE_SEASON;
 
@@ -255,6 +256,20 @@ class WpsRankings extends Component
             ->get(['id', 'name', 'start_date', 'course']);
     }
 
+    /**
+     * Stichtag, auf den sich die Kaderzugehörigkeit bezieht.
+     *
+     * Wird unter dem Kaderfilter ausgewiesen: Bei einem vergangenen Auswertungsjahr ist es
+     * dessen Ende, nicht der heutige Tag — sonst stünde bei einer Auswertung der Saison 2024
+     * eine Kadereinteilung, die es damals nicht gab.
+     */
+    #[Computed]
+    public function kaderReferenceDate(): string
+    {
+        return app(AthleteKaderResolver::class)
+            ->referenceDateForYear($this->intOrNull($this->year) ?? (int) date('Y'));
+    }
+
     /** @return Collection<int, KaderType> */
     #[Computed]
     public function kaderTypes(): Collection
@@ -336,7 +351,15 @@ class WpsRankings extends Component
     {
         $this->resetPage();
 
-        unset($this->filter, $this->entries, $this->page, $this->withoutBirthDate, $this->usedVersions, $this->meets);
+        unset(
+            $this->filter,
+            $this->entries,
+            $this->page,
+            $this->withoutBirthDate,
+            $this->usedVersions,
+            $this->meets,
+            $this->kaderReferenceDate,
+        );
     }
 
     private function intOrNull(string $wert): ?int

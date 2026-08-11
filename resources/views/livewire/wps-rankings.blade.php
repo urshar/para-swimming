@@ -132,17 +132,19 @@
         <div
             class="mb-4 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl">
             <div class="flex flex-wrap items-center gap-4">
-                <flux:field class="w-56">
-                    <flux:label>Kaderfilter</flux:label>
+                {{-- Die Bezeichnungen benennen das Ergebnis, nicht den Zustand des Filters:
+                     "wirkt nicht" sagt nichts darüber, was in der Liste steht. --}}
+                <flux:field class="w-64">
+                    <flux:label>Kaderarten</flux:label>
                     <flux:select x-on:change="$wire.setFilter('kaderMode', $event.target.value)">
                         <option value="all" @selected($kaderMode === WpsRankingFilter::KADER_ALL)>
-                            wirkt nicht
+                            Alle Athleten zeigen
                         </option>
                         <option value="only" @selected($kaderMode === WpsRankingFilter::KADER_ONLY)>
-                            nur ausgewählte zeigen
+                            Nur angehakte Kaderarten zeigen
                         </option>
                         <option value="except" @selected($kaderMode === WpsRankingFilter::KADER_EXCEPT)>
-                            ausgewählte ausblenden
+                            Angehakte Kaderarten ausblenden
                         </option>
                     </flux:select>
                 </flux:field>
@@ -162,6 +164,20 @@
                                    label="ohne Kaderzuordnung"/>
                 </div>
             </div>
+
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                @if($this->filter()->hasKaderFilter())
+                    @if($kaderMode === WpsRankingFilter::KADER_ONLY)
+                        Es werden ausschließlich Athleten der angehakten Kaderarten gezeigt.
+                    @else
+                        Athleten der angehakten Kaderarten sind ausgeblendet.
+                    @endif
+                @else
+                    Solange keine Kaderart angehakt ist, werden alle Athleten gezeigt.
+                @endif
+                Kaderzugehörigkeit zum Stichtag
+                {{ Carbon::parse($this->kaderReferenceDate())->format('d.m.Y') }}.
+            </p>
         </div>
     @endif
 
