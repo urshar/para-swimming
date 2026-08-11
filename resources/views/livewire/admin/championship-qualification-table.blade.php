@@ -94,7 +94,7 @@
                             @if($eintrag->ageLabel($championship->year))
                                 · {{ $eintrag->ageLabel($championship->year) }}
                             @endif
-                            · {{ $eintrag->athlete->club?->name }}
+                            · {{ $eintrag->athlete->club?->display_name }}
                         </span>
                     </div>
                     <div class="flex gap-2 text-xs">

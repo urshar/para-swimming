@@ -80,7 +80,7 @@
                         @if($eintrag->ageLabel($championship->year))
                             · {{ $eintrag->ageLabel($championship->year) }}
                         @endif
-                        · {{ $eintrag->athlete->club?->name }}
+                        · {{ $eintrag->athlete->club?->display_name }}
                         @if($eintrag->kaderName)
                             · {{ $eintrag->kaderName }}
                         @endif

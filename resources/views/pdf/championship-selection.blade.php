@@ -109,7 +109,7 @@
             <td class="num">{{ $eintrag->rank ?? '–' }}</td>
             <td>{{ $eintrag->athlete->full_name }}</td>
             <td>{{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}</td>
-            <td>{{ $eintrag->athlete->club?->name }}</td>
+            <td>{{ $eintrag->athlete->club?->display_name }}</td>
             <td>{{ $eintrag->row->eventLabel }} {{ $eintrag->row->sportClass }}</td>
             <td class="num">{{ TimeParser::display($eintrag->row->status->swimTime) }}</td>
             <td class="num">
@@ -151,7 +151,7 @@
                 <td class="num">{{ $eintrag->rank ?? '–' }}</td>
                 <td>{{ $eintrag->athlete->full_name }}</td>
                 <td>{{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}</td>
-                <td>{{ $eintrag->athlete->club?->name }}</td>
+                <td>{{ $eintrag->athlete->club?->display_name }}</td>
                 <td class="num">{{ TimeParser::display($eintrag->row->status->swimTime) }}</td>
                 <td class="num">
                     @if($eintrag->points === null)

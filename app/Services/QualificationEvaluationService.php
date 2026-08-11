@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Athlete;
-use App\Models\AthleteKaderMembership;
 use App\Models\Championship;
 use App\Models\ChampionshipStandard;
 use App\Models\Result;
@@ -44,7 +43,8 @@ final readonly class QualificationEvaluationService
     private const array NON_SCORING_STATUSES = ['DNS', 'DNF', 'DSQ', 'SICK', 'WDR'];
 
     public function __construct(
-        private WpsScmConversionService $conversionService
+        private WpsScmConversionService $conversionService,
+        private AthleteKaderResolver $kaderResolver,
     ) {}
 
     /**
@@ -93,7 +93,7 @@ final readonly class QualificationEvaluationService
     {
         $normen = $this->standardsByKey($championship);
         $stichtag = $this->kaderReferenceDate($championship);
-        $kaderarten = $this->kaderByAthlete($stichtag);
+        $kaderarten = $this->kaderResolver->byAthlete($stichtag);
 
         return $this->relevantResults($championship, $clubId, null, true)
             ->groupBy(fn (Result $result): int => (int) $result->getAttribute('athlete_id'))
@@ -138,7 +138,7 @@ final readonly class QualificationEvaluationService
      */
     public function developmentOverview(Championship $championship, ?int $clubId): Collection
     {
-        $kaderarten = $this->kaderByAthlete($this->kaderReferenceDate($championship));
+        $kaderarten = $this->kaderResolver->byAthlete($this->kaderReferenceDate($championship));
 
         return $this->evaluate($championship, $clubId, null)
             ->map(function (array $eintrag) use ($kaderarten): QualificationAthleteSummary {
@@ -499,30 +499,6 @@ final readonly class QualificationEvaluationService
         return $zeilen->map(static fn (QualificationRow $zeile): QualificationRow => $zeile->withMetUsable(
             $zeile->status->status === QualificationStatus::MET_ONLY ? $hatMqs : null
         ));
-    }
-
-    /**
-     * Kaderzugehörigkeit je Athlet zum Stichtag.
-     *
-     * Einmal geladen statt je Athlet abgefragt. Gibt es mehrere gültige Zugehörigkeiten,
-     * gewinnt die mit der kleinsten Sortierung — also die höchste Kaderstufe.
-     *
-     * @return array<int, array{name: string, sort_order: int}>
-     */
-    private function kaderByAthlete(string $stichtag): array
-    {
-        return AthleteKaderMembership::query()
-            ->with('kaderType')
-            ->activeOn($stichtag)
-            ->get()
-            ->filter(static fn ($mitgliedschaft): bool => $mitgliedschaft->kaderType !== null)
-            ->sortBy(static fn ($mitgliedschaft): int => (int) $mitgliedschaft->kaderType->sort_order)
-            ->groupBy(static fn ($mitgliedschaft): int => (int) $mitgliedschaft->athlete_id)
-            ->map(static fn (Collection $desAthleten): array => [
-                'name' => $desAthleten->first()->kaderType->name_de,
-                'sort_order' => (int) $desAthleten->first()->kaderType->sort_order,
-            ])
-            ->all();
     }
 
     /**

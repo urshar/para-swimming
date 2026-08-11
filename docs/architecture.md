@@ -32,10 +32,10 @@ querschnittliche Wiederverwendung in **Traits** (`app/Concerns`).
 | Verzeichnis        | Rolle                                                                                                                                               |
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Http/Controllers` | Dünne Controller; ein Controller je Ressource (RESTful) plus dedizierte Import-/Export-Controller. Admin-Controller unter `Http/Controllers/Admin`. |
-| `Livewire`         | Interaktive Komponenten: `StatisticsDashboard`, `Admin/UserManager`, `Admin/BaseTimeTable`, `Actions/Logout`.                                       |
+| `Livewire`         | Interaktive Komponenten: `StatisticsDashboard`, `Admin/UserManager`, `Admin/BaseTimeTable`, `Admin/ChampionshipStandardTable`, `Admin/ChampionshipQualificationTable`, `Admin/ChampionshipDevelopmentTable`, `Actions/Logout`. |
 | `Models`           | Eloquent-Modelle (die Domäne, ~45 Modelle).                                                                                                         |
 | `Services`         | Geschäftslogik: Import/Export, Berechnungen, Wertung, Statistik (~26 Services).                                                                     |
-| `Support`          | Zustandslose Helfer: `TimeParser`, `SportClassSorter`, `ReportConfiguration`.                                                                       |
+| `Support`          | Zustandslose Helfer und Wertobjekte: `TimeParser`, `SportClassSorter`, `SportClassValidator`, `AthleteAge`, `ReportConfiguration`.                  |
 | `Concerns`         | Traits: `PasswordValidationRules`, `ProfileValidationRules`, `SearchesAthletes`.                                                                    |
 | `Policies`         | Autorisierung: `EntryPolicy` (wer darf Meldungen verwalten).                                                                                        |
 | `Http/Middleware`  | `RequireAdmin`.                                                                                                                                     |
@@ -78,8 +78,11 @@ Merkmale, die sich durchziehen:
 - **Cup-Wertung** – `GroupResolverService`, `DailyRankingService`,
   `OverallRankingService`, `TopGroupClassificationService`,
   `CupStalenessService`, `CupStatisticsService`
-- **Richtzeiten / Qualifikation** – `QualifyingTimeService`,
+- **Richtzeiten (national)** – `QualifyingTimeService`,
   `QualifyingTimeCalculationService`, `QualificationDeterminationService`
+- **Internationale Qualifikation** – `ChampionshipStandardService` (Normpflege),
+  `ChampionshipStandardImportService` (Excel), `QualificationEvaluationService`
+  (Erfüllung, rein lesend), `QualificationSelectionService` (Auswahl-Rangliste)
 - **World-Aquatics-Basiszeiten** – `BaseTimeImportService`,
   `BaseTimeExportService`, `BaseTimeCalculationService`,
   `WorldAquaticsPointsService`
@@ -110,6 +113,37 @@ Bei einer Massenberechnung werden Parametersätze und Umrechnungsfaktoren **einm
 (`once()`), nicht je Ergebnis abgefragt. Der Testfall dazu liegt in
 `tests/Feature/WpsPointsPhase6Test.php`.
 
+## Internationale Qualifikation im Besonderen
+
+Das Modul beantwortet drei verschiedene Fragen, und die Trennung zwischen ihnen ist sein Kern:
+
+| Frage | Ansicht | Grundlage |
+|---|---|---|
+| Wer hat sich qualifiziert, und wie weit fehlt den übrigen? | Qualifikanten | **nur Nachweise**: reale Zeiten auf der Bahnlänge der Meisterschaft aus WPS-anerkannten Wettkämpfen |
+| Hat der Athlet international eine Chance? | Förderansicht | alles, einschließlich umgerechneter Kurzbahnzeiten — gekennzeichnet |
+| Wer fährt? | Auswahl-Rangliste | Nachweise, sortiert nach WPS-Punkten |
+
+Vier Punkte, die beim Anfassen des Moduls wichtig sind:
+
+- **`QualificationStatus::isProof()` ist die einzige Stelle, die über einen Nachweis entscheidet.** Alle drei Ansichten
+  teilen sich `QualificationEvaluationService`; getrennt sind ausschließlich Zeilenauswahl und Darstellung. Bewusst
+  **kein** Statusfilter über einer gemeinsamen Liste — der wäre die Möglichkeit, sich umgerechnete Zeiten doch wieder in
+  die Nachweisliste zu holen.
+- **Eine reale Zeit schlägt eine umgerechnete immer**, auch wenn die umgerechnete schneller ist. Der Status trägt eine
+  Zeit; gewönne die Schätzung, verschwände die reale aus der Zeile, und angezeigt stünde "rechnerisch erreicht" bei
+  jemandem, der auf der Zielbahnlänge nachweislich langsamer war.
+- **Nichts wird persistiert.** Übersichten und Ranglisten werden bei jedem Aufruf neu berechnet — wie im Statistikmodul.
+- **Durchgehend Wertobjekte statt assoziativer Arrays** (`QualificationStatus`, `QualificationRow`,
+  `QualificationResultEntry`, `QualificationAthleteSummary`, `QualificationRankingEntry`,
+  `QualificationOverviewFilter`). Bei einem Array ist jeder Zugriff für die statische Analyse ein `mixed`: Tippfehler in
+  Schlüsseln fallen erst zur Laufzeit auf, und Methodenaufrufe lassen sich nicht auflösen.
+
+Der Filterstand der Qualifikantenansicht liegt in `QualificationOverviewFilter` und wird von Bildschirm **und**
+PDF-Ausgabe verwendet; der PDF-Link trägt ihn als Abfrageparameter mit. Zweimal ausprogrammiert liefen die Regeln
+auseinander, und das PDF zeigte etwas anderes als der Bildschirm, von dem aus es erzeugt wurde.
+
+Hintergrund und verworfene Alternativen in `docs/specs/wps-qualification.md`.
+
 ## Import-/Export-Pipelines
 
 - **LENEX (`.lxf`)** – Ein `.lxf` ist ein ZIP-Archiv mit einer `.lef`-XML-Datei. Import: ZIP entpacken → XML parsen
@@ -119,12 +153,17 @@ Bei einer Massenberechnung werden Parametersätze und Umrechnungsfaktoren **einm
 - **Excel** – WPS Point Scores via PhpSpreadsheet (`WpsParameterImportService`). Dreistufig:
   Formular → Vorschau (parst und validiert, schreibt nichts) → Import in einer Transaktion. Der Vorschauschritt ist
   verbindlich.
+- **Excel** – WPS-Qualifikationsnormen via PhpSpreadsheet (`ChampionshipStandardImportService`), ebenfalls dreistufig.
+  Der Import füllt **ausschließlich** MQS und MET; ÖBSV-Prozentsätze und -Zeiten bleiben unberührt, damit ein erneuter
+  Import die eigenen Festlegungen nicht überschreibt. Die Dateien stammen aus PDF-Konvertierungen und tragen deren
+  Eigenheiten (Zeiten als Text, verbundene Zellen, Leerzeilen zwischen den Bewerbsgruppen) — Einzelheiten in
+  `docs/specs/wps-qualification.md` §9.2.
 - **PDF** – Berichte und Wertungslisten via dompdf (`PdfExportService`, Views unter `resources/views/pdf`).
 
 ## Views
 
 Blade-Views liegen modulweise unter `resources/views/<modul>` (z. B.
-`records`, `club-entries`, `cups`, `qualifying-time-lists`, `statistics`). Layouts unter `resources/views/layouts`,
+`records`, `club-entries`, `cups`, `qualifying-time-lists`, `championships`, `statistics`). Layouts unter `resources/views/layouts`,
 gemeinsame Bausteine unter
 `components` und `partials`, PDF-Templates unter `pdf`.
 

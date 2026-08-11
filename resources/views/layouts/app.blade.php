@@ -140,6 +140,13 @@
             @endif
         </flux:navlist.group>
 
+        <flux:navlist.group heading="Auswertungen">
+            <flux:navlist.item icon="chart-bar" href="{{ route('wps.rankings') }}"
+                               :current="request()->routeIs('wps.rankings')">
+                WPS-Ranglisten
+            </flux:navlist.item>
+        </flux:navlist.group>
+
         <flux:navlist.group heading="Meisterschaften">
             <flux:navlist.item icon="trophy" href="{{ route('championships.index') }}"
                                :current="request()->routeIs('championships.*')">

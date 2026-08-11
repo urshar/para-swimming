@@ -23,3 +23,5 @@ yarn-error.log
 /.zed
 composer.lock
 package-lock.json
+laravel-debug.php
+laravel-test.php

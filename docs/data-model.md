@@ -37,6 +37,8 @@ erDiagram
     RELAY_ENTRY ||--o{ RELAY_ENTRY_MEMBER: "Mitglieder"
     STROKE_TYPE ||--o{ SWIM_EVENT: "Disziplin"
     RESULT ||--o| SWIM_RECORD: "kann Rekord sein"
+    CHAMPIONSHIP ||--o{ CHAMPIONSHIP_STANDARD: "Normen"
+    STROKE_TYPE ||--o{ CHAMPIONSHIP_STANDARD: "Bewerb"
 ```
 
 ## Stammdaten
@@ -75,8 +77,14 @@ Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Res
 
 **Meet** — `name`, `city`, `nation_id`, `course`, `start_date`, `end_date`,
 `entries_deadline`, `timing`, `entry_type` (OPEN/INVITATION), `is_open`,
-`lenex_meet_id`, sowie später ergänzt `cup_id` und `qualifying_time_list_id`. Soft-deletes. → hat viele **SwimEvent**;
+`lenex_meet_id`, sowie später ergänzt `cup_id`, `qualifying_time_list_id` und
+`wps_approved` / `wps_approved_note`. Soft-deletes. → hat viele **SwimEvent**;
 n:m zu **Club** über `meet_club`; optional einem **Cup** und einer **QualifyingTimeList** zugeordnet.
+
+`wps_approved` (boolean, Default **false**) kennzeichnet von World Para Swimming sanktionierte Wettkämpfe — nur deren
+Zeiten gelten als Qualifikationsnachweis für internationale Meisterschaften. Der Default gilt ausdrücklich auch für den
+Altbestand: `true` behauptete über jeden bestehenden Wettkampf eine Anerkennung, die niemand geprüft hat.
+`wps_approved_note` hält die Fundstelle.
 
 **SwimEvent** — `meet_id`, `stroke_type_id`, `event_number`, `session_number`,
 `gender` (M/F/A/X), `round`, `distance`, `relay_count` (1 = Einzel, >1 = Staffel),
@@ -176,6 +184,41 @@ mit `age_group_id` und `counted_daily_result_ids` (JSON). **CupTopGroupClassific
 > `2026_07_17_090001_rename_counted_daily_result_ids_to_counted_meet_ids`
 > in **`counted_meet_ids`** umbenannt (IDs würden bei Neuberechnung sonst
 > veralten). Der finale Spaltenname ist `counted_meet_ids`.
+
+## Internationale Qualifikation (EM/WM/Paralympics)
+
+Nicht zu verwechseln mit den **Richtzeiten** weiter unten: Jene sind ÖBSV-Vorgaben für nationale Meisterschaften, diese
+hier die Normen von World Para Swimming für internationale Meisterschaften. Anderer Herausgeber, anderer Zweck, andere
+Lebensdauer — deshalb eigene Tabellen statt einer Erweiterung von `qualifying_time_lists`.
+
+**Championship** — internationale Meisterschaft mit Qualifikationszeitraum: `name`, `short_name`, `type`
+(`EC`/`WC`/`PARALYMPICS`/`OTHER`), `year`, `course` (Default `LCM`), `qualification_start`, `qualification_end`,
+`source` (Herkunft der Normdatei), `notes`, `is_active`. Index über `(year, type)`. Jede Ausgabe ist ein eigener
+Datensatz; Meisterschaften und ihre Normen werden nicht überschrieben, damit vergangene Entscheidungen nachvollziehbar
+bleiben.
+
+**ChampionshipStandard** — die einzelne Norm je Bewerb, Geschlecht und Sportklasse:
+`championship_id` (cascade), `stroke_type_id` (restrict), `distance`, `gender` (enum M/F), `sport_class`,
+`mqs_centiseconds`, `met_centiseconds`, `obsv_percent`, `obsv_centiseconds`, `obsv_is_manual`, `notes`. Unique über
+`(championship_id, stroke_type_id, distance, gender, sport_class)`.
+
+Bewusst **kein** FK auf `swim_events`: Ein SwimEvent wird je Meet neu angelegt, Normen gelten dagegen meetübergreifend
+für einen Bewerbstyp. Struktur analog `qualifying_times` (`stroke_type_id` + `distance`).
+
+Zwei Normebenen werden **beide** gespeichert — MQS/MET von World Para Swimming und die ggf. schärfere ÖBSV-Norm. Würde
+nur die schärfere abgelegt, ließe sich später nicht mehr nachvollziehen, an welcher Hürde jemand gescheitert ist.
+
+Bei `obsv_percent` ist `null` **nicht** dasselbe wie `0`: `null` heißt "noch nicht festgelegt" (offene Zeile), `0` heißt
+"bewusst die MQS übernommen". Deshalb nullable **ohne** Default — ein Default tilgte die Unterscheidung, und eine
+unbearbeitete Liste sähe aus wie eine fertige.
+
+`obsv_is_manual` trennt eine aus dem Prozentsatz errechnete Zeit von einer von Hand gesetzten. Eine Massenaktion und
+eine geänderte MQS rechnen nur die errechneten nach.
+
+**Keine Ergebnistabelle.** Die Erfüllungsübersicht wird bei jedem Aufruf aus `results`, `meets` und
+`championship_standards` berechnet und **nicht** persistiert. Reproduzierbar ist sie, weil alle Grundlagen historisiert
+sind. Kaderzuordnung über `athlete_kader_memberships` zum Stichtag: heutiger Tag bei laufendem Qualifikationszeitraum,
+dessen Ende bei abgelaufenem.
 
 ## Richtzeiten (Qualifikation)
 

@@ -82,7 +82,7 @@
                             <flux:table.cell class="text-xs whitespace-nowrap">
                                 {{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}
                             </flux:table.cell>
-                            <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->name }}</flux:table.cell>
+                            <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->display_name }}</flux:table.cell>
                             <flux:table.cell class="text-xs">
                                 {{ $eintrag->row->eventLabel }}
                                 <span class="font-mono text-zinc-500">{{ $eintrag->row->sportClass }}</span>
@@ -140,7 +140,7 @@
                                     <flux:table.cell class="text-xs whitespace-nowrap">
                                         {{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}
                                     </flux:table.cell>
-                                    <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->name }}</flux:table.cell>
+                                    <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->display_name }}</flux:table.cell>
                                     <flux:table.cell class="font-mono text-xs">
                                         {{ TimeParser::display($eintrag->row->status->swimTime) }}
                                     </flux:table.cell>

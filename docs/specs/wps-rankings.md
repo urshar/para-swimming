@@ -388,6 +388,33 @@ Ein Benutzer mit `club_id` sieht die Vereinsauswertung nur für den eigenen Vere
 **Standardfilter:** Jahr, Veranstaltung, Verein, Nation, Athlet, Geschlecht, Jahrgang, Altersgruppe, Sportklasse,
 Bewerb, Kurs.
 
+**Das Jahr gilt für alle Ranglistenarten**, auch für die Veranstaltungsrangliste: Dort grenzt es die Auswahlliste der
+Veranstaltungen ein, die sonst mit jeder Saison länger und unübersichtlicher wird.
+
+**Vorbelegung des Jahres:** das jüngste Jahr, für das Wettkämpfe vorliegen — **nicht** das laufende Kalenderjahr. Sonst
+zeigt die Auswahlliste ihren ersten Eintrag, während intern ein anderes Jahr gefiltert wird, und die Rangliste bleibt
+unerklärt leer.
+
+**Kaderfilter:** Athleten lassen sich nach Kaderart ein- oder ausblenden. Drei Modi:
+
+| Modus    | Wirkung                                   |
+|----------|-------------------------------------------|
+| `all`    | Filter wirkt nicht                        |
+| `only`   | nur Athleten der gewählten Kaderarten     |
+| `except` | Athleten der gewählten Kaderarten ausblenden |
+
+Neben den definierten Kaderarten steht **„ohne Kaderzuordnung"** als eigener wählbarer Eintrag. Ohne ihn ließe sich
+"nur Kaderathleten" nicht ausdrücken, und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder immer oder nie
+— beides wäre eine stille Festlegung.
+
+Ein gesetzter Modus **ohne** Auswahl wirkt nicht: Er sähe sonst nach einer Einschränkung aus, die es nicht gibt. Wird
+die letzte Kaderart abgewählt, fällt der Modus auf `all` zurück.
+
+**Stichtag der Kaderzugehörigkeit:** das Ende des Auswertungsjahres, sofern es vergangen ist, sonst der heutige Tag —
+dieselbe Regel wie im Qualifikationsmodul. Eine Auswertung der Saison 2024 soll auch 2028 dieselbe Kadereinteilung
+zeigen. Aufgelöst über den gemeinsamen `AthleteKaderResolver`; bei mehreren gültigen Zugehörigkeiten gewinnt die höchste
+Kaderstufe (kleinste `sort_order`).
+
 **Erweiterte Filter:** nur offizielle Punkte / nur geschätzte SCM-Punkte, nur LCM / nur SCM, Mindestpunktzahl,
 Exhibition einbeziehen.
 
@@ -462,6 +489,11 @@ Funktionen: Rankingtyp wählen, Zeitraum wählen, Filter setzen, Tabelle anzeige
 | `WpsMeetRankingService`     | Veranstaltungsranglisten                                        |
 | `WpsAthleteAnalysisService` | Athletenprofil, Leistungsentwicklung, Vergleiche                |
 | `WpsClubRankingService`     | Vereinsauswertung                                               |
+| `WpsResultSelectionService` | Ergebnisauswahl nach §4 — verbindlich für alle Ranglistenarten  |
+| `AthleteKaderResolver`      | Kaderzugehörigkeit zum Stichtag; geteilt mit `wps-qualification` |
+
+`WpsResultSelectionService` liegt bewusst **neben** der Fassade und nicht darin: Die Regeln aus §4 gelten für alle
+Ranglistenarten, und in der Fassade müssten die Teilservices sie über die Fassade zurückrufen — das kehrte das Muster um.
 
 Alle als `final readonly class` mit Constructor-Injection. Die Fassade enthält **keine** eigene Auswertungslogik —
 dasselbe Muster wie `StatisticsService`.
@@ -501,6 +533,11 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 - Förderauswertung: ein Athlet kann mit mehreren Bewerben in der Liste stehen
 - Förderauswertung: Bewerbe ohne Norm erzeugen keine Schwelle und keine Zeile
 - Jahresabgrenzung erfasst Veranstaltungen am 1. Januar und am 31. Dezember (§6.2)
+- Kaderfilter blendet gewählte Kaderarten aus bzw. zeigt nur diese
+- „ohne Kaderzuordnung" ist eine eigene, wählbare Gruppe
+- ein Kadermodus ohne Auswahl wirkt nicht
+- die Jahresvorbelegung trifft das jüngste Jahr mit Wettkämpfen, nicht das laufende Kalenderjahr
+- die Veranstaltungsliste zeigt nur Wettkämpfe des gewählten Jahres
 
 ## 14.2 Feature-Tests
 
@@ -533,9 +570,13 @@ Cup-Wertung, Richtzeiten und Statistik liefern unverändert dieselben Ergebnisse
 
 ## Phase 2 — Saison- und Veranstaltungsranglisten
 
-`WpsSeasonRankingService`, `WpsMeetRankingService`, Tabellenansicht, Filter.
+`WpsSeasonRankingService`, `WpsMeetRankingService`, Tabellenansicht, Filter — einschließlich Kaderfilter (§10).
 
-*DoD:* Ranglisten werden korrekt angezeigt und sortiert.
+*DoD:* Ranglisten werden korrekt angezeigt und sortiert. — **Phase 1 und 2 gemeinsam abgeschlossen**
+
+Anmerkung: Die Veranstaltungsrangliste macht **keine** Bestenauswahl je Athlet und Bewerb. §4 nennt diese Regel
+ausdrücklich nur für Saison- und Jugendranglisten; innerhalb einer Veranstaltung ist jeder Start ein eigener, und
+Vorlauf wie Finale sollen beide sichtbar bleiben.
 
 ## Phase 3 — Alterslogik und Jugendranglisten
 

@@ -236,6 +236,14 @@ Route::middleware(['auth'])->group(function () {
         ->name('championships.show');
 
     // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
+    // ── WPS-Ranglisten ────────────────────────────────────────────────────────
+    // Lesend und verbandsweit: Ranglisten stehen allen Angemeldeten offen ([R2] der Spec
+    // "WPS Rankings"), deshalb außerhalb der RequireAdmin-Gruppe.
+    //
+    // Route::view mit einer Wrapper-Seite statt einer Volleseiten-Livewire-Komponente —
+    // dasselbe Muster wie beim Statistik-Dashboard (statistics.page).
+    Route::view('wps/rankings', 'wps.rankings.index')->name('wps.rankings');
+
     Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {
         Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');
         Route::post('import/preview', [WpsPointImportController::class, 'preview'])->name('import.preview');
