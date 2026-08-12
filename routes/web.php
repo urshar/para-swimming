@@ -38,6 +38,7 @@ use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsPointImportController;
 use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Controllers\WpsScmFactorController;
+use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -236,13 +237,13 @@ Route::middleware(['auth'])->group(function () {
         ->name('championships.show');
 
     // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
-    // ── WPS-Ranglisten ────────────────────────────────────────────────────────
-    // Lesend und verbandsweit: Ranglisten stehen allen Angemeldeten offen ([R2] der Spec
-    // "WPS Rankings"), deshalb außerhalb der RequireAdmin-Gruppe.
-    //
-    // Route::view mit einer Wrapper-Seite statt einer Volleseiten-Livewire-Komponente —
-    // dasselbe Muster wie beim Statistik-Dashboard (statistics.page).
+    // ── WPS-Ranglisten und Förderauswertung ───────────────────────────────────
+    // Lesend und verbandsweit ([R2]), deshalb außerhalb der RequireAdmin-Gruppe.
     Route::view('wps/rankings', 'wps.rankings.index')->name('wps.rankings');
+    Route::get('wps/talent-report', [WpsTalentReportController::class, 'show'])
+        ->name('wps.talent-report');
+    Route::get('wps/talent-report/pdf', [WpsTalentReportController::class, 'pdf'])
+        ->name('wps.talent-report.pdf');
 
     Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {
         Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');

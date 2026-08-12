@@ -417,15 +417,15 @@ unerklärt leer.
 
 **Kaderfilter:** Athleten lassen sich nach Kaderart ein- oder ausblenden. Drei Modi:
 
-| Modus    | Wirkung                                      |
-|----------|----------------------------------------------|
-| `all`    | Filter wirkt nicht                           |
-| `only`   | nur Athleten der gewählten Kaderarten        |
+| Modus    | Wirkung                                   |
+|----------|-------------------------------------------|
+| `all`    | Filter wirkt nicht                        |
+| `only`   | nur Athleten der gewählten Kaderarten     |
 | `except` | Athleten der gewählten Kaderarten ausblenden |
 
-Neben den definierten Kaderarten steht **"ohne Kaderzuordnung"** als eigener wählbarer Eintrag. Ohne ihn ließe sich
-"nur Kaderathleten" nicht ausdrücken, und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder immer oder nie —
-beides wäre eine stille Festlegung.
+Neben den definierten Kaderarten steht **„ohne Kaderzuordnung"** als eigener wählbarer Eintrag. Ohne ihn ließe sich
+"nur Kaderathleten" nicht ausdrücken, und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder immer oder nie
+— beides wäre eine stille Festlegung.
 
 Ein gesetzter Modus **ohne** Auswahl wirkt nicht: Er sähe sonst nach einer Einschränkung aus, die es nicht gibt. Wird
 die letzte Kaderart abgewählt, fällt der Modus auf `all` zurück.
@@ -502,19 +502,18 @@ Funktionen: Rankingtyp wählen, Zeitraum wählen, Filter setzen, Tabelle anzeige
 
 ## 13.1 Services
 
-| Service                     | Aufgabe                                                          |
-|-----------------------------|------------------------------------------------------------------|
-| `WpsRankingService`         | Fassade: wählt anhand des Rankingtyps den passenden Teilservice  |
-| `WpsSeasonRankingService`   | Saison-, Jugend- und Bewerbsranglisten                           |
-| `WpsMeetRankingService`     | Veranstaltungsranglisten                                         |
-| `WpsAthleteAnalysisService` | Athletenprofil, Leistungsentwicklung, Vergleiche                 |
-| `WpsClubRankingService`     | Vereinsauswertung                                                |
-| `WpsResultSelectionService` | Ergebnisauswahl nach §4 — verbindlich für alle Ranglistenarten   |
+| Service                     | Aufgabe                                                         |
+|-----------------------------|-----------------------------------------------------------------|
+| `WpsRankingService`         | Fassade: wählt anhand des Rankingtyps den passenden Teilservice |
+| `WpsSeasonRankingService`   | Saison-, Jugend- und Bewerbsranglisten                          |
+| `WpsMeetRankingService`     | Veranstaltungsranglisten                                        |
+| `WpsAthleteAnalysisService` | Athletenprofil, Leistungsentwicklung, Vergleiche                |
+| `WpsClubRankingService`     | Vereinsauswertung                                               |
+| `WpsResultSelectionService` | Ergebnisauswahl nach §4 — verbindlich für alle Ranglistenarten  |
 | `AthleteKaderResolver`      | Kaderzugehörigkeit zum Stichtag; geteilt mit `wps-qualification` |
 
 `WpsResultSelectionService` liegt bewusst **neben** der Fassade und nicht darin: Die Regeln aus §4 gelten für alle
-Ranglistenarten, und in der Fassade müssten die Teilservices sie über die Fassade zurückrufen — das kehrte das Muster
-um.
+Ranglistenarten, und in der Fassade müssten die Teilservices sie über die Fassade zurückrufen — das kehrte das Muster um.
 
 Alle als `final readonly class` mit Constructor-Injection. Die Fassade enthält **keine** eigene Auswertungslogik —
 dasselbe Muster wie `StatisticsService`.
@@ -555,7 +554,7 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 - Förderauswertung: Bewerbe ohne Norm erzeugen keine Schwelle und keine Zeile
 - Jahresabgrenzung erfasst Veranstaltungen am 1. Januar und am 31. Dezember (§6.2)
 - Kaderfilter blendet gewählte Kaderarten aus bzw. zeigt nur diese
-- "ohne Kaderzuordnung" ist eine eigene, wählbare Gruppe
+- „ohne Kaderzuordnung" ist eine eigene, wählbare Gruppe
 - ein Kadermodus ohne Auswahl wirkt nicht
 - die Jahresvorbelegung trifft das jüngste Jahr mit Wettkämpfen, nicht das laufende Kalenderjahr
 - die Veranstaltungsliste zeigt nur Wettkämpfe des gewählten Jahres
@@ -607,8 +606,8 @@ Vorlauf wie Finale sollen beide sichtbar bleiben.
 
 Altersberechnung nach §5, Altersgruppenentscheidung, U18-Filter.
 
-*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5) — **getroffen: wird wiederverwendet**. *DoD:*
-Jugendranglisten sind korrekt, Grenzfälle getestet. — **abgeschlossen**
+*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5) — **getroffen: wird wiederverwendet**.
+*DoD:* Jugendranglisten sind korrekt, Grenzfälle getestet. — **abgeschlossen**
 
 Die Altersberechnung und die U18-Grenze kamen bereits mit Phase 1/2; Phase 3 ergänzt die Altersgruppen-Auswahl.
 
@@ -624,7 +623,35 @@ PDF-Templates auf Basis der bestehenden, Export, Druckansicht, SCM-Hinweis.
 
 *DoD:* Reports können erzeugt werden und entsprechen dem bestehenden Layout.
 
-## Phase 6 — Förderauswertung
+## Phase 6 — Förderauswertung — **vorgezogen und abgeschlossen**
+
+Vorgezogen nach Phase 3, weil die Talentsichtung im Verbandsalltag früher gebraucht wird als die Vereinsauswertung. Sie
+setzt nur die Alterslogik (§5) und die Normen aus `wps-qualification` voraus.
+
+**Referenznorm: MQS oder MET, wählbar.** Nicht die ÖBSV-Norm — sie bildet eine Startplatzentscheidung des Verbandes ab
+und ist für eine Talentaussage zu speziell.
+
+Ursprünglich war nur die MQS vorgesehen. An echten Daten erwies sie sich als zu scharf: Die MQS ist die internationale
+Spitzennorm, und fast alle österreichischen Nachwuchsathleten landeten im einstelligen Prozentbereich — dort
+unterscheidet die Zahl nichts mehr. Die MET liegt näher an dem, was Nachwuchs erreichen kann. Welche Kombination aus
+Norm und Schwelle brauchbare Listen ergibt, lässt sich nur an echten Daten herausfinden; deshalb wählbar statt
+festgelegt. Vorbelegung bleibt die MQS.
+
+Nicht jede Meisterschaft führt MET-Zeiten. Fehlt die gewählte Norm für einen Bewerb, entfällt die Zeile — die Ansicht
+weist bei leerem Ergebnis darauf hin.
+
+**Vorbelegung:** die aktive Meisterschaft mit dem spätesten Ende des Qualifikationszeitraums — im Regelfall die nächste
+anstehende, und auf die zielt eine Förderentscheidung. Bevorzugt eine Europameisterschaft; nur wenn keine vorliegt, die
+jüngste andere. Meisterschaften ohne gepflegte Normen bleiben außen vor.
+
+**Ohne gültige WPS-Punkteversion** zum Ende des Qualifikationszeitraums liefert die Auswertung nichts. Eine Auswertung
+mit Schwelle 0 wäre schlimmer als keine.
+
+**Der Hinweis aus §6.6.5 erscheint immer**, nicht nur bei tatsächlich vorhandenen Schätzungen — anders als der Hinweis
+in `wps-qualification` §11. Begründung: Diese Auswertung beruht ihrem Wesen nach auf umgerechneten Zeiten, und die
+Unsicherheit trifft genau die Zielgruppe.
+
+## Ursprüngliche Beschreibung
 
 `WpsTalentReportService`, Eingabemaske, Ausgabe, PDF. Setzt `wps-qualification` Phase 1 voraus (Zugriff auf die Normen).
 

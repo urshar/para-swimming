@@ -145,6 +145,10 @@
                                :current="request()->routeIs('wps.rankings')">
                 WPS-Ranglisten
             </flux:navlist.item>
+            <flux:navlist.item icon="academic-cap" href="{{ route('wps.talent-report') }}"
+                               :current="request()->routeIs('wps.talent-report')">
+                Förderauswertung
+            </flux:navlist.item>
         </flux:navlist.group>
 
         <flux:navlist.group heading="Meisterschaften">

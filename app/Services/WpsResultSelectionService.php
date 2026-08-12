@@ -212,7 +212,13 @@ final readonly class WpsResultSelectionService
         $abfrage = Result::query()
             ->with(['athlete.club', 'meet', 'swimEvent.strokeType', 'wpsPointVersion'])
             // Gewertet wird ausschließlich, was eine WPS-Punktzahl trägt.
-            ->whereNotNull('wps_points')
+            //
+            // Auch 0 wird ausgeschlossen: Die Gompertz-Funktion liefert null Punkte, wenn die
+            // Zeit weit außerhalb des Bereichs liegt, für den der Parametersatz gedacht ist.
+            // Das bedeutet "nicht bewertbar", nicht "null Punkte wert" — in einer Rangliste
+            // hätte so eine Zeile nichts zu suchen, und in der Förderauswertung ergäbe sie
+            // einen Abstand, der die volle Schwellenhöhe beträgt.
+            ->where('wps_points', '>', 0)
             ->whereNotNull('sport_class');
 
         $this->applyStatus($abfrage, $filter);

@@ -1,8 +1,8 @@
 <?php
 
 use App\Livewire\WpsRankings;
-use App\Models\Athlete;
 use App\Models\AgeGroup;
+use App\Models\Athlete;
 use App\Models\AthleteKaderMembership;
 use App\Models\Club;
 use App\Models\KaderType;
