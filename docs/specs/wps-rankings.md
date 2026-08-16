@@ -611,7 +611,26 @@ Altersberechnung nach §5, Altersgruppenentscheidung, U18-Filter.
 
 Die Altersberechnung und die U18-Grenze kamen bereits mit Phase 1/2; Phase 3 ergänzt die Altersgruppen-Auswahl.
 
-## Phase 4 — Athletenanalyse
+## Phase 4 — Athletenanalyse — **abgeschlossen**
+
+**Gesamte Historie als Standard**, mit optionaler Einschränkung auf einen Zeitraum: Bei einer Entwicklungsfrage ist das
+Weglassen früher Jahre selten gewollt, und man sieht sofort, wie lange jemand schon dabei ist.
+
+**Die Differenz zur Vorsaison entfällt bei einem Klassenwechsel.** Verglichen wird nur zwischen aufeinanderfolgenden
+Saisonen desselben Bewerbs **und derselben Sportklasse**; an der Stelle des Wechsels steht statt einer Zahl der Hinweis
+"Klassenwechsel". Eine Verbesserung um zweihundert Punkte, die allein aus einer Umklassifizierung stammt, wäre eine
+Falschaussage über die Entwicklung.
+
+**Der Wechsel wird im Profilkopf ausgewiesen** (§7.2). Bei der Kategorieerkennung werden längere Präfixe zuerst geprüft
+— sonst passte "S" auf "SB9" und die Kategorien liefen zusammen. Dieselbe Reihenfolge wie im Regex von
+`WpsSportClass`.
+
+**Bewerbe nach der besten erreichten Punktzahl** sortiert; der stärkste steht oben.
+
+**Keine Inline-Diagramme.** §7.3 nennt sie optional; eine Zahlenreihe über drei bis vier Saisonen ist als Tabelle gut
+lesbar. Falls später eine Verlaufsgrafik gewünscht wird, als reines SVG — dompdf kann kein JavaScript.
+
+## Ursprüngliche Beschreibung
 
 `WpsAthleteAnalysisService`, Profil, Leistungsentwicklung, Vergleichsreports, Referenzwerte.
 

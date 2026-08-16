@@ -96,6 +96,8 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
+                            <flux:button href="{{ route('wps.athletes.show', $athlete) }}" size="sm"
+                                         variant="ghost" icon="chart-bar" title="WPS-Analyse"/>
                             <flux:button href="{{ route('athletes.show', $athlete) }}" size="sm" variant="ghost"
                                          icon="eye"/>
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"

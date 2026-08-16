@@ -26,9 +26,18 @@
                 </p>
             </div>
         </div>
-        <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="ghost" icon="pencil" size="sm">
-            Bearbeiten
-        </flux:button>
+        <div class="flex gap-2">
+            {{-- Der Weg zur WPS-Analyse führt über den Athleten selbst: Wer hier steht, hat
+                 ihn bereits ausgewählt. Eine eigene Suchseite daneben wäre eine zweite
+                 Athletenliste mit eigener Suche und eigener Blätterleiste. --}}
+            <flux:button href="{{ route('wps.athletes.show', $athlete) }}" variant="ghost"
+                         icon="chart-bar" size="sm">
+                WPS-Analyse
+            </flux:button>
+            <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="ghost" icon="pencil" size="sm">
+                Bearbeiten
+            </flux:button>
+        </div>
     </div>
 
     <div class="grid grid-cols-3 gap-6 mb-6">

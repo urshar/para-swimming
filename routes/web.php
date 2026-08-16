@@ -35,10 +35,11 @@ use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
 use App\Http\Controllers\WpsPointCalculationController;
+use App\Http\Controllers\WpsAthleteAnalysisController;
 use App\Http\Controllers\WpsPointImportController;
+use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Controllers\WpsScmFactorController;
-use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -244,6 +245,15 @@ Route::middleware(['auth'])->group(function () {
         ->name('wps.talent-report');
     Route::get('wps/talent-report/pdf', [WpsTalentReportController::class, 'pdf'])
         ->name('wps.talent-report.pdf');
+
+    // Athletenanalyse — kein eigener Einstieg über eine Suchseite: Der Weg führt über die
+    // Athletenverwaltung, wo ohnehin gesucht und geblättert wird.
+    //
+    // /pdf vor der {athlete}-Route, sonst bindet Laravel das Wort als Modell-Schlüssel.
+    Route::get('wps/athletes/{athlete}/pdf', [WpsAthleteAnalysisController::class, 'pdf'])
+        ->name('wps.athletes.pdf');
+    Route::get('wps/athletes/{athlete}', [WpsAthleteAnalysisController::class, 'show'])
+        ->name('wps.athletes.show');
 
     Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {
         Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');
