@@ -630,6 +630,73 @@ Falschaussage über die Entwicklung.
 **Keine Inline-Diagramme.** §7.3 nennt sie optional; eine Zahlenreihe über drei bis vier Saisonen ist als Tabelle gut
 lesbar. Falls später eine Verlaufsgrafik gewünscht wird, als reines SVG — dompdf kann kein JavaScript.
 
+### §7.4 Alle Starts statt nur der Saisonbestleistung
+
+Umschaltung zwischen **Saisonbestleistung** (Standard) und **allen Starts**. Die Bestleistung allein zeigt nicht, wie
+eine Entwicklung zustande kam: Ein Athlet, der sich über vier Wettkämpfe stetig steigert, sieht darin genauso aus wie
+einer mit einem einzelnen guten Tag.
+
+Bei allen Starts wird chronologisch sortiert und mit dem **vorherigen Start** verglichen, nicht mit der Vorsaison. Die
+Regel zum Klassenwechsel gilt unverändert.
+
+### §7.5 Notizen zur Leistungsentwicklung
+
+Tabelle `athlete_performance_notes`: `athlete_id`, `result_id` (nullable), `noted_on`, `category`, `note`,
+`created_by`.
+
+**Eigene Tabelle und nicht `results.comment`:** Jenes Feld gehört LENEX und wird beim Ergebnisimport überschrieben
+(DSQ-Begründungen, "Ratification pending"). Eine Notiz dort wäre nach dem nächsten Import verschwunden.
+
+**`result_id` nullable, dazu ein eigenes Datum:** Nicht jede Ursache hängt an einem Start. "Sechs Wochen
+Trainingspause wegen Schulterverletzung" betrifft einen Zeitraum, nicht ein Ergebnis. Ist ein Start angegeben, wird
+dessen Wettkampftag als Datum übernommen — zwei abweichende Daten wären eine Widersprüchlichkeit, die niemand auflösen
+kann.
+
+Wird das Ergebnis gelöscht, bleibt die Notiz mit ihrem Datum bestehen (`nullOnDelete`): Die Beobachtung über den
+Athleten gilt weiter, auch wenn der Start entfällt.
+
+**Kategorien:** Krankheit, Verletzung, Umklassifizierung, Trainingsumfang, Wettkampfbedingungen, Sonstiges.
+Umklassifizierung wird wie eine geschätzte Zeit hervorgehoben — sie erklärt einen Punktesprung, der keine
+Leistungsentwicklung ist.
+
+**Sichtbarkeit:** Notizen sind **nicht** verbandsweit sichtbar, anders als die Ranglisten selbst. Krankheit und
+Verletzung sind Gesundheitsangaben; sichtbar sind sie für die Verbandsverwaltung und den Verein des Athleten. Das ist
+die vorsichtigere Voreinstellung — sie lässt sich später lockern, das Gegenteil ginge nicht. Geregelt über
+`AthletePerformanceNotePolicy`.
+
+Schreiben darf, wer sehen darf. Ändern und Löschen ist **nicht** auf den Verfasser eingeschränkt: Innerhalb eines
+Vereins wechseln die Zuständigkeiten, und eine veraltete Notiz muss auch dann korrigierbar sein, wenn ihr Verfasser
+nicht mehr da ist. Der Verfasser wird an der Notiz angezeigt.
+
+**Im PDF erscheinen Notizen standardmäßig nicht.** Ein PDF wird weitergegeben, und eine Krankheitsnotiz landete dann
+womöglich außerhalb des vorgesehenen Kreises. Eine Ankreuzung kann sie zuschalten.
+
+### §7.6 Verlaufsgrafik
+
+Reines **SVG ohne JavaScript**, damit sie auch im PDF erscheint — dompdf führt keine Skripte aus. Die gesamte Rechnung
+liegt in `WpsChartService`, der fertige Bildkoordinaten liefert; Blade zeichnet nur noch. Eine Achsenskalierung im
+Markup wäre weder lesbar noch prüfbar.
+
+X-Achse Zeit, Y-Achse Punkte. In SVG wächst y nach unten, mehr Punkte ergeben also einen kleineren Wert.
+
+**Gezeichnet wird erst ab zwei Datenpunkten.** Aus einem einzelnen Wert lässt sich keine Entwicklung ablesen, und eine
+Linie mit einem Punkt sähe nach einem Fehler aus.
+
+**Mindestspanne der Punkteachse: 50.** Ohne sie würde eine Schwankung von drei Punkten über die volle Höhe gespreizt
+und sähe nach einem dramatischen Verlauf aus. Die Grenzen werden auf glatte Zehner nach außen gerundet, nie unter null.
+
+**Beschriftungen der Zeitachse werden ab acht Starts ausgedünnt** — überlappende Beschriftungen sind unlesbar und dann
+schlechter als keine.
+
+**Senkrechte Markierungen** für Klassenwechsel und Notizen; der Datenpunkt eines Klassenwechsels wird zusätzlich
+hervorgehoben, weil die Kurve dort einen Sprung macht, der keine Leistungsentwicklung ist. Notizen außerhalb des
+dargestellten Zeitraums werden weggelassen: Eine Markierung am Rand behauptete einen Bezug, den es nicht gibt.
+
+Notizen fließen nur ein, wenn der Betrachter sie sehen darf — über eine Markierung ohne Beschriftung ließe sich sonst
+erschließen, dass es zu einem Zeitpunkt eine Gesundheitsangabe gibt (§7.5).
+
+**Im PDF** erscheint die Grafik immer, Notizen nur über den Link "PDF mit Notizen".
+
 ## Ursprüngliche Beschreibung
 
 `WpsAthleteAnalysisService`, Profil, Leistungsentwicklung, Vergleichsreports, Referenzwerte.

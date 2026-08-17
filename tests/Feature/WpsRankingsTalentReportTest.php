@@ -14,6 +14,7 @@ use App\Models\SwimEvent;
 use App\Models\User;
 use App\Models\WpsPointParameter;
 use App\Models\WpsPointVersion;
+use App\Services\WpsPointCalculator;
 use App\Services\WpsTalentReportService;
 use App\Support\WpsRankingFilter;
 use App\Support\WpsTalentReportConfiguration;
@@ -196,7 +197,7 @@ it('erkennt das Erreichen der Schwelle und weist den Abstand aus', function () {
     $championship = championship_wr6();
     $meet = meet_wr6('Kurzbahn', '2026-03-13');
 
-    $normpunkte = app(App\Services\WpsPointCalculator::class)->pointsForTime(
+    $normpunkte = app(WpsPointCalculator::class)->pointsForTime(
         7000, 'LCM', 'F', stroke_wr6()->id, 100, 'S9',
         WpsPointVersion::query()->sole(),
     );

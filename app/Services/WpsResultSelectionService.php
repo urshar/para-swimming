@@ -25,7 +25,6 @@ use Illuminate\Support\Collection;
  */
 final readonly class WpsResultSelectionService
 {
-
     /**
      * Ergebnisstatus ohne wertbare Leistung.
      *
@@ -61,37 +60,6 @@ final readonly class WpsResultSelectionService
             ->map(fn (Result $r): WpsRankingEntry => $this->toEntry($r));
 
         return $this->applyKaderFilter($eintraege, $filter)->values();
-    }
-
-    /**
-     * Kaderfilter (§10).
-     *
-     * In PHP und nicht in der Abfrage: Die Kaderzugehörigkeit gilt zu einem Stichtag und
-     * hängt an einem Gültigkeitszeitraum; das in einer Unterabfrage abzubilden wäre
-     * schwerer zu lesen als der eine Durchgang hier, und die Zugehörigkeiten werden ohnehin
-     * einmal gesammelt geladen.
-     *
-     * Stichtag ist das Ende des Auswertungsjahres, sofern es vergangen ist — eine Auswertung
-     * der Saison 2024 soll auch später dieselbe Kadereinteilung zeigen.
-     *
-     * @param  Collection<int, WpsRankingEntry>  $eintraege
-     * @return Collection<int, WpsRankingEntry>
-     */
-    private function applyKaderFilter(Collection $eintraege, WpsRankingFilter $filter): Collection
-    {
-        if (! $filter->hasKaderFilter()) {
-            return $eintraege;
-        }
-
-        $stichtag = $this->kaderResolver->referenceDateForYear(
-            $filter->year ?? (int) date('Y')
-        );
-
-        $kaderarten = $this->kaderResolver->byAthlete($stichtag);
-
-        return $eintraege->filter(static fn (WpsRankingEntry $e): bool => $filter->allowsKader(
-            $kaderarten[$e->athlete->getKey()]['id'] ?? null
-        ));
     }
 
     /**
@@ -158,27 +126,6 @@ final readonly class WpsResultSelectionService
     }
 
     /**
-     * Zusammengesetzter Sortierschlüssel: Punkte absteigend, dann Zeit, dann Datum.
-     *
-     * Als Zeichenkette statt als Array von Vergleichsfunktionen: sortBy() mit mehreren
-     * Closures verhält sich in diesem Projekt unzuverlässig (siehe CLAUDE.md).
-     *
-     * Die Punkte werden von MAX_POINTS abgezogen, weil aufsteigend sortiert wird — je mehr
-     * Punkte, desto kleiner der Schlüssel. Ein Ergebnis ohne Wettkampfdatum kommt ans Ende
-     * seiner Punktgruppe, nicht an den Anfang: Ein fehlendes Datum ist keine frühe
-     * Bestätigung.
-     */
-    private function sortKey(WpsRankingEntry $eintrag): string
-    {
-        return sprintf(
-            '%06d|%09d|%s',
-            self::MAX_POINTS - $eintrag->points,
-            $eintrag->swimTime,
-            $eintrag->meetDate ?? '9999-99-99',
-        );
-    }
-
-    /**
      * Die verwendeten WPS-Punkteversionen einer Ergebnismenge.
      *
      * Enthält eine Rangliste Ergebnisse aus mehreren Versionen, wird das im Kopfbereich
@@ -197,6 +144,58 @@ final readonly class WpsResultSelectionService
             ->sort()
             ->values()
             ->all();
+    }
+
+    /**
+     * Kaderfilter (§10).
+     *
+     * In PHP und nicht in der Abfrage: Die Kaderzugehörigkeit gilt zu einem Stichtag und
+     * hängt an einem Gültigkeitszeitraum; das in einer Unterabfrage abzubilden wäre
+     * schwerer zu lesen als der eine Durchgang hier, und die Zugehörigkeiten werden ohnehin
+     * einmal gesammelt geladen.
+     *
+     * Stichtag ist das Ende des Auswertungsjahres, sofern es vergangen ist — eine Auswertung
+     * der Saison 2024 soll auch später dieselbe Kadereinteilung zeigen.
+     *
+     * @param  Collection<int, WpsRankingEntry>  $eintraege
+     * @return Collection<int, WpsRankingEntry>
+     */
+    private function applyKaderFilter(Collection $eintraege, WpsRankingFilter $filter): Collection
+    {
+        if (! $filter->hasKaderFilter()) {
+            return $eintraege;
+        }
+
+        $stichtag = $this->kaderResolver->referenceDateForYear(
+            $filter->year ?? (int) date('Y')
+        );
+
+        $kaderarten = $this->kaderResolver->byAthlete($stichtag);
+
+        return $eintraege->filter(static fn (WpsRankingEntry $e): bool => $filter->allowsKader(
+            $kaderarten[$e->athlete->getKey()]['id'] ?? null
+        ));
+    }
+
+    /**
+     * Zusammengesetzter Sortierschlüssel: Punkte absteigend, dann Zeit, dann Datum.
+     *
+     * Als Zeichenkette statt als Array von Vergleichsfunktionen: sortBy() mit mehreren
+     * Closures verhält sich in diesem Projekt unzuverlässig (siehe CLAUDE.md).
+     *
+     * Die Punkte werden von MAX_POINTS abgezogen, weil aufsteigend sortiert wird — je mehr
+     * Punkte, desto kleiner der Schlüssel. Ein Ergebnis ohne Wettkampfdatum kommt ans Ende
+     * seiner Punktgruppe, nicht an den Anfang: Ein fehlendes Datum ist keine frühe
+     * Bestätigung.
+     */
+    private function sortKey(WpsRankingEntry $eintrag): string
+    {
+        return sprintf(
+            '%06d|%09d|%s',
+            self::MAX_POINTS - $eintrag->points,
+            $eintrag->swimTime,
+            $eintrag->meetDate ?? '9999-99-99',
+        );
     }
 
     /**

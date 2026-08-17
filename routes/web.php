@@ -34,12 +34,12 @@ use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
-use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsAthleteAnalysisController;
+use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsPointImportController;
-use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Controllers\WpsScmFactorController;
+use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 

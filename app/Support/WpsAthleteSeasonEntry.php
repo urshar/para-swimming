@@ -33,6 +33,8 @@ final readonly class WpsAthleteSeasonEntry
         public ?int $pointsDelta,
         public ?int $timeDelta,
         public bool $classChanged,
+        /** Kennung des zugrunde liegenden Ergebnisses — für die Zuordnung von Notizen. */
+        public ?int $resultId = null,
     ) {}
 
     public function hasComparison(): bool

@@ -37,13 +37,19 @@ final readonly class WpsAthleteAnalysisService
      * @param  int|null  $toYear  null = bis zum letzten Start
      * @param  string  $course  Bahnlänge; MIXED zeigt beide, mit dem Hinweis aus §11.4
      */
+    /**
+     * @param  bool  $allStarts  true = jeder Start, false = beste Leistung je Saison
+     */
     public function profile(
         Athlete $athlete,
         ?int $fromYear,
         ?int $toYear,
         string $course = WpsRankingFilter::COURSE_MIXED,
+        bool $allStarts = false,
     ): WpsAthleteProfile {
-        $eintraege = $this->seasonBests($athlete, $fromYear, $toYear, $course);
+        $eintraege = $allStarts
+            ? $this->allStarts($athlete, $fromYear, $toYear, $course)
+            : $this->seasonBests($athlete, $fromYear, $toYear, $course);
 
         return new WpsAthleteProfile(
             $athlete,
@@ -65,6 +71,20 @@ final readonly class WpsAthleteAnalysisService
     public function yearsWithResults(Athlete $athlete): array
     {
         return collect($this->yearsWithAnyResult($athlete))->sortDesc()->values()->all();
+    }
+
+    /**
+     * Jeder Start, chronologisch, mit der Differenz zum vorherigen Start desselben Bewerbs.
+     *
+     * Die Saisonbestleistung allein zeigt nicht, wie eine Entwicklung zustande kam: Ein
+     * Athlet, der sich über vier Wettkämpfe stetig steigert, sieht darin genauso aus wie
+     * einer mit einem einzelnen guten Tag.
+     *
+     * @return Collection<int, WpsAthleteSeasonEntry>
+     */
+    private function allStarts(Athlete $athlete, ?int $fromYear, ?int $toYear, string $course): Collection
+    {
+        return $this->withDeltas($this->allEntries($athlete, $fromYear, $toYear, $course));
     }
 
     /**
@@ -134,6 +154,7 @@ final readonly class WpsAthleteAnalysisService
                         $vergleichbar ? $eintrag->points - $vorherige->points : null,
                         $vergleichbar ? $eintrag->swimTime - $vorherige->swimTime : null,
                         $klassenwechsel,
+                        $eintrag->result->getKey(),
                     );
 
                     $vorherige = $eintrag;
@@ -160,8 +181,11 @@ final readonly class WpsAthleteAnalysisService
         /** @var Collection<string, Collection<int, WpsAthleteSeasonEntry>> $gruppen */
         $gruppen = $eintraege
             ->groupBy(static fn (WpsAthleteSeasonEntry $e): string => $e->eventLabel)
+            // Nach Datum, nicht nach Jahr: Bei "alle Starts" liegen mehrere Zeilen im selben
+            // Jahr, und die Reihenfolge innerhalb der Saison ist genau das, was die Ansicht
+            // zeigen soll.
             ->map(static fn (Collection $desBewerbs): Collection => $desBewerbs
-                ->sortBy(static fn (WpsAthleteSeasonEntry $e): int => $e->year)
+                ->sortBy(static fn (WpsAthleteSeasonEntry $e): string => (string) $e->meetDate)
                 ->values())
             ->sortByDesc(static fn (Collection $desBewerbs): int => $desBewerbs
                 ->max(static fn (WpsAthleteSeasonEntry $e): int => $e->points));

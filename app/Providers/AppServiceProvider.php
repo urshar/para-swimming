@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\AthletePerformanceNote;
 use App\Models\Meet;
+use App\Policies\AthletePerformanceNotePolicy;
 use App\Policies\EntryPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         Gate::policy(Meet::class, EntryPolicy::class);
+        Gate::policy(AthletePerformanceNote::class, AthletePerformanceNotePolicy::class);
     }
 
     /**

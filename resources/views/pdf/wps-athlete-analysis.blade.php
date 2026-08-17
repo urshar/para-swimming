@@ -28,6 +28,8 @@
         .est { color: #a06a10; }
         .note { margin: 0 0 14px 0; padding: 8px 10px; border: 1px solid #d9a441;
                 background-color: #fdf6e6; font-size: 9px; line-height: 1.4; }
+        .chart { margin: 4px 0 8px 0; width: 100%; }
+        .note-row td { background-color: #f7f7f7; font-size: 9px; color: #555; }
         .foot { margin-top: 14px; font-size: 8px; color: #999; }
     </style>
 </head>
@@ -59,6 +61,13 @@
 
 @foreach($profile->byEvent as $bewerb => $zeilen)
     <h2>{{ $bewerb }} — beste Punktzahl {{ $zeilen->max(fn ($z) => $z->points) }}</h2>
+
+    {{-- Reines SVG, deshalb auch im PDF darstellbar: dompdf führt keine Skripte aus. --}}
+    @if(isset($charts[$bewerb]) && $charts[$bewerb]->isDrawable())
+        <div class="chart">
+            <x-wps-chart :series="$charts[$bewerb]"/>
+        </div>
+    @endif
 
     <table>
         <thead>
@@ -105,6 +114,14 @@
                     @endif
                 </td>
             </tr>
+
+            @foreach($notesByResult[$zeile->resultId] ?? [] as $notiz)
+                <tr class="note-row">
+                    <td colspan="7">
+                        <strong>{{ $notiz->categoryLabel() }}:</strong> {{ $notiz->note }}
+                    </td>
+                </tr>
+            @endforeach
         @endforeach
         </tbody>
     </table>
@@ -112,6 +129,23 @@
 
 @if($profile->isEmpty())
     <p class="muted">Für diesen Athleten liegen im gewählten Zeitraum keine gewerteten Leistungen vor.</p>
+@endif
+
+@php($allgemein = $notes->filter(fn ($n): bool => $n->getAttribute('result_id') === null))
+
+@if($allgemein->isNotEmpty())
+    <h2>Notizen ohne Startbezug</h2>
+    <table>
+        <tbody>
+        @foreach($allgemein as $notiz)
+            <tr>
+                <td style="width: 15%;" class="num">{{ $notiz->noted_on->format('d.m.Y') }}</td>
+                <td style="width: 20%;">{{ $notiz->categoryLabel() }}</td>
+                <td style="width: 65%;">{{ $notiz->note }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
 @endif
 
 <p class="foot">Para Swimming NatDB · erzeugt am {{ $generatedAt->format('d.m.Y H:i') }}</p>

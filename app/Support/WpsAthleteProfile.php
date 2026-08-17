@@ -15,9 +15,9 @@ final readonly class WpsAthleteProfile
 {
     /**
      * @param  Collection<string, Collection<int, WpsAthleteSeasonEntry>>  $byEvent
-     *         Zeilen je Bewerb, innerhalb chronologisch
+     *                                                                               Zeilen je Bewerb, innerhalb chronologisch
      * @param  array<string, list<string>>  $sportClassesByCategory
-     *         verwendete Sportklassen je Kategorie (S, SB, SM) über den Zeitraum
+     *                                                               verwendete Sportklassen je Kategorie (S, SB, SM) über den Zeitraum
      */
     public function __construct(
         public Athlete $athlete,

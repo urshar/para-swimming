@@ -1,5 +1,6 @@
 <div>
     @php
+        use App\Models\AthletePerformanceNote;
         use App\Support\TimeParser;
         use App\Support\WpsRankingFilter;
         use Illuminate\Support\Carbon;
@@ -36,14 +37,46 @@
             </flux:select>
         </flux:field>
 
+        @php($starttext = $allStarts ? 'Nur Saisonbestleistung' : 'Alle Starts zeigen')
+        @php($startvariante = $allStarts ? 'filled' : 'ghost')
+
+        <flux:button wire:click="toggleAllStarts" variant="{{ $startvariante }}" size="sm">
+            {{ $starttext }}
+        </flux:button>
+
+        @php($grafiktext = $showCharts ? 'Grafik ausblenden' : 'Grafik einblenden')
+        @php($grafikvariante = $showCharts ? 'filled' : 'ghost')
+
+        <flux:button wire:click="toggleCharts" variant="{{ $grafikvariante }}" size="sm">
+            {{ $grafiktext }}
+        </flux:button>
+
         <flux:button wire:click="resetPeriod" variant="ghost" size="sm">Gesamte Historie</flux:button>
 
         <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
                      icon="document-arrow-down">PDF
         </flux:button>
+
+        @if($this->canViewNotes())
+            {{-- Notizen nur auf ausdrücklichen Wunsch ins PDF: Ein PDF wird weitergegeben,
+                 und eine Krankheitsnotiz landete sonst womöglich außerhalb des vorgesehenen
+                 Kreises (§7.5). --}}
+            <flux:button href="{{ $this->pdfUrl(true) }}" variant="ghost" size="sm"
+                         icon="document-arrow-down">PDF mit Notizen
+            </flux:button>
+        @endif
     </div>
 
+    @if($statusMessage)
+        <div
+            class="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
+            {{ $statusMessage }}
+        </div>
+    @endif
+
     @php($profil = $this->profile())
+    @php($notizen = $this->notesByResult())
+    @php($grafiken = $this->charts())
 
     {{-- ── Kennzahlen ──────────────────────────────────────────────────────── --}}
     @if(! $profil->isEmpty())
@@ -96,28 +129,49 @@
             </span>
         </h2>
 
+        @if(isset($grafiken[$bewerb]) && $grafiken[$bewerb]->isDrawable())
+            <div
+                class="mb-3 p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
+                <x-wps-chart :series="$grafiken[$bewerb]"/>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Senkrechte Linien kennzeichnen Klassenwechsel und Notizen. Ein hervorgehobener
+                    Punkt steht für einen Klassenwechsel — die Kurve macht dort einen Sprung, der
+                    keine Leistungsentwicklung ist.
+                </p>
+            </div>
+        @endif
+
         <div
             class="mb-4 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-x-auto">
             <table class="w-full text-sm border-collapse">
                 <thead>
                 <tr class="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 text-left">
-                    <th class="px-4 py-2 font-medium text-zinc-600 dark:text-zinc-400">Saison</th>
+                    <th class="px-4 py-2 font-medium text-zinc-600 dark:text-zinc-400">
+                        @if($allStarts) Datum @else Saison @endif
+                    </th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Klasse</th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Zeit</th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">geschätzt LCM</th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 text-right">Punkte</th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 text-right">
-                        Δ Vorsaison
+                        @if($allStarts) Δ Vorstart @else Δ Vorsaison @endif
                     </th>
                     <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Wettkampf</th>
+                    <th class="px-3 py-2"></th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-100 dark:divide-zinc-700/50">
                 @foreach($zeilen as $zeile)
                     @php($deltaFarbe = $zeile->improved() ? 'text-green-600 dark:text-green-400' : 'text-zinc-500')
 
-                    <tr wire:key="saison-{{ $bewerb }}-{{ $zeile->year }}-{{ $zeile->sportClass }}">
-                        <td class="px-4 py-1.5 font-mono text-zinc-900 dark:text-zinc-100">{{ $zeile->year }}</td>
+                    @php($zeilenBezeichner = $allStarts && $zeile->meetDate
+                        ? Carbon::parse($zeile->meetDate)->format('d.m.Y')
+                        : (string) $zeile->year)
+
+                    <tr wire:key="zeile-{{ $bewerb }}-{{ $zeile->resultId ?? $zeile->year }}">
+                        <td class="px-4 py-1.5 font-mono text-zinc-900 dark:text-zinc-100">
+                            {{ $zeilenBezeichner }}
+                        </td>
                         <td class="px-3 py-1.5 font-mono text-xs text-zinc-900 dark:text-zinc-100">
                             {{ $zeile->sportClass }}
                         </td>
@@ -149,7 +203,36 @@
                                 <span class="block">{{ Carbon::parse($zeile->meetDate)->format('d.m.Y') }}</span>
                             @endif
                         </td>
+                        <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                            @if($this->canViewNotes() && $zeile->resultId !== null)
+                                <flux:button wire:click="startNote({{ $zeile->resultId }})"
+                                             variant="ghost" size="sm" icon="pencil-square"
+                                             title="Notiz zu diesem Start"/>
+                            @endif
+                        </td>
                     </tr>
+
+                    {{-- Notizen unmittelbar unter ihrem Start: Eine Zahlenreihe ist ohne die
+                         Ursache nicht deutbar, und in einer eigenen Liste weiter unten müsste
+                         man beim Lesen hin und her springen. --}}
+                    @foreach($notizen[$zeile->resultId] ?? [] as $notiz)
+                        <tr wire:key="notiz-{{ $notiz->id }}" class="bg-zinc-50 dark:bg-zinc-900/40">
+                            <td colspan="8" class="px-8 py-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                                <flux:badge color="{{ $notiz->categoryColour() }}" size="sm">
+                                    {{ $notiz->categoryLabel() }}
+                                </flux:badge>
+                                {{ $notiz->note }}
+                                <span class="text-zinc-400">
+                                    — {{ $notiz->author?->name ?? 'unbekannt' }}
+                                </span>
+                                @if($this->canDeleteNote($notiz))
+                                    <flux:button wire:click="deleteNote({{ $notiz->id }})"
+                                                 wire:confirm="Diese Notiz wirklich löschen?"
+                                                 variant="ghost" size="sm" icon="trash"/>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
                 @endforeach
                 </tbody>
             </table>
@@ -160,4 +243,94 @@
             Für diesen Athleten liegen im gewählten Zeitraum keine gewerteten Leistungen vor.
         </div>
     @endforelse
+
+    @if($this->canViewNotes())
+        {{-- ── Notizen ─────────────────────────────────────────────────────── --}}
+        <div class="mt-8">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                    Notizen ohne Startbezug
+                </h2>
+                <flux:button wire:click="startNote(null)" variant="filled" size="sm" icon="plus">
+                    Notiz hinzufügen
+                </flux:button>
+            </div>
+
+            <p class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Notizen sind nicht verbandsweit sichtbar — nur für die Verbandsverwaltung und den
+                Verein des Athleten. Sie erscheinen standardmäßig nicht im PDF.
+            </p>
+
+            @forelse($this->generalNotes() as $notiz)
+                <div wire:key="allgemein-{{ $notiz->id }}"
+                     class="mb-2 p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm">
+                    <flux:badge color="{{ $notiz->categoryColour() }}" size="sm">
+                        {{ $notiz->categoryLabel() }}
+                    </flux:badge>
+                    <span class="ml-2 font-mono text-xs text-zinc-500">
+                        {{ $notiz->noted_on->format('d.m.Y') }}
+                    </span>
+                    <span class="block mt-1 text-zinc-700 dark:text-zinc-300">{{ $notiz->note }}</span>
+                    <span class="block mt-1 text-xs text-zinc-400">
+                        {{ $notiz->author?->name ?? 'unbekannt' }}
+                        @if($this->canDeleteNote($notiz))
+                            <flux:button wire:click="deleteNote({{ $notiz->id }})"
+                                         wire:confirm="Diese Notiz wirklich löschen?"
+                                         variant="ghost" size="sm" icon="trash"/>
+                        @endif
+                    </span>
+                </div>
+            @empty
+                <p class="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    Keine Notizen ohne Startbezug.
+                </p>
+            @endforelse
+        </div>
+
+        {{-- ── Formular ────────────────────────────────────────────────────── --}}
+        @if($noteFormOpen)
+            <div
+                class="mt-4 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
+                <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
+                    @if($noteResultId === null)
+                        Neue Notiz
+                    @else
+                        Neue Notiz zu einem Start
+                    @endif
+                </h3>
+
+                <div class="flex flex-wrap items-start gap-3">
+                    <flux:field class="w-52">
+                        <flux:label>Ursache</flux:label>
+                        <flux:select x-model="$wire.noteCategory">
+                            @foreach(AthletePerformanceNote::categoryLabels() as $wert => $beschriftung)
+                                <option value="{{ $wert }}" @selected($noteCategory === $wert)>
+                                    {{ $beschriftung }}
+                                </option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="noteCategory"/>
+                    </flux:field>
+
+                    <flux:field class="w-40">
+                        <flux:label>Datum</flux:label>
+                        <flux:input x-model="$wire.noteDate" type="date"/>
+                        <flux:error name="noteDate"/>
+                    </flux:field>
+
+                    <flux:field class="flex-1 min-w-64">
+                        <flux:label>Notiz</flux:label>
+                        <flux:textarea x-model="$wire.noteText" rows="2"
+                                       placeholder="z.B. Nach sechs Wochen Trainingspause wegen Schulterverletzung"/>
+                        <flux:error name="noteText"/>
+                    </flux:field>
+                </div>
+
+                <div class="mt-3 flex gap-2">
+                    <flux:button wire:click="saveNote" variant="primary" size="sm">Speichern</flux:button>
+                    <flux:button wire:click="cancelNote" variant="ghost" size="sm">Abbrechen</flux:button>
+                </div>
+            </div>
+        @endif
+    @endif
 </div>
