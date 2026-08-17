@@ -15,7 +15,8 @@ final readonly class WpsChartPoint
     public function __construct(
         public float $x,
         public float $y,
-        public int $points,
+        public ?int $points,
+        public int $swimTime,
         public string $sportClass,
         public string $date,
         public ?string $meetName,
@@ -23,13 +24,20 @@ final readonly class WpsChartPoint
         public bool $estimated,
     ) {}
 
-    /** Beschriftung für den Hinweistext beim Überfahren. */
+    /**
+     * Beschriftung für den Hinweistext beim Überfahren.
+     *
+     * Nennt immer die Zeit; die Punktzahl nur, wo sie vorliegt. Bei einem Athleten, dessen
+     * Wettkämpfe nie durch die Punkteberechnung gelaufen sind, stünde sonst überall
+     * "0 Punkte".
+     */
     public function tooltip(): string
     {
         return sprintf(
-            '%s · %d Punkte · %s%s',
+            '%s · %s%s · %s%s',
             date('d.m.Y', strtotime($this->date)),
-            $this->points,
+            TimeParser::display($this->swimTime),
+            $this->points === null ? '' : ' · '.$this->points.' Punkte',
             $this->sportClass,
             $this->meetName === null ? '' : ' · '.$this->meetName,
         );

@@ -60,10 +60,16 @@ class WpsAthleteAnalysisController extends Controller
             ? $this->noteService->forAthlete($athlete, $request->integer('from') ?: null, $request->integer('to') ?: null)
             : collect();
 
+        // Maß der Grafik aus der Adresse; Zeit als Rückfallwert, weil sie bei jedem Ergebnis
+        // vorliegt.
+        $mass = $request->query('metric') === WpsChartService::METRIC_POINTS
+            ? WpsChartService::METRIC_POINTS
+            : WpsChartService::METRIC_TIME;
+
         $grafiken = [];
 
         foreach ($profil->byEvent as $bewerb => $zeilen) {
-            $grafiken[$bewerb] = $this->chartService->series($bewerb, $zeilen, $notizen);
+            $grafiken[$bewerb] = $this->chartService->series($bewerb, $zeilen, $notizen, $mass);
         }
 
         return $this->pdfExportService->stream(

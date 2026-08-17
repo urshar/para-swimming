@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Athlete;
+use App\Models\Result;
 use App\Support\WpsAthleteProfile;
 use App\Support\WpsAthleteSeasonEntry;
-use App\Support\WpsRankingEntry;
 use App\Support\WpsRankingFilter;
 use Illuminate\Support\Collection;
 
@@ -19,6 +19,18 @@ use Illuminate\Support\Collection;
  * Bei einer Entwicklungsfrage ist das Weglassen früher Jahre selten gewollt, und man sieht
  * sofort, wie lange jemand schon dabei ist.
  *
+ * Eigene Ergebnisauswahl, nicht die der Ranglisten
+ * ------------------------------------------------
+ * Die Ranglisten verlangen `wps_points > 0`, weil sie über Bewerbe und Sportklassen hinweg
+ * vergleichen und dafür Punkte brauchen. Diese Analyse vergleicht **innerhalb** eines
+ * Bewerbs, und dort ist die **Zeit** das natürliche Maß: unmittelbar vergleichbar bei
+ * gleicher Bahnlänge, und bei jedem Ergebnis vorhanden.
+ *
+ * In der Praxis trugen von 215 Ergebnissen eines Athleten nur 14 eine Punktzahl. Die
+ * Ranglisten-Auswahl zu übernehmen hätte 93 Prozent der Historie verworfen — Ergebnisse, die
+ * für die Verlaufsfrage vollwertig sind. Punkte werden weiterhin angezeigt, wo sie vorliegen,
+ * entscheiden aber nicht mehr über die Aufnahme.
+ *
  * Rein lesend; nichts wird gespeichert.
  */
 final readonly class WpsAthleteAnalysisService
@@ -26,9 +38,14 @@ final readonly class WpsAthleteAnalysisService
     /** Kategorien der Sportklassen — längere Präfixe zuerst, sonst passt "S" auf "SB9". */
     private const array CATEGORIES = ['SB', 'SM', 'S'];
 
-    public function __construct(
-        private WpsResultSelectionService $selection
-    ) {}
+    /**
+     * Ergebnisstatus ohne wertbare Leistung.
+     *
+     * EXH bleibt drin: Eine außer Konkurrenz geschwommene Zeit ist für die Entwicklung eines
+     * Athleten eine Auskunft wie jede andere — anders als in einer Rangliste, wo sie nicht
+     * platziert werden soll.
+     */
+    private const array NON_SCORING_STATUSES = ['DNS', 'DNF', 'DSQ', 'SICK', 'WDR'];
 
     /**
      * Das Profil eines Athleten.
@@ -88,90 +105,120 @@ final readonly class WpsAthleteAnalysisService
     }
 
     /**
-     * Beste Leistung je Saison und Bewerb, mit der Differenz zur Vorsaison.
+     * Beste Leistung je Saison und Bewerb.
+     *
+     * Maßgeblich ist die **schnellste Zeit**, nicht die höchste Punktzahl: Punkte liegen nur
+     * bei einem Bruchteil der Ergebnisse vor, und innerhalb eines Bewerbs auf derselben
+     * Bahnlänge ist die Zeit ohnehin das genauere Maß.
      *
      * @return Collection<int, WpsAthleteSeasonEntry>
      */
     private function seasonBests(Athlete $athlete, ?int $fromYear, ?int $toYear, string $course): Collection
     {
-        $roh = $this->allEntries($athlete, $fromYear, $toYear, $course);
-
-        // Je Saison, Bewerb und Sportklasse die beste Leistung. Die Klasse gehört in den
-        // Schlüssel: Startet jemand nach einer Umklassifizierung im selben Jahr in zwei
-        // Klassen, sind das zwei verschiedene Aussagen und keine konkurrierenden Zeiten.
-        $besten = $roh
-            ->groupBy(static fn (WpsRankingEntry $e): string => implode('|', [
-                substr((string) $e->meetDate, 0, 4),
-                $e->eventLabel,
-                $e->sportClass,
+        $besten = $this->allEntries($athlete, $fromYear, $toYear, $course)
+            ->groupBy(fn (Result $r): string => implode('|', [
+                $r->meet->start_date->format('Y'),
+                $this->eventLabel($r),
+                $r->getAttribute('sport_class'),
+                // Bahnlänge in den Schlüssel: 1:05 auf Kurzbahn und 1:05 auf Langbahn sind
+                // verschiedene Leistungen, keine konkurrierenden Zeiten.
+                $r->meet->getAttribute('course'),
             ]))
-            ->map(static fn (Collection $gruppe): WpsRankingEntry => $gruppe
-                ->sortByDesc(static fn (WpsRankingEntry $e): int => $e->points)
+            ->map(static fn (Collection $gruppe): Result => $gruppe
+                ->sortBy(static fn (Result $r): int => (int) $r->getAttribute('swim_time'))
                 ->first());
 
         return $this->withDeltas($besten->values());
     }
 
     /**
-     * Ergänzt je Bewerb die Differenz zur Vorsaison.
+     * Ergänzt je Bewerb die Differenz zum vorherigen Eintrag.
      *
-     * Verglichen wird nur bei **gleicher Sportklasse**. Nach einem Klassenwechsel bleibt die
-     * Differenz null und die Zeile trägt einen Hinweis: Die Punkte sind über einen Wechsel
-     * hinweg nicht vergleichbar, und eine Zahl an dieser Stelle behauptete eine Entwicklung,
-     * die es so nicht gab.
+     * Verglichen wird nur bei **gleicher Sportklasse und gleicher Bahnlänge**. Bei einem
+     * Wechsel bleibt die Differenz null und die Zeile trägt einen Hinweis: Weder sind Zeiten
+     * über einen Klassenwechsel hinweg vergleichbar noch über die Bahnlänge, und eine Zahl an
+     * dieser Stelle behauptete eine Entwicklung, die es so nicht gab.
      *
-     * @param  Collection<int, WpsRankingEntry>  $eintraege
+     * @param  Collection<int, Result>  $ergebnisse
      * @return Collection<int, WpsAthleteSeasonEntry>
      */
-    private function withDeltas(Collection $eintraege): Collection
+    private function withDeltas(Collection $ergebnisse): Collection
     {
-        /** @var Collection<int, WpsAthleteSeasonEntry> $ergebnis */
-        $ergebnis = $eintraege
-            ->groupBy(static fn (WpsRankingEntry $e): string => $e->eventLabel)
-            ->map(static function (Collection $desBewerbs): Collection {
+        /** @var Collection<int, WpsAthleteSeasonEntry> $zeilen */
+        $zeilen = $ergebnisse
+            ->groupBy(fn (Result $r): string => $this->eventLabel($r))
+            ->map(function (Collection $desBewerbs): Collection {
                 $chronologisch = $desBewerbs
-                    ->sortBy(static fn (WpsRankingEntry $e): string => (string) $e->meetDate)
+                    ->sortBy(static fn (Result $r): string => $r->meet->start_date->format('Y-m-d'))
                     ->values();
 
-                $zeilen = [];
-                $vorherige = null;
+                $ergebnis = [];
+                $vorheriges = null;
 
-                foreach ($chronologisch as $eintrag) {
-                    $klassenwechsel = $vorherige !== null && $vorherige->sportClass !== $eintrag->sportClass;
-                    $vergleichbar = $vorherige !== null && ! $klassenwechsel;
+                foreach ($chronologisch as $result) {
+                    $klasse = (string) $result->getAttribute('sport_class');
+                    $bahn = (string) $result->meet->getAttribute('course');
 
-                    $zeilen[] = new WpsAthleteSeasonEntry(
-                        (int) substr((string) $eintrag->meetDate, 0, 4),
-                        $eintrag->eventLabel,
-                        $eintrag->sportClass,
-                        $eintrag->swimTime,
-                        $eintrag->course,
-                        $eintrag->estimatedLcmTime,
-                        $eintrag->points,
-                        $eintrag->calculationType,
-                        $eintrag->meetName,
-                        $eintrag->meetDate,
-                        $vergleichbar ? $eintrag->points - $vorherige->points : null,
-                        $vergleichbar ? $eintrag->swimTime - $vorherige->swimTime : null,
+                    $klassenwechsel = $vorheriges !== null
+                        && $vorheriges->getAttribute('sport_class') !== $klasse;
+
+                    $bahnwechsel = $vorheriges !== null
+                        && $vorheriges->meet->getAttribute('course') !== $bahn;
+
+                    $vergleichbar = $vorheriges !== null && ! $klassenwechsel && ! $bahnwechsel;
+
+                    $punkte = $result->getAttribute('wps_points');
+                    $vorherigePunkte = $vorheriges?->getAttribute('wps_points');
+
+                    $ergebnis[] = new WpsAthleteSeasonEntry(
+                        (int) $result->meet->start_date->format('Y'),
+                        $this->eventLabel($result),
+                        $klasse,
+                        (int) $result->getAttribute('swim_time'),
+                        $bahn,
+                        $result->getAttribute('wps_estimated_lcm_time'),
+                        $punkte === null ? null : (int) $punkte,
+                        $result->getAttribute('wps_calculation_type'),
+                        $result->meet->getAttribute('name'),
+                        $result->meet->start_date->format('Y-m-d'),
+                        // Punktdifferenz nur, wenn BEIDE Werte vorliegen.
+                        $vergleichbar && $punkte !== null && $vorherigePunkte !== null
+                            ? (int) $punkte - (int) $vorherigePunkte
+                            : null,
+                        $vergleichbar
+                            ? (int) $result->getAttribute('swim_time') - (int) $vorheriges->getAttribute('swim_time')
+                            : null,
                         $klassenwechsel,
-                        $eintrag->result->getKey(),
+                        $result->getKey(),
                     );
 
-                    $vorherige = $eintrag;
+                    $vorheriges = $result;
                 }
 
-                return collect($zeilen);
+                return collect($ergebnis);
             })
             ->flatten(1)
             ->values();
 
-        return $ergebnis;
+        return $zeilen;
+    }
+
+    /** Bezeichnung des Bewerbs, z.B. "100 m Freistil". */
+    private function eventLabel(Result $result): string
+    {
+        $event = $result->swimEvent;
+
+        return sprintf(
+            '%d m %s',
+            $event->getAttribute('distance'),
+            $event->strokeType?->name_de ?? '',
+        );
     }
 
     /**
-     * Zeilen je Bewerb, Bewerbe nach der besten erreichten Punktzahl.
+     * Zeilen je Bewerb, Bewerbe nach der Zahl der Starts.
      *
-     * Der stärkste Bewerb steht oben — das ist die Reihenfolge, in der man ein Profil liest.
+     * Der Hauptbewerb steht oben — das ist die Reihenfolge, in der man ein Profil liest.
      *
      * @param  Collection<int, WpsAthleteSeasonEntry>  $eintraege
      * @return Collection<string, Collection<int, WpsAthleteSeasonEntry>>
@@ -187,8 +234,10 @@ final readonly class WpsAthleteAnalysisService
             ->map(static fn (Collection $desBewerbs): Collection => $desBewerbs
                 ->sortBy(static fn (WpsAthleteSeasonEntry $e): string => (string) $e->meetDate)
                 ->values())
-            ->sortByDesc(static fn (Collection $desBewerbs): int => $desBewerbs
-                ->max(static fn (WpsAthleteSeasonEntry $e): int => $e->points));
+            // Nach der Zahl der Starts: Der Bewerb, in dem jemand am häufigsten antritt, ist
+            // sein Hauptbewerb — nach Punkten zu sortieren ginge nicht, weil die meisten
+            // Zeilen keine haben.
+            ->sortByDesc(static fn (Collection $desBewerbs): int => $desBewerbs->count());
 
         return $gruppen;
     }
@@ -238,39 +287,43 @@ final readonly class WpsAthleteAnalysisService
     }
 
     /**
-     * Alle gewerteten Ergebnisse des Athleten im Zeitraum.
+     * Alle wertbaren Ergebnisse des Athleten im Zeitraum.
      *
-     * Der gemeinsame Filter kennt ein Jahr, keinen Zeitraum; über die Jahre wird deshalb
-     * einzeln abgefragt. Ohne Angabe liefert `yearsWithResults()` die Jahre, in denen es
-     * überhaupt etwas gibt — eine Schleife über alle denkbaren Jahre wäre Verschwendung.
+     * Verlangt eine Zeit, keine Punktzahl. Staffeln bleiben außen vor — eine Staffelzeit
+     * sagt über die Entwicklung eines Einzelnen nichts aus.
      *
-     * @return Collection<int, WpsRankingEntry>
+     * @return Collection<int, Result>
      */
     private function allEntries(Athlete $athlete, ?int $fromYear, ?int $toYear, string $course): Collection
     {
-        $jahre = $fromYear === null || $toYear === null
-            ? $this->yearsWithAnyResult($athlete)
-            : range($fromYear, $toYear);
+        $abfrage = Result::query()
+            ->with(['meet', 'swimEvent.strokeType', 'wpsPointVersion'])
+            ->where('athlete_id', $athlete->getKey())
+            ->whereNotNull('swim_time')
+            ->where('swim_time', '>', 0)
+            ->whereNotNull('sport_class')
+            ->where(static function ($query): void {
+                $query->whereNull('status')
+                    ->orWhereNotIn('status', self::NON_SCORING_STATUSES);
+            })
+            ->whereHas('swimEvent', static fn ($query) => $query->where('relay_count', 1));
 
-        $alle = collect();
-
-        foreach ($jahre as $jahr) {
-            if ($fromYear !== null && $jahr < $fromYear) {
-                continue;
-            }
-
-            if ($toYear !== null && $jahr > $toYear) {
-                continue;
-            }
-
-            $alle = $alle->concat(
-                $this->selection->select(new WpsRankingFilter(year: $jahr, course: $course))
-                    ->filter(static fn (WpsRankingEntry $e): bool => $e->athlete->getKey() === $athlete->getKey())
-                    ->all()
-            );
+        if ($course !== WpsRankingFilter::COURSE_MIXED) {
+            $abfrage->whereHas('meet', static fn ($query) => $query->where('course', $course));
         }
 
-        return $alle->values();
+        if ($fromYear !== null || $toYear !== null) {
+            $von = ($fromYear ?? 1900).'-01-01';
+            $bis = ($toYear ?? 2999).'-12-31 23:59:59';
+
+            // whereBetween mit ausdrücklicher Uhrzeit an der oberen Grenze — YEAR() ist nicht
+            // DB-portabel, und ohne Uhrzeit fiele der 31. Dezember je nach Treiber heraus.
+            $abfrage->whereHas('meet', static fn ($query) => $query->whereBetween('start_date', [$von, $bis]));
+        }
+
+        return $abfrage->get()
+            ->filter(static fn (Result $r): bool => $r->swimEvent !== null && $r->meet !== null)
+            ->values();
     }
 
     /**
@@ -285,7 +338,7 @@ final readonly class WpsAthleteAnalysisService
         return $athlete->results()
             ->with('meet')
             ->get()
-            ->map(static fn ($result): ?int => $result->meet?->start_date?->year)
+            ->map(static fn (Result $result): ?int => $result->meet?->start_date?->year)
             ->filter()
             ->unique()
             ->sort()

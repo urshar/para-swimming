@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AthletePerformanceNote;
+use App\Services\WpsChartService;
 use App\Support\WpsAthleteSeasonEntry;
 use App\Support\WpsChartPoint;
 use App\Support\WpsChartSeries;
@@ -31,7 +32,7 @@ function zeile_wc(string $datum, int $punkte, string $sportClass, bool $klassenw
 }
 
 beforeEach(function () {
-    $this->service = app(App\Services\WpsChartService::class);
+    $this->service = app(WpsChartService::class);
 });
 
 // ── Zeichenbarkeit ───────────────────────────────────────────────────────────
@@ -39,12 +40,12 @@ beforeEach(function () {
 it('zeichnet erst ab zwei Datenpunkten', function () {
     $einer = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     $zwei = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 720, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     // Aus einem einzelnen Wert lässt sich keine Entwicklung ablesen, und eine Linie mit einem
     // Punkt sähe nach einem Fehler aus.
@@ -62,7 +63,7 @@ it('übergeht Zeilen ohne Wettkampfdatum', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         $ohneDatum,
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     expect($serie->isDrawable())->toBeFalse();
 });
@@ -73,12 +74,14 @@ it('legt mehr Punkte weiter oben ab', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 600, 'S9', false),
         zeile_wc('2025-06-01', 800, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     $schwach = $serie->points->first();
     $stark = $serie->points->last();
 
     // In SVG wächst y nach unten; mehr Punkte müssen deshalb einen kleineren Wert ergeben.
+    // Geprüft wird hier ausdrücklich die PUNKTEachse — die Zeitachse läuft umgekehrt, das
+    // deckt WpsAthleteAnalysisTimeTest ab.
     expect($stark->y)->toBeLessThan($schwach->y)
         ->and($stark->x)->toBeGreaterThan($schwach->x);
 });
@@ -87,21 +90,21 @@ it('spreizt eine kleine Schwankung nicht über die volle Höhe', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 703, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     // Ohne Mindestspanne sähe ein Unterschied von drei Punkten nach einem dramatischen
     // Verlauf aus.
-    expect($serie->maxPoints - $serie->minPoints)->toBeGreaterThanOrEqual(50);
+    expect($serie->maxValue - $serie->minValue)->toBeGreaterThanOrEqual(50);
 });
 
 it('rundet die Achsengrenzen auf glatte Werte und nie unter null', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 5, 'S9', false),
         zeile_wc('2025-06-01', 12, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
-    expect($serie->minPoints)->toBe(0)
-        ->and($serie->maxPoints % 10)->toBe(0);
+    expect($serie->minValue)->toBe(0)
+        ->and($serie->maxValue % 10)->toBe(0);
 });
 
 it('beschriftet die Zeitachse und dünnt bei vielen Starts aus', function () {
@@ -113,11 +116,12 @@ it('beschriftet die Zeitachse und dünnt bei vielen Starts aus', function () {
         $zeilen->push(zeile_wc("$jahr-$monat-01", 700 + $nummer, 'S9', false));
     }
 
-    $serie = $this->service->series('100 m Freistil', $zeilen, collect());
+    $serie = $this->service->series('100 m Freistil', $zeilen, collect(), WpsChartService::METRIC_POINTS);
 
     // Überlappende Beschriftungen sind unlesbar und dann schlechter als keine.
     expect(count($serie->xLabels))->toBeLessThanOrEqual(9)
-        ->and(count($serie->gridLines))->toBe(5);
+        ->and(count($serie->gridLines))->toBe(5)
+        ->and($serie->gridLines[0]['label'])->toBeString();
 });
 
 // ── Markierungen ─────────────────────────────────────────────────────────────
@@ -126,7 +130,7 @@ it('markiert einen Klassenwechsel', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 850, 'S8', true),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     // Die Kurve macht dort einen Sprung, der keine Leistungsentwicklung ist.
     expect($serie->markers)->toHaveCount(1)
@@ -144,7 +148,7 @@ it('markiert Notizen an ihrem Datum', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 650, 'S9', false),
-    ]), collect([$notiz]));
+    ]), collect([$notiz]), WpsChartService::METRIC_POINTS);
 
     expect($serie->markers)->toHaveCount(1)
         ->and($serie->markers[0]['label'])->toBe('Verletzung');
@@ -160,7 +164,7 @@ it('lässt Notizen außerhalb des Zeitraums weg', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 720, 'S9', false),
-    ]), collect([$davor]));
+    ]), collect([$davor]), WpsChartService::METRIC_POINTS);
 
     // Eine Markierung am Rand behauptete einen Bezug, den es nicht gibt.
     expect($serie->markers)->toBeEmpty();
@@ -168,11 +172,11 @@ it('lässt Notizen außerhalb des Zeitraums weg', function () {
 
 // ── Ausgabe ──────────────────────────────────────────────────────────────────
 
-it('setzt die Polylinie aus den Punkten zusammen', function () {
+it('setzt die Pollinie aus den Punkten zusammen', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 720, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     expect($serie->polyline())->toMatch('/^[\d.]+,[\d.]+ [\d.]+,[\d.]+$/')
         ->and($serie->viewBox())->toBe('0 0 '.WpsChartSeries::WIDTH.' '.WpsChartSeries::HEIGHT);
@@ -182,7 +186,7 @@ it('liefert die Zeichenfläche als einfache Werte fürs Markup', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 720, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     $rahmen = $serie->frame();
 
@@ -196,7 +200,7 @@ it('beschreibt jeden Punkt für den Hinweistext', function () {
     $serie = $this->service->series('100 m Freistil', collect([
         zeile_wc('2025-03-01', 700, 'S9', false),
         zeile_wc('2025-06-01', 720, 'S9', false),
-    ]), collect());
+    ]), collect(), WpsChartService::METRIC_POINTS);
 
     $punkt = $serie->points->first();
 

@@ -6,8 +6,8 @@ use App\Models\Athlete;
 use App\Models\AthletePerformanceNote;
 use App\Models\Result;
 use App\Services\AthletePerformanceNoteService;
-use App\Services\WpsChartService;
 use App\Services\WpsAthleteAnalysisService;
+use App\Services\WpsChartService;
 use App\Support\WpsAthleteProfile;
 use App\Support\WpsChartSeries;
 use App\Support\WpsRankingFilter;
@@ -39,6 +39,14 @@ class WpsAthleteAnalysis extends Component
 
     /** Verlaufsgrafik je Bewerb einblenden. */
     public bool $showCharts = true;
+
+    /**
+     * Maß der Grafik: Zeit oder WPS-Punkte.
+     *
+     * Zeit als Vorbelegung — sie liegt bei jedem Ergebnis vor, Punkte oft nur bei einem
+     * Bruchteil.
+     */
+    public string $chartMetric = WpsChartService::METRIC_TIME;
 
     // ── Formular "Notiz hinzufügen" ──────────────────────────────────────────
 
@@ -74,6 +82,7 @@ class WpsAthleteAnalysis extends Component
             'fromYear' => $this->fromYear = $wert,
             'toYear' => $this->toYear = $wert,
             'course' => $this->course = $wert,
+            'chartMetric' => $this->chartMetric = $wert,
             default => null,
         };
 
@@ -124,7 +133,7 @@ class WpsAthleteAnalysis extends Component
         $grafiken = [];
 
         foreach ($this->profile()->byEvent as $bewerb => $zeilen) {
-            $grafiken[$bewerb] = $dienst->series($bewerb, $zeilen, $notizen);
+            $grafiken[$bewerb] = $dienst->series($bewerb, $zeilen, $notizen, $this->chartMetric);
         }
 
         return $grafiken;
@@ -299,6 +308,7 @@ class WpsAthleteAnalysis extends Component
             'from' => $this->fromYear,
             'to' => $this->toYear,
             'course' => $this->course,
+            'metric' => $this->chartMetric,
             'notes' => $withNotes ? '1' : '',
         ], static fn (string $wert): bool => $wert !== '');
 

@@ -10,7 +10,7 @@
 @if($series->isDrawable())
     @php($rahmen = $series->frame())
     <svg viewBox="{{ $series->viewBox() }}" class="w-full h-auto" role="img"
-         aria-label="Punkteverlauf {{ $series->eventLabel }}">
+         aria-label="{{ $series->axisLabel() }}verlauf {{ $series->eventLabel }}">
 
         {{-- Waagrechte Hilfslinien mit Punktwerten --}}
         @foreach($series->gridLines as $linie)

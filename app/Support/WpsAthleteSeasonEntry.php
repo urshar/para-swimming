@@ -15,7 +15,8 @@ final readonly class WpsAthleteSeasonEntry
 {
     /**
      * @param  int  $year  Wettkampfjahr
-     * @param  int|null  $pointsDelta  Punktdifferenz zur Vorsaison; null ohne Vergleichswert
+     * @param  int|null  $points  WPS-Punkte, oder null wenn nicht berechenbar
+     * @param  int|null  $pointsDelta  Punktdifferenz; null ohne Vergleichswert oder ohne Punkte
      * @param  int|null  $timeDelta  Zeitdifferenz in Hundertsteln; negativ = schneller geworden
      * @param  bool  $classChanged  Sportklasse gegenüber der Vorsaison gewechselt
      */
@@ -26,7 +27,8 @@ final readonly class WpsAthleteSeasonEntry
         public int $swimTime,
         public string $course,
         public ?int $estimatedLcmTime,
-        public int $points,
+        /** Null, wenn für diese Kombination kein Parametersatz vorliegt. */
+        public ?int $points,
         public ?string $calculationType,
         public ?string $meetName,
         public ?string $meetDate,
@@ -42,9 +44,23 @@ final readonly class WpsAthleteSeasonEntry
         return $this->pointsDelta !== null;
     }
 
+    public function hasPoints(): bool
+    {
+        return $this->points !== null;
+    }
+
+    /**
+     * Hat sich der Athlet verbessert?
+     *
+     * Maßgeblich ist die **Zeit**, nicht die Punktzahl: Innerhalb eines Bewerbs und auf
+     * derselben Bahnlänge ist die Zeit unmittelbar vergleichbar, und sie liegt bei jedem
+     * Ergebnis vor — Punkte nur bei einem Bruchteil.
+     *
+     * Negativ heißt schneller geworden.
+     */
     public function improved(): bool
     {
-        return $this->pointsDelta !== null && $this->pointsDelta > 0;
+        return $this->timeDelta !== null && $this->timeDelta < 0;
     }
 
     /**

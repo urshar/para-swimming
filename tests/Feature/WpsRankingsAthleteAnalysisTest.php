@@ -196,15 +196,18 @@ it('meldet keinen Wechsel bei verschiedenen Kategorien derselben Nummer', functi
 
 // ── Gliederung und Sortierung ────────────────────────────────────────────────
 
-it('sortiert die Bewerbe nach der besten erreichten Punktzahl', function () {
+it('sortiert die Bewerbe nach der Zahl der Starts', function () {
+    saison_wr4($this->athlete, 2024, 7100, 590, 'S9', 100);
     saison_wr4($this->athlete, 2025, 7000, 600, 'S9', 100);
     saison_wr4($this->athlete, 2025, 15000, 800, 'S9', 200);
 
     $bewerbe = $this->service->profile($this->athlete, null, null)->byEvent->keys()->all();
 
-    // Der stärkste Bewerb steht oben — das ist die Reihenfolge, in der man ein Profil liest.
-    expect($bewerbe[0])->toContain('200 m')
-        ->and($bewerbe[1])->toContain('100 m');
+    // Der Bewerb, in dem jemand am häufigsten antritt, ist sein Hauptbewerb. Nach der besten
+    // Punktzahl zu sortieren ginge nicht mehr: Die meisten Zeilen haben keine (§7.3a) — hier
+    // trägt der 200-m-Bewerb sogar die höhere Punktzahl und steht trotzdem unten.
+    expect($bewerbe[0])->toContain('100 m')
+        ->and($bewerbe[1])->toContain('200 m');
 });
 
 it('liefert für einen Athleten ohne Ergebnisse ein leeres Profil', function () {
@@ -341,8 +344,12 @@ it('trennt Lang- und Kurzbahn auf Wunsch', function () {
     $beide = $this->service->profile($this->athlete, null, null);
     $nurScm = $this->service->profile($this->athlete, null, null, WpsRankingFilter::COURSE_SCM);
 
-    // Bei gemeinsamer Betrachtung bleibt je Saison und Bewerb die bessere Leistung.
-    expect($beide->entryCount())->toBe(1)
-        ->and($beide->byEvent->first()->first()->points)->toBe(720)
-        ->and($nurScm->byEvent->first()->first()->points)->toBe(700);
+    // Bei gemeinsamer Betrachtung bleiben BEIDE Zeilen: Seit die Analyse nach Zeiten wertet,
+    // gehört die Bahnlänge in den Gruppierungsschlüssel. 1:10 auf Kurzbahn und 1:12 auf
+    // Langbahn sind zwei Leistungen, keine konkurrierenden Zeiten — eine davon zu verwerfen
+    // hieße, die schwächere Bahnlänge stillschweigend zu unterschlagen.
+    expect($beide->entryCount())->toBe(2)
+        ->and($nurScm->entryCount())->toBe(1)
+        ->and($nurScm->byEvent->first()->sole()->swimTime)->toBe(7000)
+        ->and($nurScm->byEvent->first()->sole()->course)->toBe('SCM');
 });

@@ -51,6 +51,16 @@
             {{ $grafiktext }}
         </flux:button>
 
+        @if($showCharts)
+            <flux:field class="w-36">
+                <flux:label>Grafik zeigt</flux:label>
+                <flux:select x-on:change="$wire.setInput('chartMetric', $event.target.value)">
+                    <option value="time" @selected($chartMetric === 'time')>Zeit</option>
+                    <option value="points" @selected($chartMetric === 'points')>WPS-Punkte</option>
+                </flux:select>
+            </flux:field>
+        @endif
+
         <flux:button wire:click="resetPeriod" variant="ghost" size="sm">Gesamte Historie</flux:button>
 
         <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
@@ -185,14 +195,24 @@
                             @endif
                         </td>
                         <td class="px-3 py-1.5 text-right font-mono text-zinc-900 dark:text-zinc-100">
-                            {{ $zeile->points }}
+                            @if($zeile->hasPoints())
+                                {{ $zeile->points }}
+                            @else
+                                <span class="text-zinc-400" title="Für diese Kombination liegt kein Parametersatz vor">–</span>
+                            @endif
                         </td>
                         <td class="px-3 py-1.5 text-right whitespace-nowrap font-mono text-xs">
                             @if($zeile->classChanged)
                                 <span class="text-amber-600 dark:text-amber-400">Klassenwechsel</span>
-                            @elseif($zeile->hasComparison())
-                                <span class="{{ $deltaFarbe }}">{{ $zeile->formattedPointsDelta() }}</span>
-                                <span class="block text-zinc-500">{{ $zeile->formattedTimeDelta() }}</span>
+                            @elseif($zeile->formattedTimeDelta() !== null)
+                                {{-- Die Zeit führt: Sie liegt bei jedem Ergebnis vor, die
+                                     Punktdifferenz nur, wo beide Werte berechnet sind. --}}
+                                <span class="{{ $deltaFarbe }}">{{ $zeile->formattedTimeDelta() }}</span>
+                                @if($zeile->hasComparison())
+                                    <span class="block text-zinc-500">
+                                        {{ $zeile->formattedPointsDelta() }} Pkt.
+                                    </span>
+                                @endif
                             @else
                                 <span class="text-zinc-400">–</span>
                             @endif

@@ -64,12 +64,19 @@ final readonly class WpsAthleteProfile
         );
     }
 
-    /** Die höchste im Zeitraum erreichte Punktzahl. */
+    /**
+     * Die höchste im Zeitraum erreichte Punktzahl.
+     *
+     * Null, wenn kein einziges Ergebnis eine Punktzahl trägt — das ist der Regelfall bei
+     * Athleten, deren Wettkämpfe nie durch die WPS-Punkteberechnung gelaufen sind, und darf
+     * nicht als "null Punkte" erscheinen.
+     */
     public function bestPoints(): ?int
     {
         $punkte = $this->byEvent
             ->flatten(1)
-            ->map(static fn (WpsAthleteSeasonEntry $e): int => $e->points);
+            ->filter(static fn (WpsAthleteSeasonEntry $e): bool => $e->hasPoints())
+            ->map(static fn (WpsAthleteSeasonEntry $e): int => (int) $e->points);
 
         return $punkte->isEmpty() ? null : $punkte->max();
     }

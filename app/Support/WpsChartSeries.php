@@ -31,7 +31,7 @@ final readonly class WpsChartSeries
 
     /**
      * @param  Collection<int, WpsChartPoint>  $points  chronologisch
-     * @param  list<array{y: float, label: int}>  $gridLines  waagrechte Hilfslinien mit Punktwert
+     * @param  list<array{y: float, label: string}>  $gridLines  waagrechte Hilfslinien
      * @param  list<array{x: float, label: string}>  $xLabels  Beschriftungen der Zeitachse
      * @param  list<array{x: float, label: string}>  $markers  senkrechte Markierungen
      *                                                         (Klassenwechsel, Notizen)
@@ -42,9 +42,21 @@ final readonly class WpsChartSeries
         public array $gridLines,
         public array $xLabels,
         public array $markers,
-        public int $minPoints,
-        public int $maxPoints,
+        public int $minValue,
+        public int $maxValue,
+        /** Welches Maß dargestellt wird: Zeit oder Punkte. */
+        public string $metric = 'time',
     ) {}
+
+    public function showsTime(): bool
+    {
+        return $this->metric === 'time';
+    }
+
+    public function axisLabel(): string
+    {
+        return $this->showsTime() ? 'Zeit' : 'WPS-Punkte';
+    }
 
     /**
      * Eine Grafik lohnt erst ab zwei Punkten.
@@ -58,7 +70,7 @@ final readonly class WpsChartSeries
     }
 
     /**
-     * Die Punkte als Polylinie, z.B. "44,120 180,96 316,72".
+     * Die Punkte als Polylinien, z.B. "44,120 180,96 316,72".
      *
      * Fertig zusammengesetzt, damit das Markup keine Schleife mit Zwischenraum-Logik braucht.
      */
