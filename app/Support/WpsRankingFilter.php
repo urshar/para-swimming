@@ -198,6 +198,35 @@ final readonly class WpsRankingFilter
     }
 
     /**
+     * Kopie mit erzwungener Vereinseinschränkung.
+     *
+     * Für die Vereinsauswertung: Ein Vereinsnutzer sieht nur den eigenen Verein (**[R2]**),
+     * und diese Regel muss eine etwaige Auswahl im Filter überschreiben — nicht umgekehrt.
+     */
+    public function withClub(int $clubId): self
+    {
+        return new self(
+            type: $this->type,
+            year: $this->year,
+            meetId: $this->meetId,
+            strokeTypeId: $this->strokeTypeId,
+            distance: $this->distance,
+            gender: $this->gender,
+            sportClass: $this->sportClass,
+            course: $this->course,
+            clubId: $clubId,
+            minPoints: $this->minPoints,
+            maxAge: $this->maxAge,
+            includeExhibition: $this->includeExhibition,
+            calculationType: $this->calculationType,
+            ageGroupId: $this->ageGroupId,
+            ageGroupLabel: $this->ageGroupLabel,
+            kaderMode: $this->kaderMode,
+            kaderIds: $this->kaderIds,
+        );
+    }
+
+    /**
      * Bezeichnung der Ranglistenart für Überschrift und Dateiname.
      */
     public function typeLabel(): string

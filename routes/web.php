@@ -34,13 +34,14 @@ use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
-use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsAthleteAnalysisController;
+use App\Http\Controllers\WpsClubRankingController;
+use App\Http\Controllers\WpsPointCalculationController;
 use App\Http\Controllers\WpsPointImportController;
-use App\Http\Controllers\WpsRankingController;
-use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Controllers\WpsPointVersionController;
+use App\Http\Controllers\WpsRankingController;
 use App\Http\Controllers\WpsScmFactorController;
+use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -238,8 +239,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('championships/{championship}', [ChampionshipController::class, 'show'])
         ->name('championships.show');
 
-    // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
-    // ── WPS-Ranglisten und Förderauswertung ───────────────────────────────────
+    // ── WPS-Auswertungen ──────────────────────────────────────────────────────
     // Lesend und verbandsweit ([R2]), deshalb außerhalb der RequireAdmin-Gruppe.
     Route::view('wps/rankings', 'wps.rankings.index')->name('wps.rankings');
     Route::get('wps/rankings/pdf', [WpsRankingController::class, 'pdf'])->name('wps.rankings.pdf');
@@ -257,6 +257,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('wps/athletes/{athlete}', [WpsAthleteAnalysisController::class, 'show'])
         ->name('wps.athletes.show');
 
+    // Vereinsauswertung — ein Analysewerkzeug, keine offizielle ÖBSV-Wertung (§9). Als
+    // einzige Ansicht des Moduls auf den eigenen Verein beschränkt; das regelt der
+    // Controller, nicht die Route.
+    Route::get('wps/clubs', [WpsClubRankingController::class, 'show'])->name('wps.clubs');
+    Route::get('wps/clubs/pdf', [WpsClubRankingController::class, 'pdf'])->name('wps.clubs.pdf');
+
+    // ── WPS Point Scores (nur Admin) ──────────────────────────────────────────
     Route::middleware(RequireAdmin::class)->prefix('wps')->name('wps.')->group(function () {
         Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');
         Route::post('import/preview', [WpsPointImportController::class, 'preview'])->name('import.preview');

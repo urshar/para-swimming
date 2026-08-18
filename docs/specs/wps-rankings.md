@@ -417,15 +417,15 @@ unerklärt leer.
 
 **Kaderfilter:** Athleten lassen sich nach Kaderart ein- oder ausblenden. Drei Modi:
 
-| Modus    | Wirkung                                      |
-|----------|----------------------------------------------|
-| `all`    | Filter wirkt nicht                           |
-| `only`   | nur Athleten der gewählten Kaderarten        |
+| Modus    | Wirkung                                   |
+|----------|-------------------------------------------|
+| `all`    | Filter wirkt nicht                        |
+| `only`   | nur Athleten der gewählten Kaderarten     |
 | `except` | Athleten der gewählten Kaderarten ausblenden |
 
-Neben den definierten Kaderarten steht **"ohne Kaderzuordnung"** als eigener wählbarer Eintrag. Ohne ihn ließe sich
-"nur Kaderathleten" nicht ausdrücken, und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder immer oder nie —
-beides wäre eine stille Festlegung.
+Neben den definierten Kaderarten steht **„ohne Kaderzuordnung"** als eigener wählbarer Eintrag. Ohne ihn ließe sich
+"nur Kaderathleten" nicht ausdrücken, und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder immer oder nie
+— beides wäre eine stille Festlegung.
 
 Ein gesetzter Modus **ohne** Auswahl wirkt nicht: Er sähe sonst nach einer Einschränkung aus, die es nicht gibt. Wird
 die letzte Kaderart abgewählt, fällt der Modus auf `all` zurück.
@@ -502,19 +502,18 @@ Funktionen: Rankingtyp wählen, Zeitraum wählen, Filter setzen, Tabelle anzeige
 
 ## 13.1 Services
 
-| Service                     | Aufgabe                                                          |
-|-----------------------------|------------------------------------------------------------------|
-| `WpsRankingService`         | Fassade: wählt anhand des Rankingtyps den passenden Teilservice  |
-| `WpsSeasonRankingService`   | Saison-, Jugend- und Bewerbsranglisten                           |
-| `WpsMeetRankingService`     | Veranstaltungsranglisten                                         |
-| `WpsAthleteAnalysisService` | Athletenprofil, Leistungsentwicklung, Vergleiche                 |
-| `WpsClubRankingService`     | Vereinsauswertung                                                |
-| `WpsResultSelectionService` | Ergebnisauswahl nach §4 — verbindlich für alle Ranglistenarten   |
+| Service                     | Aufgabe                                                         |
+|-----------------------------|-----------------------------------------------------------------|
+| `WpsRankingService`         | Fassade: wählt anhand des Rankingtyps den passenden Teilservice |
+| `WpsSeasonRankingService`   | Saison-, Jugend- und Bewerbsranglisten                          |
+| `WpsMeetRankingService`     | Veranstaltungsranglisten                                        |
+| `WpsAthleteAnalysisService` | Athletenprofil, Leistungsentwicklung, Vergleiche                |
+| `WpsClubRankingService`     | Vereinsauswertung                                               |
+| `WpsResultSelectionService` | Ergebnisauswahl nach §4 — verbindlich für alle Ranglistenarten  |
 | `AthleteKaderResolver`      | Kaderzugehörigkeit zum Stichtag; geteilt mit `wps-qualification` |
 
 `WpsResultSelectionService` liegt bewusst **neben** der Fassade und nicht darin: Die Regeln aus §4 gelten für alle
-Ranglistenarten, und in der Fassade müssten die Teilservices sie über die Fassade zurückrufen — das kehrte das Muster
-um.
+Ranglistenarten, und in der Fassade müssten die Teilservices sie über die Fassade zurückrufen — das kehrte das Muster um.
 
 Alle als `final readonly class` mit Constructor-Injection. Die Fassade enthält **keine** eigene Auswertungslogik —
 dasselbe Muster wie `StatisticsService`.
@@ -555,7 +554,7 @@ Pest mit `RefreshDatabase`, keine Factories, Helper mit Phasensuffix, Testgruppe
 - Förderauswertung: Bewerbe ohne Norm erzeugen keine Schwelle und keine Zeile
 - Jahresabgrenzung erfasst Veranstaltungen am 1. Januar und am 31. Dezember (§6.2)
 - Kaderfilter blendet gewählte Kaderarten aus bzw. zeigt nur diese
-- "ohne Kaderzuordnung" ist eine eigene, wählbare Gruppe
+- „ohne Kaderzuordnung" ist eine eigene, wählbare Gruppe
 - ein Kadermodus ohne Auswahl wirkt nicht
 - die Jahresvorbelegung trifft das jüngste Jahr mit Wettkämpfen, nicht das laufende Kalenderjahr
 - die Veranstaltungsliste zeigt nur Wettkämpfe des gewählten Jahres
@@ -607,8 +606,8 @@ Vorlauf wie Finale sollen beide sichtbar bleiben.
 
 Altersberechnung nach §5, Altersgruppenentscheidung, U18-Filter.
 
-*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5) — **getroffen: wird wiederverwendet**. *DoD:*
-Jugendranglisten sind korrekt, Grenzfälle getestet. — **abgeschlossen**
+*Voraussetzung:* Entscheidung, ob `AgeGroup` wiederverwendet wird (§5) — **getroffen: wird wiederverwendet**.
+*DoD:* Jugendranglisten sind korrekt, Grenzfälle getestet. — **abgeschlossen**
 
 Die Altersberechnung und die U18-Grenze kamen bereits mit Phase 1/2; Phase 3 ergänzt die Altersgruppen-Auswahl.
 
@@ -622,8 +621,8 @@ Saisonen desselben Bewerbs **und derselben Sportklasse**; an der Stelle des Wech
 "Klassenwechsel". Eine Verbesserung um zweihundert Punkte, die allein aus einer Umklassifizierung stammt, wäre eine
 Falschaussage über die Entwicklung.
 
-**Der Wechsel wird im Profilkopf ausgewiesen** (§7.2). Bei der Kategorieerkennung werden längere Präfixe zuerst
-geprüft — sonst passte "S" auf "SB9" und die Kategorien liefen zusammen. Dieselbe Reihenfolge wie im Regex von
+**Der Wechsel wird im Profilkopf ausgewiesen** (§7.2). Bei der Kategorieerkennung werden längere Präfixe zuerst geprüft
+— sonst passte "S" auf "SB9" und die Kategorien liefen zusammen. Dieselbe Reihenfolge wie im Regex von
 `WpsSportClass`.
 
 **Bewerbe nach der besten erreichten Punktzahl** sortiert; der stärkste steht oben.
@@ -672,9 +671,10 @@ Tabelle `athlete_performance_notes`: `athlete_id`, `result_id` (nullable), `note
 **Eigene Tabelle und nicht `results.comment`:** Jenes Feld gehört LENEX und wird beim Ergebnisimport überschrieben
 (DSQ-Begründungen, "Ratification pending"). Eine Notiz dort wäre nach dem nächsten Import verschwunden.
 
-**`result_id` nullable, dazu ein eigenes Datum:** Nicht jede Ursache hängt an einem Start. "Sechs Wochen Trainingspause
-wegen Schulterverletzung" betrifft einen Zeitraum, nicht ein Ergebnis. Ist ein Start angegeben, wird dessen Wettkampftag
-als Datum übernommen — zwei abweichende Daten wären eine Widersprüchlichkeit, die niemand auflösen kann.
+**`result_id` nullable, dazu ein eigenes Datum:** Nicht jede Ursache hängt an einem Start. "Sechs Wochen
+Trainingspause wegen Schulterverletzung" betrifft einen Zeitraum, nicht ein Ergebnis. Ist ein Start angegeben, wird
+dessen Wettkampftag als Datum übernommen — zwei abweichende Daten wären eine Widersprüchlichkeit, die niemand auflösen
+kann.
 
 Wird das Ergebnis gelöscht, bleibt die Notiz mit ihrem Datum bestehen (`nullOnDelete`): Die Beobachtung über den
 Athleten gilt weiter, auch wenn der Start entfällt.
@@ -701,10 +701,10 @@ Reines **SVG ohne JavaScript**, damit sie auch im PDF erscheint — dompdf führ
 liegt in `WpsChartService`, der fertige Bildkoordinaten liefert; Blade zeichnet nur noch. Eine Achsenskalierung im
 Markup wäre weder lesbar noch prüfbar.
 
-Die x-Achse Zeit. Auf der y-Achse wahlweise **Schwimmzeit** (Vorbelegung) oder **WPS-Punkte**. Die Zeit ist die
+X-Achse Zeit. Auf der Y-Achse wahlweise **Schwimmzeit** (Vorbelegung) oder **WPS-Punkte**. Die Zeit ist die
 Vorbelegung, weil sie bei jedem Ergebnis vorliegt; Punkte oft nur bei einem Bruchteil.
 
-**Oben ist immer "besser".** Bei Punkten heißt das mehr, bei Zeiten weniger — die Achse läuft je nach Maß in die andere
+**Oben ist immer „besser".** Bei Punkten heißt das mehr, bei Zeiten weniger — die Achse läuft je nach Maß in die andere
 Richtung. Eine Zeitkurve, die bei einer Verbesserung nach unten zeigte, würde jeder falsch lesen.
 
 In der Punkteansicht fallen Zeilen ohne Punktzahl heraus; in der Zeitansicht ist nichts auszuschließen.
@@ -713,9 +713,9 @@ In der Punkteansicht fallen Zeilen ohne Punktzahl heraus; in der Zeitansicht ist
 Linie mit einem Punkt sähe nach einem Fehler aus.
 
 **Mindestspanne:** 50 Punkte beziehungsweise 2 Sekunden. Ohne sie würde eine Schwankung von drei Punkten über die volle
-Höhe gespreizt und sähe nach einem dramatischen Verlauf aus. Bei allen Zeiten ist das noch wichtiger — über eine Saison
-schwankt eine 100-m-Zeit häufig nur um wenige Zehntel. Die Grenzen werden nach außen gerundet (Punkte auf Zehner, Zeiten
-auf ganze Sekunden), nie unter null.
+Höhe gespreizt und sähe nach einem dramatischen Verlauf aus. Bei Zeiten ist das noch wichtiger — über eine Saison
+schwankt eine 100-m-Zeit häufig nur um wenige Zehntel. Die Grenzen werden nach außen gerundet (Punkte auf Zehner,
+Zeiten auf ganze Sekunden), nie unter null.
 
 **Beschriftungen der Zeitachse werden ab acht Starts ausgedünnt** — überlappende Beschriftungen sind unlesbar und dann
 schlechter als keine.
@@ -792,11 +792,37 @@ Unsicherheit trifft genau die Zielgruppe.
 *DoD:* Für einen Zeitraum und eine Referenznorm liegt eine nach Altersgruppen getrennte Liste vor; geschätzte
 Langbahnzeiten und der Hinweis nach §6.6.5 sind enthalten.
 
-## Phase 7 — Vereinsauswertung
+## Phase 7 — Vereinsauswertung — **abgeschlossen**
 
-`WpsClubRankingService`, konfigurierbare Bewertungsmethoden, Abgrenzung zur offiziellen Cup-Vereinswertung.
+`WpsClubRankingService`, `WpsClubRankingConfiguration`, drei Bewertungsmethoden, Abgrenzung zur offiziellen
+Cup-Vereinswertung.
 
-*DoD:* Vereinsauswertungen verfügbar, Sichtbarkeit je Verein korrekt eingeschränkt.
+**Punkte, nicht Zeiten** — anders als die Athletenanalyse (§7.3a). Über Vereine hinweg vergleicht man verschiedene
+Bewerbe und Sportklassen, und dafür sind Punkte gemacht.
+
+**Drei Methoden**, weil sie verschiedene Fragen beantworten: Die Summe bevorzugt große Vereine, der Durchschnitt
+kleine, und die Zählung über einer Schwelle sagt, wie viele Athleten ein Niveau erreichen. Sich für eine zu
+entscheiden hieße, eine dieser Fragen für unwichtig zu erklären.
+
+Der **Durchschnitt** bezieht sich auf die eingegangenen Leistungen, nicht auf die Athleten: Zählte man durch die
+Athletenzahl, ergäbe "beste zwei Leistungen je Athlet" einen doppelt so hohen Wert wie "beste eine" — das wäre kein
+Durchschnitt.
+
+**Keine Konfigurationsdatei**, anders als beim Cup-Modul: Diese Auswertung lebt davon, dass man ihre Werte im Betrieb
+verändert und die Wirkung sofort sieht. Werte in einer Datei wären dafür am falschen Ort.
+
+**Vereine unter der Mindestzahl** gewerteter Leistungen erhalten keinen Rang, erscheinen aber unterhalb der Liste — ein
+Verein mit einem einzigen starken Athleten soll sichtbar bleiben, statt still zu verschwinden. Dieselbe Haltung wie
+beim Sammelposten "ohne Geburtsdatum" (§5).
+
+**Sichtbarkeit:** Vereinsnutzer sehen nur den eigenen Verein (**[R2]**) — die einzige Ansicht dieses Moduls mit dieser
+Einschränkung. Die Regel überschreibt eine etwaige Vereinsauswahl im Filter; sonst ließe sich darüber ein fremder
+Verein einsehen.
+
+**Abgrenzung:** Der Hinweis "Analysewerkzeug, keine offizielle Wertung" steht über der Liste **und** im PDF. Ein
+weitergegebenes Blatt ohne ihn könnte für eine offizielle Wertung gehalten werden.
+
+*DoD:* Vereinsauswertungen verfügbar, Sichtbarkeit je Verein korrekt eingeschränkt. — **erfüllt**
 
 ---
 

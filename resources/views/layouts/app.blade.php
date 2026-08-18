@@ -149,6 +149,10 @@
                                :current="request()->routeIs('wps.talent-report')">
                 Förderauswertung
             </flux:navlist.item>
+            <flux:navlist.item icon="building-office" href="{{ route('wps.clubs') }}"
+                               :current="request()->routeIs('wps.clubs')">
+                Vereinsauswertung
+            </flux:navlist.item>
         </flux:navlist.group>
 
         <flux:navlist.group heading="Meisterschaften">
