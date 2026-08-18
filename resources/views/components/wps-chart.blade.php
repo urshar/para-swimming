@@ -1,4 +1,4 @@
-@props(['series'])
+@props(['series', 'forPdf' => false])
 
 {{--
     Verlaufsgrafik eines Bewerbs (Spec "WPS Rankings" §7.6).
@@ -9,7 +9,15 @@
 --}}
 @if($series->isDrawable())
     @php($rahmen = $series->frame())
-    <svg viewBox="{{ $series->viewBox() }}" class="w-full h-auto" role="img"
+
+    {{-- dompdf kennt kein Tailwind und kann ein SVG ohne ausdrückliche width/height nicht
+         einordnen — es rendert dann gar nichts. Fürs PDF stehen deshalb feste Maße in
+         Nutzerkoordinaten; am Bildschirm skaliert die Grafik weiterhin über die viewBox. --}}
+    @php($svgMasse = $forPdf
+        ? 'width="'.$rahmen['width'].'" height="'.$rahmen['height'].'"'
+        : 'class="w-full h-auto"')
+
+    <svg viewBox="{{ $series->viewBox() }}" {!! $svgMasse !!} role="img"
          aria-label="{{ $series->axisLabel() }}verlauf {{ $series->eventLabel }}">
 
         {{-- Waagrechte Hilfslinien mit Punktwerten --}}

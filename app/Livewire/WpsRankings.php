@@ -343,6 +343,19 @@ class WpsRankings extends Component
         return $jahre === [] ? [(int) date('Y')] : $jahre;
     }
 
+    /**
+     * Vollständige Adresse der PDF-Ausgabe, mit dem aktuellen Filterstand.
+     *
+     * Im Code gebaut, nicht im Blade-Attribut: Dort wäre es eine Ternäroperation mit leerem
+     * String, an der sich der Blade-Parser von PhpStorm verschluckt.
+     */
+    public function pdfUrl(): string
+    {
+        $parameter = $this->filter()->toQuery();
+
+        return route('wps.rankings.pdf').($parameter === [] ? '' : '?'.http_build_query($parameter));
+    }
+
     public function render(): View
     {
         return view('livewire.wps-rankings');

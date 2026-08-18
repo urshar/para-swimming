@@ -167,6 +167,49 @@ final readonly class WpsRankingFilter
     }
 
     /**
+     * Als Abfrageparameter — damit der PDF-Link denselben Ausschnitt mitnimmt wie der
+     * Bildschirm, von dem aus er erzeugt wurde.
+     *
+     * Nur abweichende Werte werden aufgenommen; der Standardzustand ergibt eine leere Liste
+     * und damit eine Adresse ohne Fragezeichen.
+     *
+     * @return array<string, string>
+     */
+    public function toQuery(): array
+    {
+        return array_filter([
+            'type' => $this->type === self::TYPE_SEASON ? '' : $this->type,
+            'year' => (string) ($this->year ?? ''),
+            'meet' => (string) ($this->meetId ?? ''),
+            'stroke' => (string) ($this->strokeTypeId ?? ''),
+            'distance' => (string) ($this->distance ?? ''),
+            'gender' => $this->gender,
+            'class' => $this->sportClass,
+            'course' => $this->course === self::COURSE_SCM ? '' : $this->course,
+            'club' => (string) ($this->clubId ?? ''),
+            'minPoints' => (string) ($this->minPoints ?? ''),
+            'maxAge' => (string) ($this->maxAge ?? ''),
+            'ageGroup' => (string) ($this->ageGroupId ?? ''),
+            'exh' => $this->includeExhibition ? '1' : '',
+            'calc' => $this->calculationType,
+            'kaderMode' => $this->kaderMode === self::KADER_ALL ? '' : $this->kaderMode,
+            'kader' => implode(',', $this->kaderIds),
+        ], static fn (string $wert): bool => $wert !== '');
+    }
+
+    /**
+     * Bezeichnung der Ranglistenart für Überschrift und Dateiname.
+     */
+    public function typeLabel(): string
+    {
+        return match ($this->type) {
+            self::TYPE_MEET => 'Veranstaltungsrangliste',
+            self::TYPE_EVENT => 'Bewerbsrangliste',
+            default => 'Saisonrangliste',
+        };
+    }
+
+    /**
      * Werden Langbahn- und Kurzbahnergebnisse gemeinsam gezeigt?
      *
      * Löst den verpflichtenden Hinweis nach §11.4 aus: Offizielle und geschätzte Punkte

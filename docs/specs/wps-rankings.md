@@ -651,11 +651,6 @@ niemand getroffen hat.
 **Verglichen wird nur bei gleicher Sportklasse UND gleicher Bahnlänge.** 1:10 auf Kurzbahn und 1:13 auf Langbahn sind
 verschiedene Leistungen, keine Verschlechterung.
 
-Aus demselben Grund gehört die **Bahnlänge in den Gruppierungsschlüssel** der Bestenermittlung: Bei gemeinsamer
-Betrachtung beider Bahnlängen bleiben je Saison und Bewerb **zwei** Zeilen stehen, nicht eine. Solange nach Punkten
-gewertet wurde, war das gleichgültig — dort steckte die Umrechnung schon drin. Bei allen Zeiten hieße eine der beiden zu
-verwerfen, die schwächere Bahnlänge stillschweigend zu unterschlagen.
-
 **Die Bewerbe sind nach der Zahl der Starts sortiert**, nicht nach der besten Punktzahl: Der Bewerb, in dem jemand am
 häufigsten antritt, ist sein Hauptbewerb — und nach Punkten zu sortieren ginge nicht, weil die meisten Zeilen keine
 haben.
@@ -706,8 +701,8 @@ Reines **SVG ohne JavaScript**, damit sie auch im PDF erscheint — dompdf führ
 liegt in `WpsChartService`, der fertige Bildkoordinaten liefert; Blade zeichnet nur noch. Eine Achsenskalierung im
 Markup wäre weder lesbar noch prüfbar.
 
-x-Achse Zeit. Auf der y-Achse wahlweise **Schwimmzeit** (Vorbelegung) oder **WPS-Punkte**. Die Zeit ist die Vorbelegung,
-weil sie bei jedem Ergebnis vorliegt; Punkte oft nur bei einem Bruchteil.
+Die x-Achse Zeit. Auf der y-Achse wahlweise **Schwimmzeit** (Vorbelegung) oder **WPS-Punkte**. Die Zeit ist die
+Vorbelegung, weil sie bei jedem Ergebnis vorliegt; Punkte oft nur bei einem Bruchteil.
 
 **Oben ist immer "besser".** Bei Punkten heißt das mehr, bei Zeiten weniger — die Achse läuft je nach Maß in die andere
 Richtung. Eine Zeitkurve, die bei einer Verbesserung nach unten zeigte, würde jeder falsch lesen.
@@ -733,6 +728,22 @@ Notizen fließen nur ein, wenn der Betrachter sie sehen darf — über eine Mark
 erschließen, dass es zu einem Zeitpunkt eine Gesundheitsangabe gibt (§7.5).
 
 **Im PDF** erscheint die Grafik immer, Notizen nur über den Link "PDF mit Notizen".
+
+**Einbettung im PDF:** dompdf verarbeitet SVG ausschließlich als **Bild** über ein `img`-Element; ein `svg`-Element
+mitten im HTML wird stillschweigend übergangen — ohne Fehlermeldung. Dieselbe Blade-Komponente wird deshalb gerendert
+und ihr Ergebnis als Daten-URI eingebettet, damit das Markup an einer Stelle bleibt. Fürs PDF trägt das SVG
+ausdrückliche `width`/`height`: dompdf kennt kein Tailwind und kann eine Grafik ohne Maße nicht einordnen.
+
+### §7.7 Auswahl der Bewerbe fürs PDF
+
+Je Bewerb eine Ankreuzung; ohne Auswahl enthält das PDF **alle** Bewerbe — der häufigere Fall soll keinen Handgriff
+kosten, dieselbe Regel wie bei der Athletenauswahl der Förderansicht (`wps-qualification` §7.7).
+
+Die Auswahl wirkt **nur auf das PDF**, nicht auf die Bildschirmansicht: Am Bildschirm scrollt man ohnehin, und eine
+Auswahl, die auch die Ansicht beschneidet, machte das Vergleichen umständlich.
+
+Übergeben wird sie als Liste im Adressfeld, getrennt durch einen senkrechten Strich — Bewerbsbezeichnungen könnten
+Kommas enthalten. Unbekannte Bezeichnungen werden übergangen, statt ein leeres PDF zu erzeugen.
 
 ## Ursprüngliche Beschreibung
 

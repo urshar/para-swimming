@@ -29,6 +29,7 @@
         .note { margin: 0 0 14px 0; padding: 8px 10px; border: 1px solid #d9a441;
                 background-color: #fdf6e6; font-size: 9px; line-height: 1.4; }
         .chart { margin: 4px 0 8px 0; width: 100%; }
+        .chart img { width: 100%; }
         .note-row td { background-color: #f7f7f7; font-size: 9px; color: #555; }
         .foot { margin-top: 14px; font-size: 8px; color: #999; }
     </style>
@@ -44,7 +45,9 @@
     @if($profile->firstYear !== null)
         · Zeitraum {{ $profile->firstYear }}–{{ $profile->lastYear }}
     @endif
-    · Beste Punktzahl {{ $profile->bestPoints() }}
+    @if($profile->bestPoints() !== null)
+        · Beste Punktzahl {{ $profile->bestPoints() }}
+    @endif
     · Stand {{ $generatedAt->format('d.m.Y H:i') }}
 </p>
 
@@ -60,12 +63,25 @@
 @endif
 
 @foreach($profile->byEvent as $bewerb => $zeilen)
-    <h2>{{ $bewerb }} — beste Punktzahl {{ $zeilen->max(fn ($z) => $z->points) }}</h2>
+    @php($besteZeit = $zeilen->min(fn ($z) => $z->swimTime))
 
-    {{-- Reines SVG, deshalb auch im PDF darstellbar: dompdf führt keine Skripte aus. --}}
+    <h2>{{ $bewerb }} — {{ $zeilen->count() }} Ergebnisse, beste Zeit {{ TimeParser::display($besteZeit) }}</h2>
+
+    {{-- dompdf rendert KEIN inline eingebettetes SVG — es verarbeitet SVG ausschließlich als
+         Bild über ein img-Element. Ein svg-Element mitten im HTML wird stillschweigend
+         übergangen.
+
+         Deshalb wird dieselbe Blade-Komponente gerendert wie am Bildschirm und ihr Ergebnis
+         als Daten-URI eingebettet. So bleibt das Markup an einer Stelle, statt für das PDF
+         ein zweites Mal gebaut zu werden. --}}
     @if(isset($charts[$bewerb]) && $charts[$bewerb]->isDrawable())
+        @php($svg = view('components.wps-chart', [
+            'series' => $charts[$bewerb],
+            'forPdf' => true,
+        ])->render())
+
         <div class="chart">
-            <x-wps-chart :series="$charts[$bewerb]"/>
+            <img src="data:image/svg+xml;base64,{{ base64_encode($svg) }}" alt="Verlaufsgrafik"/>
         </div>
     @endif
 
@@ -92,17 +108,27 @@
                         {{ TimeParser::display($zeile->estimatedLcmTime) }}
                     @endif
                 </td>
-                <td class="num right">{{ $zeile->points }}</td>
+                <td class="num right">
+                    @if($zeile->hasPoints())
+                        {{ $zeile->points }}
+                    @else
+                        <span class="muted">–</span>
+                    @endif
+                </td>
                 <td class="num right">
                     @if($zeile->classChanged)
                         <span class="est">Klassenwechsel</span>
-                    @elseif($zeile->hasComparison())
+                    @elseif($zeile->formattedTimeDelta() !== null)
+                        {{-- Die Zeit führt: Sie liegt bei jedem Ergebnis vor, die
+                             Punktdifferenz nur, wo beide Werte berechnet sind. --}}
                         @if($zeile->improved())
-                            <span class="up">{{ $zeile->formattedPointsDelta() }}</span>
+                            <span class="up">{{ $zeile->formattedTimeDelta() }}</span>
                         @else
-                            <span class="muted">{{ $zeile->formattedPointsDelta() }}</span>
+                            <span class="muted">{{ $zeile->formattedTimeDelta() }}</span>
                         @endif
-                        <span class="muted">({{ $zeile->formattedTimeDelta() }})</span>
+                        @if($zeile->hasComparison())
+                            <span class="muted">({{ $zeile->formattedPointsDelta() }} Pkt.)</span>
+                        @endif
                     @else
                         <span class="muted">–</span>
                     @endif

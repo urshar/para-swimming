@@ -131,6 +131,42 @@
     @endif
 
     {{-- ── Entwicklung je Bewerb ───────────────────────────────────────────── --}}
+    {{-- ── Auswahl für das PDF ─────────────────────────────────────────────── --}}
+    @if($profil->byEvent->count() > 1)
+        <div
+            class="mb-4 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl">
+            <p class="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Bewerbe für das PDF
+            </p>
+
+            <div class="flex flex-wrap items-center gap-3">
+                {{-- Der Bewerbsname geht über json_encode ins Attribut: Er stammt zwar aus
+                     unseren eigenen Daten, aber ein Apostroph in einer Bezeichnung würde die
+                     Zeichenkette sonst zerreißen. --}}
+                @foreach($profil->byEvent->keys() as $bewerbName)
+                    <flux:checkbox wire:click="toggleEvent({{ json_encode($bewerbName) }})"
+                                   :checked="$this->isEventSelected($bewerbName)"
+                                   label="{{ $bewerbName }}"/>
+                @endforeach
+
+                @if($selectedEvents !== [])
+                    <flux:button wire:click="clearEventSelection" variant="ghost" size="sm">
+                        Auswahl aufheben
+                    </flux:button>
+                @endif
+            </div>
+
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                @if($selectedEvents === [])
+                    Ohne Auswahl enthält das PDF alle Bewerbe.
+                @else
+                    {{ count($selectedEvents) }} von {{ $profil->byEvent->count() }} Bewerben im PDF.
+                @endif
+                Die Auswahl wirkt nur auf das PDF, nicht auf diese Ansicht.
+            </p>
+        </div>
+    @endif
+
     @forelse($profil->byEvent as $bewerb => $zeilen)
         <h2 class="mt-6 mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
             {{ $bewerb }}

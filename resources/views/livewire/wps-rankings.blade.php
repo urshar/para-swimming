@@ -65,6 +65,12 @@
         @endif
 
         <flux:button wire:click="resetFilters" variant="ghost" size="sm">Zurücksetzen</flux:button>
+
+        {{-- Der PDF-Link trägt den Filterstand mit; das PDF zeigt sonst etwas anderes als der
+             Bildschirm, von dem aus es erzeugt wurde. --}}
+        <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
+                     icon="document-arrow-down">PDF
+        </flux:button>
     </div>
 
     {{-- ── Weitere Filter ──────────────────────────────────────────────────── --}}

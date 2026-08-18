@@ -70,7 +70,7 @@ final readonly class WpsChartSeries
     }
 
     /**
-     * Die Punkte als Polylinien, z.B. "44,120 180,96 316,72".
+     * Die Punkte als Polylinie, z.B. "44,120 180,96 316,72".
      *
      * Fertig zusammengesetzt, damit das Markup keine Schleife mit Zwischenraum-Logik braucht.
      */
@@ -92,11 +92,16 @@ final readonly class WpsChartSeries
      * Damit im Blade keine vollqualifizierten Klassennamen für Konstanten stehen müssen —
      * die machen ein SVG-Gerüst unlesbar.
      *
-     * @return array{left: int, right: int, top: int, bottom: int, labelX: int, axisY: int}
+     * @return array{left: int, right: int, top: int, bottom: int, labelX: int, axisY: int,
+     *               width: int, height: int}
      */
     public function frame(): array
     {
         return [
+            // Gesamtmaße für dompdf: Es kann ein SVG ohne ausdrückliche width/height nicht
+            // einordnen und rendert dann gar nichts.
+            'width' => self::WIDTH,
+            'height' => self::HEIGHT,
             'left' => self::PADDING_LEFT,
             'right' => self::WIDTH - self::PADDING_RIGHT,
             'top' => self::PADDING_TOP,

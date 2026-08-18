@@ -8,6 +8,7 @@ use App\Services\AthletePerformanceNoteService;
 use App\Services\PdfExportService;
 use App\Services\WpsAthleteAnalysisService;
 use App\Services\WpsChartService;
+use App\Support\WpsAthleteProfile;
 use App\Support\WpsRankingFilter;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -65,6 +66,21 @@ class WpsAthleteAnalysisController extends Controller
         $mass = $request->query('metric') === WpsChartService::METRIC_POINTS
             ? WpsChartService::METRIC_POINTS
             : WpsChartService::METRIC_TIME;
+
+        // Auswahl der Bewerbe; ohne Angabe kommen alle ins PDF.
+        $gewaehlt = array_filter(explode('|', (string) $request->query('events', '')));
+
+        if ($gewaehlt !== []) {
+            $profil = new WpsAthleteProfile(
+                $profil->athlete,
+                $profil->byEvent->filter(
+                    static fn ($zeilen, string $bewerb): bool => in_array($bewerb, $gewaehlt, true)
+                ),
+                $profil->sportClassesByCategory,
+                $profil->firstYear,
+                $profil->lastYear,
+            );
+        }
 
         $grafiken = [];
 

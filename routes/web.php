@@ -34,12 +34,13 @@ use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
 use App\Http\Controllers\WorldAquaticsPointsController;
-use App\Http\Controllers\WpsAthleteAnalysisController;
 use App\Http\Controllers\WpsPointCalculationController;
+use App\Http\Controllers\WpsAthleteAnalysisController;
 use App\Http\Controllers\WpsPointImportController;
+use App\Http\Controllers\WpsRankingController;
+use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Controllers\WpsScmFactorController;
-use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -241,12 +242,13 @@ Route::middleware(['auth'])->group(function () {
     // ── WPS-Ranglisten und Förderauswertung ───────────────────────────────────
     // Lesend und verbandsweit ([R2]), deshalb außerhalb der RequireAdmin-Gruppe.
     Route::view('wps/rankings', 'wps.rankings.index')->name('wps.rankings');
+    Route::get('wps/rankings/pdf', [WpsRankingController::class, 'pdf'])->name('wps.rankings.pdf');
     Route::get('wps/talent-report', [WpsTalentReportController::class, 'show'])
         ->name('wps.talent-report');
     Route::get('wps/talent-report/pdf', [WpsTalentReportController::class, 'pdf'])
         ->name('wps.talent-report.pdf');
 
-    // Athletenanalyse — kein eigener Einstieg über eine Suchseite: Der Weg führt über die
+    // Athletenanalyse — kein eigener Sucheinstieg: Der Weg führt über die
     // Athletenverwaltung, wo ohnehin gesucht und geblättert wird.
     //
     // /pdf vor der {athlete}-Route, sonst bindet Laravel das Wort als Modell-Schlüssel.

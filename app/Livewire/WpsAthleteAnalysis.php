@@ -6,8 +6,8 @@ use App\Models\Athlete;
 use App\Models\AthletePerformanceNote;
 use App\Models\Result;
 use App\Services\AthletePerformanceNoteService;
-use App\Services\WpsAthleteAnalysisService;
 use App\Services\WpsChartService;
+use App\Services\WpsAthleteAnalysisService;
 use App\Support\WpsAthleteProfile;
 use App\Support\WpsChartSeries;
 use App\Support\WpsRankingFilter;
@@ -69,6 +69,16 @@ class WpsAthleteAnalysis extends Component
 
     public ?string $statusMessage = null;
 
+    /**
+     * Bewerbe, die ins PDF sollen.
+     *
+     * Leer heißt: alle. Das ist der häufigere Fall und soll keinen Handgriff kosten — dieselbe
+     * Regel wie bei der Athletenauswahl der Förderansicht.
+     *
+     * @var array<int, string>
+     */
+    public array $selectedEvents = [];
+
     private ?WpsAthleteAnalysisService $service = null;
 
     public function mount(Athlete $athlete): void
@@ -103,6 +113,29 @@ class WpsAthleteAnalysis extends Component
         $this->allStarts = ! $this->allStarts;
 
         $this->refresh();
+    }
+
+    /**
+     * Bewerb für die PDF-Ausgabe an- oder abwählen.
+     *
+     * Wirkt nur auf das PDF, nicht auf den Bildschirm: Am Bildschirm scrollt man ohnehin, und
+     * eine Auswahl, die auch die Ansicht beschneidet, machte das Vergleichen umständlich.
+     */
+    public function toggleEvent(string $eventLabel): void
+    {
+        $this->selectedEvents = in_array($eventLabel, $this->selectedEvents, true)
+            ? array_values(array_diff($this->selectedEvents, [$eventLabel]))
+            : [...$this->selectedEvents, $eventLabel];
+    }
+
+    public function isEventSelected(string $eventLabel): bool
+    {
+        return in_array($eventLabel, $this->selectedEvents, true);
+    }
+
+    public function clearEventSelection(): void
+    {
+        $this->selectedEvents = [];
     }
 
     public function toggleCharts(): void
@@ -309,6 +342,9 @@ class WpsAthleteAnalysis extends Component
             'to' => $this->toYear,
             'course' => $this->course,
             'metric' => $this->chartMetric,
+            // Bewerbe als Liste; der Trenner ist ein senkrechter Strich, weil die
+            // Bezeichnungen selbst Kommas enthalten könnten.
+            'events' => implode('|', $this->selectedEvents),
             'notes' => $withNotes ? '1' : '',
         ], static fn (string $wert): bool => $wert !== '');
 
