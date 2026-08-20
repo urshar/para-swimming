@@ -21,6 +21,8 @@ class DocumentDownloadController extends Controller
      * muss aber deklariert sein: Ohne einen eigenen Parameter dafür reicht Laravel alle
      * Routenparameter positionsweise an die Methode durch, und $document bekäme den
      * Sprachstring statt des gebundenen Modells.
+     *
+     * @noinspection PhpUnusedParameterInspection
      */
     public function show(string $locale, Document $document): Response
     {
@@ -47,8 +49,8 @@ class DocumentDownloadController extends Controller
             return false;
         }
 
-        if ($document->documentable_type === Meet::class) {
-            return $document->documentable?->is_published === true;
+        if ($document->documentable instanceof Meet) {
+            return $document->documentable->is_published === true;
         }
 
         return true;

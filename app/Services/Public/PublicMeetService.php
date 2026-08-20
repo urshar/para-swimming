@@ -34,7 +34,7 @@ final readonly class PublicMeetService
                         $query->whereNull('end_date')->where('start_date', '>=', $today);
                     });
             })
-            ->orderBy('start_date')
+            ->oldest('start_date')
             ->limit($limit)
             ->get();
     }
@@ -47,7 +47,7 @@ final readonly class PublicMeetService
     public function recentPast(int $limit = 10): Collection
     {
         return $this->pastQuery()
-            ->orderByDesc('start_date')
+            ->latest('start_date')
             ->limit($limit)
             ->get();
     }
@@ -61,7 +61,7 @@ final readonly class PublicMeetService
     public function archiveGroupedByYear(): Collection
     {
         return $this->pastQuery()
-            ->orderByDesc('start_date')
+            ->latest('start_date')
             ->get()
             ->groupBy(fn (Meet $meet): int => $meet->start_date->year);
     }

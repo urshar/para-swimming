@@ -35,6 +35,8 @@ class MeetController extends Controller
      * muss aber deklariert sein: Ohne einen eigenen Parameter dafür reicht Laravel alle
      * Routenparameter positionsweise an die Methode durch, und $meet bekäme den Sprachstring
      * statt des gebundenen Modells.
+     *
+     * @noinspection PhpUnusedParameterInspection
      */
     public function show(string $locale, Meet $meet): View
     {
