@@ -89,25 +89,40 @@ Paketinstallation, keine Tailkit-Konfiguration und keine Abhängigkeit im Build*
 **Lizenzrechtlich zu klären:** ob kopiertes Tailkit-Markup in einem öffentlichen Repository liegen darf. Das Repo ist
 derzeit `public`. Bis das geklärt ist, keine Snippets committen.
 
-### 3.1.2 Ablage kopierter Snippets
+### 3.1.2 Beschaffung über den Tailkit-MCP-Server
 
-Kopierte Rohfassungen kommen nach `docs/snippets/` mit sprechenden Dateinamen:
+Ein MCP-Server ersetzt das manuelle Kopieren aus der Tailkit-Weboberfläche. Vier Werkzeuge stehen zur Verfügung:
 
-```
-docs/snippets/
-  header-nav.html
-  footer.html
-  table-filter.html
-  card-grid.html
-  form-elements.html
-  theme-toggle.html
-```
+- `browse_catalog` — Katalog durchsteigen: Paket → Kategorie → Unterkategorie → Komponenten.
+- `search_components` — Volltextsuche über Beschreibungen.
+- `get_component_suggestions` — kuratierte Sets je Seitentyp; für eine Verbandsseite nur bedingt treffend.
+- `get_component_code` — liefert Code zu einem oder mehreren (max. 10) Bezeichnern, wahlweise als `html`, `react`,
+  `vue` oder `alpine`.
 
-Zweck: Sie sind in einer Coding-Session lesbar und bleiben als Referenz erhalten, wenn eine View später umgebaut wird.
-Die Dateien sind **Rohmaterial** — die tatsächliche Umsetzung liegt in `resources/views/public/`. Nach dem Umbau einer
-Ansicht darf das Snippet stehen bleiben oder entfallen; es ist keine Quelle, aus der gebaut wird.
+**Format:** Standardmäßig `alpine`. Die `html`-Fassung enthält bei interaktiven Bausteinen (Menüs, Dialoge,
+Akkordeons) nur Kommentare, die das nötige Skriptverhalten beschreiben — kein Code. Die `alpine`-Fassung liefert
+dieselbe Auszeichnung bereits mit `x-data`/`x-show`/`x-transition`/`x-bind` verdrahtet. Bei rein statischen Bausteinen
+(Footer, Karten-Raster) sind beide Fassungen identisch. Da der öffentliche Bereich ohnehin Alpine.js lädt, spart das
+Nacharbeit; die Alpine-Logik wird beim Einbau wie gewohnt nach `Alpine.data()` ausgelagert (§Alpine-Doppelinitialisierung
+in CLAUDE.md).
 
-Fällt die Lizenzprüfung negativ aus, wandert `docs/snippets/` in die `.gitignore` und wird nur lokal geführt.
+**Ablauf je Baustein:**
+
+1. Bezeichner finden über `search_components` oder `browse_catalog`.
+2. Code holen: `get_component_code(identifier, tech="alpine")`.
+3. Ablegen unter `docs/snippets/<sprechender-name>.html`, mit Kopfkommentar, der auf den Bezeichner verweist
+   (`<!-- Tailkit: m-s-main-headers-01 "Simple" -->`), damit ein späteres erneutes Abrufen oder ein Abgleich mit einer
+   aktualisierten Katalogversion nachvollziehbar bleibt.
+4. Ab hier unverändert: Rohmaterial, gegen [accessibility.md](../accessibility.md) geprüft und dort angepasst, wo es
+   die Anforderungen nicht erfüllt. Die Dateien sind **Rohmaterial**, keine Quelle, aus der gebaut wird — die
+   tatsächliche Umsetzung liegt in `resources/views/public/`. Nach dem Umbau einer Ansicht darf das Snippet stehen
+   bleiben oder entfallen.
+
+**Solange die Lizenzfrage offen ist, liegt `docs/snippets/` von Beginn an in der `.gitignore`** — nicht erst bei
+negativem Ausgang. Das betrifft nicht nur die Rohfassungen: Auch jede View, die aus einem Snippet entsteht (allen
+voran `layouts/public.blade.php`), ist Tailkit-abgeleitetes Markup und bleibt bis zur Klärung ungetrackt. Fällt die
+Prüfung positiv aus, werden beide Ausschlüsse entfernt und der bis dahin lokal entstandene Bestand nachträglich
+committet.
 
 ### 3.1.3 Grundbausteine für Phase 1
 
