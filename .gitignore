@@ -25,3 +25,4 @@ composer.lock
 package-lock.json
 laravel-debug.php
 laravel-test.php
+/doc/snippets
