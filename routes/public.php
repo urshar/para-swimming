@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Public\DocumentDownloadController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\MeetController;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -32,4 +34,19 @@ Route::prefix('{locale}')
     ->middleware(SetLocale::class)
     ->group(function (): void {
         Route::get('/', [HomeController::class, 'index'])->name('public.home');
+
+        // Dokumente: generisch, nicht meet-verschachtelt — Phase 8 (Regelmente) braucht
+        // denselben Controller für Dokumente ganz ohne Veranstaltungsbezug.
+        Route::get('dokumente/{document}/download', [DocumentDownloadController::class, 'show'])
+            ->name('public.documents.download');
+
+        Route::prefix('veranstaltungen')->name('public.meets.')->group(function (): void {
+            Route::get('/', [MeetController::class, 'index'])->name('index');
+
+            // Muss vor {meet} stehen, sonst bindet Laravel "archiv" als Meet-Schlüssel und
+            // liefert 404, statt die Archiv-Aktion zu erreichen.
+            Route::get('archiv', [MeetController::class, 'archive'])->name('archive');
+
+            Route::get('{meet}', [MeetController::class, 'show'])->name('show');
+        });
     });

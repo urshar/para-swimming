@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -32,9 +31,16 @@ class SetLocale
 
         App::setLocale($locale);
 
-        /** @var HttpResponse $response */
+        /** @var Response $response */
         $response = $next($request);
 
-        return $response->withCookie(cookie('locale', $locale, 60 * 24 * 365));
+        // Nicht Laravels withCookie()-Sugar: Ein Dateidownload (DocumentDownloadController)
+        // kommt als nackte Symfony\StreamedResponse zurück, die diese Methode nicht kennt.
+        // headers->setCookie() ist Symfony-Basis-API und funktioniert auf jedem Response-Typ;
+        // EncryptCookies verschlüsselt trotzdem, weil es generisch auf den Response-Headern
+        // arbeitet, unabhängig davon, wie das Cookie dort hineinkam.
+        $response->headers->setCookie(cookie('locale', $locale, 60 * 24 * 365));
+
+        return $response;
     }
 }

@@ -76,4 +76,48 @@ class Document extends Model
             $query->where('locale', $locale)->orWhereNull('locale');
         });
     }
+
+    // ── Linktext-Bausteine (accessibility.md: Art, Format und Größe im Linktext) ────────────
+
+    /**
+     * Kurzes Format-Kürzel aus dem MIME-Type für Linktexte ("Ausschreibung (PDF, 240 kB)").
+     * Unbekannte MIME-Types liefern null statt eines rohen "application/octet-stream".
+     */
+    public function formatLabel(): ?string
+    {
+        return match ($this->mime_type) {
+            'application/pdf' => 'PDF',
+            'application/zip' => 'ZIP',
+            'application/msword' => 'DOC',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'DOCX',
+            'application/vnd.ms-excel' => 'XLS',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'XLSX',
+            default => null,
+        };
+    }
+
+    /**
+     * Menschenlesbare Dateigröße ("240 kB"), dezimal (1000er-Schritte) wie im Dateisystem
+     * üblich, nicht binär (KiB) — deckt sich damit mit der Anzeige des Browsers beim Download.
+     */
+    public function sizeLabel(): ?string
+    {
+        if ($this->size_bytes === null) {
+            return null;
+        }
+
+        $units = ['B', 'kB', 'MB', 'GB'];
+        $value = (float) $this->size_bytes;
+        $unitIndex = 0;
+
+        while ($value >= 1000 && $unitIndex < count($units) - 1) {
+            $value /= 1000;
+            $unitIndex++;
+        }
+
+        $decimals = $unitIndex === 0 ? 0 : 1;
+        $decimalSeparator = app()->getLocale() === 'de' ? ',' : '.';
+
+        return number_format($value, $decimals, $decimalSeparator, '').' '.$units[$unitIndex];
+    }
 }

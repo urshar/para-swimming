@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection as SupportCollection;
@@ -88,6 +89,12 @@ class Meet extends Model
         return $query->where('wps_approved', true);
     }
 
+    /** Öffentlich sichtbare Veranstaltungen (Spec public-frontend §4.2). */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('is_published', true);
+    }
+
     public function nation(): BelongsTo
     {
         return $this->belongsTo(Nation::class);
@@ -144,6 +151,12 @@ class Meet extends Model
     public function results(): HasMany
     {
         return $this->hasMany(Result::class);
+    }
+
+    /** Dokumente dieser Veranstaltung (Ausschreibung, Meldeliste, ...) — Spec public-frontend §4.1. */
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
