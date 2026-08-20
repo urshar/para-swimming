@@ -11,7 +11,7 @@ Wertobjekte statt assoziativer Arrays, nichts wird persistiert, was sich berechn
 
 ---
 
-## Phase 1 — Fundament
+## Phase 1 — Fundament — **abgeschlossen**
 
 Ohne diese Phase kann keine andere beginnen.
 
@@ -22,18 +22,24 @@ Ohne diese Phase kann keine andere beginnen.
 | `App\Models\Document` | Model | `documentable()`, Scopes `public()`, `published()`, `forLocale()` |
 | `App\Http\Middleware\SetLocale` | Middleware | Sprache aus Präfix, Cookie, Browser |
 | `routes/public.php` | Routen | eigene Datei, `web.php` bleibt unberührt |
-| `resources/views/layouts/public.blade.php` | Layout | Tailkit, ohne Flux |
+| `resources/views/layouts/public.blade.php` | Layout | Grundgerüst, von Hand geschrieben — kein Tailkit (siehe Ergebnis) |
 | `resources/css/public.css`, `resources/js/public.js` | Assets | eigener Vite-Entry |
 | `resources/js/theme.js` | JS | Hell/Dunkel/System, `localStorage`, Inline-Init |
 | `lang/de/public.php`, `lang/en/public.php` | Übersetzung | Grundwortschatz |
 | `App\Http\Controllers\Public\HomeController` | Controller | Startseite (Grundgerüst) |
 
 **Vorab:** Tailkit ist eine Snippet-Quelle ohne Paketinstallation (§3.1.1) — ein Konfigurationskonflikt ist
-ausgeschlossen. Stattdessen werden zu Beginn die sechs Grundbausteine aus §3.1.3 nach `docs/snippets/` zugeliefert;
-ohne sie kann das Layout nicht entstehen. Offen bleibt die Lizenzfrage zum öffentlichen Repo.
+ausgeschlossen.
 
-**Tests** (`--group=public-p1`): Sprachweiterleitung, Cookie-Vorrang, `hreflang`, Document-Scopes, `/` führt nicht
-mehr in den Login.
+**Ergebnis:** Anders als hier ursprünglich vorgesehen, entstand das Phase-1-Layout nicht aus den sechs
+Grundbausteinen aus §3.1.3, sondern als schlichtes, von Hand geschriebenes Gerüst ohne jedes Tailkit-Markup —
+committet, damit Routing und Tests auf jedem Checkout laufen, unabhängig von lokal zugelieferten Snippets und
+unabhängig von der noch offenen Lizenzfrage. Die sechs Bausteine und die daraus gebaute, gestaltete Fassung folgen
+als lokaler, ungetrackter Ausbauschritt, sobald sie gebraucht werden (spätestens ab Phase 2) — siehe §3.1.2 zum
+Vorgehen beim Ersetzen (`git rm --cached`, sobald Tailkit-Markup einzieht).
+
+**Tests** (`--group=public-p1`, alle grün): Sprachweiterleitung, Cookie-Vorrang, `hreflang`, Document-Scopes, `/`
+führt nicht mehr in den Login.
 
 ---
 
