@@ -45,8 +45,7 @@ use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
-// Startseite → Wettkampf-Übersicht
-Route::redirect('/', '/meets')->name('home');
+// "/" gehört jetzt dem öffentlichen Bereich (routes/public.php, Spec public-frontend §3.2).
 Route::redirect('/dashboard', '/meets')->name('dashboard');
 
 // ── Admin-Bereich (RequireAdmin Middleware) ────────────────────────────────────

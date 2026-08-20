@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+@source '../views/public';
+@source '../views/layouts/public.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
