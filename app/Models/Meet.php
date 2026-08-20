@@ -35,6 +35,8 @@ class Meet extends Model
         'entries_deadline',
         'cup_id',
         'qualifying_time_list_id',
+        'livetiming_url',
+        'is_published',
     ];
 
     /**
@@ -43,6 +45,7 @@ class Meet extends Model
      */
     protected $attributes = [
         'wps_approved' => false,
+        'is_published' => false,
     ];
 
     protected $casts = [
@@ -51,6 +54,7 @@ class Meet extends Model
         'is_open' => 'boolean',
         'wps_approved' => 'boolean',
         'entries_deadline' => 'date',
+        'is_published' => 'boolean',
     ];
 
     /**
