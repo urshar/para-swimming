@@ -1,5 +1,6 @@
 import Alpine from 'alpinejs';
 import theme from './theme';
+import mobileNav from './mobile-nav';
 
 // Eigener Vite-Entry ohne Livewire (Spec public-frontend §3.1): Anders als in app.js gibt es
 // hier keine bereits gestartete Alpine-Instanz, an die angedockt werden könnte — Alpine muss
@@ -10,6 +11,7 @@ window.Alpine = Alpine;
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('theme', theme);
+    Alpine.data('mobileNav', mobileNav);
 });
 
 Alpine.start();

@@ -1,13 +1,19 @@
 {{--
-    layouts/public — Grundgerüst für den öffentlichen Bereich (Phase 1, Spec public-frontend §3).
+    layouts/public — Seitenrahmen des öffentlichen Bereichs (Spec public-frontend §3).
 
-    Bewusst schlicht und von Hand geschrieben, KEIN Tailkit-Markup: Solange die Lizenzfrage aus
-    §3.1.1 offen ist, bleibt jede aus einem Snippet entstandene View ungetrackt (§3.1.2). Dieses
-    Gerüst entsteht nicht aus einem Snippet — es existiert, damit Routing und Tests auf jedem
-    Checkout laufen, auch ohne lokal zugelieferte Snippets. Die eigentliche, gestaltete Fassung
-    entsteht aus den sechs Grundbausteinen aus §3.1.3 und bleibt bis zur Klärung lokal: Sobald
-    Tailkit-Markup hier einzieht, wird diese Datei per `git rm --cached` untracked und in die
-    .gitignore aufgenommen, wie es §3.1.2 für abgeleitete Views vorsieht.
+    Kopf- und Fußzeile sind aus Tailkit-Bausteinen abgeleitet (§3.1.2), angepasst und geprüft
+    gegen accessibility.md — insbesondere die mobile Navigation, die im Rohzustand als Dialog
+    ausgezeichnet war, aber weder Fokusfalle noch Fokusrückgabe mitbrachte (siehe
+    resources/js/mobile-nav.js).
+
+    Kopfzeile: docs/snippets/header-simple.html (m-s-main-headers-01 "Simple"). Die schwerere
+    header-with-submenu.html (m-s-main-headers-04, Mega-Menü) liegt bewusst ungenutzt daneben —
+    solange es nur zwei echte Ziele gibt, wäre ein Untermenü mit erfundenen Einträgen
+    spekulativ. Wird nachgeholt, sobald es genug verwandte Seiten zum Gruppieren gibt.
+
+    Fußzeile: docs/snippets/footer.html (m-s-footers-01 "Simple"), auf die Copyright-Zeile
+    reduziert — die im Original enthaltenen Nav-Links (About/Terms/Privacy) haben keine
+    Entsprechung im Verband und wurden nicht durch erfundene Ziele ersetzt.
 --}}
 @php
     use App\Http\Middleware\SetLocale;
@@ -45,43 +51,130 @@
 
     @vite(['resources/css/public.css', 'resources/js/public.js'])
 </head>
-<body class="min-h-screen bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+<body class="min-h-screen bg-white text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
 
     <a href="#content"
-       class="sr-only focus:not-sr-only focus:fixed focus:inset-s-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-zinc-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:focus:bg-zinc-900 dark:focus:text-zinc-100">
+       class="sr-only focus:not-sr-only focus:fixed focus:inset-s-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:focus:bg-gray-900 dark:focus:text-gray-100">
         {{ __('public.skip_to_content') }}
     </a>
 
-    <header class="border-b border-zinc-200 dark:border-zinc-800">
-        <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
-            <a href="{{ route('public.home', ['locale' => app()->getLocale()]) }}" class="font-semibold">
+    {{-- Tailkit: m-s-main-headers-01 "Simple" — auf zwei echte Nav-Ziele reduziert, um den
+         Umschalter für die Darstellung erweitert (kein Tailkit-Baustein dafür, §3.1.3 Punkt 6). --}}
+    {{-- hide()/show()/trap() kommen aus resources/js/mobile-nav.js (Alpine.data), für die
+         Editor-Analyse über die x-data-Grenze hinweg nicht auflösbar. --}}
+    <!--suppress JSValidateTypes -->
+    <header class="relative border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900" x-data="mobileNav()">
+        <div class="container mx-auto flex items-center justify-between px-4 py-4 lg:px-8 xl:max-w-7xl">
+            <a href="{{ route('public.home', ['locale' => app()->getLocale()]) }}"
+               class="text-lg font-bold tracking-wide text-gray-900 hover:text-gray-600 dark:text-gray-100 dark:hover:text-gray-300">
                 {{ config('app.name', 'Para Swimming') }}
             </a>
 
-            <div x-data="theme()" role="group" aria-label="{{ __('public.theme.label') }}" class="flex gap-1">
-                <button type="button" x-on:click="set('light')" :aria-pressed="mode === 'light'"
-                        class="rounded px-2 py-1 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600">
-                    {{ __('public.theme.light') }}
-                </button>
-                <button type="button" x-on:click="set('dark')" :aria-pressed="mode === 'dark'"
-                        class="rounded px-2 py-1 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600">
-                    {{ __('public.theme.dark') }}
-                </button>
-                <button type="button" x-on:click="set('system')" :aria-pressed="mode === 'system'"
-                        class="rounded px-2 py-1 text-sm focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600">
-                    {{ __('public.theme.system') }}
-                </button>
+            <div class="flex items-center gap-4">
+                <nav aria-label="{{ __('public.nav.label') }}" class="hidden items-center gap-6 lg:flex">
+                    <a href="{{ route('public.home', ['locale' => app()->getLocale()]) }}"
+                       @if (request()->routeIs('public.home')) aria-current="page" @endif
+                       class="text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
+                        {{ __('public.nav.home') }}
+                    </a>
+                    <a href="{{ route('public.meets.index', ['locale' => app()->getLocale()]) }}"
+                       @if (request()->routeIs('public.meets.*')) aria-current="page" @endif
+                       class="text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
+                        {{ __('public.nav.meets') }}
+                    </a>
+                </nav>
+
+                <div role="group" aria-label="{{ __('public.theme.label') }}" class="flex gap-1" x-data="theme()">
+                    <button type="button" x-on:click="set('light')" :aria-pressed="mode === 'light'"
+                            class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
+                        {{ __('public.theme.light') }}
+                    </button>
+                    <button type="button" x-on:click="set('dark')" :aria-pressed="mode === 'dark'"
+                            class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
+                        {{ __('public.theme.dark') }}
+                    </button>
+                    <button type="button" x-on:click="set('system')" :aria-pressed="mode === 'system'"
+                            class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
+                        {{ __('public.theme.system') }}
+                    </button>
+                </div>
+
+                <div class="lg:hidden">
+                    <button x-ref="toggle" x-on:click="show()" type="button"
+                            x-bind:aria-expanded="open" aria-controls="tkMobileNav"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-transparent dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
+                        {{ __('public.nav.open') }}
+                    </button>
+                </div>
             </div>
         </div>
+
+        {{-- Mobile-Navigation: Fokusfalle, Fokusrückgabe und Escape via resources/js/mobile-nav.js --}}
+        <nav
+            x-ref="panel"
+            x-cloak
+            x-show="open"
+            x-on:keydown.escape.window="hide()"
+            x-on:keydown.tab="trap($event)"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-50 translate-x-full"
+            x-transition:enter-end="opacity-100 translate-x-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 translate-x-0"
+            x-transition:leave-end="opacity-50 translate-x-full"
+            id="tkMobileNav"
+            aria-label="{{ __('public.nav.label') }}"
+            class="fixed top-0 right-0 bottom-0 z-50 w-72 overflow-auto bg-white/95 shadow-lg lg:hidden dark:bg-gray-800/95"
+            tabindex="-1"
+            x-bind:aria-modal="open ? 'true' : null"
+            x-bind:role="open ? 'dialog' : null"
+        >
+            <div class="flex items-center justify-between p-6">
+                <span class="text-lg font-bold tracking-wide text-gray-900 dark:text-gray-100">
+                    {{ config('app.name', 'Para Swimming') }}
+                </span>
+                <button x-on:click="hide()" type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
+                    {{ __('public.nav.close') }}
+                </button>
+            </div>
+            <div class="h-px bg-gray-200/75 dark:bg-gray-700/75"></div>
+            <nav aria-label="{{ __('public.nav.label') }}" class="flex flex-col gap-2 px-6 py-5">
+                <a href="{{ route('public.home', ['locale' => app()->getLocale()]) }}"
+                   @if (request()->routeIs('public.home')) aria-current="page" @endif
+                   class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                    {{ __('public.nav.home') }}
+                </a>
+                <a href="{{ route('public.meets.index', ['locale' => app()->getLocale()]) }}"
+                   @if (request()->routeIs('public.meets.*')) aria-current="page" @endif
+                   class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                    {{ __('public.nav.meets') }}
+                </a>
+            </nav>
+        </nav>
+
+        <div
+            x-cloak
+            x-show="open"
+            x-on:click="hide()"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 z-40 bg-gray-900/20 backdrop-blur-xs lg:hidden dark:bg-gray-900/80"
+        ></div>
     </header>
 
     <main id="content" class="mx-auto max-w-5xl px-4 py-8">
         @yield('content')
     </main>
 
-    <footer class="border-t border-zinc-200 px-4 py-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        <div class="mx-auto max-w-5xl">
-            &copy; {{ now()->year }} {{ config('app.name', 'Para Swimming') }}
+    {{-- Tailkit: m-s-footers-01 "Simple" — auf die Copyright-Zeile reduziert. --}}
+    <footer class="border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <div class="container mx-auto px-4 py-12 text-center text-sm text-gray-500 lg:px-8 dark:text-gray-400/80 xl:max-w-7xl">
+            <span class="font-medium">{{ config('app.name', 'Para Swimming') }}</span> &copy; {{ now()->year }}
         </div>
     </footer>
 
