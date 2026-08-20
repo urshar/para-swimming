@@ -22,7 +22,7 @@ Ohne diese Phase kann keine andere beginnen.
 | `App\Models\Document` | Model | `documentable()`, Scopes `public()`, `published()`, `forLocale()` |
 | `App\Http\Middleware\SetLocale` | Middleware | Sprache aus Präfix, Cookie, Browser |
 | `routes/public.php` | Routen | eigene Datei, `web.php` bleibt unberührt |
-| `resources/views/layouts/public.blade.php` | Layout | Grundgerüst, von Hand geschrieben — kein Tailkit (siehe Ergebnis) |
+| `resources/views/layouts/public.blade.php` | Layout | Grundgerüst (siehe Ergebnis; seit Klärung der Tailkit-Lizenz mit echtem Tailkit-Markup nachgezogen) |
 | `resources/css/public.css`, `resources/js/public.js` | Assets | eigener Vite-Entry |
 | `resources/js/theme.js` | JS | Hell/Dunkel/System, `localStorage`, Inline-Init |
 | `lang/de/public.php`, `lang/en/public.php` | Übersetzung | Grundwortschatz |
@@ -31,12 +31,11 @@ Ohne diese Phase kann keine andere beginnen.
 **Vorab:** Tailkit ist eine Snippet-Quelle ohne Paketinstallation (§3.1.1) — ein Konfigurationskonflikt ist
 ausgeschlossen.
 
-**Ergebnis:** Anders als hier ursprünglich vorgesehen, entstand das Phase-1-Layout nicht aus den sechs
+**Ergebnis:** Anders als hier ursprünglich vorgesehen, entstand das Phase-1-Layout zunächst nicht aus den sechs
 Grundbausteinen aus §3.1.3, sondern als schlichtes, von Hand geschriebenes Gerüst ohne jedes Tailkit-Markup —
-committet, damit Routing und Tests auf jedem Checkout laufen, unabhängig von lokal zugelieferten Snippets und
-unabhängig von der noch offenen Lizenzfrage. Die sechs Bausteine und die daraus gebaute, gestaltete Fassung folgen
-als lokaler, ungetrackter Ausbauschritt, sobald sie gebraucht werden (spätestens ab Phase 2) — siehe §3.1.2 zum
-Vorgehen beim Ersetzen (`git rm --cached`, sobald Tailkit-Markup einzieht).
+committet, damit Routing und Tests auf jedem Checkout liefen, unabhängig von lokal zugelieferten Snippets und
+unabhängig von der zu diesem Zeitpunkt noch offenen Lizenzfrage. Mit deren Klärung (§3.1.1) wurde das Layout
+anschließend mit den echten Tailkit-Bausteinen (Kopfzeile, Fußzeile) nachgezogen und committet.
 
 **Tests** (`--group=public-p1`, alle grün): Sprachweiterleitung, Cookie-Vorrang, `hreflang`, Document-Scopes, `/`
 führt nicht mehr in den Login.

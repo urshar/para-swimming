@@ -86,8 +86,8 @@ Paketinstallation, keine Tailkit-Konfiguration und keine Abhängigkeit im Build*
 - Snippets sind **Ausgangspunkt, nicht Ergebnis**. Vor Übernahme sind sie gegen
   [accessibility.md](../accessibility.md) zu prüfen und dort anzupassen, wo sie die Anforderungen nicht erfüllen.
 
-**Lizenzrechtlich zu klären:** ob kopiertes Tailkit-Markup in einem öffentlichen Repository liegen darf. Das Repo ist
-derzeit `public`. Bis das geklärt ist, keine Snippets committen.
+**Lizenzfrage geklärt:** Die Tailkit-Lizenz deckt die Verwendung für alle Projekte ab, auch in einem öffentlichen
+Repository. Kopiertes und angepasstes Markup darf committet werden.
 
 ### 3.1.2 Beschaffung über den Tailkit-MCP-Server
 
@@ -118,11 +118,7 @@ in CLAUDE.md).
    tatsächliche Umsetzung liegt in `resources/views/public/`. Nach dem Umbau einer Ansicht darf das Snippet stehen
    bleiben oder entfallen.
 
-**Solange die Lizenzfrage offen ist, liegt `docs/snippets/` von Beginn an in der `.gitignore`** — nicht erst bei
-negativem Ausgang. Das betrifft nicht nur die Rohfassungen: Auch jede View, die aus einem Snippet entsteht (allen
-voran `layouts/public.blade.php`), ist Tailkit-abgeleitetes Markup und bleibt bis zur Klärung ungetrackt. Fällt die
-Prüfung positiv aus, werden beide Ausschlüsse entfernt und der bis dahin lokal entstandene Bestand nachträglich
-committet.
+`docs/snippets/` wird versioniert, ebenso jede daraus gebaute View — die Lizenzfrage aus §3.1.1 ist geklärt.
 
 ### 3.1.3 Grundbausteine für Phase 1
 
@@ -325,7 +321,6 @@ Jede Phase: Plan → Freigabe → Umsetzung → Tests grün → Sign-off. Test-G
 
 ## 9. Offene Punkte
 
-- **Tailkit-Lizenz** (§3.1.1) — darf kopiertes Markup in einem öffentlichen Repository liegen?
 - **Rechtsgrundlage** für eine spätere Ausweitung auf freie Ergebnissuche (§2.3 Punkt 6).
 - **Englische Fassungen** der Regelmente: liegen nicht für alle Dokumente vor; Verhalten bei Fehlen ist in §4.1
   geregelt, die redaktionelle Lücke bleibt.
