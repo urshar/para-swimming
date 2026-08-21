@@ -38,6 +38,10 @@
 
     <title>{{ config('app.name', 'Para Swimming') }} – @yield('title')</title>
 
+    @hasSection('robots')
+        <meta name="robots" content="@yield('robots')">
+    @endif
+
     @php
         $publicRouteName = Route::currentRouteName();
         $publicRouteParams = request()->route()?->parameters() ?? [];

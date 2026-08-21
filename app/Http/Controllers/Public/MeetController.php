@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Meet;
 use App\Services\Public\PublicMeetService;
+use App\Services\Public\PublicResultService;
 use App\Support\MeetDocumentGroup;
 use Illuminate\View\View;
 
@@ -12,6 +13,7 @@ class MeetController extends Controller
 {
     public function __construct(
         private readonly PublicMeetService $meets,
+        private readonly PublicResultService $results,
     ) {}
 
     public function index(): View
@@ -47,6 +49,7 @@ class MeetController extends Controller
         return view('public.meets.show', [
             'meet' => $meet,
             'documents' => MeetDocumentGroup::forMeet($meet, app()->getLocale()),
+            'hasResults' => $this->results->hasResults($meet),
         ]);
     }
 }

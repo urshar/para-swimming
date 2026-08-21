@@ -17,6 +17,15 @@
                 label="{{ app()->getLocale() === 'de' ? $meet->nation?->name_de : $meet->nation?->name_en }}"/>
     </p>
 
+    @if ($hasResults)
+        <p class="mt-4">
+            <a href="{{ route('public.meets.results', ['locale' => app()->getLocale(), 'meet' => $meet]) }}"
+               class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
+                {{ __('public.meets.results.link') }}
+            </a>
+        </p>
+    @endif
+
     <dl class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
             <dt class="text-sm font-semibold text-gray-500 dark:text-gray-400">
