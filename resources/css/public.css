@@ -1,6 +1,8 @@
 @import 'tailwindcss';
+@import 'flag-icons/css/flag-icons.min.css';
 
 @source '../views/public';
 @source '../views/layouts/public.blade.php';
+@source '../views/components/flag.blade.php';
 
 @custom-variant dark (&:where(.dark, .dark *));

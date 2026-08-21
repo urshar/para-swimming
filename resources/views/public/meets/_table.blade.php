@@ -42,7 +42,13 @@
                             {{ $meet->name }}
                         </a>
                     </td>
-                    <td class="p-3">{{ $meet->city }}</td>
+                    <td class="p-3">
+                        <span class="inline-flex items-center gap-2">
+                            <x-flag code="{{ $meet->nation?->code }}"
+                                    label="{{ app()->getLocale() === 'de' ? $meet->nation?->name_de : $meet->nation?->name_en }}"/>
+                            {{ $meet->city }}
+                        </span>
+                    </td>
                     <td class="p-3 whitespace-nowrap">
                         @if ($meet->hasDeadline())
                             {{ $meet->entries_deadline->format('d.m.Y') }}

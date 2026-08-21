@@ -11,7 +11,11 @@
     </p>
 
     <h1 class="text-2xl font-semibold">{{ $meet->name }}</h1>
-    <p class="mt-1 text-gray-600 dark:text-gray-400">{{ $meet->date_range }} · {{ $meet->city }}</p>
+    <p class="mt-1 flex items-center gap-2 text-gray-600 dark:text-gray-400">
+        <span>{{ $meet->date_range }} · {{ $meet->city }}</span>
+        <x-flag code="{{ $meet->nation?->code }}"
+                label="{{ app()->getLocale() === 'de' ? $meet->nation?->name_de : $meet->nation?->name_en }}"/>
+    </p>
 
     <dl class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
