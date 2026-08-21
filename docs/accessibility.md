@@ -6,15 +6,14 @@ wenn die hier genannten Anforderungen erfüllt sind.
 
 ## Warum das hier verbindlich ist
 
-Die Anwendung verwaltet den Sport von Menschen mit Behinderungen. Ihr Publikum umfasst Athleten mit
-Sehbeeinträchtigung (Sportklassen S11–S13), mit motorischen Einschränkungen, die keine Maus bedienen können, und mit
-kognitiven Beeinträchtigungen (S14, S21). Eine nicht bedienbare Oberfläche schließt genau die Personen aus, für die die
-Anwendung existiert.
+Die Anwendung verwaltet den Sport von Menschen mit Behinderungen. Ihr Publikum umfasst Athleten mit Sehbeeinträchtigung
+(Sportklassen S11–S13), mit motorischen Einschränkungen, die keine Maus bedienen können, und mit kognitiven
+Beeinträchtigungen (S14, S21). Eine nicht bedienbare Oberfläche schließt genau die Personen aus, für die die Anwendung
+existiert.
 
-Hinzu kommt die Rechtslage: Für öffentliche Stellen und Verbände in Österreich gelten das
-Web-Zugänglichkeits-Gesetz (WZG) und, seit Juni 2025, das Barrierefreiheitsgesetz (BaFG) für bestimmte
-Dienstleistungen. Der genaue Anwendungsbereich für den ÖBSV ist rechtlich zu klären; technisch bauen wir so, dass die
-Anforderungen erfüllt sind.
+Hinzu kommt die Rechtslage: Für öffentliche Stellen und Verbände in Österreich gelten das Web-Zugänglichkeits-Gesetz
+(WZG) und, seit Juni 2025, das Barrierefreiheitsgesetz (BaFG) für bestimmte Dienstleistungen. Der genaue
+Anwendungsbereich für den ÖBSV ist rechtlich zu klären; technisch bauen wir so, dass die Anforderungen erfüllt sind.
 
 **Ziel: WCAG 2.1 Level AA.**
 
@@ -24,7 +23,7 @@ Anforderungen erfüllt sind.
 
 - **Kontrast** ≥ 4,5:1 für Fließtext, ≥ 3:1 für großen Text (ab 18,66px fett / 24px), Bedienelemente und
   bedeutungstragende Grafiken. Gilt in **beiden** Darstellungsmodi.
-- **Keine reine Farbcodierung.** Ein roter Wert ist nicht als „schlecht" erkennbar, wenn Rot nicht wahrgenommen wird.
+- **Keine reine Farbcodierung.** Ein roter Wert ist nicht als "schlecht" erkennbar, wenn Rot nicht wahrgenommen wird.
   Status immer zusätzlich als Text oder Symbol mit Textalternative. Betrifft im Bestand: Rekordstatus, Cup-Punkte,
   Qualifikationserfüllung, EXH-Kennzeichnung.
 - **Textalternativen** für jedes bedeutungstragende Bild. Dekorative Grafiken bekommen `alt=""`.
@@ -43,9 +42,9 @@ Anforderungen erfüllt sind.
   Shift+Tab, Enter, Leertaste und Pfeiltasten durchlaufen.
 - **Sichtbarer Fokus** überall, mit ≥ 3:1 Kontrast zum Hintergrund. Tailwinds Default-Ring ist in der Dunkeldarstellung
   häufig zu schwach.
-- **Fokusreihenfolge** entspricht der Lesereihenfolge. Nach einem Filterwechsel darf der Fokus nicht an den
-  Seitenanfang springen — sonst muss man sich nach jeder Filterung erneut durch die Seite arbeiten.
-- **Sprunglink** „Zum Inhalt" als erstes fokussierbares Element.
+- **Fokusreihenfolge** entspricht der Lesereihenfolge. Nach einem Filterwechsel darf der Fokus nicht an den Seitenanfang
+  springen — sonst muss man sich nach jeder Filterung erneut durch die Seite arbeiten.
+- **Sprunglink** "Zum Inhalt" als erstes fokussierbares Element.
 - **Keine Tastaturfallen**, insbesondere in Dialogen: Fokus wird beim Öffnen hineingesetzt, bleibt darin, kehrt beim
   Schließen zum auslösenden Element zurück, Escape schließt.
 - **Reiternavigation** (Punktetabelle, Cup-Wertung) mit `role="tablist"`, Pfeiltastenbedienung und
@@ -56,10 +55,10 @@ Anforderungen erfüllt sind.
 
 - **`lang`** korrekt gesetzt (`de-AT` / `en`); anderssprachige Passagen im Text ausgezeichnet.
 - **Formularfelder** haben sichtbare, programmatisch verknüpfte Labels. Kein Platzhaltertext als Ersatz.
-- **Fehlermeldungen** benennen das Feld und sagen, was zu tun ist. Verknüpfung über `aria-describedby`,
-  Fehlerzustand über `aria-invalid`. Betrifft im Bestand alle `flux:error`-Verwendungen.
-- **Dokumentlinks** nennen Art, Format und Größe im Linktext: „Ausschreibung (PDF, 240 kB)", nicht ein Symbol.
-  Linktexte müssen auch aus dem Zusammenhang gerissen verständlich sein — kein „hier".
+- **Fehlermeldungen** benennen das Feld und sagen, was zu tun ist. Verknüpfung über `aria-describedby`, Fehlerzustand
+  über `aria-invalid`. Betrifft im Bestand alle `flux:error`-Verwendungen.
+- **Dokumentlinks** nennen Art, Format und Größe im Linktext: "Ausschreibung (PDF, 240 kB)", nicht ein Symbol. Linktexte
+  müssen auch aus dem Zusammenhang gerissen verständlich sein — kein "hier".
 - **Konsistente Navigation** über alle Seiten.
 
 ### Robust
