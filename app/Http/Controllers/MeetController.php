@@ -58,17 +58,7 @@ class MeetController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validateMeet($request);
-        $data['is_open'] = $request->boolean('is_open');
-        // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
-        // sich die WPS-Anerkennung nie wieder zurücknehmen.
-        $data['wps_approved'] = $request->boolean('wps_approved');
-
-        if (! auth()->user()?->is_admin) {
-            unset($data['cup_id'], $data['qualifying_time_list_id']);
-        }
-
-        $meet = Meet::create($data);
+        $meet = Meet::create($this->prepareMeetData($request));
 
         $this->syncPointSystems($request, $meet);
 
@@ -80,7 +70,7 @@ class MeetController extends Controller
     public function show(Meet $meet): View
     {
         $meet->load(['nation', 'cup', 'clubs.nation', 'pointSystems']);
-        $meet->loadCount(['swimEvents', 'entries', 'results']);
+        $meet->loadCount(['swimEvents', 'entries', 'results', 'documents']);
 
         $swimEvents = $meet->swimEvents()
             ->with('strokeType')
@@ -102,17 +92,7 @@ class MeetController extends Controller
 
     public function update(Request $request, Meet $meet): RedirectResponse
     {
-        $data = $this->validateMeet($request);
-        $data['is_open'] = $request->boolean('is_open');
-        // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
-        // sich die WPS-Anerkennung nie wieder zurücknehmen.
-        $data['wps_approved'] = $request->boolean('wps_approved');
-
-        if (! auth()->user()?->is_admin) {
-            unset($data['cup_id'], $data['qualifying_time_list_id']);
-        }
-
-        $meet->update($data);
+        $meet->update($this->prepareMeetData($request));
 
         $this->syncPointSystems($request, $meet);
 
@@ -198,6 +178,32 @@ class MeetController extends Controller
         $meet->pointSystems()->sync($sync);
     }
 
+    /**
+     * Validierte Formulardaten plus die Felder, die validateMeet() bewusst nicht selbst
+     * abdeckt: Checkboxen (werden bei "aus" gar nicht erst übertragen) und die Admin-Gate für
+     * is_published/livetiming_url/cup_id/qualifying_time_list_id. Von store() und update()
+     * gleichermaßen genutzt — vorher war dieser Block dort wortgleich dupliziert.
+     */
+    private function prepareMeetData(Request $request): array
+    {
+        $data = $this->validateMeet($request);
+        $data['is_open'] = $request->boolean('is_open');
+        // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
+        // sich die WPS-Anerkennung nie wieder zurücknehmen.
+        $data['wps_approved'] = $request->boolean('wps_approved');
+
+        if (auth()->user()?->is_admin) {
+            // Steuert die tatsächliche öffentliche Sichtbarkeit (Spec public-frontend §4.2) —
+            // das Feld ist im Formular bewusst nur für Admins sichtbar (siehe meets/form.blade.php);
+            // ohne diese Bedingung ließe sich is_published auch über einen rohen Request setzen.
+            $data['is_published'] = $request->boolean('is_published');
+        } else {
+            unset($data['cup_id'], $data['qualifying_time_list_id'], $data['livetiming_url']);
+        }
+
+        return $data;
+    }
+
     private function validateMeet(Request $request): array
     {
         return $request->validate([
@@ -207,6 +213,7 @@ class MeetController extends Controller
             'course' => 'required|in:LCM,SCM,SCY,SCM16,SCM20,SCM33,SCY20,SCY27,SCY33,SCY36,OPEN',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'entries_deadline' => 'nullable|date',
             'organizer' => 'nullable|string|max:255',
             'altitude' => 'nullable|integer|min:0|max:9000',
             'timing' => 'nullable|in:AUTOMATIC,SEMIAUTOMATIC,MANUAL3,MANUAL2,MANUAL1',
@@ -214,6 +221,10 @@ class MeetController extends Controller
             'is_open' => 'boolean',
             'wps_approved' => 'boolean',
             'wps_approved_note' => 'nullable|string|max:255',
+            'livetiming_url' => 'nullable|url|max:255',
+            // is_published bewusst nicht hier: Es wird ausschließlich über den admin-gated
+            // Zweig in store()/update() gesetzt (siehe dort) — stünde es hier, würde validate()
+            // es schon vor der Admin-Prüfung in $data legen und die Prüfung wäre wirkungslos.
             'cup_id' => 'nullable|exists:cups,id',
             'qualifying_time_list_id' => 'nullable|exists:qualifying_time_lists,id',
         ]);

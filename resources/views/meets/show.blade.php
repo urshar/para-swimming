@@ -44,6 +44,13 @@
                 </flux:button>
             @endif
 
+            @if(auth()->user()?->is_admin)
+                <flux:button href="{{ route('admin.meets.documents.index', $meet) }}" variant="ghost"
+                             icon="document-text" size="sm">
+                    Dokumente ({{ $meet->documents_count }})
+                </flux:button>
+            @endif
+
             <flux:button href="{{ route('lenex.export') }}?meet_id={{ $meet->id }}" variant="ghost"
                          icon="arrow-down-tray" size="sm">
                 LENEX Export

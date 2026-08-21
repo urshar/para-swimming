@@ -1,5 +1,6 @@
 import Precognition from 'laravel-precognition-alpine';
 import IMask from 'imask';
+import documentForm from './document-form';
 import meetPointSystems from './meet-point-systems';
 import relayEntryForm from './relay-entry-form';
 import singleEntryForm from './single-entry-form';
@@ -14,6 +15,7 @@ window.IMask = IMask;
 // auf Livewire Instanz (window.Alpine) registrieren, bevor sie selbst startet.
 document.addEventListener('alpine:init', () => {
     window.Alpine.plugin(Precognition);
+    window.Alpine.data('documentForm', documentForm);
     window.Alpine.data('meetPointSystems', meetPointSystems);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('singleEntryForm', singleEntryForm);
