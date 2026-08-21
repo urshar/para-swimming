@@ -42,21 +42,28 @@ führt nicht mehr in den Login.
 
 ---
 
-## Phase 2 — Veranstaltungen
+## Phase 2 — Veranstaltungen — **abgeschlossen**
 
-| Baustein                                | Art        | Zweck                                                       |
-|-----------------------------------------|------------|-------------------------------------------------------------|
-| `Public\MeetController`                 | Controller | Liste und Detail                                            |
-| `App\Services\Public\PublicMeetService` | Service    | kommend/vergangen, Jahresfilter, nur `is_published`         |
-| `App\Support\MeetDocumentGroup`         | Wertobjekt | Dokumente je Kategorie, Sprachauflösung (§4.1)              |
-| `Public\DocumentDownloadController`     | Controller | prüft `is_public` und `published_at`, liefert aus `Storage` |
-| Views `public/meets/{index,show}`       | Blade      | Liste, Detail mit Dokumenten, Livetiming, Meldeschluss      |
+| Baustein                                  | Art        | Zweck                                                           |
+|--------------------------------------------|------------|--------------------------------------------------------------|
+| `Public\MeetController`                   | Controller | Liste, Archiv und Detail                                       |
+| `App\Services\Public\PublicMeetService`   | Service    | kommend/vergangen (je 10), Archiv nach Jahr, nur `is_published` |
+| `App\Support\MeetDocumentGroup`           | Wertobjekt | Dokumente je Kategorie, Sprachauflösung (§4.1)                  |
+| `Public\DocumentDownloadController`       | Controller | prüft `is_public` und `published_at`, liefert aus `Storage`    |
+| Views `public/meets/{index,archive,show}` | Blade      | Liste, Archiv, Detail mit Dokumenten, Livetiming, Meldeschluss |
 
 Die Sprachauflösung ("zeige die passende Fassung, verlinke die andere") gehört in das Wertobjekt, nicht in die View —
 sie wird in Phase 8 für Regelmente erneut gebraucht.
 
-**Tests** (`public-p2`): unveröffentlichte Meets unsichtbar, Dokument ohne `published_at` nicht abrufbar, direkter
-Pfadzugriff greift nicht, Sprachauflösung in allen drei Fällen (nur de / nur en / neutral).
+**Ergebnis:** Die Liste zeigt die nächsten und die letzten 10 veröffentlichten Veranstaltungen (statt eines reinen
+Jahresfilters); eine eigene, nach Jahr gruppierte Archiv-Seite deckt den vollständigen Rückblick ab (Entscheidung aus
+der Phase-2-Planungsrunde). Kopf- und Fußzeile wurden im Zug dieser Phase mit den echten Tailkit-Bausteinen nachgezogen
+(siehe Ergebnisvermerk Phase 1).
+
+**Tests** (`public-p2`, alle grün): unveröffentlichte Meets unsichtbar (Liste, Archiv, Detail), Dokument ohne
+`published_at` nicht abrufbar, Dokument eines unveröffentlichten Meets nicht abrufbar, direkter Pfadzugriff greift
+nicht, Sprachauflösung in allen drei Fällen (nur de / nur en / neutral), `PublicMeetService` (kommend/vergangen/Archiv).
+Zusätzlich manuell im Browser gegen `/de/veranstaltungen`, `/veranstaltungen/archiv` und Detailseiten (de/en) geprüft.
 
 ---
 
