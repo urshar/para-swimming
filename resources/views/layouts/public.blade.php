@@ -167,7 +167,7 @@
         ></div>
     </header>
 
-    <main id="content" class="mx-auto max-w-5xl px-4 py-8">
+    <main id="content" class="container mx-auto px-4 py-8 lg:px-8 xl:max-w-7xl">
         @yield('content')
     </main>
 
