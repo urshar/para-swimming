@@ -67,7 +67,7 @@ Zusätzlich manuell im Browser gegen `/de/veranstaltungen`, `/veranstaltungen/ar
 
 ---
 
-## Phase 3 — Adminbereich Dokumente
+## Phase 3 — Adminbereich Dokumente — **abgeschlossen**
 
 | Baustein                                 | Art        | Zweck                                                  |
 |------------------------------------------|------------|--------------------------------------------------------|
@@ -85,8 +85,26 @@ gemäß Migrations-Kommentar), die öffentliche Veranstaltungsliste bleibt bis d
 Sichtbarkeitsschalter im internen Adminbereich; da beide Felder am selben, bereits bestehenden Meet-Formular hängen,
 wird der Schalter zusammen mit `livetiming_url` dort ergänzt statt in einem eigenen Baustein.
 
-**Tests** (`public-p3`): nur Admin, Datei landet nicht unter `public/`, Löschung entfernt die Datei, LENEX-Hinweis
-erscheint, `is_published`/`livetiming_url` im Meet-Formular editierbar und wirken sich auf die öffentliche Liste aus.
+**Ergebnis:** `App\Http\Requests\StoreDocumentRequest` wurde nicht angelegt — im gesamten restlichen Projekt läuft
+Validierung durchgängig inline über `$request->validate()`, keine einzige `FormRequest`-Klasse existiert; diesem
+Muster gefolgt statt es hier neu einzuführen. Zwei Einstiege auf denselben Baustein statt eines einzelnen: Dokumente
+mit Veranstaltungsbezug über `admin/meets/{meet}/documents`, Regelmente & Formulare ohne Bezug über `admin/documents`
+(`documentable = null`) — letzteres bereits jetzt, damit für Phase 8 Daten vorhanden sind, die selbst keinen eigenen
+Adminbaustein bekommt. Zusätzlich ein "Sprachvariante zu"-Feld im Formular: `category`+`sort_order` ist laut §4.1 der
+Paarungsschlüssel für die Sprachauflösung, von Hand zwei übereinstimmende `sort_order`-Werte zu pflegen wäre
+fehleranfällig — die Auswahl einer bestehenden Fassung übernimmt deren Wert automatisch, serverseitig auf dieselbe
+Zuordnung eingeschränkt.
+
+Nebenbei zwei vorbestehende, unabhängig von dieser Phase gefundene Fehler behoben: `is_published`/`livetiming_url`
+ließen sich vor der Admin-Prüfung bereits über einen rohen Request setzen (dieselbe Lücke, die `cup_id`/
+`qualifying_time_list_id` schon abgesichert hatten, jetzt auch hier); `entries_deadline` fehlte in
+`MeetController::validateMeet()`s Regelliste und wurde dadurch nie gespeichert, obwohl das Formularfeld längst
+existierte.
+
+**Tests** (`public-p3`, alle grün): nur Admin, Datei landet nicht unter `public/`, Löschung entfernt die Datei,
+Sprachvarianten-Feld setzt `sort_order` korrekt (inkl. Schutz gegen fremde Meets), Datei-Ersetzen/-Behalten beim
+Bearbeiten, `is_published`/`livetiming_url` im Meet-Formular editierbar und wirken sich auf die öffentliche Liste
+aus, Nicht-Admins können beide Felder nicht über einen rohen Request setzen, `entries_deadline`-Regression.
 
 ---
 

@@ -224,8 +224,12 @@ ausdrücklich darauf hin; der Default ist `false`.
 
 ### 5.1 Veranstaltungen
 
-Zwei Blöcke wie bisher: **kommend** und **vergangen**, je zwölf Monate, mit Jahresfilter für ältere Jahrgänge. Spalten:
-Datum, Name, Ort, Meldeschluss, Dokumente.
+Zwei Blöcke: **kommend** und **vergangen**, je die nächsten/letzten 10 veröffentlichten Veranstaltungen (abweichend
+von der ursprünglich hier vorgesehenen Zwölf-Monate/Jahresfilter-Lösung — Entscheidung aus der Phase-2-Planungsrunde,
+siehe public-frontend-modules.md). Ein eigenes, nach Jahr gruppiertes Archiv deckt den vollständigen Rückblick ab.
+Spalten: Datum, Name, Ort, Meldeschluss, Dokumente. Vor dem Ort steht zusätzlich die Flagge der austragenden Nation
+(`<x-flag>`, IOC→ISO-Mapping mit Text-Fallback) — ebenfalls kein Bestandteil der ursprünglichen Planung, sondern
+nachträglich ergänzt.
 
 Die alte Icon-Spalte (I/S/L/R) wird ersetzt: Statt vier stummer Symbole trägt jedes Dokument einen sprechenden Link (
 "Ausschreibung, PDF, 240 kB"). Die Checkbox-Spalte der alten Seite entfällt ersatzlos.
