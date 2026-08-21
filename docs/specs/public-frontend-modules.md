@@ -75,11 +75,18 @@ Zusätzlich manuell im Browser gegen `/de/veranstaltungen`, `/veranstaltungen/ar
 | `App\Services\DocumentService`           | Service    | Upload, Ablage, Reihenfolge, Löschung samt Datei       |
 | `App\Http\Requests\StoreDocumentRequest` | Request    | Validierung: Typ, Größe, Kategorie/Sprache-Kombination |
 | Views `admin/documents/*`                | Blade      | **Flux**, wie der übrige interne Bereich               |
+| `App\Http\Controllers\MeetController`    | Controller | ergänzt: Felder `is_published`, `livetiming_url` im bestehenden Meet-Formular |
 
 Beim Upload eines LENEX zur Kategorie `INVITATION`: Hinweistext gemäß §4.3, `is_public` bleibt `false`.
 
+`is_published` und `livetiming_url` existieren seit Phase 1 (Migration `add_public_frontend_columns_to_meets_table`)
+nur als Spalten, ohne Bedienoberfläche — bislang ist kein einziges Bestands-Meet veröffentlicht (Default `false`
+gemäß Migrations-Kommentar), die öffentliche Veranstaltungsliste bleibt bis dahin leer. §4.4 verortet den
+Sichtbarkeitsschalter im internen Adminbereich; da beide Felder am selben, bereits bestehenden Meet-Formular hängen,
+wird der Schalter zusammen mit `livetiming_url` dort ergänzt statt in einem eigenen Baustein.
+
 **Tests** (`public-p3`): nur Admin, Datei landet nicht unter `public/`, Löschung entfernt die Datei, LENEX-Hinweis
-erscheint.
+erscheint, `is_published`/`livetiming_url` im Meet-Formular editierbar und wirken sich auf die öffentliche Liste aus.
 
 ---
 
