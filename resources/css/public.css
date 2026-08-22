@@ -6,3 +6,12 @@
 @source '../views/components/flag.blade.php';
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Alpine setzt x-cloak nicht automatisch um — ohne diese Regel bleiben Elemente, die erst nach
+   der Alpine-Initialisierung ausgeblendet werden sollen (z. B. das mobile Nav-Panel), bis dahin
+   sichtbar. Bewusst NICHT auf dem Punkte-Untermenü im Kopfbereich verwendet: Dessen Panel soll
+   ohne JavaScript dauerhaft offen/erreichbar bleiben (progressive Verbesserung), x-cloak würde
+   das verhindern. */
+[x-cloak] {
+    display: none !important;
+}

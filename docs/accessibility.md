@@ -37,7 +37,10 @@ Anwendungsbereich für den ÖBSV ist rechtlich zu klären; technisch bauen wir s
   Fall — sie brauchen einen scrollbaren Container mit `tabindex="0"` und einer zugänglichen Beschriftung, damit auch
   Tastaturnutzer scrollen können.
 - **Reflow** auf 320px Breite: Die Tabellen der Punkteübersicht sind auf Mobilgeräten nicht sinnvoll darstellbar. Dort
-  eine alternative Darstellung (Auswahl der Sportklasse, dann Einzelansicht) statt einer Miniaturtabelle.
+  eine alternative Darstellung (Auswahl der Sportklasse, dann Einzelansicht) statt einer Miniaturtabelle. Umgesetzt in
+  Phase 6 (public-frontend-modules.md) über Tailwinds `sm`-Breakpoint als praktikable Umsetzungsgrenze, nicht als
+  exakte 320px-Pixelgrenze — die Matrix bleibt darunter vollständig ausgeblendet, die Sportklassen-Einzelansicht
+  ersetzt sie 1:1 (`resources/views/public/base-times/index.blade.php`).
 
 ### Bedienbar
 

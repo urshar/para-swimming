@@ -243,25 +243,235 @@ unabhängig getesteten, nicht auf Phase 5 beschränkten Service anfassen und war
 
 ---
 
-## Phase 6 — Punktetabelle und Rechner
+## Phase 6 — Punktetabelle und Rechner — **abgeschlossen**
 
 | Baustein                              | Art        | Zweck                               |
 |---------------------------------------|------------|-------------------------------------|
 | `Public\BaseTimeTableController`      | Controller | Tabelle je Version und Lage         |
 | `Public\PointCalculatorController`    | Controller | eigene Seite, kein Dialog           |
 | `App\Services\PointConversionService` | Service    | Zeit → Punkte **und** Punkte → Zeit |
-| `resources/js/point-calculator.js`    | JS         | Alpine, `Alpine.data()`             |
+| `resources/js/base-time-tabs.js`      | JS         | Reiternavigation, Alpine.data()     |
+| `resources/js/point-calculator.js`    | JS         | Feld-Umschaltung, Alpine.data()     |
 
 Die Rückrechnung (Schätzung, dann hundertstelweise Annäherung) existiert bereits sinngemäß in
-`QualifyingTimeCalculationService`. Sie wird in den neuen Service gezogen und dort **einmal** implementiert; das
-Richtzeiten-Modul nutzt sie danach mit. Zwei Fassungen derselben Iteration driften sonst auseinander.
+`QualifyingTimeCalculationService`. Ursprünglich hier vorgesehen: in den neuen Service ziehen und dort **einmal**
+implementieren, das Richtzeiten-Modul danach mitnutzen lassen. Auf Nutzerrückfrage bewusst **nicht** umgesetzt: Das
+Richtzeiten-Modul rechnet weiterhin mit seiner eigenen, direkten Umkehrformel ohne Annäherungs-Iteration — bereits
+ausgeliefertes, getestetes Verhalten eines phasen-fremden Moduls sollte nicht als Nebeneffekt dieser Phase kippen.
+`PointConversionService::pointsToTime()` ist eine eigenständige, neue Implementierung derselben mathematischen Idee.
 
-**Tests** (`public-p6`): Hin- und Rückrechnung sind zueinander konsistent, Grenzfälle (fehlende Basiszeit, Punktzahl 0),
-Richtzeiten-Modul weiterhin grün.
+**Ergebnis:** `PointConversionService` ist bewusst von `WorldAquaticsPointsService` getrennt (nicht dessen
+`resolvePoints()` wiederverwendet) — Letzteres ist an ein konkretes `Result`/`Meet` gebunden (Kurs kommt vom Meet,
+Geschlecht vom Athleten/Bewerb), der öffentliche Rechner braucht dieselbe Formel aber ganz ohne Ergebnis-Kontext, nur
+aus Bahn/Geschlecht/Bewerb/Sportklasse/Zeit direkt gewählt. Beide Services landen bei derselben Basiswert-Auflösung
+(`base_time_version_id` + `base_time_category_id` + `base_time_discipline_id` + `base_time_sport_class_id`), aber
+getrennt implementiert, um `WorldAquaticsPointsService` nicht anzufassen.
+
+Nur die aktuell gültige Basiswert-Version (`BaseTimeVersion::validOn(heute)`) — weder Punktetabelle noch Rechner haben
+ein Versions-Auswahlfeld (Planungsentscheidung Phase 6, historische Versionen sind kein öffentliches Bedürfnis). Nur
+Einzelbewerbe (`relay_count = 1`) — dieselbe Einschränkung wie im bestehenden Richtzeiten-Modul
+(`QualifyingTimeCalculationService`), Staffeln sind aus der Basiswert-Perspektive kein sinnvoller
+Rechner-Anwendungsfall. Die Verbandsreihenfolge (Frei/Rücken/Brust/Fly/Lagen) ist ein drittes Mal dupliziert
+(`PointConversionService::STROKE_ORDER`, nach `PublicRecordService` und `QualifyingTimeListController`) — diesmal
+`public` statt `private`, damit `PointCalculatorController` sie fürs Bewerbs-Dropdown mitnutzt, statt sie ein viertes
+Mal zu kopieren.
+
+Punktetabelle: je Lage eine eigene Matrix-Tabelle (Zeilen = Sportklasse, zweistufige Kopfzeile Geschlecht über Bewerb
+mit `headers`/`id`, wie in accessibility.md für die Punktetabelle vorgeschrieben — anders als bei den Rekorden in Phase
+5 ist das hier keine stale Doku-Angabe, sondern zutreffend). Reiternavigation zwischen den Lagen (`role="tablist"`,
+Pfeiltasten, `aria-selected`, accessibility.md) progressiv verbessert: Ohne JS sind alle fünf Lagen-Panels als normaler
+Fließtext sichtbar, die Tab-"Buttons" sind echte Sprunglinks (`<a href="#panel-…">"`); mit JS blendet
+`base-time-tabs.js` auf ein sichtbares Panel um und ergänzt volle ARIA-Semantik. Unter dem `sm`-Breakpoint ersetzt eine
+Sportklassen-Auswahl mit Einzelansicht (Distanz → Zeit Herren/Damen als Liste) die Matrix (accessibility.md "Reflow" —
+dort exemplarisch an 320px festgemacht, hier über Tailwinds `sm`-Breakpoint als praktikable Umsetzung, nicht als exakte
+Pixelgrenze).
+
+Punkterechner: ein GET-Formular statt AJAX/Dialog — funktioniert dadurch auch ohne JS über einen echten Seitenaufruf
+(§5.3: neun Felder in einem Dialog sind für Tastatur-/Screenreader-Bedienung die schlechtere Form, hier sind es vier
+plus Zeit/Punkte). Die Richtung (Zeit→Punkte / Punkte→Zeit) ist eine Radio-group, keine Tabs — anders als bei der
+Punktetabelle handelt es sich um eine Ein-aus-zwei-Auswahl innerhalb *eines* Formulars, nicht um parallele
+Inhaltsbereiche. Ohne JS stehen Zeit- und Punkte-Feld beide sichtbar untereinander (funktional redundant, aber korrekt:
+nur das zur gewählten Richtung passende Feld wird serverseitig ausgewertet); `point-calculator.js` blendet mit JS das
+jeweils nicht passende Feld aus. Fehlermeldungen sind serverseitig kurze Codes (`PointConversionService`-Rückgabe wie
+`no_base_time`, `invalid_time`) statt Freitext — sonst hätte der Service fest verdrahtetes Deutsch geliefert, das auf
+der englischen Seite falsch gestanden wäre; der Controller übersetzt über `public.point_calculator.errors.*`.
+
+Ein echter Sortier-Fehler wurde vor dem Testen mit Echt-daten übersehen und erst im manuellen Abgleich gegen die
+Dev-Datenbank auffällig: `sortBy()` mit einem Array aus Ein-Parameter-Extraktor-Closures sortierte Bewerbe innerhalb
+einer Lage nicht nach Distanz (CLAUDE.md warnt explizit vor "sortBy () mit Closure-Array" — genau dieser Fallstrick,
+selbst begangen). `sortBy([...])` erwartet Zwei-Parameter-Komparatoren, keine Schlüssel-Extraktoren; korrigiert auf
+zusammengesetzte `sprintf()`-Sortierschlüssel (`PointConversionService::buildTable()` und
+`PointCalculatorController::index()`).
+
+**Tests** (`public-p6`, alle grün): Zeit→Punkte→Zeit- und Punkte→Zeit→Punkte-Rundtrip konsistent, die Rückrechnung
+erreicht mindestens die Zielpunktzahl, Grenzfälle (kein Basiswert für die Kombination, `TYPE_NOT_APPLICABLE`, Punktzahl
+0), Punktetabelle zeigt nur `validOn(heute)`, zweistufige Kopfzeilen korrekt mit `headers`/`id` verdrahtet, mobile
+Sportklassen-Einzelansicht zeigt denselben Wert wie die Matrix, Punkterechner-Endpunkt für beide Richtungen, übersetzte
+Fehlermeldung ohne Basiswert, leeres Formular ohne Filterparameter zeigt weder Ergebnis noch Fehler. Zusätzlich
+`tests/Unit/RecordCheckerServiceTest.php`-Nachbarschaft unberührt, `QualifyingTimeCalculationService`-Tests weiterhin
+grün (unverändert, siehe oben).
 
 ---
 
-## Phase 7 — Ranglisten
+### Nachträglich: zweiter Rechner (WPS/Gompertz) + Review-Runde
+
+Rückmeldung nach dem ersten Abnahme-Durchlauf: Zwei Punkterechner sind nötig, nicht einer — der bisherige rechnet mit
+den ÖBSV-Basiswerten und der World-Aquatics-Formel (LCM **und** SCM); die offizielle WPS-Tabelle (Gompertz-Formel)
+ist ein eigenes, zweites Punktesystem mit eigener Datengrundlage und existiert nur für LCM. Dieselbe Trennung wie schon
+in Phase 4 dokumentiert ("das Projekt kennt beide Punktesysteme parallel") — hier erstmals auch öffentlich zugänglich
+gemacht.
+
+**`Public\WpsPointCalculatorController`** (`/de/wps-punkterechner`) — dieselbe Bauweise wie
+`PointCalculatorController` (GET-Formular, kein `validate()`, `pointCalculator.js` fürs Feld-Umschalten), aber:
+
+- Nur `LCM`, kein Bahn-Feld — die WPS-Tabelle hat keine Kurzbahnwerte.
+- Sportklassen als reine Nummer (1–14, 21) wie beim Rekorde-Filter (Phase 5) — die Kategorie (`S`/`SB`/`SM`) wird aus
+  der gewählten Lage abgeleitet (`WpsPointCalculator::STROKE_CATEGORY_MAP`, hier dupliziert, da `private const`).
+- Bewerbsliste kommt direkt aus `WpsPointParameter` (keine eigene Bewerbs-Stammtabelle wie bei den Basiswerten) — nur
+  Kombinationen, für die tatsächlich ein Parametersatz existiert.
+- Version über `WpsPointVersionResolver::resolveForDate()` — bereits bestehend, für genau diesen
+  "kein Meet/Result vorhanden"-Fall gebaut (wps-qualification §5.3), hier wiederverwendet statt neu gebaut.
+- Zeit→Punkte nutzt `WpsPointCalculator::pointsForTime()` — ebenfalls bereits bestehend und für denselben Zweck gebaut,
+  unverändert übernommen.
+- Punkte→Zeit gab es noch nicht: neue Methode `WpsPointCalculator::timeForPoints()`, als Geschwistermethode neben
+  `pointsForTime()` ergänzt (keine bestehende Methode geändert). Geschlossene Umkehrung der Gompertz-Funktion
+  (`p = c / (b − ln(−ln(q/a)))`) als Schätzung, danach dieselbe hundertstelweise Annäherung wie bei
+  `PointConversionService::pointsToTime()`, weil `gompertz()` abrundet statt rundet und die Schätzung daher systematisch
+  leicht zu schnell sein kann.
+
+**Weitere Rückmeldungen aus derselben Runde:**
+
+- **IMask griff nicht.** `resources/js/public.js` importierte `imask` nie und setzte `window.IMask` nicht — anders als
+  `app.js` für den internen Bereich. `x-init="IMask($el, …)"` ist ein Inline-Ausdruck (ein String, den Alpine zur
+  Laufzeit auswertet) und sieht deshalb keine Modulimporte, nur globale Bezeichner. Ohne `window.IMask = IMask`
+  blieb das Zeitfeld unmaskiert — deckt sich genau mit der Beobachtung "wenn die Trennzeichen nicht eingegeben wurden,
+  macht er gar nichts". Nachgezogen wie in `app.js`.
+- **Keine Fehlermeldung bei ungültiger Zeit** (z. B. "99:99.99"). Zwei Ursachen: Erstens nutzte der Controller
+  `$request->validate()`, das bei einem Formatfehler auf die vorherige URL zurückspringt — bei einem
+  selbst-einreichenden GET-Formular sieht das wie "die Seite tut gar nichts" aus, ohne sichtbare Fehlermeldung.
+  Umgestellt auf denselben Query-Parameter-Ansatz wie `PublicRecordFilter`: unbekannte/leere Werte fallen still auf
+  einen Standard zurück, eine tatsächlich versuchte, aber ungültige Berechnung zeigt einen Fehlertext in derselben
+  Antwort (200, kein Redirect). Zweitens prüfte das Zeitformat nur `\d{2}` für Sekunden/Hundertstel — "99:99.99" bestand
+  die Prüfung rein formal. Regex verschärft auf `[0-5]\d` für den Sekundenanteil. Beide Punkterechner-Controller
+  betroffen und behoben.
+- **`sortBy()`/`resolveBaseTime()`-Rückgaben als Tupel-Arrays** ersetzt durch Wertobjekte
+  (`App\Support\PointCalculationResult`, `App\Support\BaseTimeLookupResult`) statt `[$wert, $fehler] = …`
+  -Destrukturierung (CLAUDE.md: "Wertobjekte statt assoziativer Arrays"; PhpStorm meldete an den Aufrufstellen
+  zusätzlich
+  "Potentially polymorphic call").
+- **Inline-Objektliteral als `x-data`** (`x-data="{ mobileClass: '…' }"`) in der Punktetabelle ausgelagert nach
+  `resources/js/base-time-mobile-class.js` (`baseTimeMobileClass()`) — ein bei Statement-Position stehendes `{`
+  ist als reines JS nicht eindeutig als Objektliteral erkennbar und erzeugte IDE-Rauschen; CLAUDE.md verlangt ohnehin
+  ausgelagerte Alpine-Logik.
+- **Punktetabelle: ÖBSV-Bezeichnung/Version fehlte.** `$version->display_name` jetzt sichtbar auf allen drei Seiten
+  (Punktetabelle, ÖBSV-Rechner, WPS-Rechner) — bei zwei parallelen Punktesystemen ist sonst unklar, welche Version
+  gerade gilt bzw. welches System überhaupt gerade angezeigt wird. Aus demselben Grund tragen alle drei
+  Seitenüberschriften jetzt "ÖBSV-" bzw. "WPS-" als Präfix statt nur "Punktetabelle"/"Punkterechner" — vorher, mit nur
+  einem Rechner, war das nicht nötig.
+- **Herren/Damen in der Punktetabelle schwer auseinanderzuhalten.** Trennlinie (`border-l-2`) zwischen den beiden
+  Spaltenblöcken statt zweier separater Tabellen — bleibt eine einzige, mit `headers`/`id` verdrahtete Tabelle
+  (accessibility.md), zwei Tabellen hätten das doppelt und redundant gemacht.
+- **Sportklassen sollten aufsteigend erscheinen** (1, 2, 3, … statt der im Bestand hinterlegten `sort_order`, die der
+  alten, absteigenden Excel-Quelle folgt). `PointConversionService::classNumber()` extrahiert die Nummer aus dem Code
+  und sortiert numerisch aufsteigend — betrifft die Punktetabelle **und** das Sportklassen-Dropdown des ÖBSV-Rechners
+  (dieselbe Methode, `public static`, damit nicht zweimal gebaut).
+- **Namenskollision beim Ausliefern:** Der Navigationseintrag "WPS-Punkterechner" ließ ein bestehender Phase-4-Test
+  (`assertDontSee('WPS-Punkte')` auf der Ergebnisseite) fehlschlagen — die Navigation steht auf jeder Seite, auch dort.
+  Umbenannt auf "WPS-Rechner" (Navigation only, die Rechner-Seite selbst heißt weiterhin
+  "WPS-Punkterechner").
+
+**Tests ergänzt:** `WpsPointCalculator::timeForPoints()` gegen den offiziellen Referenzwert (S2/57,00s/939 Punkte, aus
+der bestehenden WPS-Testsuite) im Rundtrip mit `pointsForTime()`, WPS-Rechner-Endpunkt für beide Richtungen, unbekannter
+Bewerb zeigt Fehler statt falscher Berechnung, Versionsanzeige auf der Rechner-Seite.
+
+### Nachträglich: Kopfzeile — Untermenü "Punkte"
+
+Rückmeldung: Mit drei Punktesystem-Zielen (Punktetabelle, ÖBSV-Rechner, WPS-Rechner) neben Start/Veranstaltungen/
+Rekorde wurde die Desktop-Kopfzeile zu lang. Zusammengefasst in einem Untermenü "Punkte"
+(`resources/js/nav-dropdown.js`, `Alpine.data('navDropdown', …)`) — als WAI-ARIA- **Disclosure**, nicht
+`role="menu"`: Die drei Einträge sind Navigationsziele, keine Befehle, das schwerere "Menu Button"-Muster (volle
+`role="menu"`/`role="menuitem"`-Semantik) wäre hier unpassend. Accessibility.md verlangt für Dropdowns/Menüs explizit
+Pfeiltasten, Escape, `aria-expanded`, Fokusrückgabe — alle vier umgesetzt. Progressiv verbessert wie die
+Reiternavigation der Punktetabelle: Ohne JS ist der Auslöser ein normaler Link auf die Punktetabelle, das Panel steht
+offen im Fließtext, alle drei Ziele bleiben erreichbar; mit JS wird daraus ein einklappbares Menü. Dabei eine
+vorbestehende Lücke gefunden und behoben: `[x-cloak] { display: none !important; }` fehlte im gesamten öffentlichen
+Bereich, das mobile Nav-Panel trug `x-cloak` also folgenlos (`resources/css/public.css`) — bewusst **nicht** auf dem
+neuen Punkte-Panel verwendet, dessen Panel ja ohne JS sichtbar bleiben soll. Die Kopfzeile im mobilen Slide-out-Panel
+bleibt unverändert eine flache Liste — dort ist "zu lang" kein Problem (vertikales Scrollen, kein horizontaler
+Platzmangel).
+
+### Nachträglich: PhpStorm-Nachschärfung nach der Rückmeldungs-Runde
+
+- **Duplizierter Code** in beiden Rechner-Controllern (`PointCalculatorController`, `WpsPointCalculatorController`):
+  Die Extraktion von Ergebnis und Fehlercode aus dem Berechnungsergebnis war in den Zweigen "Zeit→Punkte" und
+  "Punkte→Zeit" fast identisch dupliziert. Zusammengeführt auf eine gemeinsame Nachverarbeitung nach der Verzweigung,
+  statt in jedem Zweig einzeln.
+- **"Potentially polymorphic call" an den `$discipline`-Aufrufstellen** in beiden Controllern: PhpStorm verliert die
+  Typinformation von `$discipline` durch die Collection-Kette (`->filter()->sortBy()->values()->firstWhere()`/
+  `->first()`), obwohl das Ergebnis stets `BaseTimeDiscipline`/`WpsPointParameter` oder `null` ist. Behoben mit
+  `/** @var ?Type $discipline */`-Hinweisen direkt an der Zuweisung — dieselbe Ursache wie die "Potentially polymorphic
+  call"-Funde zuvor bei `PointConversionService`, nur diesmal an der Verbrauchsstelle statt an der Erzeugungsstelle.
+- **Dieselbe Ursache tiefer verfolgt für die Blade-Views:** `PointConversionService::buildTable()` gab bislang anonyme
+  `(object) [...]`-Strukturen zurück (`stroke`/`disciplines`/`rows`, `sportClass`/`cells`) — PhpStorm kann
+  `@return`-Array-Shape-Annotationen für solche Objekte nicht auflösen, jeder nachgelagerte Zugriff (`$group->stroke`,
+  `$row->sportClass->code`, …) in `base-times/index.blade.php` erschien deshalb als
+  "Potentially polymorphic call". Ersetzt durch zwei echte Wertobjekte, `App\Support\BaseTimeStrokeGroup` und
+  `App\Support\BaseTimeSportClassRow` (CLAUDE.md: "Wertobjekte statt assoziativer Arrays") — behebt die Ursache an einer
+  Stelle, statt an jeder Verbrauchsstelle einzeln nachzubessern.
+- **`@php … @endphp`-Blöcke mit `@var`-Docblocks** am Kopf aller drei betroffenen Blade-Dateien ergänzt
+  (`base-times/index`, `point-calculator/index`, `wps-point-calculator/index`) — dasselbe, bereits im Bestand genutzte
+  Muster wie `statistics/partials/sections.blade.php`. Blade-Views haben ohne solche Hinweise keinerlei Typinformation
+  zu den vom Controller übergebenen Variablen, jede `@foreach`-Schleife darüber (`$discipline`,
+  `$row`, …) galt PhpStorm deshalb als untypisiert.
+- **`x-data="fn('{{ $wert }}')"`-Muster ersetzt** (`baseTimeTabs`, `baseTimeMobileClass`, `pointCalculator` — Letzteres
+  auf beiden Rechner-Seiten): Ein per Blade in ein Alpine-Inline-Attribut interpolierter Wert innerhalb eines
+  JS-String-Literals wurde von PhpStorms JS-Analyse nicht zuverlässig erkannt ("Missing import statement",
+  "Expression statement is not assignment or call"). Umgestellt auf argumentlose `x-data="fn()"` plus ein normales
+  `data-*`-Attribut, das die Komponente in ihrem `init()`-Hook über `this.$el.dataset` liest — dieselbe Information,
+  ohne Blade-Interpolation innerhalb eines JS-Strings.
+- **Bewusst nicht weiter verfolgt:** Vereinzelte "Element is not exported"-Funde beim Aufruf global über
+  `Alpine.data()` registrierter Komponenten (`baseTimeTabs()`, `pointCalculator()`, `navDropdown()` …) sowie
+  "'with' statement" auf `x-on:`/`x-bind:`-Ausdrücken — beides scheint eine strukturelle Eigenschaft von PhpStorms
+  Alpine-Unterstützung zu sein (Komponenten werden aus Blade-Sicht nie "importiert", Alpine wertet Ausdrücke intern über
+  `with()` aus) und träfe im selben Umfang auch auf `mobileNav()`/`theme()` im Layout zu, die nach demselben, bereits
+  vor Phase 6 etablierten Muster gebaut sind.
+
+Volle Suite nach dieser Runde weiterhin grün (1337/1337), alle Rechenergebnisse gegen die Dev-Datenbank erneut
+verifiziert (unverändert gegenüber vor der Refaktorierung).
+
+### Nachträglich: zweite PhpStorm-Runde
+
+- **"Statement has empty body"** in beiden Rechner-Controllern: Die vorherige Fassung nutzte einen leeren
+  `if (! $hasAttempt) { /* Kommentar */ }`-Zweig, um die Deduplizierung der letzten Runde ohne zusätzliche Einrückung
+  unterzubringen. Zurückgebaut auf ein umschließendes `if ($hasAttempt) { … }` — eine Ebene mehr Einrückung, aber kein
+  leerer Zweig.
+- **"Duplicated code fragment (6 lines long)"** — diesmal nicht innerhalb einer Datei, sondern zwischen den beiden
+  Controllern: `$mode`/`course`/`gender` wurden in beiden identisch über
+  `in_array($request->query(...), self::X, true) ? … : $default` gelesen. Extrahiert nach
+  `App\Support\QueryParam::pick()` (dasselbe "unbekannt fällt still zurück"-Prinzip wie `PublicRecordFilter`), von
+  beiden Controllern genutzt statt zweimal ausprogrammiert.
+
+Erneut gegen die Dev-Datenbank verifiziert (1000/626 Punkte, dieselben Werte wie zuvor), volle Suite grün (1337/1337).
+
+### Nachträglich: Punktetabelle-Vorgabe und WPS-Sportklassenliste (Rückmeldung)
+
+- **Punktetabelle: Vorgabe SCM statt LCM.** `BaseTimeTableController::index()` fällt jetzt ohne `?course=`-Parameter auf
+  SCM (25m) statt LCM (50m) zurück (Rückmeldung: SCM ist die relevantere Vorgabe). Drei Tests in
+  `PublicFrontendPhase6Test`, die den Endpunkt bisher ohne `course` aufriefen und sich auf LCM-Testdaten verließen,
+  fordern seither explizit `course=LCM` an — sie prüfen Versions-Scoping/Kopfzeilen/mobile Ansicht, nicht die
+  Bahn-Vorgabe selbst, daher unverändert in der Sache.
+- **Punktetabelle: zweite Trennlinie neben der Sportklassen-Spalte.** Zusätzlich zur bestehenden Trennlinie zwischen
+  Herren- und Damen-Spaltenblock nun auch eine (`border-r-2`) zwischen der Sportklassen-Spalte und dem Herren-Block —
+  in der Kopfzeile (`corner-{code}`) und je Zeile (`row-{code}-{id}`, Rückmeldung: "sieht besser aus").
+- **WPS-Punkterechner: Sportklassen-Liste wie beim ÖBSV-Rechner.** Die Optionen zeigten bisher nur die nackte Zahl
+  (`1`, `2`, … `21`), der ÖBSV-Punkterechner dagegen den vollen Code (`S1`, `S2`, … `S21`) — dieselbe Uneinheitlichkeit
+  wie bei den zwei Rechnern generell (Rückmeldung). Angeglichen: die Optionen zeigen jetzt `S{{ $number }}` als reines
+  Label; der `<option value>` bleibt die nackte Zahl, der Controller leitet die tatsächliche WPS-Kategorie (S/SB/SM)
+  weiterhin aus dem gewählten Bewerb ab (`STROKE_CATEGORY_MAP`) — unverändert in der Berechnung, nur die Anzeige zieht
+  mit dem ÖBSV-Rechner gleich.
+
+Erneut verifiziert: Pint grün, `--group=public-p6` 19/19, volle Suite 1337/1337, live gegen die Dev-Datenbank (Vorgabe
+SCM sichtbar, `S1`…`S21` im WPS-Rechner, Trennlinie im HTML vorhanden).
 
 | Baustein                          | Art        | Zweck                  |
 |-----------------------------------|------------|------------------------|

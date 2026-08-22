@@ -233,6 +233,82 @@ final readonly class WpsPointCalculator
     }
 
     /**
+     * Zeit für eine Ziel-Punktzahl, ohne Ergebnisdatensatz — die Umkehrung von pointsForTime()
+     * für den öffentlichen WPS-Punkterechner (public-frontend §5.3, Phase 6).
+     *
+     * Geschlossene Umkehrung der Gompertz-Funktion als Schätzung:
+     *   q = a·e^(-e^(b - c/p))  ⟺  p = c / (b - ln(-ln(q/a)))
+     * dann hundertstelweise verkürzt, bis die Rückrechnung (dieselbe gompertz(), inklusive
+     * FLOOR-Rundung) die Ziel-Punktzahl mindestens wieder erreicht — dieselbe Vorgehensweise wie
+     * PointConversionService::pointsToTime() für die World-Aquatics-Formel, hier zusätzlich
+     * nötig, weil die Schätzung selbst schon rundungsbedingt daneben liegen kann und
+     * gompertz() abrundet statt rundet.
+     *
+     * Liefert null, wenn die Punktzahl außerhalb des von der Formel erreichbaren Bereichs liegt
+     * (muss strikt zwischen 0 und parameter_a liegen) oder kein Parametersatz existiert.
+     */
+    public function timeForPoints(
+        int $targetPoints,
+        string $course,
+        string $gender,
+        int $strokeTypeId,
+        int $distance,
+        string $sportClass,
+        WpsPointVersion $version,
+    ): ?int {
+        if ($targetPoints <= 0) {
+            return null;
+        }
+
+        if (! in_array($course, self::SUPPORTED_COURSES, true)
+            || ! in_array($gender, WpsPointParameter::GENDERS, true)) {
+            return null;
+        }
+
+        $mapped = WpsSportClass::mapToWps($sportClass);
+
+        if ($mapped === null) {
+            return null;
+        }
+
+        $parameter = $this->findParameter($version, $course, $gender, $strokeTypeId, $distance, $mapped);
+
+        if ($parameter === null) {
+            return null;
+        }
+
+        $ratio = $targetPoints / $parameter->parameter_a;
+
+        if ($ratio <= 0 || $ratio >= 1) {
+            return null; // asymptotisch nicht erreichbar
+        }
+
+        $denominator = $parameter->parameter_b - log(-log($ratio));
+
+        if ($denominator <= 0 || ! is_finite($denominator)) {
+            return null;
+        }
+
+        $secondsEstimate = $parameter->parameter_c / $denominator;
+
+        if (! is_finite($secondsEstimate) || $secondsEstimate < self::MIN_TIME_SECONDS) {
+            return null;
+        }
+
+        $time = max((int) round($secondsEstimate * 100), 1);
+
+        for ($i = 0; $i < 2000 && $time > 1; $i++) {
+            $recalculated = $this->gompertz($time / 100, $parameter);
+            if ($recalculated !== null && $recalculated >= $targetPoints) {
+                break;
+            }
+            $time--;
+        }
+
+        return $time;
+    }
+
+    /**
      * Die Gompertz-Funktion.
      *
      * Das Ergebnis wird ABGERUNDET, nicht kaufmännisch gerundet — so schreibt es die

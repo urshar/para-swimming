@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\Public\BaseTimeTableController;
 use App\Http\Controllers\Public\DocumentDownloadController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\MeetController;
 use App\Http\Controllers\Public\MeetResultController;
+use App\Http\Controllers\Public\PointCalculatorController;
 use App\Http\Controllers\Public\RecordController;
 use App\Http\Controllers\Public\RecordExportController;
+use App\Http\Controllers\Public\WpsPointCalculatorController;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -58,4 +61,9 @@ Route::prefix('{locale}')
             Route::get('/', [RecordController::class, 'index'])->name('index');
             Route::get('export', [RecordExportController::class, 'download'])->name('export');
         });
+
+        Route::get('punktetabelle', [BaseTimeTableController::class, 'index'])->name('public.base-times.index');
+        Route::get('punkterechner', [PointCalculatorController::class, 'index'])->name('public.point-calculator.index');
+        Route::get('wps-punkterechner', [WpsPointCalculatorController::class, 'index'])
+            ->name('public.wps-point-calculator.index');
     });

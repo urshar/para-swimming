@@ -8,6 +8,13 @@ return [
         'home' => 'Startseite',
         'meets' => 'Veranstaltungen',
         'records' => 'Rekorde',
+        'points' => 'Punkte',
+        'base_times' => 'ÖBSV-Punktetabelle',
+        'point_calculator' => 'ÖBSV-Punkterechner',
+        // Bewusst "WPS-Rechner" statt "WPS-Punkterechner": Die Navigation steht auf jeder Seite,
+        // auch der Ergebnisseite, deren Test prüft, dass "WPS-Punkte" dort nicht auftaucht, wenn
+        // kein WPS gerechnet wurde (results.columns.wps_points).
+        'wps_point_calculator' => 'WPS-Rechner',
         'open' => 'Menü öffnen',
         'close' => 'Menü schließen',
     ],
@@ -132,6 +139,100 @@ return [
             'lenex' => 'Als LENEX herunterladen',
             'pdf' => 'Als PDF herunterladen',
             'lenex_hint' => 'ohne Sportklassen-Eingrenzung, vollständige Bestenliste der Ebene',
+        ],
+    ],
+
+    'base_times' => [
+        'title' => 'ÖBSV-Punktetabelle',
+        'heading' => 'ÖBSV-Punktetabelle',
+        'intro' => 'Basiszeiten der aktuell gültigen Version. Grundlage der ÖBSV-Punkteberechnung P = 1000 × (B/T)³.',
+        'version_label' => 'ÖBSV-Basiswert-Version',
+        'empty' => 'Für das heutige Datum ist keine gültige Basiswert-Version hinterlegt.',
+        'course' => 'Bahn',
+        'not_applicable' => '–',
+        'sport_class' => 'Klasse',
+        'gender' => [
+            'M' => 'Herren',
+            'F' => 'Damen',
+        ],
+        'mobile' => [
+            'heading' => 'Sportklasse wählen',
+            'select_class' => 'Sportklasse',
+            'select_class_all' => 'Bitte wählen',
+        ],
+    ],
+
+    'point_calculator' => [
+        'title' => 'ÖBSV-Punkterechner',
+        'heading' => 'ÖBSV-Punkterechner',
+        'intro' => 'Rechnet mit der aktuell gültigen Basiswert-Version.',
+        'empty' => 'Für das heutige Datum ist keine gültige Basiswert-Version hinterlegt.',
+        'mode' => [
+            'heading' => 'Richtung',
+            'time_to_points' => 'Zeit → Punkte',
+            'points_to_time' => 'Punkte → Zeit',
+        ],
+        'fields' => [
+            'course' => 'Bahn',
+            'gender' => 'Geschlecht',
+            'discipline' => 'Bewerb',
+            'sport_class' => 'Sportklasse',
+            'sport_class_select' => 'Bitte wählen',
+            'time' => 'Zeit',
+            'points' => 'Punkte',
+            'submit' => 'Berechnen',
+        ],
+        'gender' => [
+            'M' => 'Herren',
+            'F' => 'Damen',
+        ],
+        'result' => [
+            'points_heading' => 'Punkte',
+            'time_heading' => 'Zeit',
+        ],
+        'errors' => [
+            'invalid_time' => 'Ungültige Zeit.',
+            'invalid_points' => 'Ungültige Punktzahl.',
+            'no_discipline' => 'Unbekannter Bewerb.',
+            'no_category' => 'Für diese Bahn/Geschlecht-Kombination liegt keine Basiswert-Kategorie vor.',
+            'no_sport_class' => 'Unbekannte Sportklasse.',
+            'no_base_time' => 'Für diese Auswahl liegt kein Basiswert vor.',
+        ],
+    ],
+
+    'wps_point_calculator' => [
+        'title' => 'WPS-Punkterechner',
+        'heading' => 'WPS-Punkterechner',
+        'intro' => 'Rechnet mit der offiziellen WPS-Punktetabelle (Gompertz-Formel) statt den ÖBSV-Basiswerten — nur Langbahn (LCM), dafür gibt es keine WPS-Kurzbahnwerte.',
+        'empty' => 'Für das heutige Datum ist keine gültige WPS-Punkteversion hinterlegt.',
+        'version_label' => 'WPS-Punkteversion',
+        'mode' => [
+            'heading' => 'Richtung',
+            'time_to_points' => 'Zeit → Punkte',
+            'points_to_time' => 'Punkte → Zeit',
+        ],
+        'fields' => [
+            'gender' => 'Geschlecht',
+            'discipline' => 'Bewerb',
+            'sport_class' => 'Sportklasse',
+            'sport_class_select' => 'Bitte wählen',
+            'time' => 'Zeit',
+            'points' => 'Punkte',
+            'submit' => 'Berechnen',
+        ],
+        'gender' => [
+            'M' => 'Herren',
+            'F' => 'Damen',
+        ],
+        'result' => [
+            'points_heading' => 'Punkte',
+            'time_heading' => 'Zeit',
+        ],
+        'errors' => [
+            'invalid_time' => 'Ungültige Zeit.',
+            'invalid_points' => 'Ungültige Punktzahl.',
+            'no_discipline' => 'Unbekannter Bewerb.',
+            'no_parameter' => 'Für diese Auswahl liegt kein WPS-Parametersatz vor.',
         ],
     ],
 
