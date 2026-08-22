@@ -473,6 +473,10 @@ Erneut gegen die Dev-Datenbank verifiziert (1000/626 Punkte, dieselben Werte wie
 Erneut verifiziert: Pint grün, `--group=public-p6` 19/19, volle Suite 1337/1337, live gegen die Dev-Datenbank (Vorgabe
 SCM sichtbar, `S1`…`S21` im WPS-Rechner, Trennlinie im HTML vorhanden).
 
+---
+
+## Phase 7 — Ranglisten
+
 | Baustein                          | Art        | Zweck                  |
 |-----------------------------------|------------|------------------------|
 | `Public\CupRankingController`     | Controller | Cup-Wertung je Jahr    |
