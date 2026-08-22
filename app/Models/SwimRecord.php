@@ -12,6 +12,7 @@ class SwimRecord extends Model
     protected $fillable = [
         'stroke_type_id',
         'nation_id',
+        'meet_nation_id',
         'athlete_id',
         'result_id',
         'superseded_by_id',
@@ -48,6 +49,12 @@ class SwimRecord extends Model
     public function nation(): BelongsTo
     {
         return $this->belongsTo(Nation::class);
+    }
+
+    /** Austragungsland des Wettkampfs (LENEX MEETINFO@nation) — nicht zu verwechseln mit nation(). */
+    public function meetNation(): BelongsTo
+    {
+        return $this->belongsTo(Nation::class, 'meet_nation_id');
     }
 
     public function athlete(): BelongsTo
@@ -157,13 +164,12 @@ class SwimRecord extends Model
     }
 
     /**
-     * Verein-Name zum Zeitpunkt des Rekords.
-     * Fallback: aktueller Verein des Athleten.
+     * Verein-Anzeigename (Kurzname, falls vorhanden — Club::display_name, wie schon bei den
+     * Ergebnissen in Phase 4) zum Zeitpunkt des Rekords. Fallback: aktueller Verein des Athleten.
      */
     public function getRecordClubNameAttribute(): ?string
     {
-        return $this->club?->name
-            ?? $this->club?->short_name
-            ?? $this->athlete?->club?->name;
+        return $this->club?->display_name
+            ?? $this->athlete?->club?->display_name;
     }
 }

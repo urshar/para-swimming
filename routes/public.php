@@ -4,6 +4,8 @@ use App\Http\Controllers\Public\DocumentDownloadController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\MeetController;
 use App\Http\Controllers\Public\MeetResultController;
+use App\Http\Controllers\Public\RecordController;
+use App\Http\Controllers\Public\RecordExportController;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -50,5 +52,10 @@ Route::prefix('{locale}')
 
             Route::get('{meet}', [MeetController::class, 'show'])->name('show');
             Route::get('{meet}/ergebnisse', [MeetResultController::class, 'show'])->name('results');
+        });
+
+        Route::prefix('rekorde')->name('public.records.')->group(function (): void {
+            Route::get('/', [RecordController::class, 'index'])->name('index');
+            Route::get('export', [RecordExportController::class, 'download'])->name('export');
         });
     });

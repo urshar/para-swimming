@@ -182,6 +182,7 @@ class RecordImportService
                 $newRecord = SwimRecord::create([
                     'stroke_type_id' => $rec['stroke_type_id'],
                     'nation_id' => $nationId,
+                    'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
                     'athlete_id' => $athleteId,
                     'club_id' => $clubId,
                     'supersedes_id' => $current?->id,
@@ -435,6 +436,7 @@ class RecordImportService
                     'swim_time' => self::parseLenexTime($swimtime),
                     'meet_name' => $meetInfo ? ((string) ($meetInfo['name'] ?? '') ?: null) : null,
                     'meet_city' => $meetInfo ? ((string) ($meetInfo['city'] ?? '') ?: null) : null,
+                    'meet_nation' => $meetInfo ? (string) ($meetInfo['nation'] ?? '') : '',
                     'set_date' => $meetInfo ? ((string) ($meetInfo['date'] ?? '') ?: null) : null,
                     'meet_course' => $course,
                     'athlete' => $athleteData,
@@ -913,6 +915,7 @@ class RecordImportService
         $regionalRecord = SwimRecord::create([
             'stroke_type_id' => $rec['stroke_type_id'],
             'nation_id' => $nationId,
+            'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
             'athlete_id' => $athleteId,
             'club_id' => $clubId,
             'supersedes_id' => $current?->id,

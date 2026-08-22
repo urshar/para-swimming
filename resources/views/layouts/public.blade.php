@@ -62,7 +62,7 @@
         {{ __('public.skip_to_content') }}
     </a>
 
-    {{-- Tailkit: m-s-main-headers-01 "Simple" — auf zwei echte Nav-Ziele reduziert, um den
+    {{-- Tailkit: m-s-main-headers-01 "Simple" — auf die echten Nav-Ziele reduziert, um den
          Umschalter für die Darstellung erweitert (kein Tailkit-Baustein dafür, §3.1.3 Punkt 6). --}}
     {{-- hide()/show()/trap() kommen aus resources/js/mobile-nav.js (Alpine.data), für die
          Editor-Analyse über die x-data-Grenze hinweg nicht auflösbar. --}}
@@ -85,6 +85,11 @@
                        @if (request()->routeIs('public.meets.*')) aria-current="page" @endif
                        class="text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
                         {{ __('public.nav.meets') }}
+                    </a>
+                    <a href="{{ route('public.records.index', ['locale' => app()->getLocale()]) }}"
+                       @if (request()->routeIs('public.records.*')) aria-current="page" @endif
+                       class="text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
+                        {{ __('public.nav.records') }}
                     </a>
                 </nav>
 
@@ -153,6 +158,11 @@
                    @if (request()->routeIs('public.meets.*')) aria-current="page" @endif
                    class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
                     {{ __('public.nav.meets') }}
+                </a>
+                <a href="{{ route('public.records.index', ['locale' => app()->getLocale()]) }}"
+                   @if (request()->routeIs('public.records.*')) aria-current="page" @endif
+                   class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                    {{ __('public.nav.records') }}
                 </a>
             </nav>
         </nav>

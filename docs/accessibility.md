@@ -28,8 +28,11 @@ Anwendungsbereich für den ÖBSV ist rechtlich zu klären; technisch bauen wir s
   Qualifikationserfüllung, EXH-Kennzeichnung.
 - **Textalternativen** für jedes bedeutungstragende Bild. Dekorative Grafiken bekommen `alt=""`.
 - **Tabellen** als echte `<table>` mit `<caption>` und `<th scope="col">` / `scope="row"`. Bei zweistufigen Kopfzeilen
-  (Punktetabelle: Geschlecht über Distanz; Rekordtabelle: Bahnlänge über Bewerb) zusätzlich `headers`/`id`, weil
-  `scope` allein die Zuordnung nicht mehr trägt.
+  (Punktetabelle: Geschlecht über Distanz) zusätzlich `headers`/`id`, weil `scope` allein die Zuordnung nicht mehr
+  trägt. Die öffentliche Rekordtabelle (public-frontend §5.2, Phase 5) wurde entgegen der hier ursprünglich
+  vorgesehenen Bahnlänge-über-Bewerb-Matrix als flache, per Rekordebene/Klasse/Geschlecht/Bahn filterbare Liste mit
+  einstufiger Kopfzeile gebaut (Planungsentscheidung Phase 5) — dort reicht `scope="col"`, `headers`/`id` entfällt
+  mangels verschmolzener Kopfzellen.
 - **Zoom bis 200 %** ohne horizontales Scrollen und ohne Inhaltsverlust. Die breiten Tabellen sind hier der kritische
   Fall — sie brauchen einen scrollbaren Container mit `tabindex="0"` und einer zugänglichen Beschriftung, damit auch
   Tastaturnutzer scrollen können.

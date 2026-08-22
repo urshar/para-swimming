@@ -125,7 +125,7 @@ Ergebnis-Feld `sport_class`, nicht die Athlet-Stammdaten — kann laut LENEX abw
 zusammengesetzten `sprintf()`-Schlüssel (CLAUDE.md-Konvention) statt `sortBy()` mit Closure-Array: gültige Zeiten nach
 Platz/Zeit, DNS/DNF/DSQ/SICK/WDR ans Ende. Die Zeit-/Status-Spalte spiegelt `Result::getFormattedSwimTimeAttribute()`:
 Zeit hat Vorrang vor dem Status, EXH-Ergebnisse haben trotzdem eine reelle Zeit und bleiben damit mit dieser sichtbar,
-statt hinter dem Status zu verschwinden — nur wenn tatsächlich keine Zeit erfasst ist, zeigt die Spalte den
+statt hinter dem Status zu verschwinden —, nur wenn tatsächlich keine Zeit erfasst ist, zeigt die Spalte den
 (lokalisierten) Status. Punkte-/WPS-Punkte-Spalten werden nur eingeblendet, wenn für die jeweilige Klasse tatsächlich
 Werte vorliegen — das Projekt kennt beide Punktesysteme parallel, fest auf eines zu verdrahten wäre falsch. Rekorde als
 ausgeschriebene Bezeichnung statt Kürzel-Badge mit `title=`: `title=` wird von Screenreadern nicht zuverlässig
@@ -141,7 +141,7 @@ nur bei vorhandenen Werten, EXH zeigt die reelle Zeit statt des Status, fehlende
 
 ---
 
-## Phase 5 — Rekorde
+## Phase 5 — Rekorde — **abgeschlossen**
 
 | Baustein                                  | Art        | Zweck                                                                   |
 |-------------------------------------------|------------|-------------------------------------------------------------------------|
@@ -154,7 +154,92 @@ Das geteilte Filter-Wertobjekt folgt dem Muster von `QualificationOverviewFilter
 Bildschirm und PDF im Bestand bereits auseinander. Export nutzt `RecordLenexExportService` und `PdfExportService`
 weiter, ohne die internen Statusfilter.
 
-**Tests** (`public-p5`): Regionalfilter je Landesverband, LENEX validiert, PDF entspricht der Bildschirmauswahl.
+**Ergebnis:** Nur österreichische Rekorde (`AUT`, `AUT.JR`, `AUT.<LV>`, `AUT.<LV>.JR`) — international (WR/ER/OR) ist
+außerhalb des öffentlichen Umfangs, §5.2 nennt dafür nur die AUT-Werte. Rekordebene (national/Landesverband) und
+Altersklasse (offen/Jugend) sind zwei getrennte Filterachsen in `PublicRecordFilter`, die sich erst zu
+`recordType()` zusammensetzen. Anders als der interne `RecordController` zeigt die öffentliche Liste nur
+`record_status = APPROVED` — `PENDING` (Nationalität unklar), `INVALID` und `TARGETTIME` sind nicht öffentlich reif
+(Planungsentscheidung, keine Vorgabe aus §5.2). Staffelrekorde sind enthalten, mit den Namen der Staffelmitglieder
+(`RelayTeamMember`) genauso unverlinkt wie Einzelnamen (§2.3) — anders als Phase 4, wo Staffeln allein aus einer
+Datenmodell-Lücke fehlten (kein `RelayResult`), existieren Staffel-`SwimRecord`s tatsächlich. Ungepaginiert: ein
+Rekordbrett ist ein Nachschlagewerk, keine Feed-Liste (Planungsentscheidung Phase 5) — das weicht vom ursprünglich in
+`docs/accessibility.md` vorgesehenen Bahnlänge-über-Bewerb-Matrix-Layout ab; die dortige Beispielangabe wurde
+entsprechend korrigiert (siehe dort). Der Sportklassen-Filter ist ein `<select>` mit den in der gewählten Rekordebene
+tatsächlich vorkommenden Klassen (`PublicRecordService::availableSportClasses()`) statt Freitext — und zeigt nur die
+Klassifizierungsnummer ("9"), nicht den vollen `sport_class`-Code: `sport_class` trägt die Lage mit (S9/SB9/SM9 für
+dieselbe Klassifizierung in Freistil/Brust/Lagen), Nutzer denken aber in "Klasse 9". Die Auswahl "9"
+filtert serverseitig gegen alle drei Varianten dieser Nummer (`PublicRecordService::forFilter()`), nicht gegen einen
+einzelnen `sport_class`-Wert — ursprünglich falsch gebaut (S/SB/SM als eigene Dropdown-Einträge) und in der Review-Runde
+korrigiert.
+
+Ursprünglich eine einzige flache Tabelle, sortiert nach Sportklasse zuerst und Schwimmart zuletzt (alphabetisch) — laut
+Rückmeldung unübersichtlich, weil die fünf Lagen dadurch quer durch die Liste verstreut waren. Umgebaut auf
+`PublicRecordService::groupByStroke()`: eine Tabelle je Schwimmart, in Verbandsreihenfolge Freistil → Rücken → Brust →
+Schmetterling → Lagen (dieselbe Reihenfolge wie `QualifyingTimeListController::groupByStroke()`, hier dupliziert statt
+geteilt — im Bestand existiert keine gemeinsame Stroke-Order-Stelle). Der Sortierschlüssel setzt Schwimmart vor Distanz
+vor Sportklasse vor Geschlecht; `groupBy()` erhält die Eingabereihenfolge der Gruppen, sodass die Gruppenüberschriften
+ohne zweite Sortierung in derselben Reihenfolge erscheinen. Die "Disziplin"-Spalte entfiel zu Gunsten einer
+"Distanz"-Spalte — die Schwimmart steht jetzt in der Gruppenüberschrift, ihre Wiederholung in jeder Zeile war redundant.
+PDF-Export zieht dieselbe Gruppierung (eigener `<h2>` + eigene `<table>` je Schwimmart, wie
+`qualifying-times.blade.php`), damit Bildschirm und PDF gleich aussehen.
+
+Der interne `RecordExportController` liefert entgegen der ursprünglichen Annahme in dieser Tabelle **nur** LENEX, kein
+PDF — der PDF-Export existierte im gesamten Projekt noch nicht und wurde hier neu gebaut
+(`resources/views/pdf/public-records.blade.php`, nach dem bestehenden Muster wie `wps-ranking.blade.php`, aber — anders
+als die rein internen PDF-Views — locale-bewusst über `public.records.*`). Der LENEX-Export übernimmt
+`RecordLenexExportService::build()` unverändert und kennt dadurch keine Sportklassen-Eingrenzung (der Service filtert
+nur nach `record_type`, Bahn und Geschlecht) — eine LENEX-Rekorddatei ist als vollständige Bestenliste einer Ebene fürs
+Meldeprogramm gedacht, keine Ein-Klassen-Auswahl, die Einschränkung ist also unschädlich. Der PDF-Export nutzt
+stattdessen `PublicRecordService::forFilter()` direkt und respektiert damit den vollständigen Filter, einschließlich
+Sportklasse.
+
+**Tests** (`public-p5`, alle grün): Regionalfilter je Landesverband, Jugend-Umschalter wechselt `record_type`, nur
+`APPROVED`+aktuell sichtbar (PENDING/INVALID/History/TARGETTIME nicht), Staffelrekorde mit Mitgliedsnamen, Namen
+generell nie in `<a>`-Tags, `PublicRecordService::availableSportClasses()` grenzt auf den record_type ein,
+Sportklassen-Filter grenzt serverseitig ein (S/SB/SM einer Nummer gemeinsam), `groupByStroke()` liefert die
+Verbandsreihenfolge Frei/Rücken/Brust/Fly/Lagen, Schwimmart-Überschriften erscheinen in dieser Reihenfolge auf der
+Seite, LENEX-Export strukturell gültig (Well-formed-XML,
+`RECORDLIST[@type]`), LENEX-Export bewusst ohne Sportklassen-Eingrenzung, PDF-Export liefert `application/pdf` und
+respektiert die Sportklasse, `PublicRecordFilter::fromQuery()` fällt bei unbekannten Werten auf den Standard zurück,
+Vereins-Kurzname wird bevorzugt angezeigt, Ort erscheint mit Flagge, nur wenn `meet_nation_id` gesetzt ist (sonst reiner
+Text). Zusätzlich `tests/Unit/RecordCheckerServiceTest.php`: `meet_nation_id` wird vom `Meet::nation_id` des
+zugrundeliegenden Ergebnisses übernommen.
+
+Nachträglich zwei Rückmeldungen aus der Review-Runde umgesetzt: Erstens zeigte `SwimRecord::record_club_name` bei
+vorhandenem Kurznamen bisher trotzdem den vollen Vereinsnamen (`name` vor `short_name`) — umgestellt auf
+`Club::display_name` (`short_name ?? name`), dasselbe Muster wie schon bei den Ergebnissen in Phase 4
+(`Result::club->display_name`). Zweitens fehlte eine "Ort"-Spalte.
+
+Erster Anlauf dafür nutzte `SwimRecord::nation` als Flaggen-Nation — dieselbe Relation, die auch der bestehende
+LENEX-Export für `MEETINFO[nation]` heranzieht. Beim Testen stellte sich heraus, dass das für jede einzige Zeile
+dieselbe AUT-Flagge zeigte: `nation_id` trägt in diesem Bestand nicht das Austragungsland, sondern die Nation, für die
+der Rekord zählt (`RecordImportService::import()` setzt sie hart auf `AUT`) — im öffentlichen, auf Österreich
+beschränkten Rekordbrett zwangsläufig immer derselbe Wert. Auf Nutzerrückfrage neues Feld angelegt, statt die Flagge zu
+entfernen: `swim_records.meet_nation_id` (Migration
+`2026_08_22_100001_add_meet_nation_id_to_swim_records_table.php`, nullable FK auf `nations`,
+`SwimRecord::meetNation()`), getrennt von `nation()`. Österreichische Rekorde werden regelmäßig im Ausland aufgestellt
+(WM, EM, Paralympics) — ein Feld, das tatsächlich variiert, macht die Flagge erst sinnvoll.
+
+Befüllung an zwei Stellen: `RecordCheckerService` (Rekorde aus im System erfassten `Result`/`Meet`) übernimmt
+`$result->meet?->nation_id` direkt — zuverlässigste Quelle, da `Meet` bereits ein strukturiertes Gastgeberland trägt
+(dieselbe Relation, die Phase 4 schon für die Flagge auf den Veranstaltungsseiten nutzt). `RecordImportService`
+(LENEX-Import historischer Rekorde) liest zusätzlich das `MEETINFO@nation`-Attribut aus der LENEX-Datei. Manuell im
+Adminbereich angelegte Rekorde (`RecordController::storeManual()`) bekommen ein drittes, optionales Auswahlfeld
+"Austragungsland" im Formular (`records/form.blade.php`), analog zum bestehenden `nation_id`-Feld — ohne dieses bleiben
+sie ohne Flagge, wie jeder Rekord ohne erfasstes `meet_nation_id` (kein Backfill für Altbestand).
+
+Bildschirm zeigt `meet_city` mit vorangestellter Flagge (`<x-flag>`, wie schon bei den Veranstaltungsseiten), sofern
+`meetNation` gesetzt ist — sonst bleibt der Ort als reiner Text stehen, keine Platzhalter-Flagge. Im PDF (dompdf, keine
+externe Flag-Icons-CDN) steht der Nationscode stattdessen als Text in Klammern hinter dem Ort (`Ort (AUT)`), wie auch
+sonst im internen Bereich Nationscodes textuell dargestellt werden (`records/show.blade.php`, dort ebenfalls um
+`meetNation` ergänzt). Um die Tabelle dabei nicht zu überladen: keine zusätzliche Spaltenbreite verschwendet, die Zelle
+bleibt kompakt (kleine Flagge + kurzer Ortsname, `whitespace-nowrap`), und der ohnehin vorhandene
+`overflow-x-auto`-Container fängt schmale Viewports ab.
+
+**Bewusst nicht gemacht:** `RecordLenexExportService` (LENEX-Export, `MEETINFO@nation`) weiterhin unverändert auf
+`nation`/`athlete.nation` — dieselbe Ungenauigkeit besteht dort also fort. Der Export ist als vollständige,
+maschinenlesbare Bestenliste fürs Meldeprogramm gedacht, keine menschliche Ortsanzeige; eine Umstellung dort würde einen
+unabhängig getesteten, nicht auf Phase 5 beschränkten Service anfassen und war nicht Teil dieser Rückmeldung.
 
 ---
 
