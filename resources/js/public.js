@@ -6,6 +6,8 @@ import baseTimeTabs from './base-time-tabs';
 import baseTimeMobileClass from './base-time-mobile-class';
 import pointCalculator from './point-calculator';
 import navDropdown from './nav-dropdown';
+import tableSearch from './table-search';
+import rankingFilter from './ranking-filter';
 
 // Eigener Vite-Entry ohne Livewire (Spec public-frontend §3.1): Anders als in app.js gibt es
 // hier keine bereits gestartete Alpine-Instanz, an die angedockt werden könnte — Alpine muss
@@ -28,6 +30,8 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('baseTimeMobileClass', baseTimeMobileClass);
     Alpine.data('pointCalculator', pointCalculator);
     Alpine.data('navDropdown', navDropdown);
+    Alpine.data('tableSearch', tableSearch);
+    Alpine.data('rankingFilter', rankingFilter);
 });
 
 Alpine.start();

@@ -52,49 +52,58 @@
                 <div class="space-y-1">
                     <label for="gender"
                            class="inline-block text-sm font-medium">{{ __('public.wps_point_calculator.fields.gender') }}</label>
-                    <select id="gender" name="gender"
-                            class="block w-full rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
-                        <option
-                            value="M" @selected($gender === 'M')>{{ __('public.wps_point_calculator.gender.M') }}</option>
-                        <option
-                            value="F" @selected($gender === 'F')>{{ __('public.wps_point_calculator.gender.F') }}</option>
-                    </select>
+                    <div class="relative">
+                        <select id="gender" name="gender"
+                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            <option
+                                value="M" @selected($gender === 'M')>{{ __('public.wps_point_calculator.gender.M') }}</option>
+                            <option
+                                value="F" @selected($gender === 'F')>{{ __('public.wps_point_calculator.gender.F') }}</option>
+                        </select>
+                        <x-select-chevron/>
+                    </div>
                 </div>
 
                 <div class="space-y-1">
                     <label for="discipline_id"
                            class="inline-block text-sm font-medium">{{ __('public.wps_point_calculator.fields.discipline') }}</label>
-                    <select id="discipline_id" name="discipline_id" required
-                            class="block w-full rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
-                        <option
-                            value="" @selected(! $selectedDisciplineId)>{{ __('public.wps_point_calculator.fields.sport_class_select') }}</option>
-                        @foreach ($disciplines as $discipline)
-                            @php
-                                $strokeName = app()->getLocale() === 'de'
-                                    ? $discipline->strokeType->name_de
-                                    : ($discipline->strokeType->name_en ?? $discipline->strokeType->name_de);
-                                $value = $discipline->stroke_type_id.':'.$discipline->distance;
-                            @endphp
-                            <option value="{{ $value }}" @selected($selectedDisciplineId === $value)>
-                                {{ $discipline->distance }}m {{ $strokeName }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="relative">
+                        <select id="discipline_id" name="discipline_id" required
+                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            <option
+                                value="" @selected(! $selectedDisciplineId)>{{ __('public.wps_point_calculator.fields.sport_class_select') }}</option>
+                            @foreach ($disciplines as $discipline)
+                                @php
+                                    $strokeName = app()->getLocale() === 'de'
+                                        ? $discipline->strokeType->name_de
+                                        : ($discipline->strokeType->name_en ?? $discipline->strokeType->name_de);
+                                    $value = $discipline->stroke_type_id.':'.$discipline->distance;
+                                @endphp
+                                <option value="{{ $value }}" @selected($selectedDisciplineId === $value)>
+                                    {{ $discipline->distance }}m {{ $strokeName }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-select-chevron/>
+                    </div>
                 </div>
 
                 <div class="space-y-1">
                     <label for="sport_class"
                            class="inline-block text-sm font-medium">{{ __('public.wps_point_calculator.fields.sport_class') }}</label>
-                    <select id="sport_class" name="sport_class" required
-                            class="block w-full rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
-                        <option
-                            value="" @selected(! $selectedSportClass)>{{ __('public.wps_point_calculator.fields.sport_class_select') }}</option>
-                        @foreach ($sportClassNumbers as $number)
-                            <option value="{{ $number }}" @selected((string) $selectedSportClass === (string) $number)>
-                                S{{ $number }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="relative">
+                        <select id="sport_class" name="sport_class" required
+                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            <option
+                                value="" @selected(! $selectedSportClass)>{{ __('public.wps_point_calculator.fields.sport_class_select') }}</option>
+                            @foreach ($sportClassNumbers as $number)
+                                <option value="{{ $number }}" @selected((string) $selectedSportClass === (string) $number)>
+                                    S{{ $number }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-select-chevron/>
+                    </div>
                 </div>
 
                 <div class="space-y-1" x-show="showTime()">

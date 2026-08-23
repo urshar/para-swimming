@@ -140,6 +140,50 @@
                         </a>
                     </div>
                 </div>
+
+                {{-- Untermenü "Ranglisten": Cup-Wertung, Startberechtigung, Jahresbestleistungen
+                     (Phase 7) — dieselbe Untermenü-Komponente wie "Punkte" oben, aus demselben
+                     Grund (Kopfzeile wächst mit jeder neuen Seite). --}}
+                <div class="relative" x-data="navDropdown()" x-on:keydown.escape.window="close()">
+                    <a href="{{ route('public.cup-ranking.index', ['locale' => app()->getLocale()]) }}"
+                       x-ref="trigger"
+                       x-on:click.prevent="toggle()"
+                       x-on:keydown="onTriggerKeydown($event)"
+                       x-bind:aria-expanded="open.toString()"
+                       aria-haspopup="true"
+                       @if (request()->routeIs('public.cup-ranking.*', 'public.qualifying-times.*', 'public.annual-best.*')) aria-current="page"
+                       @endif
+                       class="inline-flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
+                        {{ __('public.nav.rankings') }}
+                        <svg x-bind:class="open ? 'rotate-180' : ''" class="h-3 w-3 transition-transform"
+                             viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                            <path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" stroke-width="1.5"
+                                  stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                    <div x-ref="panel"
+                         x-show="open"
+                         x-on:click.outside="close()"
+                         x-on:keydown="onPanelKeydown($event)"
+                         aria-label="{{ __('public.nav.rankings') }}"
+                         class="absolute inset-s-0 z-10 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                        <a href="{{ route('public.cup-ranking.index', ['locale' => app()->getLocale()]) }}"
+                           @if (request()->routeIs('public.cup-ranking.*')) aria-current="page" @endif
+                           class="block px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 hover:text-blue-600 aria-[current]:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-700/50 dark:hover:text-blue-400 dark:aria-[current]:text-blue-400">
+                            {{ __('public.nav.cup') }}
+                        </a>
+                        <a href="{{ route('public.qualifying-times.index', ['locale' => app()->getLocale()]) }}"
+                           @if (request()->routeIs('public.qualifying-times.*')) aria-current="page" @endif
+                           class="block px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 hover:text-blue-600 aria-[current]:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-700/50 dark:hover:text-blue-400 dark:aria-[current]:text-blue-400">
+                            {{ __('public.nav.qualifying_times') }}
+                        </a>
+                        <a href="{{ route('public.annual-best.index', ['locale' => app()->getLocale()]) }}"
+                           @if (request()->routeIs('public.annual-best.*')) aria-current="page" @endif
+                           class="block px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 hover:text-blue-600 aria-[current]:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-700/50 dark:hover:text-blue-400 dark:aria-[current]:text-blue-400">
+                            {{ __('public.nav.annual_best') }}
+                        </a>
+                    </div>
+                </div>
             </nav>
 
             <div role="group" aria-label="{{ __('public.theme.label') }}" class="flex gap-1" x-data="theme()">
@@ -227,6 +271,21 @@
                @if (request()->routeIs('public.wps-point-calculator.*')) aria-current="page" @endif
                class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
                 {{ __('public.nav.wps_point_calculator') }}
+            </a>
+            <a href="{{ route('public.cup-ranking.index', ['locale' => app()->getLocale()]) }}"
+               @if (request()->routeIs('public.cup-ranking.*')) aria-current="page" @endif
+               class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                {{ __('public.nav.cup') }}
+            </a>
+            <a href="{{ route('public.qualifying-times.index', ['locale' => app()->getLocale()]) }}"
+               @if (request()->routeIs('public.qualifying-times.*')) aria-current="page" @endif
+               class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                {{ __('public.nav.qualifying_times') }}
+            </a>
+            <a href="{{ route('public.annual-best.index', ['locale' => app()->getLocale()]) }}"
+               @if (request()->routeIs('public.annual-best.*')) aria-current="page" @endif
+               class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                {{ __('public.nav.annual_best') }}
             </a>
         </nav>
     </nav>

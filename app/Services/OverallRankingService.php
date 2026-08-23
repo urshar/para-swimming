@@ -6,7 +6,9 @@ use App\Models\AgeGroup;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
 use App\Models\CupOverallResult;
+use App\Models\Meet;
 use App\Models\SportClassGroup;
+use App\Support\SportRankAssigner;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -76,11 +78,70 @@ readonly class OverallRankingService
     }
 
     /**
+     * Alle echten Wertungskategorien eines Cups, je mit gerankter Athletenliste inklusive
+     * Runden-Aufschlüsselung (attachRoundBreakdown()) — von CupOverallRankingController (intern)
+     * und Public\CupRankingController (öffentlich, baut hierauf zusätzlich die Sammel-Varianten
+     * "Alle Klassen"/"Damen & Herren" auf, siehe rankedAcrossGroups()) gemeinsam genutzt, damit
+     * diese Zusammenstellung nicht doppelt ausprogrammiert ist.
+     *
+     * @param  EloquentCollection<int, Meet>  $meets  siehe cupMeets(), einmal pro Cup ermittelt
+     * @return Collection<int, array{gender: ?string, group: SportClassGroup, ageGroup: ?AgeGroup, results: Collection<int, CupOverallResult>}>
+     */
+    public function rankedBrackets(Cup $cup, EloquentCollection $meets): Collection
+    {
+        return $this->brackets($cup)
+            ->map(function (array $bracket) use ($cup, $meets) {
+                $results = $this->rankedBracket(
+                    $cup->id, $bracket['gender'], $bracket['group']->id, $bracket['ageGroup']?->id
+                );
+
+                return [
+                    'gender' => $bracket['gender'],
+                    'group' => $bracket['group'],
+                    'ageGroup' => $bracket['ageGroup'],
+                    'results' => $this->attachRoundBreakdown($results, $cup, $meets),
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * Wie rankedBracket(), aber ohne Einschränkung auf eine einzelne Sportklassengruppe — für die
+     * öffentliche Sammel-Ansicht "Alle Klassen" (Rückmeldung: "ich meinte, dass alle gemeinsam
+     * über die Punkte gewertet werden"). Da ÖBSV-/WPS-Punkte klassenübergreifend vergleichbar
+     * sind (genau dafür wurden sie eingeführt), ist ein nachträgliches Zusammenlegen bereits
+     * berechneter cup_overall_results-Zeilen mehrerer Sportklassengruppen und Neu vergeben des
+     * Rangs (SportRankAssigner, dieselbe Tie-Break-Regel) gleichwertig zu einer von vornherein
+     * klassenübergreifend gewerteten Bucket-Berechnung — die Punkte selbst hängen nicht von der
+     * Bucket-Zuordnung ab, nur die Rang-Konkurrenz.
+     *
+     * $gender = null bedeutet — wie bei rankedBracket() — kein Geschlechtsfilter (Damen und
+     * Herren gemeinsam).
+     *
+     * @return Collection<int, CupOverallResult>
+     */
+    public function rankedAcrossGroups(int $cupId, ?string $gender, ?int $ageGroupId): Collection
+    {
+        $rows = CupOverallResult::where('cup_id', $cupId)
+            ->when($gender !== null, fn ($q) => $q->where('gender', $gender))
+            ->when(
+                $ageGroupId === null,
+                fn ($q) => $q->whereNull('age_group_id'),
+                fn ($q) => $q->where('age_group_id', $ageGroupId)
+            )
+            ->with(['athlete', 'club', 'sportClassGroup', 'ageGroup'])
+            ->orderByDesc('total_points')
+            ->get();
+
+        return $this->assignRanks($rows);
+    }
+
+    /**
      * Ermittelt die Wertungskategorien (Brackets) eines Cups dynamisch aus dem
      * vorhandenen Snapshot: Sportklassengruppe × Altersgruppe × Geschlecht.
      *
      * Es werden ausschließlich Kombinationen geliefert, für die tatsächlich
-     * Gesamtwertungs-Zeilen existieren. Ist für eine Sportklassengruppe die
+     * Gesamtwertungszeilen existieren. Ist für eine Sportklassengruppe die
      * gemeinsame Damen-/Herren-Wertung aktiviert (Cup::isGenderCombined), wird
      * daraus ein einziges Bracket mit gender = null.
      *
@@ -122,6 +183,64 @@ readonly class OverallRankingService
                 $bracket['ageGroup']?->sort_order ?? 999
             ))
             ->values();
+    }
+
+    /**
+     * Alle Meets dieses Cups in zeitlicher Reihenfolge — die "Runden" der
+     * Gesamtwertungstabelle. Öffentlich, da sowohl die interne
+     * (CupOverallRankingController) als auch die öffentliche
+     * (Public\CupRankingController) Gesamtwertungsansicht dieselbe
+     * Runden-Aufschlüsselung zeigen (attachRoundBreakdown()).
+     *
+     * @return EloquentCollection<int, Meet>
+     */
+    public function cupMeets(Cup $cup): EloquentCollection
+    {
+        return Meet::where('cup_id', $cup->id)->oldest('start_date')->get(['id', 'name', 'start_date']);
+    }
+
+    /**
+     * Ergänzt jede Gesamtwertungszeile um eine "rounds"-Aufschlüsselung (eine
+     * pro Meet des Cups), damit Nutzer die Punkte je Runde nachvollziehen
+     * können. Nutzt counted_meet_ids, um zu markieren, welche Runden
+     * tatsächlich in die Gesamtpunkte eingeflossen sind (beste X, Punkt 10).
+     * Bewusst über meet_id statt über cup_daily_results.id verglichen — Letztere
+     * werden bei jeder Neuberechnung der Tageswertung neu vergeben (Zeilen
+     * werden gelöscht und neu angelegt), meet_id bleibt dagegen stabil.
+     *
+     * @param  Collection<int, CupOverallResult>  $rankedResults
+     * @param  EloquentCollection<int, Meet>  $meets  siehe cupMeets(), einmal pro Cup ermittelt
+     * @return Collection<int, CupOverallResult>
+     */
+    public function attachRoundBreakdown(Collection $rankedResults, Cup $cup, EloquentCollection $meets): Collection
+    {
+        if ($rankedResults->isEmpty()) {
+            return $rankedResults;
+        }
+
+        $dailyByAthlete = CupDailyResult::where('cup_id', $cup->id)
+            ->whereIn('athlete_id', $rankedResults->pluck('athlete_id'))
+            ->whereIn('meet_id', $meets->pluck('id'))
+            ->with('result:id,sport_class')
+            ->get(['id', 'meet_id', 'athlete_id', 'points', 'result_id'])
+            ->groupBy('athlete_id');
+
+        return $rankedResults->map(function (CupOverallResult $row) use ($meets, $dailyByAthlete) {
+            $countedMeetIds = collect($row->counted_meet_ids ?? []);
+            $athleteDailyByMeet = ($dailyByAthlete[$row->athlete_id] ?? collect())->keyBy('meet_id');
+
+            $row->rounds = $meets->map(function (Meet $meet) use ($athleteDailyByMeet, $countedMeetIds) {
+                $daily = $athleteDailyByMeet->get($meet->id);
+
+                return [
+                    'points' => $daily?->points,
+                    'sport_class' => $daily?->result?->sport_class,
+                    'counted' => $daily !== null && $countedMeetIds->contains($meet->id),
+                ];
+            });
+
+            return $row;
+        });
     }
 
     /**
@@ -176,25 +295,6 @@ readonly class OverallRankingService
      */
     private function assignRanks(Collection $rowsSortedByPointsDesc): Collection
     {
-        $rank = 0;
-        $position = 0;
-        $previousPoints = null;
-
-        return $rowsSortedByPointsDesc->map(function (CupOverallResult $row) use (
-            &$rank,
-            &$position,
-            &$previousPoints
-        ) {
-            $position++;
-
-            if ($previousPoints === null || $row->total_points < $previousPoints) {
-                $rank = $position;
-            }
-
-            $previousPoints = $row->total_points;
-            $row->rank = $rank;
-
-            return $row;
-        });
+        return SportRankAssigner::assign($rowsSortedByPointsDesc, fn (CupOverallResult $row) => $row->total_points);
     }
 }

@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\Public\AnnualBestController;
 use App\Http\Controllers\Public\BaseTimeTableController;
+use App\Http\Controllers\Public\CupRankingController;
 use App\Http\Controllers\Public\DocumentDownloadController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\MeetController;
 use App\Http\Controllers\Public\MeetResultController;
 use App\Http\Controllers\Public\PointCalculatorController;
+use App\Http\Controllers\Public\QualifyingTimeController;
 use App\Http\Controllers\Public\RecordController;
 use App\Http\Controllers\Public\RecordExportController;
 use App\Http\Controllers\Public\WpsPointCalculatorController;
@@ -66,4 +69,15 @@ Route::prefix('{locale}')
         Route::get('punkterechner', [PointCalculatorController::class, 'index'])->name('public.point-calculator.index');
         Route::get('wps-punkterechner', [WpsPointCalculatorController::class, 'index'])
             ->name('public.wps-point-calculator.index');
+
+        // Jahr optional: ohne Angabe (Nav-Link) löst der Controller das aktuellste verfügbare
+        // Jahr auf, die Jahresauswahl auf der Seite selbst führt danach auf die volle URL.
+        Route::get('cup/{jahr?}', [CupRankingController::class, 'index'])
+            ->where('jahr', '[0-9]+')
+            ->name('public.cup-ranking.index');
+        Route::get('startberechtigung', [QualifyingTimeController::class, 'index'])
+            ->name('public.qualifying-times.index');
+        Route::get('bestleistungen/{jahr?}', [AnnualBestController::class, 'index'])
+            ->where('jahr', '[0-9]+')
+            ->name('public.annual-best.index');
     });

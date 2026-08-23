@@ -23,44 +23,56 @@
     <form method="GET" class="mt-6 flex flex-wrap items-end gap-4" aria-label="{{ __('public.records.filter.heading') }}">
         <div class="space-y-1">
             <label for="association" class="inline-block text-sm font-medium">{{ __('public.records.filter.level') }}</label>
-            <select id="association" name="association"
-                    class="block w-56 rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
-                <option value="" @selected($filter->association === '')>{{ __('public.records.filter.level_national') }}</option>
-                @foreach ($associations as $code => $name)
-                    <option value="{{ $code }}" @selected($filter->association === $code)>{{ $code }} &ndash; {{ $name }}</option>
-                @endforeach
-            </select>
+            <div class="relative">
+                <select id="association" name="association"
+                        class="block w-56 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                    <option value="" @selected($filter->association === '')>{{ __('public.records.filter.level_national') }}</option>
+                    @foreach ($associations as $code => $name)
+                        <option value="{{ $code }}" @selected($filter->association === $code)>{{ $code }} &ndash; {{ $name }}</option>
+                    @endforeach
+                </select>
+                <x-select-chevron/>
+            </div>
         </div>
 
         <div class="space-y-1">
             <label for="sport_class" class="inline-block text-sm font-medium">{{ __('public.records.filter.sport_class') }}</label>
-            <select id="sport_class" name="sport_class"
-                    class="block w-32 rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
-                <option value="" @selected($filter->sportClass === '')>{{ __('public.records.filter.sport_class_all') }}</option>
-                @foreach ($sportClasses as $class)
-                    <option value="{{ $class }}" @selected($filter->sportClass === $class)>{{ $class }}</option>
-                @endforeach
-            </select>
+            <div class="relative">
+                <select id="sport_class" name="sport_class"
+                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                    <option value="" @selected($filter->sportClass === '')>{{ __('public.records.filter.sport_class_all') }}</option>
+                    @foreach ($sportClasses as $class)
+                        <option value="{{ $class }}" @selected($filter->sportClass === $class)>{{ $class }}</option>
+                    @endforeach
+                </select>
+                <x-select-chevron/>
+            </div>
         </div>
 
         <div class="space-y-1">
             <label for="gender" class="inline-block text-sm font-medium">{{ __('public.records.filter.gender') }}</label>
-            <select id="gender" name="gender"
-                    class="block w-32 rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
-                <option value="" @selected($filter->gender === '')>{{ __('public.records.filter.gender_all') }}</option>
-                <option value="M" @selected($filter->gender === 'M')>{{ __('public.records.gender.M') }}</option>
-                <option value="F" @selected($filter->gender === 'F')>{{ __('public.records.gender.F') }}</option>
-            </select>
+            <div class="relative">
+                <select id="gender" name="gender"
+                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                    <option value="" @selected($filter->gender === '')>{{ __('public.records.filter.gender_all') }}</option>
+                    <option value="M" @selected($filter->gender === 'M')>{{ __('public.records.gender.M') }}</option>
+                    <option value="F" @selected($filter->gender === 'F')>{{ __('public.records.gender.F') }}</option>
+                </select>
+                <x-select-chevron/>
+            </div>
         </div>
 
         <div class="space-y-1">
             <label for="course" class="inline-block text-sm font-medium">{{ __('public.records.filter.course') }}</label>
-            <select id="course" name="course"
-                    class="block w-36 rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
-                <option value="" @selected($filter->course === '')>{{ __('public.records.filter.course_all') }}</option>
-                <option value="LCM" @selected($filter->course === 'LCM')>LCM (50m)</option>
-                <option value="SCM" @selected($filter->course === 'SCM')>SCM (25m)</option>
-            </select>
+            <div class="relative">
+                <select id="course" name="course"
+                        class="block w-36 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                    <option value="" @selected($filter->course === '')>{{ __('public.records.filter.course_all') }}</option>
+                    <option value="LCM" @selected($filter->course === 'LCM')>LCM (50m)</option>
+                    <option value="SCM" @selected($filter->course === 'SCM')>SCM (25m)</option>
+                </select>
+                <x-select-chevron/>
+            </div>
         </div>
 
         <div class="flex items-center gap-2 pb-2">
@@ -69,8 +81,11 @@
             <label for="youth" class="text-sm font-medium">{{ __('public.records.filter.youth') }}</label>
         </div>
 
+        {{-- ml-auto: an den rechten Rand der Zeile statt nur "letztes Element" — sonst bleibt bei
+             viel Platz in der Zeile eine sichtbare Lücke bis zum tatsächlichen rechten Rand
+             (dieselbe Rückmeldung wie bei der Startberechtigung, siehe public/qualifying-times/index). --}}
         <button type="submit"
-                class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
+                class="ml-auto inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
             {{ __('public.records.filter.submit') }}
         </button>
     </form>

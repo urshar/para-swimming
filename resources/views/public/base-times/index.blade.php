@@ -43,13 +43,19 @@
     <form method="GET" class="mt-6 flex flex-wrap items-end gap-4" aria-label="{{ __('public.base_times.course') }}">
         <div class="space-y-1">
             <label for="course" class="inline-block text-sm font-medium">{{ __('public.base_times.course') }}</label>
-            <select id="course" name="course" onchange="this.form.submit()"
-                    class="block w-36 rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
-                <option value="LCM" @selected($course === 'LCM')>LCM (50m)</option>
-                <option value="SCM" @selected($course === 'SCM')>SCM (25m)</option>
-            </select>
+            <div class="relative">
+                <select id="course" name="course" onchange="this.form.submit()"
+                        class="block w-36 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                    <option value="LCM" @selected($course === 'LCM')>LCM (50m)</option>
+                    <option value="SCM" @selected($course === 'SCM')>SCM (25m)</option>
+                </select>
+                <x-select-chevron/>
+            </div>
         </div>
-        <noscript>
+        {{-- ml-auto auf dem noscript-Element selbst (nicht dem Button): im Flex-Container ist
+             <noscript> der tatsächliche Flex-Item, der Button nur dessen Kind — siehe
+             public/qualifying-times/index für die Begründung des rechtsbündigen Buttons. --}}
+        <noscript class="ml-auto">
             <button type="submit"
                     class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
                 {{ __('public.records.filter.submit') }}
@@ -158,12 +164,15 @@
                         <label for="mobile-class-{{ $code }}" class="inline-block text-sm font-medium">
                             {{ __('public.base_times.mobile.select_class') }}
                         </label>
-                        <select id="mobile-class-{{ $code }}" x-model="mobileClass"
-                                class="mt-1 block w-full rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
-                            @foreach ($group->rows as $row)
-                                <option value="{{ $row->sportClass->code }}">{{ $row->sportClass->code }}</option>
-                            @endforeach
-                        </select>
+                        <div class="relative mt-1">
+                            <select id="mobile-class-{{ $code }}" x-model="mobileClass"
+                                    class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                @foreach ($group->rows as $row)
+                                    <option value="{{ $row->sportClass->code }}">{{ $row->sportClass->code }}</option>
+                                @endforeach
+                            </select>
+                            <x-select-chevron/>
+                        </div>
 
                         @foreach ($group->rows as $row)
                             <div x-show="mobileClass === '{{ $row->sportClass->code }}'" class="mt-4">

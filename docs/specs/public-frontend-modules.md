@@ -461,11 +461,11 @@ Erneut gegen die Dev-Datenbank verifiziert (1000/626 Punkte, dieselben Werte wie
   fordern seither explizit `course=LCM` an — sie prüfen Versions-Scoping/Kopfzeilen/mobile Ansicht, nicht die
   Bahn-Vorgabe selbst, daher unverändert in der Sache.
 - **Punktetabelle: zweite Trennlinie neben der Sportklassen-Spalte.** Zusätzlich zur bestehenden Trennlinie zwischen
-  Herren- und Damen-Spaltenblock nun auch eine (`border-r-2`) zwischen der Sportklassen-Spalte und dem Herren-Block —
-  in der Kopfzeile (`corner-{code}`) und je Zeile (`row-{code}-{id}`, Rückmeldung: "sieht besser aus").
-- **WPS-Punkterechner: Sportklassen-Liste wie beim ÖBSV-Rechner.** Die Optionen zeigten bisher nur die nackte Zahl
-  (`1`, `2`, … `21`), der ÖBSV-Punkterechner dagegen den vollen Code (`S1`, `S2`, … `S21`) — dieselbe Uneinheitlichkeit
-  wie bei den zwei Rechnern generell (Rückmeldung). Angeglichen: die Optionen zeigen jetzt `S{{ $number }}` als reines
+  Herren- und Damen-Spaltenblock nun auch eine (`border-r-2`) zwischen der Sportklassen-Spalte und dem Herren-Block — in
+  der Kopfzeile (`corner-{code}`) und je Zeile (`row-{code}-{id}`, Rückmeldung: "sieht besser aus").
+- **WPS-Punkterechner: Sportklassen-Liste wie beim ÖBSV-Rechner.** Die Optionen zeigten bisher nur die nackte Zahl (`1`,
+  `2`, … `21`), der ÖBSV-Punkterechner dagegen den vollen Code (`S1`, `S2`, … `S21`) — dieselbe Uneinheitlichkeit wie
+  bei den zwei Rechnern generell (Rückmeldung). Angeglichen: die Optionen zeigen jetzt `S{{ $number }}` als reines
   Label; der `<option value>` bleibt die nackte Zahl, der Controller leitet die tatsächliche WPS-Kategorie (S/SB/SM)
   weiterhin aus dem gewählten Bewerb ab (`STROKE_CATEGORY_MAP`) — unverändert in der Berechnung, nur die Anzeige zieht
   mit dem ÖBSV-Rechner gleich.
@@ -475,7 +475,7 @@ SCM sichtbar, `S1`…`S21` im WPS-Rechner, Trennlinie im HTML vorhanden).
 
 ---
 
-## Phase 7 — Ranglisten
+## Phase 7 — Ranglisten — **abgeschlossen**
 
 | Baustein                          | Art        | Zweck                  |
 |-----------------------------------|------------|------------------------|
@@ -492,6 +492,318 @@ Cup-Modul bzw. `SportClassSorter` nutzen. Suchfelder filtern nur die geladene Ta
 
 **Tests** (`public-p7`): EXH bleibt draußen, Staffeln bleiben draußen, genau eine Zeile je Person, Jahresgrenzen,
 Gruppenzuordnung.
+
+### Umsetzung
+
+Zwei Extraktionen aus dem internen Bereich, jeweils verhaltensgleich (bestehende interne Testsuiten bleiben grün), bevor
+die neuen Controller geschrieben wurden:
+
+- `App\Support\DisabilityGroupGrouper` (`byGroupThenStroke()`/`byStroke()`) — aus
+  `QualifyingTimeListController::groupByDisabilityGroupAndStroke()`/`groupByStroke()` gezogen (dort ursprünglich
+  `private`), damit `Public\QualifyingTimeController` dieselbe Gliederung (Behinderungsgruppe → Bewerb) nutzt statt sie
+  zu duplizieren.
+- `App\Support\SportRankAssigner` (`assign()`) — aus `OverallRankingService::assignRanks()` gezogen (Sportwertung:
+  gleiche Punkte = gleicher Rang, nächster Rang überspringt), damit `AnnualBestService` dieselbe Tie-Break-Logik nutzt.
+
+**Cup-Wertung** (`Public\CupRankingController`, `/cup/{jahr?}`): dünner Wrapper um das bestehende
+`OverallRankingService` (`brackets()`/`rankedBracket()`), keine eigene Berechnung. Kein Neu-berechnen-Button und keine
+Runden-Aufschlüsselung wie im internen Bereich (admin-/Nachvollziehbarkeits-Werkzeug, keine öffentliche Anforderung),
+kein PDF-Export (keine eigene Route dafür in der Spec-Routentabelle). Jahresauswahl direkt auf der Seite statt einer
+eigenen Indexseite — die Spec-Routentabelle listet nur eine Route. `{jahr}` ist optional: ohne Angabe (Nav-Link) wird
+das aktuellste Cup-Jahr mit vorhandener Wertung angezeigt.
+
+**Startberechtigung** (`Public\QualifyingTimeController`, `/startberechtigung`): zeigt die `Qualification`-Zeilen
+(Snapshot) der aktuell **aktiven** Richtzeitenliste (`QualifyingTimeList::is_active`), kein Jahres-Parameter — es gibt
+immer nur eine aktuelle Startberechtigung. Eigenständige Neuimplementierung statt Wiederverwendung von
+`QualifyingTimeListController::filteredQualifications()`: bewusst **ohne** dessen Namenssuche — §2.3 Punkt 3 verbietet
+serverseitige Volltextsuche über Personen projektweit, nicht nur bei Cup-Wertung/Jahresbestleistungen. Neuer
+`App\Support\PublicQualificationFilter` (nach dem Muster von `PublicRecordFilter`) mit nur geschlossenen Auswahlfeldern
+(Bewerb, Geschlecht, Sportklasse, Verein); unbekannte Werte fallen still auf "kein Filter" zurück.
+
+**Jahresbestleistungen** (`Public\AnnualBestController` + `AnnualBestService`, `/bestleistungen/{jahr?}`): Filterung der
+Ergebnisse mit `whereNull('status')` (dasselbe "nur reguläre Ergebnisse"-Muster wie
+`QualificationDeterminationService` — schließt EXH und alle anderen Sonderstatus in einem Schritt aus) plus
+`relay_count = 1` und `whereBetween('start_date', [...])` fürs Kalenderjahr (portabel, kein `YEAR()`). Pro Athlet wird
+serverseitig in PHP das punktbeste Ergebnis über alle Bewerbe hinweg ausgewählt, dann per `SportClassGroupMember` der
+Behinderungsgruppe zugeordnet.
+
+**Suchfelder** (Cup-Wertung, Jahresbestleistungen): neue `resources/js/table-search.js`
+(`Alpine.data('tableSearch', …)`) filtert ausschließlich die bereits geladene Tabelle — Zeilen tragen ihren
+durchsuchbaren Text (Name + Verein, kleingeschrieben) in `data-search`, damit keine Blade-Werte in JS-Stringliterale
+eingebettet werden (Namen mit Apostroph wären sonst ein Escaping-Risiko). Ohne JavaScript bleibt das Suchfeld
+wirkungslos, alle Zeilen stehen einfach in der Tabelle.
+
+**Datenschutz**: alle drei Seiten zeigen Name + Sportklasse zusammen → `@section('robots', 'noindex, nofollow')` wie bei
+den Ergebnissen (Phase 4), plus `Disallow`-Einträge in `public/robots.txt`. Namen bleiben überall unverlinkter Text —
+anders als die jeweiligen internen Pendants, die auf `athletes.show` verlinken.
+
+**Navigation**: analog zu "Punkte" aus Phase 6 ein zweites Untermenü "Ranglisten" (dieselbe `navDropdown()`-Komponente,
+zweite Instanz), sonst wäre die Kopfzeile mit drei weiteren Top-Level-Links wieder zu lang geworden.
+
+Verifiziert: Pint grün, `--group=public-p7` 16/16, volle Suite 1353/1353, live gegen die Dev-Datenbank (echte
+Cup-/Startberechtigungs-/Jahresbestleistungs-Daten rendern korrekt, `noindex` gesetzt, keine Namenslinks, `robots.txt`
+greift). Die clientseitige Suchfeld-Filterung und das Auf-/Zuklappen der Untermenüs ließen sich im Browser-Werkzeug
+dieser Umgebung nicht interaktiv nachstellen — derselbe, bereits aus Phase 6 bekannte Sandbox-Umstand (Vite-Dev-Server
+für den Browser-Tab nicht erreichbar, wohl aber per curl); das ausgelieferte JS-Bundle wurde stattdessen per curl gegen
+den Vite-Dev-Server geprüft (kompiliert fehlerfrei, enthält die erwarteten Alpine-Registrierungen).
+
+### Nachträglich: Runden-Aufschlüsselung, Tab-Trennung, kombinierte Jahr-/Suchen-Zeile (Rückmeldung)
+
+Rückmeldung zur Cup-Wertung/Jahresbestleistungen: die Punkte der einzelnen Runden fehlten, zu viele Tabellen standen
+untereinander, Jahresauswahl und Suchfeld sollten in einer Zeile stehen (Jahr links, Suchen rechts).
+
+- **Runden-Aufschlüsselung** (nur Cup-Wertung — Jahresbestleistungen/Startberechtigung kennen keine Runden):
+  `OverallRankingService::cupMeets()`/`attachRoundBreakdown()` — bisher `private` auf
+  `CupOverallRankingController` — wurden in den Service gezogen (verhaltensgleich, interne Testsuite bleibt grün:
+  79/79 über alle `cup-wertung-*`- und `cup-club-ranking-p3`-Gruppen), damit `Public\CupRankingController` dieselbe
+  Runden-je-Meet-Spalte samt Grün/fett-Markierung der tatsächlich gezählten besten Runden zeigt wie der interne
+  Bereich — jetzt aus einer einzigen Quelle statt dupliziert.
+- **Tab-Trennung**: neue generische `resources/js/tab-panels.js` (`Alpine.data('tabPanels', …)`) — dieselbe
+  Reiter-Interaktionslogik wie `base-time-tabs.js` (Punktetabelle, Phase 6), hier mit generischen Tab-Keys statt
+  Lage-Codes, damit sie auch für Wertungskategorien (Cup-Wertung: Geschlecht × Sportklassengruppe × Altersgruppe;
+  Jahresbestleistungen: Geschlecht × Behinderungsgruppe) wiederverwendbar ist, statt für die Punktetabelle eine Kopie zu
+  pflegen. Ersetzt die vorherige Liste untereinander stehender Tabellen auf beiden Seiten. (Für die Cup-Wertung
+  inzwischen durch die Dropdown-/Checkbox-Filterung ersetzt, siehe nächster Abschnitt — Jahresbestleistungen nutzt
+  weiterhin diese Reiter, da dort keine Altersgruppen-Dimension die Tab-Zahl verdoppelt.)
+- **Kombinierte Zeile**: Jahresauswahl-`<form>` und Suchfeld stehen jetzt in einer `flex justify-between`-Zeile (Jahr
+  links, Suchen rechts) statt zweier getrennter Zeilen.
+
+**Nebenbei gefundener und behobener Bug (Routing):** Beim Verifizieren gegen die Dev-Datenbank fiel auf, dass
+`/de/bestleistungen/2025` mit echten Daten eine leere Seite zeigte, obwohl `AnnualBestService::forYear(2025)` direkt
+aufgerufen Daten liefert. Ursache: `Public\CupRankingController::index()`/`Public\AnnualBestController::index()`
+deklarierten `?string $jahr = null` als eigenes Methodenargument — unter der `{locale}`-Präfixgruppe (die selbst kein
+Methodenargument ist) bindet Laravel Nicht-Klassen-Routenparameter aber positionsbasiert statt namensbasiert
+(`RouteDependencyResolverTrait::resolveMethodDependencies`), sodass `$jahr` den `locale`-Wert (`'de'`) statt der
+Jahreszahl bekam. Der bestehende Fallback ("unbekanntes/kein Jahr → aktuellstes bzw. laufendes Jahr") verschleierte den
+Fehler in den bisherigen Tests vollständig, weil `(int) 'de'` (= 0) zufällig auf denselben Fallback-Wert lief wie die
+Testdaten. Fix: `$jahr = $request->route('jahr')` statt Methodenparameter (kein Bindungsproblem, da direkt nach Namen
+aus der Routen-Parameterliste gelesen). Siehe CLAUDE.md-Fallstricke. Zwei neue Regressionstests (`public-p7`, je zwei
+unterschiedliche Jahre mit Daten, explizit das ältere angefordert) stellen sicher, dass der Fehler nicht durch einen
+Fallback maskiert werden kann.
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18 (2 neue Regressionstests), volle Suite 1355/1355, live gegen die
+Dev-Datenbank (`/de/cup/2025` zeigt 18 Wertungskategorien samt Runden-Spalten und Grün/fett-Markierung,
+`/de/bestleistungen/2025` zeigt 8 Tabs — beide vorher durch den Routing-Bug leer).
+
+### Nachträglich (2): Cup-Wertung als Dropdown-Filter statt Reiter, Select-Icon site-wide (Rückmeldung)
+
+Rückmeldung zu den 18 Reitern der Cup-Wertung: "das schaut nicht optimal aus … besser ein Dropdown für die
+Behindertenklasse, eines für Geschlecht und eine Checkbox für Jugend". Zusätzlich: das Pfeil-Icon der `<select>`-Felder
+sitzt sehr knapp am Rand — Nachfrage, ob das ein Tailkit-Snippet ist.
+
+**Select-Icon (site-wide, alle ~20 `<select>` im öffentlichen Bereich):** ja, es ist exakt Tailkits
+`a-c-form-elements-03` — das Snippet selbst liefert aber gar kein Icon mit, es reserviert mit `pr-10` nur Platz dafür;
+ohne `appearance-none` rendert der Browser seinen eigenen, ungestylten Pfeil direkt am Rand, unabhängig vom reservierten
+Platz. Tailkit hat eine Variante mit echtem Chevron (`a-c-select-menus-01`), die ist aber ein komplett JS-gesteuertes
+Listbox-Widget ganz ohne natives `<select>` — passt nicht zum hier durchgehend verwendeten Muster
+"natives `<select onchange="…submit()">` plus `<noscript>`-Fallback". Stattdessen neue
+`resources/views/components/select-chevron.blade.php` (`<x-select-chevron/>`, dasselbe Pfeil-Icon wie das
+Untermenü-Chevron im Kopfbereich) plus `appearance-none` auf jedem `<select>` — überall im öffentlichen Bereich
+angewendet (Rekorde, Punktetabelle, Punkterechner, WPS-Rechner, Startberechtigung, Jahresbestleistungen, Cup-Wertung).
+
+**Cup-Wertung — Filter statt Reiter:** `Public\CupRankingController` liefert weiterhin alle Wertungskategorien
+serverseitig (unverändert), die View berechnet zusätzlich `$groupOptions`/`$genderOptions` (aus den tatsächlich
+vorhandenen Brackets abgeleitet, keine feste Liste) und eine kompakte `$filterKeys`-Liste
+(Gruppe/Geschlecht/Jugend-Tripel je Bracket, nur für die "keine Daten"-Prüfung im JS). Neue
+`resources/js/cup-ranking-filter.js` (`Alpine.data('cupRankingFilter', …)`): Gruppen- und Geschlechts-`<select>` plus
+Jugend-`<checkbox>` steuern, welche der weiterhin serverseitig gerenderten Bracket-Sektionen sichtbar ist (`x-show`
+über `data-group-id`/`data-gender`/`data-jugend`-Attribute, analog zu `table-search.js`s `data-search`-Muster). Wechselt
+die Gruppe, wird eine ungültig gewordene Geschlechts-Auswahl automatisch auf eine vorhandene Kombination nachgezogen
+(kaskadierendes Auswahlfeld) — die Jugend-Checkbox dagegen bewusst nicht: Ein expliziter Klick auf eine Kombination ohne
+Daten zeigt die "keine Wertung vorhanden"-Meldung statt still andere Inhalte anzuzeigen. Ersetzt die Reiterleiste aus
+dem vorherigen Abschnitt für die Cup-Wertung; `tab-panels.js` bleibt für die Jahresbestleistungen im Einsatz (siehe
+oben).
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18, volle Suite 1355/1355; live gegen die Dev-Datenbank per curl geprüft
+(Gruppen-/Geschlechts-`<select>` mit den korrekten 6 bzw. 3 Optionen und dem richtigen Default vorbelegt, 18
+`data-group-id`/`data-gender`/`data-jugend`-Sektionen, kompilierter Vite-Modulcode enthält die erwarteten
+Alpine-Registrierungen) — dieselbe Browser-Sandbox-Einschränkung wie in den vorherigen Phasen verhindert eine
+interaktive Prüfung der Dropdown-Kaskadierung in diesem Environment.
+
+### Nachträglich (3): Tabelle fehlte, Filter reagierten nicht; Filterzeile zusammengeführt (Rückmeldung)
+
+Rückmeldung: "Bei der ÖBSV Cup Wertung fehlt die Tabelle. Bei der Wahl einer Klasse oder Geschlecht tut sich gar
+nichts." — echter Funktionsfehler, kein Verhalten wie beabsichtigt.
+
+**Ursache:** `x-data="cupRankingFilter(@json($filterKeys))"` stand in einem mit doppelten Anführungszeichen begrenzten
+HTML-Attribut. `@json()` ist Laravels roher `json_encode()` mit den HTML-sicheren HEX-Flags — die escapen nur
+Sonderzeichen *innerhalb* von JSON-String-Werten, nicht die strukturellen Anführungszeichen, die JSON für Objekte/Arrays
+selbst braucht (`{"groupId":6,...}`). Das erste strukturelle `"` im JSON hat das HTML-Attribut also mitten im Ausdruck
+beendet — der Browser hat alles danach als zusätzliche, bedeutungslose Attribute auf demselben `<div>` gelesen. `x-data`
+enthielt dadurch nur den unvollständigen, syntaktisch ungültigen Rest
+`cupRankingFilter([{`, Alpine konnte die Komponente nie initialisieren — `groupId`/`gender`/`jugend`/`isVisible()`
+blieben undefiniert. Deshalb blieb jede Wertungskategorie-Sektion ohne sichtbaren Zustand (Tabelle "fehlte") und die
+`x-model`-gebundenen Dropdowns/die Checkbox hatten keinerlei Wirkung. Nie in diesem Environment aufgefallen, weil die
+Browser-Sandbox den Vite-Dev-Server nicht erreicht (siehe oben) — nur die kompilierte, syntaktisch valide JS-Datei und
+das server-gerenderte HTML wurden per curl geprüft, beides sah für sich genommen unauffällig aus; erst ein echter
+Browser zeigt das kaputte Attribut. **Fix:** einfache statt doppelte Anführungszeichen um das
+`x-data`-Attribut (`x-data='cupRankingFilter(@json($filterKeys))'`) — genau das von Laravels eigener Doku für
+`@json()` empfohlene Muster. `$filterKeys` enthält ohnehin nur Zahlen, feste Kürzel (`M`/`F`/`combined`) und Booleans,
+also keine Apostrophe, die das einfach-Anführungszeichen-Attribut ihrerseits brechen könnten.
+
+**Filterzeile zusammengeführt:** Jahr-, Klassen- und Geschlechts-`<select>` sowie die Jugend-Checkbox stehen jetzt alle
+in einer gemeinsamen `flex`-Zeile, Suchen weiterhin rechts daneben (`justify-between`) — vorher stand die Jahresauswahl
+in einer eigenen Zeile über den drei neuen Filtern.
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18, volle Suite 1355/1355; die korrigierte `x-data`-Ausgabe wurde per
+curl gegenkontrolliert (jetzt ein einziges, vollständiges, gültiges Attribut mit dem kompletten JSON statt
+abgeschnitten). Eine echte interaktive Bestätigung im Browser bleibt durch dieselbe Sandbox-Einschränkung verwehrt —
+dies ist also die Art Fehler, die grundsätzlich nur ein echter Browser zuverlässig aufdeckt, weshalb hier besonders
+sorgfältig zusätzlich per Hand durch die HTML-Attribut-Grammatik nachvollzogen wurde.
+
+### Nachträglich (4): Jahresbestleistungen auf dasselbe Filter-Muster wie die Cup-Wertung (Rückmeldung)
+
+Rückmeldung: "Passe die Jahresbestleistungen Filter so an wie die ÖBSV Cup Wertung." `cup-ranking-filter.js` wurde dafür
+zu `resources/js/ranking-filter.js` verallgemeinert (`Alpine.data('rankingFilter', …)`, ersetzt sowohl
+`cup-ranking-filter.js` als auch das bisherige `tab-panels.js` — Letzteres war nach der Cup-Wertungs-Umstellung bereits
+nur noch bei den Jahresbestleistungen im Einsatz und wurde komplett entfernt, kein anderer Verwender mehr). Ob die
+Jugend-Dimension existiert, leitet die Komponente aus den übergebenen `keys` ab (`'jugend' in keys[0]`) —
+Jahresbestleistungen liefern nur Gruppe/Geschlecht, keine Altersgruppen, daher ohne dritten Filter/Checkbox.
+
+`public/annual-best/index` bekommt dieselbe Struktur wie die Cup-Wertung: Jahr-, Klassen- und Geschlechts-`<select>`
+in einer gemeinsamen Zeile, Suchen rechts daneben; Wertungskategorie-Sektionen (jetzt Geschlecht × Behinderungsgruppe
+statt Reiter) über `data-group-id`/`data-gender`-Attribute geschaltet, analog zur Cup-Wertung.
+
+Eine Besonderheit gegenüber der Cup-Wertung: Manche Jahresbestleistungs-Buckets haben keine zugeordnete
+Behinderungsgruppe (Sportklasse nicht in `SportClassGroupMember` gepflegt, Anzeige "—"). Dafür braucht die Gruppen-Id
+ein nicht-numerisches Kürzel (`"none"`) statt einer Zahl — deshalb wurde `groupId` in `ranking-filter.js`
+durchgehend (auch bei der Cup-Wertung) von `x-model.number` auf einen einfachen String-Vergleich umgestellt
+(`$filterKeys`/`data-group-id` liefern jetzt beide Seiten als `(string) $id`), sonst hätte Alpines `.number`-Modifier
+`"none"` zu `NaN` gemacht.
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18, volle Suite 1355/1355; live gegen die Dev-Datenbank per curl geprüft
+(`/de/bestleistungen/2025`: `x-data='rankingFilter(...)'` vollständig und gültig, 8
+`data-group-id`/`data-gender`-Sektionen, Gruppen-/Geschlechts-`<select>` mit den richtigen Optionen; `/de/cup/2025`
+weiterhin unverändert korrekt mit den jetzt string-wertigen `groupId`s). Dieselbe Sandbox-Einschränkung verhindert eine
+interaktive Klick-Prüfung in diesem Environment.
+
+### Nachträglich (5): Sammel-Optionen "Alle Klassen"/"Damen & Herren" (Rückmeldung)
+
+Rückmeldung: "Beim Klasse Filter fehlt mir noch alle Klassengruppen zusammen und beim Geschlecht Filter Damen und Herren
+zusammen." Beide Dropdowns filterten bis dahin ausschließlich auf eine exakte Gruppe/ein exaktes Geschlecht — es gab
+keine Möglichkeit, absichtlich mehrere Sektionen gleichzeitig zu sehen.
+
+`ranking-filter.js` bekommt zwei Sammel-Werte, die absichtlich *nicht* einschränken, statt eine weitere konkrete
+Kombination zu sein:
+
+- `groupId === 'all'` ("Alle Klassen", neue Option, immer an erster Stelle): `isVisible()` prüft die Gruppe dann gar
+  nicht mehr — alle Sektionen jeder Klasse werden gezeigt (weiterhin eingeschränkt durch Geschlecht/Jugend).
+- `gender === 'combined'` ("Damen & Herren", jetzt immer im Dropdown, nicht mehr nur bei Cup-Gruppen mit echter
+  gemeinsamer Wertung): deckt zwei serverseitig unterschiedliche Fälle einheitlich ab — bei Gruppen mit
+  `Cup::isGenderCombined()` gibt es ohnehin nur eine Sektion (gender=null), die wird gezeigt; bei Gruppen mit getrennter
+  Damen-/Herren-Wertung (und bei den Jahresbestleistungen, die *nie* eine echte gemeinsame Wertung kennen) zeigt
+  dieselbe Option stattdessen beide Sektionen gleichzeitig. Kein dritter Optionswert nötig, weil sich beide Fälle für
+  Nutzer:innen gleich anfühlen sollen: "nicht nach Geschlecht eingrenzen".
+
+Die Kaskadierung (Gruppenwechsel korrigiert eine ungültig gewordene *konkrete* Geschlechtsauswahl) überspringt die
+beiden Sammel-Werte, weil sie per definitionem nie ungültig werden können, solange für den Rest der Auswahl überhaupt
+Daten existieren. Betroffen: `ranking-filter.js` (neue `matchingKeys()`-Hilfsmethode, von `syncJugend()`/`hasMatch`
+gemeinsam genutzt), `public/cup-ranking/index` und `public/annual-best/index` (je eine zusätzliche `<option>` bzw. ein
+zusätzlicher, nicht aus den Daten abgeleiteter `null`-Eintrag in `$genderOptions`), neue Lang-Keys
+`filter.group_all` (beide Seiten) und `gender.combined` (Jahresbestleistungen — bei der Cup-Wertung gab es den Schlüssel
+bereits).
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18, volle Suite 1355/1355; live gegen die Dev-Datenbank per curl geprüft
+(beide Seiten zeigen "Alle Klassen" als erste Gruppen-Option und "Damen & Herren" im Geschlechts-Dropdown, kompilierter
+Vite-Modulcode enthält `matchingKeys`/die neue Sammel-Logik fehlerfrei). Dieselbe Sandbox-Einschränkung verhindert eine
+interaktive Klick-Prüfung, ob das Umschalten auf "Alle Klassen"/"Damen & Herren" tatsächlich mehrere Sektionen
+gleichzeitig einblendet.
+
+### Nachträglich (6): Sammel-Optionen sind eine echte Neu-Wertung, keine Mehrfachanzeige (Rückmeldung)
+
+Klarstellung zur vorherigen Rückmeldung: "Bei allen Klassen habe ich mich nicht klar ausgedrückt. Ich meinte das alle
+gemeinsam über die Punkte gewertet werden. Bei Damen und Herren werden Geschlechter unabhängig sie über die Punkte
+gewertet." Nachträglich (5) hatte "Alle Klassen"/"Damen & Herren" als reine Anzeige-Wildcards umgesetzt (mehrere
+bestehende Tabellen gleichzeitig sichtbar) — gemeint war stattdessen eine echte **eine** Tabelle, in der alle
+betroffenen Zeilen gemeinsam nach Punkten sortiert und neu gerankt werden (SportRankAssigner), nicht nur gleichzeitig
+angezeigt.
+
+Das ist möglich, ohne die zugrunde liegenden Punkte neu zu berechnen: ÖBSV-/WPS-Punkte sind klassen- und
+geschlechtsübergreifend vergleichbar (genau dafür wurden sie eingeführt) und hängen nicht davon ab, in welcher
+Wertungskategorie/welchem "Bucket" ein Ergebnis für die Rangvergabe steht — nur die Rang- *Konkurrenz* ändert sich. Ein
+nachträgliches Zusammenlegen bereits berechneter Punkte-Zeilen und Neuvergeben des Rangs ist deshalb gleichwertig zu
+einer von vornherein gemeinsam gewerteten Berechnung. Das entspricht exakt dem bereits bestehenden Mechanismus hinter
+`Cup::isGenderCombined()` (Top-Gruppe u. Ä.): `CupOverallResult`-Zeilen tragen immer das echte Geschlecht der
+Athletin/des Athleten, "gemeinsame Wertung" bedeutet nur, beim Ranking nicht nach Geschlecht zu filtern.
+
+**Cup-Wertung:** `OverallRankingService::rankedAcrossGroups()` (neu) — wie `rankedBracket()`, aber ohne
+Sportklassengruppen-Filter, für "Alle Klassen". Für "Damen & Herren" genügt der *bestehende* `rankedBracket($cupId,
+gender: null, …)` — `null` bedeutete dort schon immer "kein Geschlechtsfilter", nicht "im Datensatz gespeichertes NULL"
+(so berechnet sich auch die bereits existierende echte gemeinsame Wertung von `Cup::isGenderCombined()`).
+`Public\CupRankingController::resolveBrackets()` baut jetzt zusätzlich zu den echten Wertungskategorien:
+`mergedGenderBrackets()` (je Sportklassengruppe + Altersgruppe, sofern nicht schon echt gemeinsam gewertet) und
+`mergedGroupBrackets()` (je Altersgruppe × Geschlecht inkl. der Geschlecht- *und*-Klassen-übergreifenden
+Gesamtwertung) — 18 echte + 9 zusammengelegte Geschlechts- + 6 zusammengelegte Klassen-Sektionen im aktuellen
+Dev-Datensatz für 2025. `group: null` steht dabei für "Alle Klassen" (Gegenstück zum schon vorhandenen `gender:
+null` für "Damen & Herren"). Zeilen einer klassenübergreifenden Sektion bekommen eine zusätzliche Klasse-Spalte, Zeilen
+einer geschlechtsübergreifenden Sektion eine zusätzliche Geschlecht-Spalte (sonst ginge das nur noch aus der
+Sektions-Überschrift hervor).
+
+**Jahresbestleistungen:** `AnnualBestService::forYear()` bleibt unverändert (Tests!). Zwei neue Methoden
+`mergedGenderBuckets()`/`mergedGroupBuckets()` legen dieselben bereits ermittelten Bestergebnisse
+(`bestResultPerAthlete()`, privat, jetzt dreifach statt einfach abgefragt — bei dieser Datenmenge unkritisch)
+gruppen- bzw. geschlechtsübergreifend zusammen und ranken neu. `Public\AnnualBestController::index()` hängt beide
+Ergebnislisten an `forYear()` an. Die Sportklasse steht hier ohnehin schon als eigene Spalte je Zeile (Rekord aus Phase
+5 übernommen), nur eine zusätzliche Geschlecht-Spalte für zusammengelegte Sektionen war nötig.
+
+`ranking-filter.js` ist dadurch wieder einfacher geworden: "all"/"combined" sind jetzt ganz normale, serverseitig
+bereits fertig berechnete Werte auf ganz normalen, vollständigen Sektionen — kein Sonderfall mehr im JS nötig, die
+vorherige `matchingKeys()`-Wildcard-Logik aus Nachträglich (5) wurde zurückgebaut auf einen einfachen
+Gleichheitsvergleich (wie vor (5)).
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18, volle Suite 1355/1355, außerdem die vollen internen
+`cup-wertung-*`/`cup-club-ranking-p3`-Gruppen (79/79 — `brackets()`/`rankedBracket()` unverändert, nur um eine neue
+Methode ergänzt); live gegen die Dev-Datenbank per curl geprüft — beide Seiten zeigen die erwarteten zusätzlichen
+Sektionen ("Damen & Herren — Alle Klassen — Offen" bzw. "Damen & Herren — Alle Klassen") mit korrekt neu vergebenem Rang
+über die zusammengelegten Zeilen und den passenden Zusatzspalten. Dieselbe Sandbox-Einschränkung verhindert eine
+interaktive Klick-Prüfung des Dropdown-Wechsels in diesem Environment.
+
+### Nachträglich (7): Startberechtigung — Filterzeile, Richtzeit-Anzeige, Behinderungsgruppe-Filter (Rückmeldung)
+
+Rückmeldung mit vier farblich markierten Punkten zur Startberechtigungsseite:
+
+- **Versatz beim Geschlecht-Filter / Button-Größe:** drei Anläufe, bis es saß.
+    1. Das Filter-`<form>` stand auf `items-end`, wie die Rekorde/Cup-Wertung/Jahresbestleistungen auch — dort passt
+       das, weil jedes Element ein Label über dem Auswahlfeld hat. Der label-lose "Filtern"-Button in derselben Zeile
+       bekommt dadurch eine andere optische Höhe/Unterkante. Erster Versuch: `items-center` statt `items-end` —
+       zentriert zwar alle Spalten zueinander, aber bezogen auf die GESAMTE Spaltenhöhe inklusive des für den Button
+       unsichtbaren Platzes, den ein Label einnehmen würde; der Button landete dadurch optisch oberhalb der
+       Auswahlfelder (Rückmeldung:
+       "schaut aus, als wäre er verrutscht").
+    2. Zurück auf `items-end`, dafür eine unsichtbare Label-Attrappe (`aria-hidden`, `.invisible`, exakt wie ein echtes
+       Label groß) über dem Button — seine Spalte hat dadurch dieselbe Struktur/Höhe wie die übrigen, `items-end`
+       richtet Button und Auswahlfelder auf gleicher Höhe aus. Blieb aber unterschiedlich groß: Der Button hatte keinen
+       `border`
+       und kein `leading-6`, die Auswahlfelder aber schon — die reine Box-Höhe (Border + Padding + Zeilenhöhe) stimmte
+       also trotz korrekter Ausrichtung nicht überein (Rückmeldung: "vertikale Zentrierung mit dem Input Feld, oder mach
+       den Button gleich groß").
+    3. `border border-transparent` (unsichtbar, aber raumgreifend) + `leading-6` auf den Button ergänzt — jetzt exakt
+       dieselbe Box-Höhe wie die Auswahlfelder (2px Border + 16px Padding + 24px Zeilenhöhe beidseitig). Die beiden
+       versteckten Felder (`stroke_type_id`/`distance`) standen bisher verschachtelt im Bewerb-Feld-Block (einzige
+       strukturelle Abweichung von den übrigen, sonst identisch aufgebauten Feld-Blöcken) — jetzt als eigene, direkte
+       Formular-Kinder ans Ende verschoben, damit alle Feld-Blöcke exakt denselben Aufbau haben. (Bewusst nicht auf
+       `public/records/index` übertragen — dessen Filterzeile hat zusätzlich eine Jugend-Checkbox mit einer bereits fein
+       abgestimmten `pb-2`-Kompensation für `items-end`; ein Wechsel bräuchte dort eine eigene Prüfung, ob diese
+       Kompensation dann noch passt oder entfernt werden müsste — nicht Teil dieser Rückmeldung.)
+- **Richtzeit der gefilterten Sportklasse:** `QualifyingTimeController::referenceTimes()` (neu) lädt die
+  `QualifyingTime`-Zeile (n) der aktiven Liste für die gewählte Sportklasse (optional zusätzlich nach Geschlecht
+  eingegrenzt, falls auch gesetzt) und gruppiert sie nach Bewerb. Erscheint nur, wenn eine Sportklasse gewählt ist —
+  ohne diese Eingrenzung gäbe es je Bewerb bis zu 21 verschiedene Richtzeiten, keine sinnvolle Einzelanzeige. Ohne
+  Geschlechtsfilter stehen beide Richtzeiten nebeneinander ("Richtzeit: Herren 00:52.31, Damen 01:00.76"), rechts in der
+  Tabellenbeschriftung neben der Bewerbs-Überschrift.
+- **Neuer Behinderungsgruppe-Filter:** `PublicQualificationFilter` bekommt ein zusätzliches
+  `sportClassGroupId`-Feld, unabhängig von der einzelnen Sportklasse (Rückmeldung: "wenn alle Sportklassen gewählt ist,
+  dass man sich nur die Sportklassengruppen ebenfalls ansehen kann, so wie bei der Jahresbestleistung die Klasse") —
+  dieselbe `SportClassGroupMember`-Zuordnungstabelle, die `DisabilityGroupGrouper` für die Sektionen ohnehin schon
+  nutzt. Beide Filter wirken unabhängig; eine widersprüchliche Kombination liefert schlicht keine Treffer statt eines
+  Fehlers.
+
+Verifiziert: Pint grün, `--group=public-p7` 18/18 sowie `--group=qualifying-time-lists-p1` 18/18 (internes Pendant
+unverändert), volle Suite 1355/1355; live gegen die Dev-Datenbank per curl geprüft — Behinderungsgruppe-Filter grenzt
+korrekt auf eine Sektion ein, Richtzeit-Anzeige zeigt bei `sport_class=S9` "Herren 00:52.31, Damen 01:00.76"
+und bei zusätzlichem `gender=M` nur noch "Herren 00:52.31", `items-center` und die ans Formularende verschobenen
+versteckten Felder sind im gerenderten HTML bestätigt. Dieselbe Sandbox-Einschränkung verhindert eine visuelle
+Bestätigung der Ausrichtung in diesem Environment.
 
 ---
 
