@@ -118,7 +118,12 @@
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Ort</dt>
-                    <dd class="font-medium mt-0.5">{{ $record->meet_city ?? '–' }}</dd>
+                    <dd class="font-medium mt-0.5">
+                        {{ $record->meet_city ?? '–' }}
+                        @if($record->meetNation)
+                            <span class="text-zinc-400 text-xs ml-1">({{ $record->meetNation->code }})</span>
+                        @endif
+                    </dd>
                 </div>
                 @if($record->comment)
                     <div class="col-span-2">

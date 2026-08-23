@@ -143,6 +143,33 @@
 
                 @if(auth()->user()?->is_admin)
                     <flux:field>
+                        <flux:label>Auf der öffentlichen Seite sichtbar</flux:label>
+                        <div class="flex items-center gap-3 mt-1">
+                            <input type="checkbox" name="is_published" value="1" id="is_published"
+                                   class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
+                                          text-blue-600 bg-white dark:bg-zinc-800
+                                          focus:ring-blue-500 focus:ring-2"
+                                {{ old('is_published', $meet->is_published ?? false) ? 'checked' : '' }}>
+                            <label for="is_published" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                Erscheint in der öffentlichen Veranstaltungsliste
+                            </label>
+                        </div>
+                        <flux:description>
+                            Ohne diese Freigabe ist der Wettkampf für Besucher der öffentlichen Seite unsichtbar —
+                            auch dann, wenn bereits Dokumente dazu freigegeben sind (Spec public-frontend §4.2).
+                        </flux:description>
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Livetiming-Link</flux:label>
+                        <flux:input name="livetiming_url" type="url"
+                                    value="{{ old('livetiming_url', $meet->livetiming_url ?? '') }}"
+                                    placeholder="https://…"/>
+                        <flux:description>Wird auf der öffentlichen Veranstaltungsseite als externer Link angezeigt.</flux:description>
+                        <flux:error name="livetiming_url"/>
+                    </flux:field>
+
+                    <flux:field>
                         <flux:label>WPS-anerkannter Wettkampf</flux:label>
                         <div class="flex items-center gap-3 mt-1">
                             <input type="checkbox" name="wps_approved" value="1" id="wps_approved"

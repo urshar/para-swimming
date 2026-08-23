@@ -162,6 +162,24 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
             ->and(SwimRecord::where('sport_class', 'S20')->where('record_type', 'AUT')->count())->toBe(1);
     })->group('relay-checker');
 
+    // ── Austragungsland des Rekords (Ort-Flagge im öffentlichen Rekordbrett) ─────
+
+    it('übernimmt das Austragungsland des Meets als meet_nation_id', function () {
+        ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
+
+        $event = makeRelayEvent($meet, $stroke);
+        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayResult($meet, $event, $club);
+
+        $this->service->checkMeet($meet);
+
+        expect(SwimRecord::where('sport_class', 'S20')->where('record_type', 'AUT')->first()->meet_nation_id)
+            ->toBe($meet->nation_id);
+    })->group('relay-checker');
+
     it('legt S34-Rekord an bei Summe 21–34', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 

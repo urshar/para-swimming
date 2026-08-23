@@ -82,6 +82,18 @@ composer lint:check   # Pint nur prüfen
 - **Alpine-Doppelinitialisierung** vermeiden: kein `import Alpine` / `Alpine.start()`
   in `app.js`; Plugins/Data in `document.addEventListener('alpine:init', …)` auf
   `window.Alpine` registrieren.
+- **Öffentliche Routen mit `{locale}`-Präfix + optionalem Pfadparameter** (z. B.
+  `{locale}/cup/{jahr?}`): den optionalen Parameter **nicht** als eigenes
+  Methodenargument (`?string $jahr = null`) deklarieren, sondern per
+  `$request->route('jahr')` im Methodenrumpf lesen. Laravels implizite Bindung von
+  Nicht-Klassen-Routenparametern läuft positionsbasiert, nicht namensbasiert
+  (`RouteDependencyResolverTrait::resolveMethodDependencies`) — bei einem Routenparameter
+  mehr als Methodenargumenten (hier: `locale` fehlt im Methodenkopf) bekommt das
+  Methodenargument den falschen Wert (`$jahr` erhielt `'de'` statt der Jahreszahl). Tests, die
+  nur einen Fallback-Pfad prüfen (z. B. "unbekanntes Jahr → aktuellstes Jahr"), decken das
+  **nicht** auf, weil der falsche Wert zufällig denselben Fallback auslöst — siehe
+  `Public\CupRankingController`/`Public\AnnualBestController` und die zugehörigen
+  Regressionstests in `PublicFrontendPhase7Test.php`.
 
 ## Lieferung von Änderungen
 

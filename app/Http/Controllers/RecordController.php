@@ -86,7 +86,8 @@ class RecordController extends Controller
     public function show(SwimRecord $record): View
     {
         $record->load([
-            'strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam', 'result', 'splits',
+            'strokeType', 'athlete.nation', 'athlete.club', 'nation', 'meetNation', 'club', 'relayTeam', 'result',
+            'splits',
         ]);
 
         $history = $record->getHistoryChain();
@@ -356,6 +357,7 @@ class RecordController extends Controller
             'set_date' => 'nullable|date',
             'meet_name' => 'nullable|string|max:255',
             'meet_city' => 'nullable|string|max:100',
+            'meet_nation_id' => 'nullable|exists:nations,id',
             'meet_course' => 'nullable|in:LCM,SCM,SCY,SCM16,SCM20,SCM33,SCY20,SCY27,SCY33,SCY36,OPEN',
             'comment' => 'nullable|string|max:255',
             'splits' => 'nullable|array',

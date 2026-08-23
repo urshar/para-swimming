@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AgeGroupController;
 use App\Http\Controllers\AthleteController;
@@ -45,13 +46,23 @@ use App\Http\Controllers\WpsTalentReportController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
-// Startseite → Wettkampf-Übersicht
-Route::redirect('/', '/meets')->name('home');
+// "/" gehört jetzt dem öffentlichen Bereich (routes/public.php, Spec public-frontend §3.2).
 Route::redirect('/dashboard', '/meets')->name('dashboard');
 
 // ── Admin-Bereich (RequireAdmin Middleware) ────────────────────────────────────
 Route::middleware(['auth', RequireAdmin::class])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
+
+    // Regelmente & Formulare (documentable = null, Spec public-frontend §6)
+    Route::resource('documents', DocumentController::class)->except(['show']);
+
+    // Veranstaltungsdokumente — eigene Routen statt eines verschachtelten resource(), weil
+    // edit/update/destroy bewusst unpräfigiert bleiben (siehe DocumentController-Kommentar).
+    Route::prefix('meets/{meet}/documents')->name('meets.documents.')->group(function () {
+        Route::get('/', [DocumentController::class, 'meetIndex'])->name('index');
+        Route::get('/create', [DocumentController::class, 'meetCreate'])->name('create');
+        Route::post('/', [DocumentController::class, 'meetStore'])->name('store');
+    });
 });
 
 // ── Authentifizierte Routen ───────────────────────────────────────────────────

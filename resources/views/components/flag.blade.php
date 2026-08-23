@@ -47,6 +47,7 @@
     <span
         class="fi fi-{{ $iso }} {{ $class }} inline-block rounded-sm shadow-sm"
         title="{{ $title }}"
+        role="img"
         aria-label="{{ $title }}"
     ></span>
 @else

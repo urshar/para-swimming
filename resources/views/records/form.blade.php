@@ -257,7 +257,7 @@
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Wettkampf</flux:label>
                         <flux:input name="meet_name" value="{{ old('meet_name', $rec->meet_name ?? '') }}"/>
@@ -265,6 +265,18 @@
                     <flux:field>
                         <flux:label>Ort</flux:label>
                         <flux:input name="meet_city" value="{{ old('meet_city', $rec->meet_city ?? '') }}"/>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Austragungsland</flux:label>
+                        <flux:select name="meet_nation_id">
+                            <option value="">Unbekannt</option>
+                            @foreach($nations as $nation)
+                                <option value="{{ $nation->id }}"
+                                    @selected(old('meet_nation_id', $rec->meet_nation_id ?? '') == $nation->id)>
+                                    {{ $nation->code }} – {{ $nation->name_de }}
+                                </option>
+                            @endforeach
+                        </flux:select>
                     </flux:field>
                 </div>
 

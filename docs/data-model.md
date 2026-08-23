@@ -114,7 +114,9 @@ einem **SwimRecord** referenziert werden.
 
 ## Rekorde
 
-**SwimRecord** — `stroke_type_id`, `nation_id`, `athlete_id` (null bei Staffeln),
+**SwimRecord** — `stroke_type_id`, `nation_id` (Nation, für die der Rekord zählt — im Bestand immer AUT),
+`meet_nation_id` (Austragungsland des Wettkampfs, für die Ort-Flagge im öffentlichen Rekordbrett; getrennt von
+`nation_id`, da Rekorde oft im Ausland aufgestellt werden), `athlete_id` (null bei Staffeln),
 `result_id` (Herkunft), `superseded_by_id` / `supersedes_id` (Rekord-Historie),
 `club_id`, `record_type`, `sport_class`, `gender`, `course`, `distance`,
 `relay_count`, `swim_time`, `record_status`, `is_current`, `set_date`,

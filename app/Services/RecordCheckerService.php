@@ -362,6 +362,7 @@ readonly class RecordCheckerService
                 $createdRecord = SwimRecord::create([
                     'stroke_type_id' => $strokeTypeId,
                     'nation_id' => $nationId,
+                    'meet_nation_id' => $result->meet?->nation_id,
                     'athlete_id' => $athleteId,
                     'club_id' => $result->club_id,
                     'result_id' => $result->id,

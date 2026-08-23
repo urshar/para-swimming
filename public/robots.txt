@@ -1,2 +1,7 @@
 User-agent: *
-Disallow:
+Disallow: /*/veranstaltungen/*/ergebnisse
+Disallow: /*/cup
+Disallow: /*/cup/*
+Disallow: /*/startberechtigung
+Disallow: /*/bestleistungen
+Disallow: /*/bestleistungen/*

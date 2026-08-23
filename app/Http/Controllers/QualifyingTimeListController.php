@@ -6,15 +6,13 @@ use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
-use App\Models\SportClassGroup;
-use App\Models\SportClassGroupMember;
 use App\Models\StrokeType;
 use App\Services\PdfExportService;
 use App\Services\QualificationDeterminationService;
 use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
+use App\Support\DisabilityGroupGrouper;
 use App\Support\SportClassSorter;
-use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -77,7 +75,7 @@ class QualifyingTimeListController extends Controller
 
         return view('qualifying-time-lists.show', [
             'list' => $qualifyingTimeList,
-            'sections' => $this->groupByDisabilityGroupAndStroke(
+            'sections' => DisabilityGroupGrouper::byGroupThenStroke(
                 $qualifyingTimeList->times,
                 fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
             ),
@@ -112,7 +110,7 @@ class QualifyingTimeListController extends Controller
 
         return $this->pdfExportService->stream('pdf.qualifying-times', [
             'list' => $qualifyingTimeList,
-            'sections' => $this->groupByDisabilityGroupAndStroke(
+            'sections' => DisabilityGroupGrouper::byGroupThenStroke(
                 $qualifyingTimeList->times,
                 fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
             ),
@@ -145,7 +143,7 @@ class QualifyingTimeListController extends Controller
         return view('qualifying-time-lists.form', [
             'list' => $qualifyingTimeList,
             'strokeTypes' => $strokeTypes,
-            'sections' => $this->groupByDisabilityGroupAndStroke(
+            'sections' => DisabilityGroupGrouper::byGroupThenStroke(
                 $qualifyingTimeList->times,
                 fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
             ),
@@ -378,81 +376,12 @@ class QualifyingTimeListController extends Controller
             fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
         );
 
-        $sections = $this->groupByDisabilityGroupAndStroke(
+        $sections = DisabilityGroupGrouper::byGroupThenStroke(
             $qualifications,
             fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
         );
 
         return compact('qualifications', 'events', 'genders', 'sportClasses', 'clubs', 'sections');
-    }
-
-    /**
-     * Gliedert eine Menge von Qualifikationen ODER Richtzeiten-Zeilen zuerst
-     * nach Behinderungsgruppe (PI/VI/II/T21/HI, wiederverwendet aus dem
-     * Cup-Modul, siehe SportClassGroup), darin nach Bewerb (Lage + Distanz) —
-     * für eine übersichtlichere Anzeige/PDF-Ausgabe. Funktioniert generisch
-     * für beide Models, da beide über sport_class/stroke_type_id/distance/
-     * strokeType verfügen (bei Qualification per Proxy-Accessor auf die
-     * zugehörige Richtzeit, siehe Qualification-Model).
-     *
-     * @param  Collection  $items  Qualification[] oder QualifyingTime[]
-     * @param  Closure  $sortWithin  Sortierschlüssel für Zeilen innerhalb eines Bewerbs-Abschnitts
-     * @return Collection<int, array{group: ?SportClassGroup, strokes: Collection}>
-     */
-    private function groupByDisabilityGroupAndStroke(Collection $items, Closure $sortWithin): Collection
-    {
-        $memberMap = SportClassGroupMember::pluck('sport_class_group_id', 'sport_class');
-        $groups = SportClassGroup::active()->orderBy('sort_order')->get();
-
-        $sections = collect();
-
-        foreach ($groups as $group) {
-            $groupItems = $items->filter(
-                fn ($item) => $memberMap->get($item->sport_class) === $group->id
-            )->values();
-
-            if ($groupItems->isNotEmpty()) {
-                $sections->push(['group' => $group, 'strokes' => $this->groupByStroke($groupItems, $sortWithin)]);
-            }
-        }
-
-        // Sportklassen ohne zugeordnete Behinderungsgruppe landen gesammelt am Ende.
-        $unassigned = $items->filter(
-            fn ($item) => ! $memberMap->has($item->sport_class)
-        )->values();
-
-        if ($unassigned->isNotEmpty()) {
-            $sections->push(['group' => null, 'strokes' => $this->groupByStroke($unassigned, $sortWithin)]);
-        }
-
-        return $sections;
-    }
-
-    /**
-     * Gliedert eine Teilmenge nach Bewerb (Lage + Distanz, z.B. "50m
-     * Freistil", "100m Freistil" jeweils als eigener Abschnitt), in der
-     * üblichen Wettkampf-Reihenfolge (Freistil, Rücken, Brust, Schmetterling,
-     * Lagen) und aufsteigend nach Distanz.
-     *
-     * @return Collection<int, array{stroke: ?StrokeType, distance: int, items: Collection}>
-     */
-    private function groupByStroke(Collection $items, Closure $sortWithin): Collection
-    {
-        $strokeOrder = ['FREE' => 1, 'BACK' => 2, 'BREAST' => 3, 'FLY' => 4, 'MEDLEY' => 5, 'IMRELAY' => 6];
-
-        return collect($items
-            ->groupBy(fn ($item) => "$item->stroke_type_id|$item->distance")
-            ->map(fn ($group) => [
-                'stroke' => $group->first()->strokeType,
-                'distance' => $group->first()->distance,
-                'items' => $group->sortBy($sortWithin)->values(),
-            ])
-            // Einzelner kombinierter Sortierschlüssel statt Mehrfachkriterien-Array,
-            // da sortBy() mit mehreren Closures im Array sich nicht zuverlässig wie
-            // eine echte Mehrfachsortierung verhalten hat (Lage vor Distanz).
-            ->sortBy(fn ($s) => sprintf('%02d-%06d', $strokeOrder[$s['stroke']?->lenex_code] ?? 99, $s['distance']))
-            ->values()
-            ->all());
     }
 
     private function authorizeAdmin(): void

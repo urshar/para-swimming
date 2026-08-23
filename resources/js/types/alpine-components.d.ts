@@ -58,6 +58,20 @@ interface MeetPointSystemsConfig {
     course?: string;
 }
 
+/** Ein Dokument als Kandidat für das "Sprachvariante zu"-Feld. */
+interface DocumentPairCandidate {
+    id: number;
+    label: string;
+}
+
+/** Konfiguration für documentForm — Dokumenten-Formular im Adminbereich. */
+interface DocumentFormConfig {
+    /** Aktuell gewählte Kategorie, vorbelegt bei old()/Bearbeiten. */
+    category?: string;
+    /** Bestehende Dokumente derselben Zuordnung, gruppiert nach Kategorie. */
+    candidates?: Record<string, DocumentPairCandidate[]>;
+}
+
 /**
  * Inhalt des data-cell-Attributs einer Zelle in der Normtabelle.
  *
@@ -83,6 +97,8 @@ declare function relayEntryForm(config: RelayEntryFormConfig): Record<string, un
 declare function meetPointSystems(config: MeetPointSystemsConfig): Record<string, unknown>;
 
 declare function standardCell(): Record<string, unknown>;
+
+declare function documentForm(config: DocumentFormConfig): Record<string, unknown>;
 
 /**
  * Kein `export` in dieser Datei: nur eine globale Skriptdatei — also eine ohne import oder

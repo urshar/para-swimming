@@ -1,0 +1,47 @@
+<!-- Tailkit: a-c-form-elements-01 "Inputs" (Application UI > Components > Form Elements) -->
+<!-- Rohmaterial, ungeprüft — vor Übernahme gegen accessibility.md prüfen. Für den Punkterechner
+     wird kein Passwortfeld gebraucht; das Label-Muster (sichtbares <label for>, kein Platzhalter
+     als Ersatz) und die Rahmen-/Fokus-Klassen sind der eigentliche Ertrag hier. -->
+
+<!-- Form Elements: Inputs -->
+<form class="space-y-6 dark:text-gray-100" onsubmit="return false;">
+  <!-- Text Input -->
+  <div class="space-y-1">
+    <label for="firstname" class="inline-block font-medium">Name</label>
+    <input
+      type="text"
+      id="firstname"
+      name="firstname"
+      placeholder="Enter your name"
+      class="block w-full rounded-lg border border-gray-200 px-3 py-2 leading-6 placeholder-gray-500 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-400 dark:focus:border-blue-500"
+    />
+  </div>
+  <!-- END Text Input -->
+
+  <!-- Email Input -->
+  <div class="space-y-1">
+    <label for="email" class="inline-block font-medium">Email</label>
+    <input
+      type="email"
+      id="email"
+      name="email"
+      placeholder="Enter your email"
+      class="block w-full rounded-lg border border-gray-200 px-3 py-2 leading-6 placeholder-gray-500 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-400 dark:focus:border-blue-500"
+    />
+  </div>
+  <!-- END Email Input -->
+
+  <!-- Password Input -->
+  <div class="space-y-1">
+    <label for="password" class="inline-block font-medium">Password</label>
+    <input
+      type="password"
+      id="password"
+      name="password"
+      placeholder="Enter your password"
+      class="block w-full rounded-lg border border-gray-200 px-3 py-2 leading-6 placeholder-gray-500 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800 dark:placeholder-gray-400 dark:focus:border-blue-500"
+    />
+  </div>
+  <!-- END Password Input -->
+</form>
+<!-- END Form Elements: Inputs -->
