@@ -52,6 +52,7 @@
 @endphp
 
 @section('title', __('public.qualifying_times.title'))
+@section('description', __('public.qualifying_times.intro'))
 @section('robots', 'noindex, nofollow')
 
 @section('content')

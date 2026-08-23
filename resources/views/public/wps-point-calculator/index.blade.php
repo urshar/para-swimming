@@ -19,6 +19,7 @@
 @endphp
 
 @section('title', __('public.wps_point_calculator.title'))
+@section('description', __('public.wps_point_calculator.intro'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.wps_point_calculator.heading') }}</h1>

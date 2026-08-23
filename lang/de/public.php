@@ -3,6 +3,12 @@
 return [
     'skip_to_content' => 'Zum Inhalt',
 
+    'meta' => [
+        // Fallback-Meta-Description für Seiten ohne eigenes @section('description', ...) —
+        // siehe layouts/public.blade.php.
+        'default_description' => 'Wettkämpfe, Ergebnisse, Rekorde und Ranglisten des ÖBSV im Para-Schwimmen.',
+    ],
+
     'nav' => [
         'label' => 'Hauptnavigation',
         'home' => 'Startseite',
@@ -20,8 +26,70 @@ return [
         'qualifying_times' => 'Startberechtigung',
         'annual_best' => 'Jahresbestleistungen',
         'regulations' => 'Reglemente',
+        // Stehen in der Fußzeile, nicht im Hauptmenü (siehe layouts/public.blade.php) — die Keys
+        // bleiben trotzdem im nav-Block, da sie wie alle anderen Menü-/Seitenlabels funktionieren.
+        'legal_label' => 'Rechtliches',
+        'imprint' => 'Impressum',
+        'privacy_policy' => 'Datenschutz',
+        'accessibility_statement' => 'Barrierefreiheit',
         'open' => 'Menü öffnen',
         'close' => 'Menü schließen',
+    ],
+
+    'draft_notice' => [
+        'heading' => 'Entwurf — noch nicht rechtsgültig',
+        'text' => 'Diese Seite enthält Platzhalter statt endgültiger Angaben und ist noch nicht für die Öffentlichkeit bestimmt (kein Suchmaschineneintrag).',
+    ],
+
+    'imprint' => [
+        'title' => 'Impressum',
+        'heading' => 'Impressum',
+        'operator' => 'Medieninhaber und Betreiber',
+        'address' => 'Anschrift',
+        'register_number' => 'ZVR-Zahl',
+        'representative' => 'Vertretungsbefugte Person(en)',
+        'contact' => 'Kontakt',
+        'purpose' => 'Vereinszweck',
+        'placeholder' => [
+            'club_name' => 'vollständiger Vereinsname',
+            'address' => 'Straße, PLZ, Ort',
+            'zvr' => 'ZVR-Zahl',
+            'representative' => 'Name(n) und Funktion',
+            'purpose' => 'Vereinszweck laut Statuten',
+        ],
+    ],
+
+    'privacy_policy' => [
+        'title' => 'Datenschutz',
+        'heading' => 'Datenschutzerklärung',
+        'controller' => [
+            'heading' => 'Verantwortlicher',
+            'contact' => 'Kontakt für Datenschutzanfragen:',
+        ],
+        'data' => [
+            'heading' => 'Welche Daten wir verarbeiten',
+            'competition_intro' => 'Im Rahmen der Verbandstätigkeit veröffentlichen wir Wettkampfdaten (Namen von Athlet:innen, Ergebnisse, Vereinszugehörigkeit) öffentlich auf dieser Website.',
+            'legal_basis' => 'Rechtsgrundlage dafür:',
+            'technical_intro' => 'Zusätzlich verarbeiten wir folgende rein technische Daten:',
+            'cookie_locale' => 'Ein Cookie ("locale", Gültigkeit 1 Jahr) speichert Ihre gewählte Sprache — technisch notwendig für die Funktion der Website, keine Einwilligung erforderlich.',
+            'storage_theme' => 'Im lokalen Speicher Ihres Browsers ("localStorage", Schlüssel "theme") speichern wir Ihre gewählte Darstellung (hell/dunkel/System) — verlässt nie Ihr Gerät.',
+        ],
+        'recipients' => [
+            'heading' => 'Empfänger',
+            'text' => 'Die Website wird gehostet bei:',
+        ],
+        'rights' => [
+            'heading' => 'Ihre Rechte',
+            'text' => 'Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer personenbezogenen Daten sowie das Recht auf Datenübertragbarkeit und Widerspruch gegen die Verarbeitung. Wenden Sie sich dafür an die oben genannte Kontaktadresse.',
+        ],
+        'complaint' => [
+            'heading' => 'Beschwerderecht',
+            'text' => 'Sie haben das Recht, sich bei der österreichischen Datenschutzbehörde zu beschweren: Österreichische Datenschutzbehörde, Barichgasse 40–42, 1030 Wien, E-Mail: dsb@dsb.gv.at.',
+        ],
+        'placeholder' => [
+            'legal_basis' => 'z. B. berechtigtes Interesse gemäß Art. 6 Abs. 1 lit. f DSGVO / Vereinsstatuten',
+            'hosting_provider' => 'Name und Anschrift des Hosting-Anbieters',
+        ],
     ],
 
     'theme' => [
@@ -34,11 +102,28 @@ return [
     'home' => [
         'title' => 'Startseite',
         'heading' => 'Willkommen beim ÖBSV',
+        'intro' => 'Wettkämpfe, Ergebnisse und Rekorde des österreichischen Para-Schwimmens auf einen Blick.',
+        'next_meet' => [
+            'heading' => 'Nächste Veranstaltung',
+            'empty' => 'Derzeit ist keine kommende Veranstaltung veröffentlicht.',
+            'link' => 'Details ansehen',
+        ],
+        'recent_records' => [
+            'heading' => 'Neue Rekorde',
+            'empty' => 'Derzeit liegen keine österreichischen Rekorde vor.',
+            'link' => 'Alle Rekorde ansehen',
+        ],
+        'recent_results' => [
+            'heading' => 'Aktuelle Ergebnisse',
+            'empty' => 'Für die letzten Veranstaltungen sind noch keine Ergebnisse veröffentlicht.',
+            'link' => 'Ergebnisse ansehen',
+        ],
     ],
 
     'meets' => [
         'index' => [
             'title' => 'Veranstaltungen',
+            'meta_description' => 'Kommende und vergangene Schwimmveranstaltungen des ÖBSV.',
             'upcoming_heading' => 'Kommende Veranstaltungen',
             'past_heading' => 'Vergangene Veranstaltungen',
             'archive_link' => 'Alle vergangenen Veranstaltungen',
@@ -47,11 +132,13 @@ return [
         ],
         'archive' => [
             'title' => 'Archiv',
+            'meta_description' => 'Alle vergangenen Schwimmveranstaltungen des ÖBSV, nach Jahr gruppiert.',
             'heading' => 'Veranstaltungsarchiv',
             'back_link' => 'Zurück zu den Veranstaltungen',
             'empty' => 'Es sind keine vergangenen Veranstaltungen veröffentlicht.',
         ],
         'show' => [
+            'meta_description' => ':name, :date · :city',
             'back_link' => 'Zurück zu den Veranstaltungen',
             'entries_deadline' => 'Meldeschluss',
             'no_deadline' => 'kein Meldeschluss hinterlegt',
@@ -108,6 +195,7 @@ return [
 
     'records' => [
         'title' => 'Rekorde',
+        'meta_description' => 'Österreichische Rekorde im Para-Schwimmen, national und je Landesverband.',
         'heading' => 'Rekorde',
         'empty' => 'Für diese Auswahl liegen keine Rekorde vor.',
         'filter' => [
@@ -365,6 +453,15 @@ return [
             'language' => 'Sprache',
             'published_at' => 'Veröffentlicht am',
         ],
+    ],
+
+    'accessibility_statement' => [
+        'title' => 'Barrierefreiheit',
+        'heading' => 'Erklärung zur Barrierefreiheit',
+        'intro' => 'Der ÖBSV ist bemüht, diese Website für alle Nutzer:innen zugänglich zu gestalten und orientiert sich dabei an den Web Content Accessibility Guidelines (WCAG).',
+        'contact_heading' => 'Rückmeldungen',
+        'contact_text' => 'Wenn Sie auf Barrieren stoßen oder Verbesserungsvorschläge haben, kontaktieren Sie uns unter',
+        'contact_email' => 'schwimmen@obsv.at',
     ],
 
     'languages' => [

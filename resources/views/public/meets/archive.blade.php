@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', __('public.meets.archive.title'))
+@section('description', __('public.meets.archive.meta_description'))
 
 @section('content')
     <p class="mb-4">

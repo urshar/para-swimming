@@ -3,6 +3,10 @@
 return [
     'skip_to_content' => 'Skip to content',
 
+    'meta' => [
+        'default_description' => 'Meets, results, records and rankings for ÖBSV para swimming.',
+    ],
+
     'nav' => [
         'label' => 'Main navigation',
         'home' => 'Home',
@@ -17,8 +21,68 @@ return [
         'qualifying_times' => 'Qualification',
         'annual_best' => 'Annual best performances',
         'regulations' => 'Regulations',
+        'legal_label' => 'Legal',
+        'imprint' => 'Imprint',
+        'privacy_policy' => 'Privacy policy',
+        'accessibility_statement' => 'Accessibility',
         'open' => 'Open menu',
         'close' => 'Close menu',
+    ],
+
+    'draft_notice' => [
+        'heading' => 'Draft — not yet legally valid',
+        'text' => 'This page contains placeholders instead of final information and is not yet intended for the public (no search engine listing).',
+    ],
+
+    'imprint' => [
+        'title' => 'Imprint',
+        'heading' => 'Imprint',
+        'operator' => 'Media owner and operator',
+        'address' => 'Address',
+        'register_number' => 'Association register number (ZVR)',
+        'representative' => 'Authorized representative(s)',
+        'contact' => 'Contact',
+        'purpose' => 'Association purpose',
+        'placeholder' => [
+            'club_name' => 'full association name',
+            'address' => 'street, postcode, city',
+            'zvr' => 'ZVR number',
+            'representative' => 'name(s) and role',
+            'purpose' => 'association purpose per statutes',
+        ],
+    ],
+
+    'privacy_policy' => [
+        'title' => 'Privacy policy',
+        'heading' => 'Privacy policy',
+        'controller' => [
+            'heading' => 'Data controller',
+            'contact' => 'Contact for privacy inquiries:',
+        ],
+        'data' => [
+            'heading' => 'What data we process',
+            'competition_intro' => 'As part of our association activities, we publish competition data (athlete names, results, club affiliation) publicly on this website.',
+            'legal_basis' => 'Legal basis for this:',
+            'technical_intro' => 'We also process the following purely technical data:',
+            'cookie_locale' => 'A cookie ("locale", valid for 1 year) stores your chosen language — technically necessary for the website to function, no consent required.',
+            'storage_theme' => 'In your browser\'s local storage ("localStorage", key "theme") we store your chosen appearance (light/dark/system) — never leaves your device.',
+        ],
+        'recipients' => [
+            'heading' => 'Recipients',
+            'text' => 'This website is hosted by:',
+        ],
+        'rights' => [
+            'heading' => 'Your rights',
+            'text' => 'You have the right to access, rectify, erase and restrict the processing of your personal data, as well as the right to data portability and to object to processing. Please contact the address given above.',
+        ],
+        'complaint' => [
+            'heading' => 'Right to lodge a complaint',
+            'text' => 'You have the right to lodge a complaint with the Austrian data protection authority: Österreichische Datenschutzbehörde, Barichgasse 40–42, 1030 Vienna, Austria, email: dsb@dsb.gv.at.',
+        ],
+        'placeholder' => [
+            'legal_basis' => 'e.g. legitimate interest under Art. 6(1)(f) GDPR / association statutes',
+            'hosting_provider' => 'name and address of the hosting provider',
+        ],
     ],
 
     'theme' => [
@@ -31,11 +95,28 @@ return [
     'home' => [
         'title' => 'Home',
         'heading' => 'Welcome to the ÖBSV',
+        'intro' => 'Meets, results and records of Austrian para swimming at a glance.',
+        'next_meet' => [
+            'heading' => 'Next meet',
+            'empty' => 'No upcoming meet is currently published.',
+            'link' => 'View details',
+        ],
+        'recent_records' => [
+            'heading' => 'New records',
+            'empty' => 'No Austrian records are currently on file.',
+            'link' => 'View all records',
+        ],
+        'recent_results' => [
+            'heading' => 'Recent results',
+            'empty' => 'No results have been published for the recent meets yet.',
+            'link' => 'View results',
+        ],
     ],
 
     'meets' => [
         'index' => [
             'title' => 'Meets',
+            'meta_description' => 'Upcoming and past swimming meets of the ÖBSV.',
             'upcoming_heading' => 'Upcoming meets',
             'past_heading' => 'Past meets',
             'archive_link' => 'All past meets',
@@ -44,11 +125,13 @@ return [
         ],
         'archive' => [
             'title' => 'Archive',
+            'meta_description' => 'All past swimming meets of the ÖBSV, grouped by year.',
             'heading' => 'Meet archive',
             'back_link' => 'Back to meets',
             'empty' => 'No past meets are published.',
         ],
         'show' => [
+            'meta_description' => ':name, :date · :city',
             'back_link' => 'Back to meets',
             'entries_deadline' => 'Entry deadline',
             'no_deadline' => 'no entry deadline on file',
@@ -105,6 +188,7 @@ return [
 
     'records' => [
         'title' => 'Records',
+        'meta_description' => 'Austrian para swimming records, national and by regional association.',
         'heading' => 'Records',
         'empty' => 'No records for this selection.',
         'filter' => [
@@ -358,6 +442,15 @@ return [
             'language' => 'Language',
             'published_at' => 'Published on',
         ],
+    ],
+
+    'accessibility_statement' => [
+        'title' => 'Accessibility',
+        'heading' => 'Accessibility statement',
+        'intro' => 'ÖBSV is committed to making this website accessible to all users and follows the Web Content Accessibility Guidelines (WCAG).',
+        'contact_heading' => 'Feedback',
+        'contact_text' => 'If you encounter accessibility barriers or have suggestions for improvement, please contact us at',
+        'contact_email' => 'schwimmen@obsv.at',
     ],
 
     'languages' => [

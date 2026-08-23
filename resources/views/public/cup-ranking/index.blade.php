@@ -38,6 +38,7 @@
 @endphp
 
 @section('title', __('public.cup.title'))
+@section('description', __('public.cup.intro'))
 @section('robots', 'noindex, nofollow')
 
 @section('content')

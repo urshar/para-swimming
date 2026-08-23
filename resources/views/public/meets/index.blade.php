@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', __('public.meets.index.title'))
+@section('description', __('public.meets.index.meta_description'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.meets.index.title') }}</h1>

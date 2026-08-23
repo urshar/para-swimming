@@ -41,6 +41,13 @@
 
     <title>{{ config('app.name', 'Para Swimming') }} – @yield('title')</title>
 
+    {{-- Fallback über yieldContent() statt @hasSection/@yield-Paar (Phase 9, §Meta-Tags): jede
+         Seite bekommt eine Beschreibung, auch ohne eigenes @section('description', ...) — die
+         meisten Seiten setzen trotzdem eine eigene (oft dieselbe Zeichenkette wie ihr
+         Intro-Absatz), aber ein generischer Fallback ist besser als eine leere/fehlende
+         Meta-Description auf Seiten, die (noch) keine eigene gesetzt haben. --}}
+    <meta name="description" content="{{ $__env->yieldContent('description') ?: __('public.meta.default_description') }}">
+
     @hasSection('robots')
         <meta name="robots" content="@yield('robots')">
     @endif
@@ -319,11 +326,29 @@
     @yield('content')
 </main>
 
-{{-- Tailkit: m-s-footers-01 "Simple" — auf die Copyright-Zeile reduziert. --}}
+{{-- Tailkit: m-s-footers-01 "Simple" — auf die Copyright-Zeile reduziert, um die echten
+     rechtlichen/Barrierefreiheits-Links ergänzt. Gehört in die Fußzeile statt ins Hauptmenü —
+     wie auf den meisten Websites üblich ("Impressum"/"Datenschutz"/"Barrierefreiheit"), keine
+     inhaltliche Nav-Sektion. Copyright links, Links rechtsbündig (Rückmeldung) — bei schmalem
+     Viewport bricht die Zeile um (flex-wrap), statt sich zu überlappen. --}}
 <footer class="border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
     <div
-        class="container mx-auto px-4 py-12 text-center text-sm text-gray-500 lg:px-8 dark:text-gray-400/80 xl:max-w-7xl">
-        <span class="font-medium">{{ config('app.name', 'Para Swimming') }}</span> &copy; {{ now()->year }}
+        class="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-12 text-sm text-gray-500 lg:px-8 dark:text-gray-400/80 xl:max-w-7xl">
+        <span><span class="font-medium">{{ config('app.name', 'Para Swimming') }}</span> &copy; {{ now()->year }}</span>
+        <nav aria-label="{{ __('public.nav.legal_label') }}" class="flex flex-wrap gap-x-6 gap-y-2">
+            <a href="{{ route('public.imprint.index', ['locale' => app()->getLocale()]) }}"
+               class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                {{ __('public.nav.imprint') }}
+            </a>
+            <a href="{{ route('public.privacy-policy.index', ['locale' => app()->getLocale()]) }}"
+               class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                {{ __('public.nav.privacy_policy') }}
+            </a>
+            <a href="{{ route('public.accessibility-statement.index', ['locale' => app()->getLocale()]) }}"
+               class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                {{ __('public.nav.accessibility_statement') }}
+            </a>
+        </nav>
     </div>
 </footer>
 

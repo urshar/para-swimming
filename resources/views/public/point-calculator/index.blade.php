@@ -23,6 +23,7 @@
 @endphp
 
 @section('title', __('public.point_calculator.title'))
+@section('description', __('public.point_calculator.intro'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.point_calculator.heading') }}</h1>

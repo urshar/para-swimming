@@ -16,6 +16,7 @@
 @extends('layouts.public')
 
 @section('title', __('public.records.title'))
+@section('description', __('public.records.meta_description'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.records.heading') }}</h1>

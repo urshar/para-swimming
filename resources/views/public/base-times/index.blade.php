@@ -29,6 +29,7 @@
 @endphp
 
 @section('title', __('public.base_times.title'))
+@section('description', __('public.base_times.intro'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.base_times.heading') }}</h1>

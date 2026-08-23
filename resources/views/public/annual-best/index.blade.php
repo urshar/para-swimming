@@ -27,6 +27,7 @@
 @endphp
 
 @section('title', __('public.annual_best.title'))
+@section('description', __('public.annual_best.intro'))
 @section('robots', 'noindex, nofollow')
 
 @section('content')

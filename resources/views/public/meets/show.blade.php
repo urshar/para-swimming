@@ -1,6 +1,7 @@
 @extends('layouts.public')
 
 @section('title', $meet->name)
+@section('description', __('public.meets.show.meta_description', ['name' => $meet->name, 'date' => $meet->date_range, 'city' => $meet->city]))
 
 @section('content')
     <p class="mb-4">

@@ -442,7 +442,9 @@ it('fasst Cup-Wertung, Startberechtigung und Jahresbestleistungen im Untermenü 
 // ── robots.txt ────────────────────────────────────────────────────────────────
 
 it('schließt die drei Ranglisten-Routen in robots.txt aus', function () {
-    $robots = file_get_contents(public_path('robots.txt'));
+    // Seit Phase 9 eine Route statt einer statischen Datei (siehe RobotsController) — trägt
+    // dadurch eine echte Sitemap-URL statt eine geratene/hartkodierte Domain.
+    $robots = $this->get('/robots.txt')->assertOk()->getContent();
 
     expect($robots)->toContain('/*/cup')
         ->and($robots)->toContain('/*/startberechtigung')
