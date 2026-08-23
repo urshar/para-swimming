@@ -7,10 +7,10 @@ use App\Models\Meet;
 use Illuminate\Support\Collection;
 
 /**
- * MeetDocumentGroup — ein sprachaufgelöstes Dokument einer Veranstaltung (Spec public-frontend
- * §4.1). "Gruppe" meint: alle Sprachfassungen desselben logischen Dokuments, reduziert auf die
- * für die aktive Sprache zu zeigende Fassung plus, falls vorhanden, die andere Sprachfassung
- * zum Verlinken daneben.
+ * DocumentLocaleGroup — ein sprachaufgelöstes Dokument (Spec public-frontend §4.1). "Gruppe"
+ * meint: alle Sprachfassungen desselben logischen Dokuments, reduziert auf die für die aktive
+ * Sprache zu zeigende Fassung plus, falls vorhanden, die andere Sprachfassung zum Verlinken
+ * daneben.
  *
  * Sprachfassungen desselben Dokuments werden über `category` + `sort_order` gepaart — die
  * Tabelle hat kein eigenes Feld dafür (§4.1 nennt keins). Beim Anlegen von Dokumenten (Phase 3)
@@ -18,8 +18,13 @@ use Illuminate\Support\Collection;
  * bekommen; unterschiedliche Dokumente derselben Kategorie (z. B. Ergebnislisten mehrerer
  * Wettkampftage) brauchen unterschiedliche Werte, sonst würden sie hier fälschlich als
  * Sprachpaar zusammengefasst.
+ *
+ * Ursprünglich MeetDocumentGroup (Phase 2), fest an Meet::documents() gekoppelt — mit Phase 8
+ * (Regelmente/Formulare, documentable = null) auf forDocuments() verallgemeinert, das eine
+ * bereits gefilterte/sortierte Collection statt einer Beziehung entgegennimmt. forMeet() bleibt
+ * als schmaler Wrapper für den unveränderten Aufrufort in MeetController/meets/_table.
  */
-final readonly class MeetDocumentGroup
+final readonly class DocumentLocaleGroup
 {
     public function __construct(
         public Document $document,
@@ -31,14 +36,27 @@ final readonly class MeetDocumentGroup
      */
     public static function forMeet(Meet $meet, string $locale): Collection
     {
-        return $meet->documents()
-            ->public()
-            ->published()
-            ->orderBy('sort_order')
-            ->get()
+        return self::forDocuments(
+            $meet->documents()->public()->published()->orderBy('sort_order')->get(),
+            $locale
+        );
+    }
+
+    /**
+     * @param  Collection<int, Document>  $documents  bereits auf Sichtbarkeit gefiltert
+     *                                                (public()/published()), beliebige
+     *                                                documentable-Zuordnung (auch null)
+     * @return Collection<int, self>
+     */
+    public static function forDocuments(Collection $documents, string $locale): Collection
+    {
+        /** @var Collection<int, self> $groups */
+        $groups = $documents
             ->groupBy(fn (Document $document): string => $document->category.'|'.$document->sort_order)
             ->map(fn (Collection $siblings): self => self::resolve($siblings, $locale))
             ->values();
+
+        return $groups;
     }
 
     /**

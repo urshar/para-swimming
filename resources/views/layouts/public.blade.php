@@ -184,6 +184,12 @@
                         </a>
                     </div>
                 </div>
+
+                <a href="{{ route('public.regulations.index', ['locale' => app()->getLocale()]) }}"
+                   @if (request()->routeIs('public.regulations.*')) aria-current="page" @endif
+                   class="text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400 aria-[current]:text-blue-600 dark:aria-[current]:text-blue-400">
+                    {{ __('public.nav.regulations') }}
+                </a>
             </nav>
 
             <div role="group" aria-label="{{ __('public.theme.label') }}" class="flex gap-1" x-data="theme()">
@@ -286,6 +292,11 @@
                @if (request()->routeIs('public.annual-best.*')) aria-current="page" @endif
                class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
                 {{ __('public.nav.annual_best') }}
+            </a>
+            <a href="{{ route('public.regulations.index', ['locale' => app()->getLocale()]) }}"
+               @if (request()->routeIs('public.regulations.*')) aria-current="page" @endif
+               class="py-1 text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+                {{ __('public.nav.regulations') }}
             </a>
         </nav>
     </nav>

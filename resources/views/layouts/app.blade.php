@@ -220,6 +220,18 @@
                     Sportklassengruppen
                 </flux:navlist.item>
             </flux:navlist.group>
+
+            {{-- Regelmente & Formulare ohne Veranstaltungsbezug (Admin\DocumentController,
+                 documentable = null, Spec public-frontend §6/Phase 8) — die Route existierte
+                 bereits seit Phase 3, hatte aber nie einen Menüeintrag (Rückmeldung: "im Admin
+                 Bereich gibt es dazu nichts"). Veranstaltungsdokumente hängen dagegen am
+                 jeweiligen Meet-Formular (meets/show), brauchen keinen eigenen Menüpunkt. --}}
+            <flux:navlist.group heading="Regelmente & Formulare">
+                <flux:navlist.item icon="document-text" href="{{ route('admin.documents.index') }}"
+                                   :current="request()->routeIs('admin.documents.*')">
+                    Dokumente
+                </flux:navlist.item>
+            </flux:navlist.group>
         @endif
 
     </flux:navlist>

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Meet;
 use App\Services\Public\PublicMeetService;
 use App\Services\Public\PublicResultService;
-use App\Support\MeetDocumentGroup;
+use App\Support\DocumentLocaleGroup;
 use Illuminate\View\View;
 
 class MeetController extends Controller
@@ -48,7 +48,7 @@ class MeetController extends Controller
 
         return view('public.meets.show', [
             'meet' => $meet,
-            'documents' => MeetDocumentGroup::forMeet($meet, app()->getLocale()),
+            'documents' => DocumentLocaleGroup::forMeet($meet, app()->getLocale()),
             'hasResults' => $this->results->hasResults($meet),
         ]);
     }

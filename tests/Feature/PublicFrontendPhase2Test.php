@@ -4,7 +4,7 @@ use App\Models\Document;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Services\Public\PublicMeetService;
-use App\Support\MeetDocumentGroup;
+use App\Support\DocumentLocaleGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 
@@ -123,7 +123,7 @@ it('zeigt die passende Sprachfassung, wenn nur diese existiert', function () {
     $meet = makeMeet_publicp2();
     makeDocument_publicp2($meet, ['locale' => 'de']);
 
-    $groups = MeetDocumentGroup::forMeet($meet, 'de');
+    $groups = DocumentLocaleGroup::forMeet($meet, 'de');
 
     expect($groups)->toHaveCount(1)
         ->and($groups->first()->document->locale)->toBe('de')
@@ -134,7 +134,7 @@ it('zeigt die andere Sprachfassung, wenn nur diese existiert', function () {
     $meet = makeMeet_publicp2();
     makeDocument_publicp2($meet, ['locale' => 'en']);
 
-    $groups = MeetDocumentGroup::forMeet($meet, 'de');
+    $groups = DocumentLocaleGroup::forMeet($meet, 'de');
 
     expect($groups)->toHaveCount(1)
         ->and($groups->first()->document->locale)->toBe('en')
@@ -145,8 +145,8 @@ it('zeigt die sprachneutrale Fassung, wenn nur diese existiert', function () {
     $meet = makeMeet_publicp2();
     makeDocument_publicp2($meet, ['locale' => null]);
 
-    $groupsDe = MeetDocumentGroup::forMeet($meet, 'de');
-    $groupsEn = MeetDocumentGroup::forMeet($meet, 'en');
+    $groupsDe = DocumentLocaleGroup::forMeet($meet, 'de');
+    $groupsEn = DocumentLocaleGroup::forMeet($meet, 'en');
 
     expect($groupsDe->first()->document->locale)->toBeNull()
         ->and($groupsEn->first()->document->locale)->toBeNull();
@@ -157,7 +157,7 @@ it('zeigt die aktive Sprache und verlinkt die andere, wenn beide existieren', fu
     makeDocument_publicp2($meet, ['locale' => 'de', 'sort_order' => 1]);
     makeDocument_publicp2($meet, ['locale' => 'en', 'sort_order' => 1]);
 
-    $groups = MeetDocumentGroup::forMeet($meet, 'de');
+    $groups = DocumentLocaleGroup::forMeet($meet, 'de');
 
     expect($groups)->toHaveCount(1)
         ->and($groups->first()->document->locale)->toBe('de')
