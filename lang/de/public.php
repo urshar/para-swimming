@@ -19,6 +19,7 @@ return [
         'cup' => 'ÖBSV Cup-Wertung',
         'qualifying_times' => 'Startberechtigung',
         'annual_best' => 'Jahresbestleistungen',
+        'regulations' => 'Reglemente',
         'open' => 'Menü öffnen',
         'close' => 'Menü schließen',
     ],
@@ -343,8 +344,26 @@ return [
             'INVITATION' => 'Ausschreibung',
             'START_LIST' => 'Meldeliste',
             'RESULTS' => 'Ergebnisliste',
-            'REGULATION' => 'Regelment',
+            'REGULATION' => 'Reglement',
             'FORM' => 'Formular',
+        ],
+    ],
+
+    'regulations' => [
+        'title' => 'Reglemente',
+        'heading' => 'Reglemente & Formulare',
+        'intro' => 'Regelwerke und Formulare des ÖBSV zum Download.',
+        'empty' => 'Derzeit sind keine Reglemente oder Formulare veröffentlicht.',
+        // Abschnittsüberschriften teilen sich die Kategorie-Labels mit documents.category oben
+        // (REGULATION/FORM) — kein eigener Satz nötig.
+        'also_available_in' => 'auch verfügbar auf',
+        // Sprachneutrale Dokumente (locale = null) — die beiden echten Sprachen kommen aus
+        // languages.de/en unten.
+        'language_neutral' => 'sprachneutral',
+        'columns' => [
+            'title' => 'Titel',
+            'language' => 'Sprache',
+            'published_at' => 'Veröffentlicht am',
         ],
     ],
 

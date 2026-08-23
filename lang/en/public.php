@@ -16,6 +16,7 @@ return [
         'cup' => 'ÖBSV cup ranking',
         'qualifying_times' => 'Qualification',
         'annual_best' => 'Annual best performances',
+        'regulations' => 'Regulations',
         'open' => 'Open menu',
         'close' => 'Close menu',
     ],
@@ -342,6 +343,20 @@ return [
             'RESULTS' => 'Results',
             'REGULATION' => 'Regulation',
             'FORM' => 'Form',
+        ],
+    ],
+
+    'regulations' => [
+        'title' => 'Regulations',
+        'heading' => 'Regulations & Forms',
+        'intro' => 'ÖBSV rules and forms for download.',
+        'empty' => 'No regulations or forms are currently published.',
+        'also_available_in' => 'also available in',
+        'language_neutral' => 'language-neutral',
+        'columns' => [
+            'title' => 'Title',
+            'language' => 'Language',
+            'published_at' => 'Published on',
         ],
     ],
 

@@ -8,7 +8,7 @@
     Scrollbarer Container mit tabindex="0" nach accessibility.md, für den Fall, dass die Tabelle
     auf schmalen Bildschirmen breiter als der Viewport wird.
 --}}
-@php use App\Support\MeetDocumentGroup; @endphp
+@php use App\Support\DocumentLocaleGroup; @endphp
 <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" tabindex="0"
      aria-label="{{ __('public.meets.index.title') }}">
     <table class="min-w-full text-sm">
@@ -57,7 +57,7 @@
                         @endif
                     </td>
                     <td class="p-3">
-                        @php($rowDocuments = MeetDocumentGroup::forMeet($meet, app()->getLocale()))
+                        @php($rowDocuments = DocumentLocaleGroup::forMeet($meet, app()->getLocale()))
                         @if ($rowDocuments->isEmpty())
                             <span class="text-gray-400 dark:text-gray-500">—</span>
                         @else

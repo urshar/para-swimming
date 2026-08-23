@@ -48,12 +48,14 @@ führt nicht mehr in den Login.
 |-------------------------------------------|------------|-----------------------------------------------------------------|
 | `Public\MeetController`                   | Controller | Liste, Archiv und Detail                                        |
 | `App\Services\Public\PublicMeetService`   | Service    | kommend/vergangen (je 10), Archiv nach Jahr, nur `is_published` |
-| `App\Support\MeetDocumentGroup`           | Wertobjekt | Dokumente je Kategorie, Sprachauflösung (§4.1)                  |
+| `App\Support\DocumentLocaleGroup`         | Wertobjekt | Dokumente je Kategorie, Sprachauflösung (§4.1)                  |
 | `Public\DocumentDownloadController`       | Controller | prüft `is_public` und `published_at`, liefert aus `Storage`     |
 | Views `public/meets/{index,archive,show}` | Blade      | Liste, Archiv, Detail mit Dokumenten, Livetiming, Meldeschluss  |
 
 Die Sprachauflösung ("zeige die passende Fassung, verlinke die andere") gehört in das Wertobjekt, nicht in die View —
-sie wird in Phase 8 für Regelmente erneut gebraucht.
+sie wird in Phase 8 für Regelmente erneut gebraucht. Dafür in Phase 8 von `MeetDocumentGroup` auf
+`DocumentLocaleGroup` umbenannt und um `forDocuments()` verallgemeinert (nimmt eine bereits gefilterte Collection
+statt einer `Meet`-Beziehung entgegen); `forMeet()` bleibt als schmaler Wrapper bestehen, siehe dort.
 
 **Ergebnis:** Die Liste zeigt die nächsten und die letzten 10 veröffentlichten Veranstaltungen (statt eines reinen
 Jahresfilters); eine eigene, nach Jahr gruppierte Archiv-Seite deckt den vollständigen Rückblick ab (Entscheidung aus
@@ -807,16 +809,43 @@ Bestätigung der Ausrichtung in diesem Environment.
 
 ---
 
-## Phase 8 — Regelmente und Formulare
+## Phase 8 — Regelmente und Formulare — **abgeschlossen**
 
-| Baustein                        | Art        | Zweck                                        |
-|---------------------------------|------------|----------------------------------------------|
-| `Public\RegulationController`   | Controller | gruppiert nach `category`                    |
-| View `public/regulations/index` | Blade      | Titel, Format, Größe, Veröffentlichungsdatum |
+| Baustein                        | Art        | Zweck                                         |
+|----------------------------------|------------|-----------------------------------------------|
+| `Public\RegulationController`   | Controller | gruppiert nach `category`                     |
+| View `public/regulations/index` | Blade      | Titel, Format, Größe, Veröffentlichungsdatum  |
 
 Nutzt `documents` ohne `documentable` und die Sprachauflösung aus Phase 2.
 
-**Tests** (`public-p8`): Gruppierung, Sortierung, nur veröffentlichte Dokumente.
+**Ergebnis:** Bewusst auf die Kategorien REGULATION und FORM eingeschränkt statt "gruppiert nach allen vorkommenden
+category-Werten" — das Admin-Formular für Dokumente ohne Veranstaltungsbezug (Phase 3) erlaubt zwar dieselben fünf
+Kategorien wie das Veranstaltungsformular (beide teilen dieselbe Validierung), aber INVITATION/START_LIST/RESULTS
+ergeben ohne Meet-Bezug fachlich keinen Sinn. Anzeigereihenfolge (REGULATION vor FORM, passend zum Seitentitel
+"Reglemente & Formulare") ist in `RegulationController::CATEGORY_ORDER` fest in PHP verdrahtet statt per
+`orderBy('category')` — ein `enum`-Feld sortiert in MySQL nach Deklarationsreihenfolge, in SQLite (Testsuite) dagegen
+alphabetisch als Text (CLAUDE.md: jede Query muss auf beiden Datenbanken laufen).
+
+Keine Filter, keine Suche: eine Handvoll Dokumente ist als schlichte, nach Kategorie zweigeteilte Liste übersichtlicher
+als eine Tabelle mit Steuerelementen (ähnlich der Punktetabelle in Phase 6) — anders als bei Rekorden oder
+Startberechtigung, wo Dutzende Zeilen eine Eingrenzung brauchen.
+
+Die Sprachauflösung/den Linktext-Aufbau ("Titel (Format, Größe)", Verlinkung der anderen Sprachfassung) direkt aus
+Phase 2 übernommen, dafür `App\Support\MeetDocumentGroup` auf `App\Support\DocumentLocaleGroup` umbenannt und um eine
+generische `forDocuments(Collection $documents, string $locale)` erweitert, die eine bereits gefilterte Collection
+statt einer `Meet`-Beziehung entgegennimmt — `forMeet()` bleibt als schmaler Wrapper für die unveränderten Aufrufstellen
+(`Public\MeetController`, `public/meets/_table`) bestehen. Vermeidet eine zweite Kopie derselben Gruppierungs-/
+Paarungslogik. Nebenbei einen Tippfehler in der Kategorie-Übersetzung behoben: `public.documents.category.REGULATION`
+hieß "Regelment" statt "Reglement" (DE) — fällt auf dieser neuen Seite als Abschnittsüberschrift zum ersten Mal
+sichtbar ins Gewicht.
+
+Kein `noindex` (anders als die Ranglisten-Seiten aus Phase 7): Reglemente und Formulare sind dauerhaft gültiger,
+öffentlich relevanter Inhalt, kein personenbezogener Snapshot — `robots.txt` bleibt unverändert.
+
+**Tests** (`public-p8`, alle grün): nur öffentliche, veröffentlichte Dokumente ohne `documentable` sichtbar,
+Veranstaltungsdokumente (`documentable` gesetzt) erscheinen hier nicht, meet-typische Kategorien (z. B. INVITATION)
+bleiben ausgeblendet, Gruppierung Reglemente vor Formularen, Sprachauflösung bei zwei vorhandenen Fassungen, Download
+ganz ohne Veranstaltungsbezug, Seite erscheint in der Hauptnavigation.
 
 ---
 

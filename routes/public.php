@@ -11,6 +11,7 @@ use App\Http\Controllers\Public\PointCalculatorController;
 use App\Http\Controllers\Public\QualifyingTimeController;
 use App\Http\Controllers\Public\RecordController;
 use App\Http\Controllers\Public\RecordExportController;
+use App\Http\Controllers\Public\RegulationController;
 use App\Http\Controllers\Public\WpsPointCalculatorController;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Http\Request;
@@ -80,4 +81,5 @@ Route::prefix('{locale}')
         Route::get('bestleistungen/{jahr?}', [AnnualBestController::class, 'index'])
             ->where('jahr', '[0-9]+')
             ->name('public.annual-best.index');
+        Route::get('reglemente', [RegulationController::class, 'index'])->name('public.regulations.index');
     });
