@@ -6,7 +6,8 @@
 
     <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-3">
-            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="ghost"
+                         icon="arrow-left" size="sm"/>
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
@@ -248,8 +249,14 @@
     {{-- ═══════════════════════════════════════════════════════════════════════
          KLASSIFIKATIONS-HISTORY
     ════════════════════════════════════════════════════════════════════════ --}}
+    {{-- openClassification startet offen, wenn wir gerade per Redirect von der Neuanlage kommen
+         (AthleteController::store()) — siehe ?neue_klassifikation=1. --}}
+    {{-- Verschachtelte Funktionsaufrufe direkt innerhalb von @js() im x-data-Attribut vorher in eine
+         eigene Variable auflösen (statt @js((bool) request(...)) inline) — sonst zerlegt PhpStorms
+         Blade-Parser den Ausdruck fehlerhaft ("Method expression is not of Function type"). --}}
+    @php $openClassificationDefault = (bool) request('neue_klassifikation'); @endphp
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
-         x-data="{ openClassification: false }">
+         x-data="{ openClassification: @js($openClassificationDefault) }">
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
@@ -263,7 +270,10 @@
         <div x-show="openClassification" x-cloak
              class="mb-5 p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600">
             <h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Klassifikation eintragen</h3>
-            @php $defaultScope = $athlete->license_ipc ? 'INTL' : 'NAT'; @endphp
+            @php
+                $defaultScope = $athlete->license_ipc ? 'INTL' : 'NAT';
+                $classificationStatusOld = old('classification_status', '');
+            @endphp
             <form method="POST" action="{{ route('athletes.classifications.store', $athlete) }}">
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
@@ -283,7 +293,7 @@
 
                 {{-- Scope + Status + FRD-Jahr --}}
                 <div class="grid grid-cols-3 gap-3 mt-3"
-                     x-data="{ status: @js(old('classification_status', '')) }">
+                     x-data="{ status: @js($classificationStatusOld) }">
                     <flux:field>
                         <flux:label>Gültigkeit *</flux:label>
                         <flux:select name="classification_scope">
@@ -380,30 +390,24 @@
                     <flux:description>Leer lassen wenn der Athlet diese Kategorie nicht schwimmt.</flux:description>
                 </div>
 
-                {{-- Exceptions --}}
+                {{-- Exceptions — der Code ist bereits eindeutig einer Lage zugeordnet, eine
+                     zusätzliche Kategorie-Zuteilung (S/SB/SM) gibt es fachlich nicht. --}}
                 <div class="mt-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS Exceptions</p>
-                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    <div class="grid grid-cols-3 gap-x-4 max-h-48 overflow-y-auto pr-1">
                         @foreach($exceptionCodes as $code)
-                            <div
-                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                            <div class="flex items-center gap-2 py-1">
                                 <input type="checkbox"
                                        name="exceptions[{{ $loop->index }}][code_id]"
                                        value="{{ $code->id }}"
                                        id="new_exc_{{ $code->id }}"
                                        class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
                                 <label for="new_exc_{{ $code->id }}"
-                                       class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
+                                       class="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                     {{ $code->code }}
                                     <span
                                         class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                 </label>
-                                <flux:select name="exceptions[{{ $loop->index }}][category]" class="w-24 text-xs">
-                                    <option value="">–</option>
-                                    <option value="S">S</option>
-                                    <option value="SB">SB</option>
-                                    <option value="SM">SM</option>
-                                </flux:select>
                             </div>
                         @endforeach
                     </div>
@@ -515,6 +519,7 @@
                             <form method="POST"
                                   action="{{ route('athletes.classifications.update', [$athlete, $cl]) }}">
                                 @csrf @method('PUT')
+                                @php $clStatus = $cl->classification_status ?? ''; @endphp
                                 <div class="grid grid-cols-2 gap-3">
                                     <flux:field>
                                         <flux:label>Datum *</flux:label>
@@ -531,7 +536,7 @@
 
                                 {{-- Scope + Status + FRD --}}
                                 <div class="grid grid-cols-3 gap-3 mt-3"
-                                     x-data="{ status: @js($cl->classification_status ?? '') }">
+                                     x-data="{ status: @js($clStatus) }">
                                     <flux:field>
                                         <flux:label>Gültigkeit *</flux:label>
                                         <flux:select name="classification_scope">
@@ -639,15 +644,15 @@
                                     </flux:description>
                                 </div>
 
-                                {{-- Exceptions --}}
+                                {{-- Exceptions — der Code ist bereits eindeutig einer Lage zugeordnet, eine
+                                     zusätzliche Kategorie-Zuteilung (S/SB/SM) gibt es fachlich nicht. --}}
                                 <div class="mt-3">
                                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS
                                         Exceptions</p>
-                                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                                    <div class="grid grid-cols-3 gap-x-4 max-h-48 overflow-y-auto pr-1">
                                         @foreach($exceptionCodes as $code)
                                             @php $excExisting = $cl->exceptions->firstWhere('id', $code->id); @endphp
-                                            <div
-                                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                                            <div class="flex items-center gap-2 py-1">
                                                 <input type="checkbox"
                                                        name="exceptions[{{ $loop->index }}][code_id]"
                                                        value="{{ $code->id }}"
@@ -655,26 +660,11 @@
                                                        @checked($excExisting !== null)
                                                        class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
                                                 <label for="edit_exc_{{ $cl->id }}_{{ $code->id }}"
-                                                       class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
+                                                       class="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                                     {{ $code->code }}
                                                     <span
                                                         class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                                 </label>
-                                                <flux:select name="exceptions[{{ $loop->index }}][category]"
-                                                             class="w-24 text-xs">
-                                                    <option value="">–</option>
-                                                    <option
-                                                        value="S" @selected($excExisting?->pivot?->category === 'S')>S
-                                                    </option>
-                                                    <option
-                                                        value="SB" @selected($excExisting?->pivot?->category === 'SB')>
-                                                        SB
-                                                    </option>
-                                                    <option
-                                                        value="SM" @selected($excExisting?->pivot?->category === 'SM')>
-                                                        SM
-                                                    </option>
-                                                </flux:select>
                                             </div>
                                         @endforeach
                                     </div>
