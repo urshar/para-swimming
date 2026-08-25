@@ -32,6 +32,7 @@
 @endphp
 
 @section('title', __('public.regulations.title'))
+@section('description', __('public.regulations.intro'))
 
 @section('content')
     <h1 class="text-2xl font-semibold">{{ __('public.regulations.heading') }}</h1>

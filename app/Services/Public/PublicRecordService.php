@@ -93,6 +93,23 @@ final readonly class PublicRecordService
             ->all();
     }
 
+    /**
+     * Die zuletzt aufgestellten nationalen Rekorde (record_type = 'AUT', keine Landesverbands-/
+     * Jugendrekorde) — Grundlage für die Startseiten-Kachel "Neue Rekorde" (Phase 9). Bewusst
+     * nicht über forFilter()/PublicRecordFilter, da die Startseite keinen Filterzustand hat und
+     * immer dieselbe, nationale Ebene zeigen soll statt eines zuletzt gewählten Filters.
+     *
+     * @return Collection<int, SwimRecord>
+     */
+    public function recent(int $limit = 5): Collection
+    {
+        return $this->baseQuery('AUT')
+            ->with(['strokeType', 'athlete', 'club', 'relayTeam.athlete'])
+            ->latest('set_date')
+            ->limit($limit)
+            ->get();
+    }
+
     private function baseQuery(string $recordType): Builder
     {
         return SwimRecord::query()

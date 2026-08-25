@@ -108,8 +108,10 @@ it('markiert die Ergebnisseite als noindex,nofollow', function () {
 });
 
 it('sperrt die Ergebnisseite in robots.txt', function () {
-    expect(file_get_contents(public_path('robots.txt')))
-        ->toContain('Disallow: /*/veranstaltungen/*/ergebnisse');
+    // Seit Phase 9 eine Route statt einer statischen Datei (siehe RobotsController).
+    $this->get('/robots.txt')
+        ->assertOk()
+        ->assertSee('Disallow: /*/veranstaltungen/*/ergebnisse');
 });
 
 it('zeigt den Link zu den Ergebnissen auf der Detailseite nur, wenn Ergebnisse vorliegen', function () {

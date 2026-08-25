@@ -1,17 +1,22 @@
 <?php
 
+use App\Http\Controllers\Public\AccessibilityStatementController;
 use App\Http\Controllers\Public\AnnualBestController;
 use App\Http\Controllers\Public\BaseTimeTableController;
 use App\Http\Controllers\Public\CupRankingController;
 use App\Http\Controllers\Public\DocumentDownloadController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\ImprintController;
 use App\Http\Controllers\Public\MeetController;
 use App\Http\Controllers\Public\MeetResultController;
 use App\Http\Controllers\Public\PointCalculatorController;
+use App\Http\Controllers\Public\PrivacyPolicyController;
 use App\Http\Controllers\Public\QualifyingTimeController;
 use App\Http\Controllers\Public\RecordController;
 use App\Http\Controllers\Public\RecordExportController;
 use App\Http\Controllers\Public\RegulationController;
+use App\Http\Controllers\Public\RobotsController;
+use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\WpsPointCalculatorController;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Http\Request;
@@ -38,6 +43,14 @@ Route::get('/', function (Request $request) {
 
     return Redirect::to("/$locale")->withCookie(cookie('locale', $locale, 60 * 24 * 365));
 })->name('public.root');
+
+// Kein Sprachpräfix, keine SetLocale-Middleware: eine Sitemap ist eine einzige, sprachübergreifende
+// Datei (jede URL erscheint einmal je Sprache), keine pro Sprache aufgeteilte Seite (Phase 9).
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('public.sitemap');
+
+// Ersetzt die bisherige statische public/robots.txt (siehe RobotsController-Kommentar) — die
+// Datei musste dafür entfernt werden, sonst liefert der Webserver sie weiter direkt aus.
+Route::get('/robots.txt', [RobotsController::class, 'index'])->name('public.robots');
 
 Route::prefix('{locale}')
     ->where(['locale' => implode('|', SetLocale::SUPPORTED)])
@@ -82,4 +95,14 @@ Route::prefix('{locale}')
             ->where('jahr', '[0-9]+')
             ->name('public.annual-best.index');
         Route::get('reglemente', [RegulationController::class, 'index'])->name('public.regulations.index');
+        Route::get('barrierefreiheit', [AccessibilityStatementController::class, 'index'])
+            ->name('public.accessibility-statement.index');
+
+        // Entwürfe mit Platzhaltern statt echtem Inhalt (Rückmeldung, Phase 9 Nachtrag) — siehe
+        // ImprintController/PrivacyPolicyController. Bewusst nicht in SitemapController gelistet
+        // und zusätzlich zum noindex-Meta-Tag in robots.txt gesperrt (RobotsController), bis der
+        // echte Inhalt feststeht.
+        Route::get('impressum', [ImprintController::class, 'index'])->name('public.imprint.index');
+        Route::get('datenschutz', [PrivacyPolicyController::class, 'index'])
+            ->name('public.privacy-policy.index');
     });

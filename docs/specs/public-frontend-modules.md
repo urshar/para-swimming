@@ -54,8 +54,8 @@ führt nicht mehr in den Login.
 
 Die Sprachauflösung ("zeige die passende Fassung, verlinke die andere") gehört in das Wertobjekt, nicht in die View —
 sie wird in Phase 8 für Regelmente erneut gebraucht. Dafür in Phase 8 von `MeetDocumentGroup` auf
-`DocumentLocaleGroup` umbenannt und um `forDocuments()` verallgemeinert (nimmt eine bereits gefilterte Collection
-statt einer `Meet`-Beziehung entgegen); `forMeet()` bleibt als schmaler Wrapper bestehen, siehe dort.
+`DocumentLocaleGroup` umbenannt und um `forDocuments()` verallgemeinert (nimmt eine bereits gefilterte Collection statt
+einer `Meet`-Beziehung entgegen); `forMeet()` bleibt als schmaler Wrapper bestehen, siehe dort.
 
 **Ergebnis:** Die Liste zeigt die nächsten und die letzten 10 veröffentlichten Veranstaltungen (statt eines reinen
 Jahresfilters); eine eigene, nach Jahr gruppierte Archiv-Seite deckt den vollständigen Rückblick ab (Entscheidung aus
@@ -811,10 +811,10 @@ Bestätigung der Ausrichtung in diesem Environment.
 
 ## Phase 8 — Regelmente und Formulare — **abgeschlossen**
 
-| Baustein                        | Art        | Zweck                                         |
-|----------------------------------|------------|-----------------------------------------------|
-| `Public\RegulationController`   | Controller | gruppiert nach `category`                     |
-| View `public/regulations/index` | Blade      | Titel, Format, Größe, Veröffentlichungsdatum  |
+| Baustein                        | Art        | Zweck                                        |
+|---------------------------------|------------|----------------------------------------------|
+| `Public\RegulationController`   | Controller | gruppiert nach `category`                    |
+| View `public/regulations/index` | Blade      | Titel, Format, Größe, Veröffentlichungsdatum |
 
 Nutzt `documents` ohne `documentable` und die Sprachauflösung aus Phase 2.
 
@@ -830,14 +830,14 @@ Keine Filter, keine Suche: eine Handvoll Dokumente ist als schlichte, nach Kateg
 als eine Tabelle mit Steuerelementen (ähnlich der Punktetabelle in Phase 6) — anders als bei Rekorden oder
 Startberechtigung, wo Dutzende Zeilen eine Eingrenzung brauchen.
 
-Die Sprachauflösung/den Linktext-Aufbau ("Titel (Format, Größe)", Verlinkung der anderen Sprachfassung) direkt aus
-Phase 2 übernommen, dafür `App\Support\MeetDocumentGroup` auf `App\Support\DocumentLocaleGroup` umbenannt und um eine
-generische `forDocuments(Collection $documents, string $locale)` erweitert, die eine bereits gefilterte Collection
-statt einer `Meet`-Beziehung entgegennimmt — `forMeet()` bleibt als schmaler Wrapper für die unveränderten Aufrufstellen
+Die Sprachauflösung/den Linktext-Aufbau ("Titel (Format, Größe)", Verlinkung der anderen Sprachfassung) direkt aus Phase
+2 übernommen, dafür `App\Support\MeetDocumentGroup` auf `App\Support\DocumentLocaleGroup` umbenannt und um eine
+generische `forDocuments(Collection $documents, string $locale)` erweitert, die eine bereits gefilterte Collection statt
+einer `Meet`-Beziehung entgegennimmt — `forMeet()` bleibt als schmaler Wrapper für die unveränderten Aufrufstellen
 (`Public\MeetController`, `public/meets/_table`) bestehen. Vermeidet eine zweite Kopie derselben Gruppierungs-/
 Paarungslogik. Nebenbei einen Tippfehler in der Kategorie-Übersetzung behoben: `public.documents.category.REGULATION`
-hieß "Regelment" statt "Reglement" (DE) — fällt auf dieser neuen Seite als Abschnittsüberschrift zum ersten Mal
-sichtbar ins Gewicht.
+hieß "Regelment" statt "Reglement" (DE) — fällt auf dieser neuen Seite als Abschnittsüberschrift zum ersten Mal sichtbar
+ins Gewicht.
 
 Kein `noindex` (anders als die Ranglisten-Seiten aus Phase 7): Reglemente und Formulare sind dauerhaft gültiger,
 öffentlich relevanter Inhalt, kein personenbezogener Snapshot — `robots.txt` bleibt unverändert.
@@ -849,7 +849,7 @@ ganz ohne Veranstaltungsbezug, Seite erscheint in der Hauptnavigation.
 
 ---
 
-## Phase 9 — Abschluss
+## Phase 9 — Abschluss — **abgeschlossen**
 
 | Baustein                                                                      | Art           |
 |-------------------------------------------------------------------------------|---------------|
@@ -860,6 +860,67 @@ ganz ohne Veranstaltungsbezug, Seite erscheint in der Hauptnavigation.
 | `robots.txt`, Sitemap, Meta-Tags                                              | Konfiguration |
 
 Prüfumfang nach [accessibility.md](../accessibility.md) §Prüfung, einschließlich Screenreader-Durchsicht.
+
+**Ergebnis:** Startseite mit drei Kacheln (Tailkit a-c-cards-02 "Simple in Grid",
+`docs/snippets/card-grid.html` — bis hierhin ungenutzt): nächste veröffentlichte Veranstaltung
+(`PublicMeetService::upcoming(1)`), neue nationale Rekorde (neue Methode
+`PublicRecordService::recent()`, bewusst nicht über `PublicRecordFilter`/`forFilter()` — die Startseite hat keinen
+Filterzustand und soll immer die nationale Ebene zeigen, kein zuletzt gewähltes Level), aktuelle Ergebnisse als
+Teaser-Link auf die letzte vergangene Veranstaltung **mit** tatsächlich erfassten Ergebnissen
+(`HomeController::latestMeetWithResults()`, nicht zwangsläufig die chronologisch letzte — eine veröffentlichte
+Veranstaltung kann noch ohne Ergebnisse dastehen). Bewusst keine einzelnen Ergebniszeilen auf der Startseite: welche
+Zeilen dort
+"hervorzuheben" wären, ist willkürlich und nicht spezifiziert.
+
+Englische Übersetzung war bereits vollständig (`lang/de/public.php` und `lang/en/public.php` beim Start dieser Phase
+strukturell 1:1 deckungsgleich, keine leeren Werte) — hier gab es nichts zu tun.
+
+`/de/barrierefreiheit` (`Public\AccessibilityStatementController`) zeigt bewusst nur die Kontaktmöglichkeit
+(`schwimmen@obsv.at`, Rückmeldung). Konformitätsstand und Schlichtungsverfahren fehlen absichtlich — dafür bräuchte es
+zuerst eine echte Prüfung bzw. eine Entscheidung des Verbands, keine Selbstauskunft ohne Grundlage. Als offener Punkt in
+[`docs/open-points.md`](../open-points.md) festgehalten, statt es stillschweigend zu vergessen oder mit Platzhaltertext
+zu füllen. Verlinkt aus der Fußzeile, nicht dem Hauptmenü (wie
+"Impressum"/"Datenschutz" auf den meisten Websites üblich) — die Fußzeile bekam dafür zusätzlich zur Copyright-Zeile
+diesen einen echten Link.
+
+Der Barrierefreiheits- **Audit** selbst (axe DevTools, Tastaturdurchlauf, Kontrastprüfung, 200-%-Zoom,
+Screenreader-Durchsicht) ist laut `accessibility.md` §Prüfung eine **manuelle**
+Prüfung — in dieser Umgebung ohne echten Browser mit axe/Screenreader nicht durchführbar. Stattdessen eine
+Templates-Durchsicht der neuen Phase-9-Seiten gegen die dokumentierten Konventionen: `home.blade.php`s drei Kachel-Links
+("Details ansehen" / "Ergebnisse ansehen")
+waren aus dem Zusammenhang gerissen (z. B. in einer Screenreader-Linkliste) zu unspezifisch —
+`aria-label` mit dem jeweiligen Veranstaltungsnamen ergänzt (sinngemäß dieselbe Regel wie bei Dokumentlinks: "Art,
+Format und Größe im Linktext", hier: "welche Veranstaltung"). Der Kontraststichprobe blieb auf bereits im Bestand
+verwendete Klassen (`text-gray-500/600`,
+`bg-gray-50`/`dark:bg-gray-700/50`) beschränkt — keine neuen Farbwerte eingeführt. Ein echter Tastaturdurchlauf und eine
+Screenreader-Durchsicht bleiben offen (siehe `docs/open-points.md`? — nein, bewusst **nicht** dort eingetragen: das ist
+eine wiederkehrende Aufgabe vor jedem Livegang, kein einmalig nachzuholender Punkt an dieser einen Phase).
+
+`robots.txt` war bis zu dieser Phase eine statische Datei unter `public/robots.txt` — umgestellt auf
+`Public\RobotsController` (Route statt Datei), damit die neue `Sitemap:`-Zeile eine echte absolute URL trägt (`url()`,
+löst gegen `APP_URL` auf); eine statische Datei kennt die aktuelle Umgebung (Dev- vs. Produktionsdomain) nicht, und das
+Sitemap-Protokoll verlangt ohnehin eine absolute Angabe. Die alte Datei musste dafür entfernt werden — sonst liefert der
+Webserver sie weiter direkt aus, ohne Laravel je zu erreichen. `Public\SitemapController` (`/sitemap.xml`, kein
+Sprachpräfix, eine Datei für beide Sprachen) listet dieselben Seiten, die auch in der Navigation stehen, plus eine URL
+je veröffentlichter Veranstaltung — bewusst **nicht** die per `robots.txt`
+gesperrten Seiten (Cup-Wertung, Startberechtigung, Jahresbestleistungen, Ergebnislisten): eine Sitemap, die auf
+gesperrte Seiten verweist, wäre widersprüchlich.
+
+Meta-Description: neue `@section('description', ...)`-Konvention analog zu `title`/`robots`, mit Fallback auf
+`public.meta.default_description` über `$__env->yieldContent('description')` statt eines `@hasSection`/`@yield`-Paars —
+jede Seite bekommt dadurch eine Beschreibung, auch ohne eigene. Sieben Seiten mit ohnehin vorhandenem Intro-Absatz
+(`public.*.intro`, z. B.
+`public.regulations.intro`) setzen exakt diesen Text auch als Meta-Description, statt eine zweite, nur geringfügig
+abweichende Formulierung zu pflegen. Veranstaltungsdetail bekam eine dynamische, mit `:name`/`:date`/`:city`
+-Platzhaltern zusammengesetzte Beschreibung statt eines statischen Satzes.
+
+**Tests** (`public-p9`, alle grün): Startseiten-Leerzustände ohne Daten, nächste veröffentlichte Veranstaltung erscheint
+(unveröffentlichte nicht), neue Rekorde zeigen nur die nationale Ebene, Ergebnis-Teaser zeigt die letzte Veranstaltung
+**mit** Ergebnissen statt der chronologisch letzten, Barrierefreiheitsseite mit Kontaktadresse, seiteneigene und
+Fallback-Meta-Description, Sitemap enthält die erwarteten statischen und dynamischen URLs je Sprache, Sitemap lässt
+gesperrte Seiten aus, `robots.txt` nennt die Sitemap-URL. Zusätzlich zwei bestehende Tests (Phase 4, Phase 7)
+angepasst, die bislang direkt die jetzt entfernte statische `public/robots.txt` gelesen hatten — lesen jetzt über
+`$this->get('/robots.txt')`.
 
 ---
 
