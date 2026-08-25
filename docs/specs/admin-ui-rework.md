@@ -76,6 +76,63 @@ sauber auf die normale Liste zurück. Reine Session-URL, kein Eloquent-Modell in
 
 **Tests** (`--group=admin-ui-athletes`).
 
+## Phase 2 — Globales Layout (Header/Sidebar) — **abgeschlossen**
+
+Kein einzelnes Fach-Modul, sondern die Shell selbst (`resources/views/layouts/app.blade.php`), die von jeder Seite im
+angemeldeten Bereich verwendet wird. Auslöser: Die Sidebar war durch die vielen Fach-Module (siehe oben) so lang, dass
+ständiges Scrollen nötig war, und es fehlte ein erreichbarer Menüpunkt für Profil/Abmelden.
+
+| Baustein                                  | Art   | Zweck                                                                 |
+|--------------------------------------------|-------|------------------------------------------------------------------------|
+| Neue Kopfzeile (`flux:header`)              | Blade | Logo, Dark/Light-Umschalter, Benutzermenü — volle Breite über Sidebar + Content |
+| Sidebar-Gruppen (`flux:navlist.group`)      | Blade | Nur die Gruppe der aktuellen Route ist beim Laden aufgeklappt          |
+| Dark/Light-Umschaltung                      | Blade/JS | Umgestellt von eigenem Alpine-State auf Flux' natives `$flux.appearance`-System |
+
+### Kopfzeile
+
+- Logo aus der Sidebar in eine neue, volle Breite über Sidebar UND Content spannende Kopfzeile verschoben. Wichtig:
+  Die DOM-Reihenfolge (`flux:header` **vor** `flux:sidebar`) entscheidet über das Grid-Layout, das Flux automatisch
+  anlegt (`vendor/livewire/flux/dist/flux.css`, `*:has(>[data-flux-main])` vs. `*:has(>[data-flux-sidebar]+[data-flux-header])`)
+  — Header vor Sidebar ergibt eine volle Kopfzeile, nicht nur eine neben der Sidebar.
+- Logo-Abschnitt der Kopfzeile ist exakt `w-64` breit (dieselbe Breitenklasse wie `flux:sidebar` selbst), damit er
+  mit der Sidebar-Spalte fluchtet, unabhängig von der tatsächlichen Sidebar-Breite. Der Dark/Light-Umschalter sitzt
+  direkt danach — dadurch auf Höhe des Hauptinhalts, nicht am Logo klebend und nicht ganz am rechten Rand beim
+  Benutzermenü.
+- `flux:header` bringt selbst `px-6 lg:px-8` mit, das gegen von außen übergebene Padding-Klassen mit derselben
+  Spezifität verliert (derselbe Effekt wie der `flux:input`-Breitenbefund oben) — hier mit dem Tailwind-v4-
+  `!`-Suffix (`px-0!`) übersteuert, die Innenabstände tragen die beiden Abschnitte in der Kopfzeile selbst.
+- Benutzermenü (Avatar/Name, "Einstellungen", "Abmelden") existierte bereits als
+  `components/desktop-user-menu.blade.php`, hing aber nur im nie eingebundenen Starter-Kit-Rest
+  `layouts/app/header.blade.php` und war dadurch im echten Layout nie erreichbar. Direkt in die neue Kopfzeile
+  eingebaut (kompaktere `flux:profile` statt `flux:sidebar.profile`).
+
+### Sidebar: einklappbare Gruppen
+
+Jede `flux:navlist.group` bekommt `expandable` + ein berechnetes `:expanded` (dieselben `routeIs()`-Bedingungen wie
+die enthaltenen Items). Flux stellt das nativ über `<ui-disclosure>` bereit, kein eigenes JS nötig. Beim Laden ist
+nur die Gruppe der aktuellen Route offen, alle anderen zeigen nur die Überschrift; der Nutzer kann jede Gruppe
+weiterhin manuell auf-/zuklappen (kein exklusives Akkordeon — mehrere können gleichzeitig offen sein).
+
+### Zwei Bugs beim Reachable-Machen der Settings-Seite gefunden
+
+Das neue Benutzermenü macht `/settings/profile` und `/settings/appearance` erstmals über die UI erreichbar — dabei
+zwei vorbestehende, bis dahin unbemerkte Bugs aufgedeckt:
+
+- **Dark/Light flippte beim Besuch von Settings → Appearance.** Es liefen zwei unabhängige Dark-Mode-Systeme
+  parallel: ein eigener Alpine-`x-data` auf `<html>` (`localStorage['theme']`) und Flux' eigenes, von der
+  Appearance-Seite intern bereits genutztes `$flux.appearance`-System (`localStorage['flux.appearance']`,
+  Alpine-Magic aus dem Flux-JS-Bundle). Sobald die Appearance-Seite geladen wurde, hat Flux seinen eigenen
+  (nie gesetzten) Zustand angewendet und den eigenen Alpine-State überschrieben. Fix: komplett auf Flux' natives
+  System umgestellt (`$flux.dark` als Getter/Setter, `@fluxAppearance` in `<head>` für FOUC-freies frühes Anwenden),
+  eigenen Alpine-State entfernt. Header-Umschalter und Settings-Seite teilen sich jetzt denselben Zustand.
+- **`@fluxStyles`** stand als literaler Text sichtbar oben im Body. In der installierten Flux-Version ist das gar
+  keine registrierte Blade-Direktive mehr (nur `@fluxScripts`/`@fluxAppearance`, siehe
+  `vendor/livewire/flux/src/AssetManager.php::registerAssetDirective()`) — unregistrierte `@wort`-Muster lässt
+  Blade unverändert im Output stehen. Ersetzt durch `@fluxAppearance` (siehe oben).
+
+**Tests**: `composer test` (volle Suite, betrifft jede Seite) — 1387 Tests, keine Regressionen. Kein eigener
+`--group`, da reine Layout-/Blade-Änderung ohne neue fachliche Logik.
+
 ## Geplante nächste Module
 
 Reihenfolge noch offen wird beim jeweiligen Start festgelegt. Kandidaten mit bekanntem `flux:input`-Breitenbefund (siehe
