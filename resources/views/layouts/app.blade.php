@@ -22,6 +22,31 @@
          wörtlich als Text "@fluxStyles" ausgegeben, sichtbar ganz oben im Body. @fluxAppearance ist das
          früh ausgeführte Inline-Script, das die dark-Klasse noch vor dem ersten Paint setzt (FOUC-frei). --}}
     @fluxAppearance
+    {{-- Spiegelt jede Änderung von $flux.appearance (Umschalter hier oben, Settings → Appearance)
+         zurück in localStorage["theme"] — den Key, den der öffentliche Bereich liest (siehe
+         resources/js/theme.js). Ohne diesen Mitschrieb blieb "theme" nach einem Wechsel hier auf
+         dem alten Stand: nach dem Logout zeigte der öffentliche Bereich noch die zuletzt dort
+         gewählte Darstellung, während die Login-Seite (liest nur "flux.appearance") schon die
+         neue zeigte — sichtbarer Sprung beim Navigieren zwischen beiden. Über einen
+         MutationObserver auf die "dark"-Klasse statt an $flux direkt anzudocken, weil $flux' Alpine-
+         reactive-Instanz nicht öffentlich exportiert ist (nur die Magic-Funktion @click="$flux.dark = …"
+         im Template) – die Klasse an <html> ändert sich aber garantiert synchron bei jeder
+         Umschaltung, unabhängig davon, über welchen Weg (Header-Button oder Settings-Radiogroup). --}}
+    <script>
+        (function () {
+            new MutationObserver(function () {
+                var appearance = window.localStorage.getItem('flux.appearance');
+
+                if (appearance) {
+                    window.localStorage.setItem('theme', appearance);
+                } else {
+                    // "System" gewählt: Flux entfernt seinen eigenen Key wieder, "theme" soll
+                    // dann ebenfalls auf System zurückfallen statt eine alte Wahl festzuhalten.
+                    window.localStorage.removeItem('theme');
+                }
+            }).observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
+        })();
+    </script>
 </head>
 <body class="min-h-screen bg-zinc-50 dark:bg-zinc-950 font-sans antialiased">
 

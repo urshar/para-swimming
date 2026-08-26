@@ -26,7 +26,7 @@
 
     <div class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-8">
         {{-- Kachel: nächste Veranstaltung --}}
-        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800">
             <div class="bg-gray-50 px-5 py-4 dark:bg-gray-700/50">
                 <h2 class="font-medium">{{ __('public.home.next_meet.heading') }}</h2>
             </div>
@@ -54,7 +54,7 @@
         </div>
 
         {{-- Kachel: neue Rekorde --}}
-        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800">
             <div class="bg-gray-50 px-5 py-4 dark:bg-gray-700/50">
                 <h2 class="font-medium">{{ __('public.home.recent_records.heading') }}</h2>
             </div>
@@ -96,7 +96,7 @@
         </div>
 
         {{-- Kachel: aktuelle Ergebnisse --}}
-        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex flex-col overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800">
             <div class="bg-gray-50 px-5 py-4 dark:bg-gray-700/50">
                 <h2 class="font-medium">{{ __('public.home.recent_results.heading') }}</h2>
             </div>

@@ -59,7 +59,7 @@
                            class="inline-block text-sm font-medium">{{ __('public.point_calculator.fields.course') }}</label>
                     <div class="relative">
                         <select id="course" name="course"
-                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                             <option value="LCM" @selected($course === 'LCM')>LCM (50m)</option>
                             <option value="SCM" @selected($course === 'SCM')>SCM (25m)</option>
                         </select>
@@ -72,7 +72,7 @@
                            class="inline-block text-sm font-medium">{{ __('public.point_calculator.fields.gender') }}</label>
                     <div class="relative">
                         <select id="gender" name="gender"
-                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                             <option
                                 value="M" @selected($gender === 'M')>{{ __('public.point_calculator.gender.M') }}</option>
                             <option
@@ -87,7 +87,7 @@
                            class="inline-block text-sm font-medium">{{ __('public.point_calculator.fields.discipline') }}</label>
                     <div class="relative">
                         <select id="discipline_id" name="discipline_id" required
-                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                             <option
                                 value="" @selected(! $selectedDisciplineId)>{{ __('public.point_calculator.fields.sport_class_select') }}</option>
                             @foreach ($disciplines as $discipline)
@@ -110,7 +110,7 @@
                            class="inline-block text-sm font-medium">{{ __('public.point_calculator.fields.sport_class') }}</label>
                     <div class="relative">
                         <select id="sport_class" name="sport_class" required
-                                class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                             <option
                                 value="" @selected(! $selectedSportClass)>{{ __('public.point_calculator.fields.sport_class_select') }}</option>
                             @foreach ($sportClasses as $sportClass)
@@ -130,7 +130,7 @@
                     <input id="time" name="time" type="text" placeholder="00:00.00"
                            value="{{ $time }}"
                            x-data x-init="IMask($el, { mask: '00:00.00', lazy: false, placeholderChar: '0' })"
-                           class="block w-full rounded-lg border border-gray-200 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                           class="block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                 </div>
 
                 <div class="space-y-1" x-show="showPoints()">
@@ -138,7 +138,7 @@
                            class="inline-block text-sm font-medium">{{ __('public.point_calculator.fields.points') }}</label>
                     <input id="points" name="points" type="number" min="1" step="1"
                            value="{{ $pointsInput }}"
-                           class="block w-full rounded-lg border border-gray-200 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                           class="block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                 </div>
             </div>
 

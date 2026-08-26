@@ -34,6 +34,7 @@ return [
         'accessibility_statement' => 'Barrierefreiheit',
         'open' => 'Menü öffnen',
         'close' => 'Menü schließen',
+        'login' => 'Login',
     ],
 
     'draft_notice' => [
@@ -72,7 +73,7 @@ return [
             'legal_basis' => 'Rechtsgrundlage dafür:',
             'technical_intro' => 'Zusätzlich verarbeiten wir folgende rein technische Daten:',
             'cookie_locale' => 'Ein Cookie ("locale", Gültigkeit 1 Jahr) speichert Ihre gewählte Sprache — technisch notwendig für die Funktion der Website, keine Einwilligung erforderlich.',
-            'storage_theme' => 'Im lokalen Speicher Ihres Browsers ("localStorage", Schlüssel "theme") speichern wir Ihre gewählte Darstellung (hell/dunkel/System) — verlässt nie Ihr Gerät.',
+            'storage_theme' => 'Im lokalen Speicher Ihres Browsers ("localStorage", Schlüssel "theme" sowie, damit die Wahl auch auf der Login-Seite erhalten bleibt, "flux.appearance") speichern wir Ihre gewählte Darstellung (hell/dunkel/System) — verlässt nie Ihr Gerät.',
         ],
         'recipients' => [
             'heading' => 'Empfänger',

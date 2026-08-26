@@ -80,7 +80,7 @@
                             <div class="relative">
                                 <select id="year" name="year"
                                         onchange="location.href = this.options[this.selectedIndex].dataset.href"
-                                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     @foreach ($years as $availableYear)
                                         <option value="{{ $availableYear }}"
                                                 data-href="{{ route('public.annual-best.index', ['locale' => app()->getLocale(), 'jahr' => $availableYear]) }}"
@@ -118,7 +118,7 @@
                                    class="inline-block text-sm font-medium">{{ __('public.annual_best.filter.group') }}</label>
                             <div class="relative">
                                 <select id="annual-best-group" x-model="groupId"
-                                        class="block w-56 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-56 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     <option value="all">{{ __('public.annual_best.filter.group_all') }}</option>
                                     @foreach ($groupOptions as $groupOption)
                                         <option value="{{ $groupOption['value'] }}"
@@ -136,7 +136,7 @@
                                    class="inline-block text-sm font-medium">{{ __('public.annual_best.filter.gender') }}</label>
                             <div class="relative">
                                 <select id="annual-best-gender" x-model="gender"
-                                        class="block w-40 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-40 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     @foreach ($genderOptions as $genderOption)
                                         <option value="{{ $genderOption ?? 'combined' }}"
                                             @selected($firstBucket['gender'] === $genderOption)>
@@ -156,7 +156,7 @@
                                class="inline-block text-sm font-medium">{{ __('public.annual_best.search') }}</label>
                         <input id="annual-best-search" type="search" x-model="query"
                                placeholder="{{ __('public.annual_best.search_placeholder') }}"
-                               class="block w-full rounded-lg border border-gray-200 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                               class="block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                     </div>
                 @endif
             </div>
@@ -190,7 +190,7 @@
                                  class="mt-6">
                             <h2 class="mb-3 text-lg font-semibold">{{ $heading }}</h2>
 
-                            <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                            <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                  tabindex="0" aria-label="{{ $heading }}">
                                 <table class="min-w-full text-sm">
                                     <caption class="sr-only">{{ $heading }}</caption>

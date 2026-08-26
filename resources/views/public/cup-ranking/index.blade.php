@@ -104,7 +104,7 @@
                             <div class="relative">
                                 <select id="year" name="year"
                                         onchange="location.href = this.options[this.selectedIndex].dataset.href"
-                                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     @foreach ($years as $availableYear)
                                         <option value="{{ $availableYear }}"
                                                 data-href="{{ route('public.cup-ranking.index', ['locale' => app()->getLocale(), 'jahr' => $availableYear]) }}"
@@ -134,7 +134,7 @@
                                    class="inline-block text-sm font-medium">{{ __('public.cup.filter.group') }}</label>
                             <div class="relative">
                                 <select id="cup-group" x-model="groupId"
-                                        class="block w-56 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-56 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     <option value="all">{{ __('public.cup.filter.group_all') }}</option>
                                     @foreach ($groupOptions as $group)
                                         <option value="{{ $group->id }}"
@@ -152,7 +152,7 @@
                                    class="inline-block text-sm font-medium">{{ __('public.cup.filter.gender') }}</label>
                             <div class="relative">
                                 <select id="cup-gender" x-model="gender"
-                                        class="block w-48 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                        class="block w-48 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                     @foreach ($genderOptions as $genderOption)
                                         <option value="{{ $genderOption ?? 'combined' }}"
                                             @selected($firstBracket['gender'] === $genderOption)>
@@ -180,7 +180,7 @@
                                class="inline-block text-sm font-medium">{{ __('public.cup.search') }}</label>
                         <input id="cup-search" type="search" x-model="query"
                                placeholder="{{ __('public.cup.search_placeholder') }}"
-                               class="block w-full rounded-lg border border-gray-200 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                               class="block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                     </div>
                 @endif
             </div>
@@ -223,7 +223,7 @@
                                  class="mt-6">
                             <h2 class="mb-3 text-lg font-semibold">{{ $heading }}</h2>
 
-                            <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                            <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                  tabindex="0" aria-label="{{ $heading }}">
                                 <table class="min-w-full text-sm">
                                     <caption class="sr-only">{{ $heading }}</caption>
