@@ -269,20 +269,20 @@ Formularänderung.
 ## Phase 6 — Aufklappbare Bereiche (`flux:accordion`) — **abgeschlossen**
 
 Handgebautes Alpine-Aufklapp-Muster (`x-data="{ open: ... }"` + Button/Icon + `x-show`) durch `flux:accordion` /
-`flux:accordion.item` ersetzt, wo es strukturell passt. Von den 6 ursprünglich geprüften Views wurden 4 umgestellt;
-bei 2 Views (bzw. einem Teilbereich einer dritten) passt `flux:accordion` strukturell nicht — siehe unten.
+`flux:accordion.item` ersetzt, wo es strukturell passt. Von den 6 ursprünglich geprüften Views wurden 4 umgestellt; bei
+2 Views (bzw. einem Teilbereich einer dritten) passt `flux:accordion` strukturell nicht — siehe unten.
 
-| Baustein                                                        | Art   | Zweck                                                                 |
-|-------------------------------------------------------------------|-------|--------------------------------------------------------------------------|
-| `qualifying-time-lists/{qualifications,show}.blade.php`           | Blade | Sportklassen-Gruppen je Seite von Hand-Alpine auf `flux:accordion` umgestellt |
-| `results/index.blade.php`                                         | Blade | Box "übersprungene Ergebnisse" umgestellt                                |
-| `records/import-preview.blade.php`                                | Blade | 2 von 3 `<details>`-Blöcken umgestellt ("Ausstehende Rekorde", "Nationale Rekorde") |
+| Baustein                                                | Art   | Zweck                                                                               |
+|---------------------------------------------------------|-------|-------------------------------------------------------------------------------------|
+| `qualifying-time-lists/{qualifications,show}.blade.php` | Blade | Sportklassen-Gruppen je Seite von Hand-Alpine auf `flux:accordion` umgestellt       |
+| `results/index.blade.php`                               | Blade | Box "übersprungene Ergebnisse" umgestellt                                           |
+| `records/import-preview.blade.php`                      | Blade | 2 von 3 `<details>`-Blöcken umgestellt ("Ausstehende Rekorde", "Nationale Rekorde") |
 
 ### Zwei Views bewusst nicht umgestellt
 
 - **`athletes/show.blade.php`** (Vereins-History, Klassifikation, Level, Kader) — kein Akkordeon-Muster: Ein Button
-  blendet dort ein **Formular** über einer immer sichtbaren Tabelle ein/aus, die Tabelle selbst klappt nie zu. Bei
-  einem Akkordeon klappt die Überschrift den ganzen Inhalt auf/zu — passt hier semantisch nicht.
+  blendet dort ein **Formular** über einer immer sichtbaren Tabelle ein/aus, die Tabelle selbst klappt nie zu. Bei einem
+  Akkordeon klappt die Überschrift den ganzen Inhalt auf/zu — passt hier semantisch nicht.
 - **`cups/club-ranking.blade.php`** (Vereinsrangliste, Zeilen-Detail) — technisch nicht möglich: Das aufklappbare
   Element ist eine `<tbody x-data="{open:false}">` mit zwei `<tr>`-Zeilen. `flux:accordion.item` rendert ein
   `<ui-disclosure>`-Custom-Element, das kein gültiges `<tbody>` ersetzen kann, ohne die Tabelle zu zerbrechen (Browser
@@ -290,27 +290,74 @@ bei 2 Views (bzw. einem Teilbereich einer dritten) passt `flux:accordion` strukt
   hier die einzig saubere Lösung.
 - **`records/import-preview.blade.php`**, dritter `<details>`-Block ("Regionale Rekorde", pro Landesverband) — die
   `<summary>` sitzt dort als Teil einer Flex-Zeile **neben** Import/Überspringen-Radiobuttons.
-  `flux:accordion.heading` ist ein `w-full`-Button, der die ganze Zeile für sich will — passt nicht sauber neben
-  weitere Controls in derselben Zeile. Als natives `<details>` belassen.
+  `flux:accordion.heading` ist ein `w-full`-Button, der die ganze Zeile für sich will — passt nicht sauber neben weitere
+  Controls in derselben Zeile. Als natives `<details>` belassen.
 
 ### Innere Polsterung: `first:`/`last:`-Reset schlägt eigene Klassen
 
-`flux:accordion.item` bringt eingebaut `pt-4 first:pt-0 pb-4 last:pb-0` mit (für mehrere Einträge in einer Gruppe
-mit Trennlinien gedacht). Bei einem alleinstehenden Element (gleichzeitig erstes und letztes Kind) gewinnt der
+`flux:accordion.item` bringt eingebaut `pt-4 first:pt-0 pb-4 last:pb-0` mit (für mehrere Einträge in einer Gruppe mit
+Trennlinien gedacht). Bei einem alleinstehenden Element (gleichzeitig erstes und letztes Kind) gewinnt der
 `first:`/`last:`-Reset gegen eine zusätzlich angegebene eigene `p-4`/`p-5`-Klasse auf `flux:accordion.item` selbst
-(höhere CSS-Spezifität durch die Pseudoklasse, derselbe Effekt wie der `flux:input`-Breitenbefund oben) — die
-gewünschte Innenpolsterung landet dadurch wirkungslos. Fix: Polsterung stattdessen auf `flux:accordion.heading`
+(höhere CSS-Spezifität durch die Pseudoklasse, derselbe Effekt wie der `flux:input`-Breitenbefund oben) — die gewünschte
+Innenpolsterung landet dadurch wirkungslos. Fix: Polsterung stattdessen auf `flux:accordion.heading`
 und `flux:accordion.content` selbst setzen (eigene, nicht-konkurrierende Elemente), nicht auf `flux:accordion.item`.
 
 **Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Zusätzlich `records/import-preview.blade.php`
 mit einer temporären Pest-Testdatei direkt gerendert (kein Alltagsroute-Test in der Suite vorhanden, Formular braucht
-echten Datei-Upload + Session) — bestätigt fehlerfreies Rendern beider umgestellter Blöcke, danach wieder entfernt.
-Kein eigener `--group`, reine Formular-/Anzeigeänderung.
+echten Datei-Upload + Session) — bestätigt fehlerfreies Rendern beider umgestellter Blöcke, danach wieder entfernt. Kein
+eigener `--group`, reine Formular-/Anzeigeänderung.
 
-## Geplante nächste Module
+## Phase 7 — Tabs & Autocomplete — **abgeschlossen (Autocomplete-Teil zurückgestellt)**
 
-- **Phase 7 — Autocomplete/Tab**: Autocomplete für `club_id`/`nation_id`-Selects, `flux:tab` für die Kategorie-Reiter in
-  `records/index.blade.php`.
+| Baustein                              | Art   | Zweck                                                                          |
+|-----------------------------------------|-------|-----------------------------------------------------------------------------------|
+| `records/index.blade.php`               | Blade | Hauptkategorie-Reiter (International/National/Regional) von Hand-Pills auf `flux:tabs`/`flux:tab` umgestellt |
+| `admin/users/index.blade.php`           | Blade | Verein-Dropdown (`wire:model="club_id"`, Livewire) auf `flux:select variant="combobox"` umgestellt |
+
+### Tabs: `flux:tab` funktioniert als reiner Navigations-Link
+
+Die Kategorie-Reiter navigieren bei jedem Klick auf eine neue URL (volle Seiten-Neuladung, kein
+Client-seitiges Umschalten von Panels) — dafür reicht `flux:tab` mit `href` und `:selected`, ohne
+`flux:tab.group`/`flux:tab.panel` (die sind für Client-seitiges Panel-Switching gedacht, hier nicht nötig).
+`flux:tab` rendert intern `flux:button-or-link` und wählt automatisch `<a>` statt `<button>`, sobald `href`
+gesetzt ist. Per echtem Klick auf einen Reiter im Browser verifiziert: korrekter Link, `data-selected`
+folgt der aktuellen Kategorie.
+
+### Autocomplete zurückgestellt: `flux:select variant="combobox"` liest den Startwert nur aus der JS-Eigenschaft, nicht aus dem HTML-Attribut
+
+Ursprünglich für 13 Dateien mit `club_id`/`nation_id`-Dropdowns geplant (53 Vereine, 96 Nationen — eine
+Suchbox ist dort spürbar besser als ein langes natives `<select>`). Nach der Umstellung aller 13 Dateien
+und einer echten Browser-Prüfung mit vorbelegtem Wert (`value="{{ request('nation_id') }}"` bzw.
+`old(...)`) zeigte sich: **die Combobox übernimmt einen serverseitig gerenderten `value`-HTML-Attribut
+nicht als Startauswahl.**
+
+Ursache (im kompilierten `vendor/livewire/flux-pro/dist/flux.js` nachvollzogen): `Controllable.boot()`
+liest den Startwert über `this.initialState = this.el.value` — das ist eine **JS-Objekteigenschaft**, keine
+Attribut-Abfrage (`getAttribute('value')`). Bei einem eigenen Custom Element ist `.value` ohne explizite
+Reflection zunächst nur eine leere Eigenschaft; das im HTML stehende `value="1"` wird nie gelesen. Livewire
+setzt bei `wire:model` diese Eigenschaft aktiv selbst während seines Hydrate-/Morph-Zyklus — dort
+funktioniert es also, aber nirgends sonst.
+
+Verifiziert auf `/athletes` (Nation-Filter): Filter gesetzt → Formular abgeschickt → URL zeigt korrekt
+`nation_id=1` → nach Neuladen der Seite zeigt die Combobox **keine Auswahl mehr an**, obwohl der Filter
+aktiv ist. Bei einem Pflichtfeld ohne `clearable` (z. B. der Verein in `entries/edit.blade.php`) ist das
+mehr als kosmetisch: Öffnet man die Seite und speichert ohne die Combobox anzufassen, würde das
+zugrundeliegende versteckte Submit-Feld leer bleiben und den bestehenden Wert überschreiben.
+
+Test mit direktem Setzen der JS-Eigenschaft (`element.value = '1'`, am DOM vorbei an Blade) aktualisiert
+zwar das versteckte Submit-Feld korrekt, aber das sichtbare Suchfeld bleibt trotzdem leer — die
+Trigger-Anzeige synchronisiert sich nur über einen echten Nutzer-Klick auf eine Option, nicht über
+programmatisches Setzen des Werts. Kein sauber behebbarer Rand-Fall, sondern eine strukturelle Lücke der
+Komponente außerhalb von Livewire — ein eigener JS-Fix müsste Teile der internen Auswahl-/Anzeigelogik von
+Flux Pro nachbauen, was nicht verhältnismäßig ist.
+
+**Entscheidung**: Die 12 Dateien mit klassischem (nicht-Livewire-)Formular bleiben beim nativen
+`flux:select` + `<option>`/`@selected()`. Nur `admin/users/index.blade.php` (`wire:model`, der offiziell
+unterstützte Weg für diese Komponente) wurde umgestellt.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Tabs per echtem Klick im Browser
+geprüft; die verworfene Combobox-Umstellung wurde vor dem Commit vollständig zurückgesetzt
+(`git checkout --` auf die 12 betroffenen Dateien). Kein eigener `--group`, reine Formular-/Anzeigeänderung.
 
 Kandidaten mit bekanntem `flux:input`-Breitenbefund (siehe oben) aus einem ersten Grep:
-`qualifying-time-lists/form.blade.php`, `records/index.blade.php` — dort im Rahmen der jeweiligen Phase mitfixen.
+`qualifying-time-lists/form.blade.php`, `records/index.blade.php` — dort im Rahmen der jeweiligen Phase mit fixen.

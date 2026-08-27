@@ -14,21 +14,18 @@
         Kategorien: International | National | Regional
         Der aktive Tab wird über $category gesteuert (vom Controller übergeben).
     --}}
-    <div class="flex gap-2 mb-4 flex-wrap">
+    <flux:tabs variant="pills" class="mb-4">
         @foreach([
             'international' => 'International',
             'national'      => 'National',
             'regional'      => 'Regional',
         ] as $cat => $label)
-            <a href="{{ route('records.index', ['category' => $cat]) }}"
-               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-               {{ $category === $cat
-                   ? 'bg-blue-600 text-white'
-                   : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-blue-400' }}">
+            <flux:tab name="{{ $cat }}" href="{{ route('records.index', ['category' => $cat]) }}"
+                      :selected="$category === $cat">
                 {{ $label }}
-            </a>
+            </flux:tab>
         @endforeach
-    </div>
+    </flux:tabs>
 
     {{-- Einzel / Staffel Toggle --}}
     <div class="flex gap-2 mb-4">
