@@ -26,10 +26,7 @@
                     <flux:error name="name_en"/>
                 </flux:field>
 
-                <flux:field>
-                    <flux:checkbox name="is_active" value="1" :checked="old('is_active', $nation->is_active)"
-                                   label="Aktiv"/>
-                </flux:field>
+                <flux:switch name="is_active" value="1" :checked="old('is_active', $nation->is_active)" label="Aktiv"/>
 
                 <div class="flex gap-3 pt-2">
                     <flux:button type="submit" variant="primary">Speichern</flux:button>

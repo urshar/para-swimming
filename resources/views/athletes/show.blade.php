@@ -183,12 +183,9 @@
                 <div class="grid grid-cols-3 gap-3">
                     <flux:field class="col-span-2">
                         <flux:label>Neuer Verein *</flux:label>
-                        <flux:select name="club_id" required>
-                            <option value="">Bitte wählen…</option>
+                        <flux:select variant="listbox" searchable name="club_id" placeholder="Bitte wählen…" required>
                             @foreach($clubs as $club)
-                                <option value="{{ $club->id }}" @selected($club->id === $athlete->club_id)>
-                                    {{ $club->display_name }} ({{ $club->nation?->code }})
-                                </option>
+                                <flux:select.option value="{{ $club->id }}" :selected="$club->id === $athlete->club_id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="club_id"/>
@@ -296,30 +293,20 @@
                      x-data="{ status: @js($classificationStatusOld) }">
                     <flux:field>
                         <flux:label>Gültigkeit *</flux:label>
-                        <flux:select name="classification_scope">
-                            <option value="INTL" @selected(old('classification_scope', $defaultScope) === 'INTL')>
-                                🌍 International (SDMS)
-                            </option>
-                            <option value="NAT" @selected(old('classification_scope', $defaultScope) === 'NAT')>
-                                🇦🇹 Nur national (ÖBSV)
-                            </option>
+                        <flux:select variant="listbox" name="classification_scope">
+                            <flux:select.option value="INTL" :selected="old('classification_scope', $defaultScope) === 'INTL'">🌍 International (SDMS)</flux:select.option>
+                            <flux:select.option value="NAT" :selected="old('classification_scope', $defaultScope) === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
                         </flux:select>
                         <flux:error name="classification_scope"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Status</flux:label>
-                        <flux:select name="classification_status" x-model="status">
-                            <option value="">–</option>
-                            <option value="NEW" @selected(old('classification_status') === 'NEW')>New</option>
-                            <option value="CONFIRMED" @selected(old('classification_status') === 'CONFIRMED')>
-                                Confirmed
-                            </option>
-                            <option value="REVIEW" @selected(old('classification_status') === 'REVIEW')>Review</option>
-                            <option value="FRD" @selected(old('classification_status') === 'FRD')>Fixed Review Date
-                                (FRD)
-                            </option>
-                            <option value="NE" @selected(old('classification_status') === 'NE')>Not Eligible (NE)
-                            </option>
+                        <flux:select variant="listbox" name="classification_status" x-model="status" placeholder="–" clearable>
+                            <flux:select.option value="NEW" :selected="old('classification_status') === 'NEW'">New</flux:select.option>
+                            <flux:select.option value="CONFIRMED" :selected="old('classification_status') === 'CONFIRMED'">Confirmed</flux:select.option>
+                            <flux:select.option value="REVIEW" :selected="old('classification_status') === 'REVIEW'">Review</flux:select.option>
+                            <flux:select.option value="FRD" :selected="old('classification_status') === 'FRD'">Fixed Review Date (FRD)</flux:select.option>
+                            <flux:select.option value="NE" :selected="old('classification_status') === 'NE'">Not Eligible (NE)</flux:select.option>
                         </flux:select>
                         <flux:error name="classification_status"/>
                     </flux:field>
@@ -336,34 +323,25 @@
                 <div class="grid grid-cols-3 gap-3 mt-3">
                     <flux:field>
                         <flux:label>Med. Klassifizierer</flux:label>
-                        <flux:select name="med_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="med_classifier_id" placeholder="–" clearable>
                             @foreach($medClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('med_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('med_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Tech. Klassifizierer 1</flux:label>
-                        <flux:select name="tech1_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="tech1_classifier_id" placeholder="–" clearable>
                             @foreach($techClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('tech1_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('tech1_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Tech. Klassifizierer 2</flux:label>
-                        <flux:select name="tech2_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="tech2_classifier_id" placeholder="–" clearable>
                             @foreach($techClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('tech2_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('tech2_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -539,35 +517,20 @@
                                      x-data="{ status: @js($clStatus) }">
                                     <flux:field>
                                         <flux:label>Gültigkeit *</flux:label>
-                                        <flux:select name="classification_scope">
-                                            <option value="INTL" @selected($cl->classification_scope === 'INTL')>
-                                                🌍 International (SDMS)
-                                            </option>
-                                            <option value="NAT" @selected($cl->classification_scope === 'NAT')>
-                                                🇦🇹 Nur national (ÖBSV)
-                                            </option>
+                                        <flux:select variant="listbox" name="classification_scope">
+                                            <flux:select.option value="INTL" :selected="$cl->classification_scope === 'INTL'">🌍 International (SDMS)</flux:select.option>
+                                            <flux:select.option value="NAT" :selected="$cl->classification_scope === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
                                         </flux:select>
                                         <flux:error name="classification_scope"/>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Status</flux:label>
-                                        <flux:select name="classification_status" x-model="status">
-                                            <option value="">–</option>
-                                            <option value="NEW" @selected($cl->classification_status === 'NEW')>New
-                                            </option>
-                                            <option
-                                                value="CONFIRMED" @selected($cl->classification_status === 'CONFIRMED')>
-                                                Confirmed
-                                            </option>
-                                            <option value="REVIEW" @selected($cl->classification_status === 'REVIEW')>
-                                                Review
-                                            </option>
-                                            <option value="FRD" @selected($cl->classification_status === 'FRD')>Fixed
-                                                Review Date (FRD)
-                                            </option>
-                                            <option value="NE" @selected($cl->classification_status === 'NE')>Not
-                                                Eligible (NE)
-                                            </option>
+                                        <flux:select variant="listbox" name="classification_status" x-model="status" placeholder="–" clearable>
+                                            <flux:select.option value="NEW" :selected="$cl->classification_status === 'NEW'">New</flux:select.option>
+                                            <flux:select.option value="CONFIRMED" :selected="$cl->classification_status === 'CONFIRMED'">Confirmed</flux:select.option>
+                                            <flux:select.option value="REVIEW" :selected="$cl->classification_status === 'REVIEW'">Review</flux:select.option>
+                                            <flux:select.option value="FRD" :selected="$cl->classification_status === 'FRD'">Fixed Review Date (FRD)</flux:select.option>
+                                            <flux:select.option value="NE" :selected="$cl->classification_status === 'NE'">Not Eligible (NE)</flux:select.option>
                                         </flux:select>
                                         <flux:error name="classification_status"/>
                                     </flux:field>
@@ -582,37 +545,25 @@
                                 <div class="grid grid-cols-3 gap-3 mt-3">
                                     <flux:field>
                                         <flux:label>Med. Klassifizierer</flux:label>
-                                        <flux:select name="med_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="med_classifier_id" placeholder="–" clearable>
                                             @foreach($medClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->med_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->med_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Tech. Klassifizierer 1</flux:label>
-                                        <flux:select name="tech1_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="tech1_classifier_id" placeholder="–" clearable>
                                             @foreach($techClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->tech1_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->tech1_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Tech. Klassifizierer 2</flux:label>
-                                        <flux:select name="tech2_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="tech2_classifier_id" placeholder="–" clearable>
                                             @foreach($techClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->tech2_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->tech2_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
@@ -794,10 +745,9 @@
                 @csrf
                 <flux:field>
                     <flux:label>Kaderart *</flux:label>
-                    <flux:select name="kader_type_id" required>
-                        <option value="">– auswählen –</option>
+                    <flux:select variant="listbox" name="kader_type_id" placeholder="– auswählen –" required>
                         @foreach($kaderTypes as $kaderType)
-                            <option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</option>
+                            <flux:select.option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="kader_type_id"/>

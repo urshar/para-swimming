@@ -49,7 +49,7 @@ class MeetController extends Controller
 
     public function create(): View
     {
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
         $cups = Cup::orderByDesc('year')->get();
         $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
@@ -83,11 +83,12 @@ class MeetController extends Controller
 
     public function edit(Meet $meet): View
     {
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
         $cups = Cup::orderByDesc('year')->get();
         $qualifyingTimeLists = QualifyingTimeList::orderByDesc('year')->get();
 
-        return view('meets.form', compact('meet', 'nations', 'cups', 'qualifyingTimeLists') + $this->pointSystemData($meet));
+        return view('meets.form',
+            compact('meet', 'nations', 'cups', 'qualifyingTimeLists') + $this->pointSystemData($meet));
     }
 
     public function update(Request $request, Meet $meet): RedirectResponse
@@ -180,7 +181,7 @@ class MeetController extends Controller
 
     /**
      * Validierte Formulardaten plus die Felder, die validateMeet() bewusst nicht selbst
-     * abdeckt: Checkboxen (werden bei "aus" gar nicht erst übertragen) und die Admin-Gate für
+     * abdeckt: Checkboxen (werden bei "aus" gar nicht erst übertragen) und das Admin-Gate für
      * is_published/livetiming_url/cup_id/qualifying_time_list_id. Von store() und update()
      * gleichermaßen genutzt — vorher war dieser Block dort wortgleich dupliziert.
      */

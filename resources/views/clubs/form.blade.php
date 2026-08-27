@@ -7,6 +7,8 @@
 @section('title', isset($club) ? 'Verein bearbeiten' : 'Verein anlegen')
 
 @section('content')
+    {{-- Vorbelegung Nation: AUT als häufigster Fall. --}}
+    @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-2xl">
         <div class="flex items-center gap-3 mb-6">
             <flux:button href="{{ route('clubs.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
@@ -49,25 +51,18 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Nation *</flux:label>
-                        <flux:select name="nation_id" required>
-                            <option value="">Wählen…</option>
+                        <flux:select variant="listbox" searchable name="nation_id" placeholder="Wählen…" required>
                             @foreach($nations as $nation)
-                                <option value="{{ $nation->id }}"
-                                    @selected(old('nation_id', $club->nation_id ?? '') == $nation->id)>
-                                    {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                <flux:select.option value="{{ $nation->id }}" :selected="old('nation_id', $club->nation_id ?? $autId) == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="nation_id"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Typ *</flux:label>
-                        <flux:select name="type" required>
+                        <flux:select variant="listbox" name="type" required>
                             @foreach(['CLUB' => 'Verein', 'NATIONALTEAM' => 'Nationalteam', 'REGIONALTEAM' => 'Regionalteam', 'VERBAND' => 'Verband', 'UNATTACHED' => 'Ohne Zuordnung'] as $value => $label)
-                                <option value="{{ $value }}"
-                                    @selected(old('type', $club->type ?? 'CLUB') === $value)>
-                                    {{ $label }}
-                                </option>
+                                <flux:select.option value="{{ $value }}" :selected="old('type', $club->type ?? 'CLUB') === $value">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="type"/>
@@ -81,13 +76,10 @@
                 --}}
                 <flux:field>
                     <flux:label>Regionalverband (Österreich)</flux:label>
-                    <flux:select name="regional_association">
-                        <option value="">Keiner (bundesweit / nicht österreichisch)</option>
+                    <flux:select variant="listbox" name="regional_association"
+                                 placeholder="Keiner (bundesweit / nicht österreichisch)" clearable>
                         @foreach(Club::REGIONAL_ASSOCIATIONS as $code => $name)
-                            <option value="{{ $code }}"
-                                @selected(old('regional_association', $club->regional_association ?? '') === $code)>
-                                {{ $code }} – {{ $name }}
-                            </option>
+                            <flux:select.option value="{{ $code }}" :selected="old('regional_association', $club->regional_association ?? '') === $code">{{ $code }} – {{ $name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:description>Nur für österreichische Vereine. ÖBSV-Vereine ohne Regionalzuordnung leer

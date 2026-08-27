@@ -25,41 +25,38 @@
             <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder Lizenz…"
                         icon="magnifying-glass"/>
         </div>
-        <flux:select name="gender" placeholder="Geschlecht" class="w-36">
-            <option value="">Alle</option>
-            <option value="M" @selected(request('gender') === 'M')>Herren</option>
-            <option value="F" @selected(request('gender') === 'F')>Damen</option>
-            <option value="N" @selected(request('gender') === 'N')>Nicht binär</option>
+        <flux:select variant="listbox" name="gender" placeholder="Geschlecht" clearable class="w-36">
+            <flux:select.option value="M" :selected="request('gender') === 'M'">Herren</flux:select.option>
+            <flux:select.option value="F" :selected="request('gender') === 'F'">Damen</flux:select.option>
+            <flux:select.option value="N" :selected="request('gender') === 'N'">Nicht binär</flux:select.option>
         </flux:select>
         <div class="w-32 shrink-0">
             <flux:input name="sport_class" value="{{ request('sport_class') }}" placeholder="Klasse z.B. S4"/>
         </div>
-        <flux:select name="nation_id" placeholder="Nation" class="w-40">
-            <option value="">Alle Nationen</option>
+        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-40">
             @foreach($nations as $nation)
-                <option value="{{ $nation->id }}" @selected(request('nation_id') == $nation->id)>
-                    {{ $nation->code }} – {{ $nation->name_de }}
-                </option>
+                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:select name="club_id" placeholder="Verein" class="w-48">
-            <option value="">Alle Vereine</option>
+        <flux:select variant="listbox" searchable name="club_id" placeholder="Verein" clearable class="w-48">
             @foreach($clubs as $club)
-                <option value="{{ $club->id }}" @selected(request('club_id') == $club->id)>
-                    {{ $club->display_name }}
-                </option>
+                <flux:select.option value="{{ $club->id }}" :selected="request('club_id') == $club->id">{{ $club->display_name }}</flux:select.option>
             @endforeach
         </flux:select>
         {{-- Aktiv-Filter: Standard = nur aktive --}}
-        <flux:select name="active_only" class="w-40">
-            <option value="1" @selected(request('active_only', '1') === '1')>Nur aktive</option>
-            <option value="0" @selected(request('active_only') === '0')>Alle (inkl. inaktive)</option>
-            <option value="2" @selected(request('active_only') === '2')>Nur inaktive</option>
+        <flux:select variant="listbox" name="active_only" class="w-40">
+            <flux:select.option value="1" :selected="request('active_only', '1') === '1'">Nur aktive</flux:select.option>
+            <flux:select.option value="0" :selected="request('active_only') === '0'">Alle (inkl. inaktive)</flux:select.option>
+            <flux:select.option value="2" :selected="request('active_only') === '2'">Nur inaktive</flux:select.option>
         </flux:select>
-        <flux:button type="submit" icon="funnel">Filtern</flux:button>
-        @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
-            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
-        @endif
+        {{-- Filtern-Button an den rechten Rand der Zeile, wie im öffentlichen Bereich
+             (public/qualifying-times/index.blade.php: ml-auto statt "letztes Element"). --}}
+        <div class="ml-auto flex items-center gap-3">
+            @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
+                <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+            @endif
+            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
+        </div>
     </form>
 
     {{-- Buchstaben-Filter nach Nachname --}}
@@ -125,16 +122,16 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('wps.athletes.show', $athlete) }}" size="sm"
-                                         variant="ghost" icon="chart-bar" title="WPS-Analyse"/>
+                                         variant="ghost" icon="chart-bar" class="text-violet-500!" title="WPS-Analyse"/>
                             <flux:button href="{{ route('athletes.show', $athlete) }}" size="sm" variant="ghost"
                                          icon="eye"/>
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
-                                         icon="pencil"/>
+                                         icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"
                                   x-data="{ del() { if(confirm('Athlet wirklich löschen?')) $el.submit() } }"
                                   @submit.prevent="del()">
                                 @csrf @method('DELETE')
-                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500"/>
+                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
                         </div>
                     </flux:table.cell>

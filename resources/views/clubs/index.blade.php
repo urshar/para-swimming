@@ -10,26 +10,31 @@
         <flux:button href="{{ route('clubs.create') }}" variant="primary" icon="plus">Neuer Verein</flux:button>
     </div>
 
-    <form method="GET" class="flex gap-3 mb-4">
-        <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder Kürzel…"
-                    icon="magnifying-glass" class="w-64"/>
-        <flux:select name="nation_id" placeholder="Nation" class="w-40">
-            <option value="">Alle Nationen</option>
+    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4">
+        <div class="w-48 shrink-0">
+            <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder Kürzel…"
+                        icon="magnifying-glass"/>
+        </div>
+        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-56">
             @foreach($nations as $nation)
-                <option
-                    value="{{ $nation->id }}" @selected(request('nation_id') == $nation->id)>{{ $nation->code }}</option>
+                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:button type="submit" icon="funnel">Filtern</flux:button>
-        @if(request()->hasAny(['search', 'nation_id']))
-            <flux:button href="{{ route('clubs.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
-        @endif
+        {{-- Filtern-Button an den rechten Rand der Zeile, wie im öffentlichen Bereich
+             (public/qualifying-times/index.blade.php: ml-auto statt "letztes Element", sonst bleibt
+             bei viel Platz in der Zeile sichtbarer Leerraum bis zum tatsächlichen rechten Rand). --}}
+        <div class="ml-auto flex items-center gap-3">
+            @if(request()->hasAny(['search', 'nation_id']))
+                <flux:button href="{{ route('clubs.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+            @endif
+            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
+        </div>
     </form>
 
     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
         <flux:table.columns>
             <flux:table.column>Verein</flux:table.column>
-            <flux:table.column>Kürzel</flux:table.column>
+            <flux:table.column>Code</flux:table.column>
             <flux:table.column>Nation</flux:table.column>
             <flux:table.column>Typ</flux:table.column>
             <flux:table.column>Verband</flux:table.column>
@@ -50,7 +55,11 @@
                     </flux:table.cell>
                     <flux:table.cell class="font-mono text-sm text-zinc-500">{{ $club->code ?? '–' }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge size="sm" color="zinc">{{ $club->nation?->code }}</flux:badge>
+                        @if($club->nation)
+                            <x-flag code="{{ $club->nation->code }}" :label="$club->nation->name_de" class="w-7 h-5"/>
+                        @else
+                            –
+                        @endif
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge size="sm" color="{{ match($club->type) {
@@ -87,11 +96,11 @@
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('clubs.show', $club) }}" size="sm" variant="ghost" icon="eye"/>
                             <flux:button href="{{ route('clubs.edit', $club) }}" size="sm" variant="ghost"
-                                         icon="pencil"/>
+                                         icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('clubs.destroy', $club) }}"
                                   x-data @submit.prevent="if(confirm('Verein löschen?')) $el.submit()">
                                 @csrf @method('DELETE')
-                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500"/>
+                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
                         </div>
                     </flux:table.cell>

@@ -430,7 +430,7 @@ class RecordController extends Controller
     {
         return [
             'strokeTypes' => StrokeType::active()->standard()->orderBy('name_de')->get(),
-            'nations' => Nation::active()->orderBy('name_de')->get(),
+            'nations' => Nation::active()->orderBy('code')->get(),
             'athletes' => Athlete::with('club')->orderBy('last_name')->orderBy('first_name')->get(),
             'clubs' => Club::orderBy('name')->get(),
         ];

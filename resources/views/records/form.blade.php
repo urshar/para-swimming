@@ -30,6 +30,9 @@
 @endphp
 
 @section('content')
+    {{-- Vorbelegung Nation: AUT als häufigster Fall (nicht bei "Austragungsland" — das ist das
+         Land des Wettkampfs, nicht des Athleten/Vereins, und oft im Ausland). --}}
+    @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-2xl">
         <div class="flex items-center gap-3 mb-6">
             <flux:button href="{{ route('records.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
@@ -246,7 +249,7 @@
                             <option value="">Keine Nation</option>
                             @foreach($nations as $nation)
                                 <option value="{{ $nation->id }}"
-                                    @selected(old('nation_id', $rec->nation_id ?? '') == $nation->id)>
+                                    @selected(old('nation_id', $rec->nation_id ?? $autId) == $nation->id)>
                                     {{ $nation->code }} – {{ $nation->name_de }}
                                 </option>
                             @endforeach

@@ -309,55 +309,197 @@ eigener `--group`, reine Formular-/Anzeigeänderung.
 
 ## Phase 7 — Tabs & Autocomplete — **abgeschlossen (Autocomplete-Teil zurückgestellt)**
 
-| Baustein                              | Art   | Zweck                                                                          |
-|-----------------------------------------|-------|-----------------------------------------------------------------------------------|
-| `records/index.blade.php`               | Blade | Hauptkategorie-Reiter (International/National/Regional) von Hand-Pills auf `flux:tabs`/`flux:tab` umgestellt |
-| `admin/users/index.blade.php`           | Blade | Verein-Dropdown (`wire:model="club_id"`, Livewire) auf `flux:select variant="combobox"` umgestellt |
+| Baustein                      | Art   | Zweck                                                                                                        |
+|-------------------------------|-------|--------------------------------------------------------------------------------------------------------------|
+| `records/index.blade.php`     | Blade | Hauptkategorie-Reiter (International/National/Regional) von Hand-Pills auf `flux:tabs`/`flux:tab` umgestellt |
+| `admin/users/index.blade.php` | Blade | Verein-Dropdown (`wire:model="club_id"`, Livewire) auf `flux:select variant="combobox"` umgestellt           |
 
 ### Tabs: `flux:tab` funktioniert als reiner Navigations-Link
 
-Die Kategorie-Reiter navigieren bei jedem Klick auf eine neue URL (volle Seiten-Neuladung, kein
-Client-seitiges Umschalten von Panels) — dafür reicht `flux:tab` mit `href` und `:selected`, ohne
+Die Kategorie-Reiter navigieren bei jedem Klick auf eine neue URL (volle Seiten-Neuladung, kein Client-seitiges
+Umschalten von Panels) — dafür reicht `flux:tab` mit `href` und `:selected`, ohne
 `flux:tab.group`/`flux:tab.panel` (die sind für Client-seitiges Panel-Switching gedacht, hier nicht nötig).
 `flux:tab` rendert intern `flux:button-or-link` und wählt automatisch `<a>` statt `<button>`, sobald `href`
 gesetzt ist. Per echtem Klick auf einen Reiter im Browser verifiziert: korrekter Link, `data-selected`
 folgt der aktuellen Kategorie.
 
-### Autocomplete zurückgestellt: `flux:select variant="combobox"` liest den Startwert nur aus der JS-Eigenschaft, nicht aus dem HTML-Attribut
+### Autocomplete zurückgestellt:
+`flux:select variant="combobox"` liest den Startwert nur aus der JS-Eigenschaft, nicht aus dem HTML-Attribut
 
-Ursprünglich für 13 Dateien mit `club_id`/`nation_id`-Dropdowns geplant (53 Vereine, 96 Nationen — eine
-Suchbox ist dort spürbar besser als ein langes natives `<select>`). Nach der Umstellung aller 13 Dateien
-und einer echten Browser-Prüfung mit vorbelegtem Wert (`value="{{ request('nation_id') }}"` bzw.
-`old(...)`) zeigte sich: **die Combobox übernimmt einen serverseitig gerenderten `value`-HTML-Attribut
-nicht als Startauswahl.**
+Ursprünglich für 13 Dateien mit `club_id`/`nation_id`-Dropdowns geplant (53 Vereine, 96 Nationen — eine Suchbox ist dort
+spürbar besser als ein langes natives `<select>`). Nach der Umstellung aller 13 Dateien und einer echten Browser-Prüfung
+mit vorbelegtem Wert (`value="{{ request('nation_id') }}"` bzw.
+`old(...)`) zeigte sich: ** Die Combobox übernimmt einen serverseitig gerenderten `value`-HTML-Attribut nicht als
+Startauswahl.**
 
 Ursache (im kompilierten `vendor/livewire/flux-pro/dist/flux.js` nachvollzogen): `Controllable.boot()`
 liest den Startwert über `this.initialState = this.el.value` — das ist eine **JS-Objekteigenschaft**, keine
-Attribut-Abfrage (`getAttribute('value')`). Bei einem eigenen Custom Element ist `.value` ohne explizite
-Reflection zunächst nur eine leere Eigenschaft; das im HTML stehende `value="1"` wird nie gelesen. Livewire
-setzt bei `wire:model` diese Eigenschaft aktiv selbst während seines Hydrate-/Morph-Zyklus — dort
-funktioniert es also, aber nirgends sonst.
+Attribut-Abfrage (`getAttribute('value')`). Bei einem eigenen Custom Element ist `.value` ohne explizite Reflection
+zunächst nur eine leere Eigenschaft; das im HTML stehende `value="1"` wird nie gelesen. Livewire setzt bei `wire:model`
+diese Eigenschaft aktiv selbst während seines Hydrate-/Morph-Zyklus — dort funktioniert es also, aber nirgends sonst.
 
 Verifiziert auf `/athletes` (Nation-Filter): Filter gesetzt → Formular abgeschickt → URL zeigt korrekt
-`nation_id=1` → nach Neuladen der Seite zeigt die Combobox **keine Auswahl mehr an**, obwohl der Filter
-aktiv ist. Bei einem Pflichtfeld ohne `clearable` (z. B. der Verein in `entries/edit.blade.php`) ist das
-mehr als kosmetisch: Öffnet man die Seite und speichert ohne die Combobox anzufassen, würde das
-zugrundeliegende versteckte Submit-Feld leer bleiben und den bestehenden Wert überschreiben.
+`nation_id=1` → nach Neuladen der Seite zeigt die Combobox **keine Auswahl mehr an**, obwohl der Filter aktiv ist. Bei
+einem Pflichtfeld ohne `clearable` (z. B. der Verein in `entries/edit.blade.php`) ist das mehr als kosmetisch: Öffnet
+man die Seite und speichert ohne die Combobox anzufassen, würde das zugrundeliegende versteckte Submit-Feld leer bleiben
+und den bestehenden Wert überschreiben.
 
-Test mit direktem Setzen der JS-Eigenschaft (`element.value = '1'`, am DOM vorbei an Blade) aktualisiert
-zwar das versteckte Submit-Feld korrekt, aber das sichtbare Suchfeld bleibt trotzdem leer — die
-Trigger-Anzeige synchronisiert sich nur über einen echten Nutzer-Klick auf eine Option, nicht über
-programmatisches Setzen des Werts. Kein sauber behebbarer Rand-Fall, sondern eine strukturelle Lücke der
-Komponente außerhalb von Livewire — ein eigener JS-Fix müsste Teile der internen Auswahl-/Anzeigelogik von
-Flux Pro nachbauen, was nicht verhältnismäßig ist.
+Test mit direktem Setzen der JS-Eigenschaft (`element.value = '1'`, am DOM vorbei an Blade) aktualisiert zwar das
+versteckte Submit-Feld korrekt, aber das sichtbare Suchfeld bleibt trotzdem leer — die Trigger-Anzeige synchronisiert
+sich nur über einen echten Nutzer-Klick auf eine Option, nicht über programmatisches Setzen des Werts. Kein sauber
+behebbarer Rand-Fall, sondern eine strukturelle Lücke der Komponente außerhalb von Livewire — ein eigener JS-Fix müsste
+Teile der internen Auswahl-/Anzeigelogik von Flux Pro nachbauen, was nicht verhältnismäßig ist.
 
 **Entscheidung**: Die 12 Dateien mit klassischem (nicht-Livewire-)Formular bleiben beim nativen
-`flux:select` + `<option>`/`@selected()`. Nur `admin/users/index.blade.php` (`wire:model`, der offiziell
-unterstützte Weg für diese Komponente) wurde umgestellt.
+`flux:select` + `<option>`/`@selected()`. Nur `admin/users/index.blade.php` (`wire:model`, der offiziell unterstützte
+Weg für diese Komponente) wurde umgestellt.
 
-**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Tabs per echtem Klick im Browser
-geprüft; die verworfene Combobox-Umstellung wurde vor dem Commit vollständig zurückgesetzt
-(`git checkout --` auf die 12 betroffenen Dateien). Kein eigener `--group`, reine Formular-/Anzeigeänderung.
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Tabs per echtem Klick im Browser geprüft; die
+verworfene Combobox-Umstellung wurde vor dem Commit vollständig zurückgesetzt (`git checkout --` auf die 12 betroffenen
+Dateien). Kein eigener `--group`, reine Formular-/Anzeigeänderung.
 
-Kandidaten mit bekanntem `flux:input`-Breitenbefund (siehe oben) aus einem ersten Grep:
-`qualifying-time-lists/form.blade.php`, `records/index.blade.php` — dort im Rahmen der jeweiligen Phase mit fixen.
+**Nachtrag (Phase 8)**: Der obige Befund stimmt nur für den Weg über `value=""` am äußeren `<flux:select>`. Es gibt
+einen zweiten, funktionierenden Weg — siehe „Runde 2" unten.
+
+## Runde 2: Chevron-Dropdowns & Switches (Phase 8+)
+
+Auslöser: `flux:select` (Standard-Variante) rendert ein natives `<select appearance-none>` **ohne** Pfeil-Ersatz
+(kein `@tailwindcss/forms`-Plugin im Projekt) — alle bisherigen Dropdowns sind dadurch pfeillos. Zusätzlich: einige
+Ein/Aus-Checkboxen sollen zu `flux:switch` werden. Diese Runde geht dafür **alle** Admin-Module durch, gröber
+geschnitten als Runde 1 (Phase 1–7): Phase 8 Stammdaten, 9 Wettkämpfe & Meldungen, 10 Rekorde & Richtzeiten, 11 WPS &
+Auswertungen, 12 Cup & Meisterschaften, 13 LENEX & Admin-Werkzeuge.
+
+### Combobox-Fix gefunden: Option markieren statt Wrapper
+
+Der in Phase 7 gefundene Bug (`value=""` am `<flux:select>` wird nie gelesen) hat einen sauberen Workaround, der
+**nicht** über den betroffenen Mechanismus läuft: Statt den Wert am äußeren Element zu setzen, wird die passende
+`<flux:select.option>` selbst mit `selected` markiert. Im kompilierten `flux.js` nachvollzogen: `UIOption.mount()`
+liest `hasAttribute("selected")` **synchron und direkt** (`selectedInitially: this.hasAttribute("selected")`,
+`js/option.js`) — komplett unabhängig vom kaputten `Controllable.boot()`-Pfad, der nur beim äußeren `value`-Attribut
+greift. Live geprüft (`/athletes`, `/clubs`, Formulare mit vorbelegtem Wert): verstecktes Submit-Feld **und**
+sichtbarer Trigger-Text beide korrekt vorbelegt — sowohl mit `flux:select variant="listbox"` (Button-Trigger) als
+auch mit `variant="combobox"`.
+
+```blade
+<flux:select variant="listbox" searchable name="nation_id" placeholder="…" clearable>
+    @foreach($nations as $nation)
+        <flux:select.option value="{{ $nation->id }}" :selected="$currentValue == $nation->id">
+            {{ $nation->code }} – {{ $nation->name_de }}
+        </flux:select.option>
+    @endforeach
+</flux:select>
+```
+
+Funktioniert identisch mit `wire:model` (Livewire übernimmt dort ohnehin die Wert-Synchronisation).
+
+### Variantenwahl: `listbox` vs. `listbox searchable`
+
+- **`variant="listbox"`** (Button-Trigger, `flux:select.button` bringt `<flux:icon.chevron-down>` fest mit) für
+  kurze, statische Options-Listen (Geschlecht, Status, feste Enums) — kein Suchfeld nötig.
+- **`variant="listbox" searchable`** zusätzlich für lange, DB-gespeiste Listen (Nation ~96, Verein ~53,
+  Klassifizierer): `searchable` blendet ein Suchfeld **im Popover** ein (separates Element, `flux:select.search`),
+  ohne den Trigger selbst zu einem Texteingabefeld zu machen — deshalb bleibt die Trigger-Anzeige korrekt, anders als
+  bei `variant="combobox"` (dort *ist* der Trigger das Textfeld, und dessen sichtbarer Wert synchronisiert sich nur
+  über einen echten Nutzerklick, nicht beim initialen Setzen über `selected` — siehe Phase-7-Befund oben, der für den
+  Combobox-**Trigger-Text** also weiterhin gilt). `variant="listbox" searchable` ist daher durchgängig die richtige
+  Wahl für lange Listen in dieser App, nicht `variant="combobox"`.
+
+### Checkbox → `flux:switch`: nur bei echten Einzel-Schaltern
+
+`flux:switch` hat einen einfachen `checked`-Boolean-Prop, der (wie `selected` bei Optionen) direkt und synchron aus
+dem HTML gelesen wird (`UISwitch.boot()`: `selectedInitially: this.hasAttribute("checked")`, `js/switch.js`) — kein
+Risiko wie beim Combobox-`value`-Bug. Nur für **einzelne** Ein/Aus-Einstellungen (z. B. „Aktiv", „Öffentlich
+sichtbar") — Checkbox-**Gruppen** (mehrere Optionen aus einer Liste wählen, z. B. WPS-Exceptions) bleiben Checkboxen.
+
+Formulare mit dem klassischen „Checkbox + verstecktes `value=0`"-Trick (verhindert, dass ein abgewähltes Feld beim
+Absenden ganz fehlt) behalten das versteckte Feld **vor** dem `flux:switch` — Submittable erzeugt bei
+`flux:switch`/aus wie bei einer nativen Checkbox **kein** eigenes Hidden-Feld (`includeWhenEmpty: false`,
+`js/submittable.js`), das Formular bräuchte also weiterhin den manuellen Fallback, sofern der Controller nicht schon
+`$request->boolean(...)` nutzt (das behandelt ein fehlendes Feld bereits korrekt als `false`).
+
+## Phase 8 — Stammdaten — **abgeschlossen**
+
+Athleten, Vereine, Nationen, Klassifizierer — alle `flux:select`-Dropdowns auf `variant="listbox"` (+ `searchable` bei
+langen Listen) umgestellt, alle Einzel-Toggle-Checkboxen auf `flux:switch`.
+
+| Baustein                                        | Art   | Zweck                                                                      |
+|---------------------------------------------------|-------|--------------------------------------------------------------------------------|
+| `athletes/{index,form,show}.blade.php`             | Blade | Alle Dropdowns (Geschlecht, Nation, Verein, Status, Behinderungsart, Klassifikations-Felder, Kaderart) umgestellt; „Aktiver Schwimmer"-Checkbox → `flux:switch` |
+| `clubs/{index,form}.blade.php`                     | Blade | Nation-, Typ-, Regionalverband-Dropdown umgestellt                            |
+| `nations/edit.blade.php`                           | Blade | „Aktiv"-`flux:checkbox` → `flux:switch`                                       |
+| `classifiers/{index,form}.blade.php`               | Blade | Typ-, Geschlecht-, Nation-Dropdown umgestellt; „Aktiv"-Checkbox → `flux:switch` |
+
+Bewusst unverändert: die WPS-Exceptions-Checkboxliste (`athletes/show.blade.php`) — echte Mehrfachauswahl, kein
+Einzel-Schalter.
+
+`athletes/show.blade.php`s `classification_status`-Select nutzt `x-model="status"` für ein daneben ein-/ausblendendes
+FRD-Jahr-Feld — funktioniert unverändert mit `variant="listbox"`, da Flux' `Controllable`-Mixin `Object.defineProperty`
+auf `.value` legt und damit für Alpines `x-model` kompatibel ist (dafür ist der Mechanismus gebaut).
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Live im Browser geprüft: Vorbelegung nach
+GET-Filter (`/clubs?nation_id=4`, `/athletes?nation_id=4`), Suchfeld-Filterung im Popover, Switch-Default-Zustand,
+Athleten-Detailseite mit Klassifikations-Selects. Kein eigener `--group`, reine Formular-/Anzeigeänderung.
+
+### Design-Feedback-Nachtrag zu Phase 8
+
+Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 eingearbeitet (keine eigene Phase):
+
+- **`athletes/form.blade.php`**: Der volle Hinweis-Banner „Vereinswechsel, Klassifikationen … werden in der
+  Detailansicht verwaltet" (eigene Zeile über der Stammdaten-Karte) sitzt jetzt kompakt **in derselben Zeile wie die
+  Überschrift „Stammdaten"** — nutzt den bis dahin leeren Platz zwischen Überschrift und dem „Aktiver
+  Schwimmer"-Schalter, spart eine ganze Zeile Scroll-Strecke bis zum Speichern-Button. Der Link „Zur Detailansicht →"
+  ist jetzt ein `flux:button` „Detailansicht" (kein Pfeil-Icon, kein „Zur" mehr nötig).
+- **AUT-Standardauswahl**: Alle Nation-Dropdowns in Neuanlage-Formularen (Athlet, Verein, Meet, Rekord — Klassifizierer
+  hatte das schon) wählen jetzt automatisch Österreich vor, sofern noch kein Wert gesetzt ist
+  (`$nations->firstWhere('code', 'AUT')?->id` als Fallback in `old(...)`/`@selected()`). **Nicht** bei
+  Filter-Dropdowns (dort bliebe sonst die Liste beim ersten Aufruf ungewollt auf AUT gefiltert) und nicht bei
+  `records/form.blade.php`s „Austragungsland" (Land des Wettkampfs, nicht des Athleten — oft im Ausland).
+- **Nation-Sortierung vereinheitlicht**: `ClubController`, `ClassifierController`, `MeetController`, `RecordController`
+  sortierten Nationen noch nach `name_de` — jetzt wie `AthleteController` einheitlich nach `code` (IOC-Reihenfolge).
+- **`clubs/index.blade.php`**: Spalte „Nation" zeigt jetzt eine Flagge (`<x-flag>`, wie in `nations/index.blade.php`)
+  statt Text-Badge; Spalten-Header „Kürzel" → „Code" (zeigte ohnehin schon `$club->code`). Nation-Filter zeigt jetzt
+  Code **und** Name, breiter (`w-56` statt `w-40`); Namenssuche schmaler (`w-48` statt `w-64`, war zu breit für ein
+  einzelnes Suchfeld).
+- **Filtern-Buttons** (`athletes/index`, `clubs/index`, `classifiers/index`): `variant="primary"` (statt Standard) und
+  per `ml-auto`-Wrapper an den rechten Rand der Filterzeile geschoben — exakt das im öffentlichen Bereich bereits
+  gelöste Muster (`public/qualifying-times/index.blade.php`: `ml-auto` statt nur „letztes Element", sonst bleibt bei
+  viel Platz in der Zeile ein sichtbarer Leerraum bis zum tatsächlichen rechten Rand).
+- **`classifiers/index.blade.php`**: Filterfeld-Breiten verkleinert (Suche `w-64`→`w-44`, Typ/Aktiv `w-48`→`w-36`,
+  Nation `w-40`→`w-44`), passen dadurch in eine Zeile statt umzubrechen.
+- **`nations/index.blade.php`**: Komplett überarbeitet — vorher eine ungepaginierte Liste ohne Sortierung. Jetzt
+  `flux:table` mit sortierbaren Spalten-Headern (Code/Deutsch/Englisch, Standard: Code aufsteigend) und Pagination
+  (25/Seite). `flux:table.column :sortable` rendert intern nur einen `<button>` ohne eigene Navigation (für
+  `wire:click` in Livewire-Komponenten gedacht) — ein `<a>` darin wäre ungültiges HTML (interaktiver Inhalt
+  verschachtelt). Header daher als eigener `<a>`-Link gebaut, optisch an `flux:table.sortable` angelehnt (gleicher
+  Chevron, gleiche Hover-Farbe), statt die eingebaute Sortable-Komponente zu verwenden. `NationController::index()`
+  validiert die Sortierspalte gegen eine feste Liste (`code`/`name_de`/`name_en`), Fallback `code` ASC.
+- **Zeilen-Buttons farblich vereinheitlicht** (`athletes/index`, `clubs/index`, `classifiers/index`,
+  `nations/index`): Bearbeiten-Icon (Stift) durchgängig `text-amber-500!`, WPS-Analyse-Icon (Chart) `text-violet-500!`,
+  Löschen-Icon (Mülleimer) `text-red-500!` (war schon vorhanden, aber ohne `!` — siehe Fund unten), Anzeigen-Icon
+  (Auge) bleibt neutral (Ausgangspunkt, gegen den die anderen Farben abstechen). Feste Utility-Klasse ohne
+  `dark:`-Variante — dieselbe Farbe in Hell- und Dunkelmodus.
+
+  **Fund (Rückmeldung „Buttons sind alle weiß oder schwarz"):** `flux:button variant="ghost"` setzt selbst
+  `text-zinc-800 dark:text-white` (`vendor/livewire/flux/.../button/index.blade.php`). Eine von außen übergebene
+  Farbklasse wie `class="text-amber-500"` hat dieselbe CSS-Spezifität (0,1,0) — welche Regel gewinnt, entscheidet bei
+  Tailwind dann die Reihenfolge der generierten Utilities in der kompilierten CSS-Datei, **nicht** die Reihenfolge im
+  `class`-Attribut. Per `curl` gegen den Dev-Server nachgewiesen: `.text-amber-500`/`.text-red-500`/`.text-violet-500`
+  stehen alle **vor** `.text-zinc-800` in `app.css` — Letzteres gewinnt also immer (derselbe Mechanismus wie beim
+  `flux:input`-Breitenbefund und dem `flux:accordion.item`-Polsterungsbefund oben). Fix: Tailwind-v4-`!`-Suffix
+  (`text-amber-500!` statt `text-amber-500`) — erzeugt `color: … !important`, gewinnt unabhängig von der
+  Quellreihenfolge. Betraf auch den bereits vorher vorhandenen Löschen-Button (`text-red-500` ohne `!`) — war also
+  vermutlich nie wirklich rot.
+- **`athletes/form.blade.php` — Layout zweimal überarbeitet.** Erster Versuch: Stammdaten/Kontakt&Adresse/Notizen
+  nebeneinander in einem `grid-cols-3`-Layout (Stammdaten `lg:col-span-2`, die anderen beiden gestapelt in
+  `lg:col-span-1`) — Rückmeldung: die schmale rechte Spalte drängte Kontakt&Adresse/Notizen unangenehm zusammen.
+  Stattdessen `flux:tab.group`/`flux:tabs`/`flux:tab.panel` (zwei Reiter: „Stammdaten", „Kontakt & Adresse" inkl.
+  Notizen) — reines Client-seitiges Umschalten ohne Livewire (`ui-tab-group`/`ui-tabs`, `flux:tab` ohne `href`
+  fungiert als Button, kein Navigations-Link), jede Karte bekommt dadurch wieder die volle Formularbreite. Der
+  Detailansicht-Hinweis (siehe oben) bekam dabei zusätzlich eine eigene Zeile statt in der Überschriftenzeile
+  mitzulaufen — wirkte dort auf die schmalere Kartenbreite bezogen zu sehr nach rechts gequetscht.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, weiterhin grün. Live im Browser geprüft (DOM-Struktur,
+`getComputedStyle`, echte Sortier-Klicks auf `/nations`, AUT-Vorbelegung auf `/athletes/create` und
+`/meets/create`) — Layout-Prüfung per `getComputedStyle` zeigte zunächst `display: block` statt `flex`
+(bekannte Sandbox-Einschränkung dieses Browser-Tools, Port 5173 blockiert, siehe Phase 3/4/5); per `curl` gegen den
+Dev-Server bestätigt, dass `.flex{display:flex}` etc. korrekt kompiliert sind — kein echter Bug.

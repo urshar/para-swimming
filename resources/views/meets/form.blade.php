@@ -3,6 +3,8 @@
 @section('title', isset($meet) ? 'Wettkampf bearbeiten' : 'Neuer Wettkampf')
 
 @section('content')
+    {{-- Vorbelegung Nation: AUT als häufigster Fall. --}}
+    @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-2xl">
 
         {{-- Header --}}
@@ -39,7 +41,7 @@
                             <option value="">Bitte wählen…</option>
                             @foreach($nations as $nation)
                                 <option value="{{ $nation->id }}"
-                                    @selected(old('nation_id', $meet->nation_id ?? '') == $nation->id)>
+                                    @selected(old('nation_id', $meet->nation_id ?? $autId) == $nation->id)>
                                     {{ $nation->code }} – {{ $nation->name_de }}
                                 </option>
                             @endforeach

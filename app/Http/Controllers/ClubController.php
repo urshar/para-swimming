@@ -31,14 +31,14 @@ class ClubController extends Controller
         }
 
         $clubs = $query->paginate(25)->withQueryString();
-        $nations = Nation::orderBy('name_de')->get();
+        $nations = Nation::orderBy('code')->get();
 
         return view('clubs.index', compact('clubs', 'nations'));
     }
 
     public function create(): View
     {
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
 
         return view('clubs.form', compact('nations'));
     }
@@ -77,7 +77,7 @@ class ClubController extends Controller
 
     public function edit(Club $club): View
     {
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
 
         return view('clubs.form', compact('club', 'nations'));
     }

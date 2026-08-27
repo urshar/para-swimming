@@ -26,9 +26,7 @@
                     <label class="flex items-center gap-2 cursor-pointer">
                         <span class="text-sm text-zinc-600 dark:text-zinc-400">Aktiv</span>
                         <input type="hidden" name="is_active" value="0">
-                        <input type="checkbox" name="is_active" value="1"
-                               @checked(old('is_active', $classifier->is_active ?? true))
-                               class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
+                        <flux:switch name="is_active" value="1" :checked="old('is_active', $classifier->is_active ?? true)"/>
                     </label>
                 </div>
 
@@ -50,24 +48,18 @@
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Typ *</flux:label>
-                        <flux:select name="type" required>
-                            <option value="">Bitte wählen…</option>
-                            <option value="MED"  @selected(old('type', $classifier->type ?? '') === 'MED')>
-                                Medizinisch
-                            </option>
-                            <option value="TECH" @selected(old('type', $classifier->type ?? '') === 'TECH')>
-                                Technisch
-                            </option>
+                        <flux:select variant="listbox" name="type" placeholder="Bitte wählen…" required>
+                            <flux:select.option value="MED" :selected="old('type', $classifier->type ?? '') === 'MED'">Medizinisch</flux:select.option>
+                            <flux:select.option value="TECH" :selected="old('type', $classifier->type ?? '') === 'TECH'">Technisch</flux:select.option>
                         </flux:select>
                         <flux:error name="type"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Geschlecht</flux:label>
-                        <flux:select name="gender">
-                            <option value="">Nicht angegeben</option>
-                            <option value="M" @selected(old('gender', $classifier->gender ?? '') === 'M')>Männlich</option>
-                            <option value="F" @selected(old('gender', $classifier->gender ?? '') === 'F')>Weiblich</option>
-                            <option value="N" @selected(old('gender', $classifier->gender ?? '') === 'N')>Nicht binär</option>
+                        <flux:select variant="listbox" name="gender" placeholder="Nicht angegeben" clearable>
+                            <flux:select.option value="M" :selected="old('gender', $classifier->gender ?? '') === 'M'">Männlich</flux:select.option>
+                            <flux:select.option value="F" :selected="old('gender', $classifier->gender ?? '') === 'F'">Weiblich</flux:select.option>
+                            <flux:select.option value="N" :selected="old('gender', $classifier->gender ?? '') === 'N'">Nicht binär</flux:select.option>
                         </flux:select>
                         <flux:error name="gender"/>
                     </flux:field>
@@ -77,13 +69,9 @@
                             $autId = $nations->firstWhere('code', 'AUT')?->id;
                             $defaultNationId = old('nation_id', $classifier->nation_id ?? $autId);
                         @endphp
-                        <flux:select name="nation_id">
-                            <option value="">Nicht angegeben</option>
+                        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nicht angegeben" clearable>
                             @foreach($nations as $nation)
-                                <option value="{{ $nation->id }}"
-                                    @selected($defaultNationId == $nation->id)>
-                                    {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                <flux:select.option value="{{ $nation->id }}" :selected="$defaultNationId == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="nation_id"/>
