@@ -45,27 +45,27 @@
     @endif
 
     @if($skippedResults->isNotEmpty())
-        <div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4"
-             x-data="{ open: false }">
-            <button type="button" x-on:click="open = !open"
-                    class="flex items-center justify-between w-full text-sm font-medium text-amber-800 dark:text-amber-400">
-                <span>{{ $skippedResults->count() }} übersprungene(s) Ergebnis(se) bei der letzten Punkte-Neuberechnung</span>
-                <span x-text="open ? '▲' : '▼'"></span>
-            </button>
-            <div x-show="open" x-cloak class="mt-3 divide-y divide-amber-200 dark:divide-amber-800">
-                @foreach($skippedResults as $entry)
-                    <div class="py-2 text-sm flex items-center justify-between gap-3">
-                        <a href="{{ route('results.show', $entry['result']) }}"
-                           class="text-amber-900 dark:text-amber-300 hover:underline">
-                            {{ $entry['result']->athlete?->display_name }}
-                            — {{ $entry['result']->swimEvent?->display_name }}
-                        </a>
-                        <span
-                            class="text-amber-600 dark:text-amber-500 text-xs text-right">{{ $entry['reason'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </div>
+        <flux:accordion class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
+            <flux:accordion.item>
+                <flux:accordion.heading class="p-4 text-sm font-medium text-amber-800 dark:text-amber-400">
+                    {{ $skippedResults->count() }} übersprungene(s) Ergebnis(se) bei der letzten Punkte-Neuberechnung
+                </flux:accordion.heading>
+
+                <flux:accordion.content class="px-4 pb-4 divide-y divide-amber-200 dark:divide-amber-800">
+                    @foreach($skippedResults as $entry)
+                        <div class="py-2 text-sm flex items-center justify-between gap-3">
+                            <a href="{{ route('results.show', $entry['result']) }}"
+                               class="text-amber-900 dark:text-amber-300 hover:underline">
+                                {{ $entry['result']->athlete?->display_name }}
+                                — {{ $entry['result']->swimEvent?->display_name }}
+                            </a>
+                            <span
+                                class="text-amber-600 dark:text-amber-500 text-xs text-right">{{ $entry['reason'] }}</span>
+                        </div>
+                    @endforeach
+                </flux:accordion.content>
+            </flux:accordion.item>
+        </flux:accordion>
     @endif
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">

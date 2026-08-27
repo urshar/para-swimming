@@ -266,11 +266,49 @@ drei Felder; serverseitig ist `required|file` in allen drei Controllern bereits 
 **Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Kein eigener `--group`, reine
 Formularänderung.
 
+## Phase 6 — Aufklappbare Bereiche (`flux:accordion`) — **abgeschlossen**
+
+Handgebautes Alpine-Aufklapp-Muster (`x-data="{ open: ... }"` + Button/Icon + `x-show`) durch `flux:accordion` /
+`flux:accordion.item` ersetzt, wo es strukturell passt. Von den 6 ursprünglich geprüften Views wurden 4 umgestellt;
+bei 2 Views (bzw. einem Teilbereich einer dritten) passt `flux:accordion` strukturell nicht — siehe unten.
+
+| Baustein                                                        | Art   | Zweck                                                                 |
+|-------------------------------------------------------------------|-------|--------------------------------------------------------------------------|
+| `qualifying-time-lists/{qualifications,show}.blade.php`           | Blade | Sportklassen-Gruppen je Seite von Hand-Alpine auf `flux:accordion` umgestellt |
+| `results/index.blade.php`                                         | Blade | Box "übersprungene Ergebnisse" umgestellt                                |
+| `records/import-preview.blade.php`                                | Blade | 2 von 3 `<details>`-Blöcken umgestellt ("Ausstehende Rekorde", "Nationale Rekorde") |
+
+### Zwei Views bewusst nicht umgestellt
+
+- **`athletes/show.blade.php`** (Vereins-History, Klassifikation, Level, Kader) — kein Akkordeon-Muster: Ein Button
+  blendet dort ein **Formular** über einer immer sichtbaren Tabelle ein/aus, die Tabelle selbst klappt nie zu. Bei
+  einem Akkordeon klappt die Überschrift den ganzen Inhalt auf/zu — passt hier semantisch nicht.
+- **`cups/club-ranking.blade.php`** (Vereinsrangliste, Zeilen-Detail) — technisch nicht möglich: Das aufklappbare
+  Element ist eine `<tbody x-data="{open:false}">` mit zwei `<tr>`-Zeilen. `flux:accordion.item` rendert ein
+  `<ui-disclosure>`-Custom-Element, das kein gültiges `<tbody>` ersetzen kann, ohne die Tabelle zu zerbrechen (Browser
+  akzeptieren nur `<tr>` als direktes Kind von `<table>`/`<thead>`/`<tbody>`/`<tfoot>`). Das bestehende Alpine bleibt
+  hier die einzig saubere Lösung.
+- **`records/import-preview.blade.php`**, dritter `<details>`-Block ("Regionale Rekorde", pro Landesverband) — die
+  `<summary>` sitzt dort als Teil einer Flex-Zeile **neben** Import/Überspringen-Radiobuttons.
+  `flux:accordion.heading` ist ein `w-full`-Button, der die ganze Zeile für sich will — passt nicht sauber neben
+  weitere Controls in derselben Zeile. Als natives `<details>` belassen.
+
+### Innere Polsterung: `first:`/`last:`-Reset schlägt eigene Klassen
+
+`flux:accordion.item` bringt eingebaut `pt-4 first:pt-0 pb-4 last:pb-0` mit (für mehrere Einträge in einer Gruppe
+mit Trennlinien gedacht). Bei einem alleinstehenden Element (gleichzeitig erstes und letztes Kind) gewinnt der
+`first:`/`last:`-Reset gegen eine zusätzlich angegebene eigene `p-4`/`p-5`-Klasse auf `flux:accordion.item` selbst
+(höhere CSS-Spezifität durch die Pseudoklasse, derselbe Effekt wie der `flux:input`-Breitenbefund oben) — die
+gewünschte Innenpolsterung landet dadurch wirkungslos. Fix: Polsterung stattdessen auf `flux:accordion.heading`
+und `flux:accordion.content` selbst setzen (eigene, nicht-konkurrierende Elemente), nicht auf `flux:accordion.item`.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Zusätzlich `records/import-preview.blade.php`
+mit einer temporären Pest-Testdatei direkt gerendert (kein Alltagsroute-Test in der Suite vorhanden, Formular braucht
+echten Datei-Upload + Session) — bestätigt fehlerfreies Rendern beider umgestellter Blöcke, danach wieder entfernt.
+Kein eigener `--group`, reine Formular-/Anzeigeänderung.
+
 ## Geplante nächste Module
 
-- **Phase 6 — Accordion**: `athletes/show.blade.php`, `cups/club-ranking.blade.php`,
-  `qualifying-time-lists/{qualifications,show}.blade.php`, `records/import-preview.blade.php`,
-  `results/index.blade.php`.
 - **Phase 7 — Autocomplete/Tab**: Autocomplete für `club_id`/`nation_id`-Selects, `flux:tab` für die Kategorie-Reiter in
   `records/index.blade.php`.
 

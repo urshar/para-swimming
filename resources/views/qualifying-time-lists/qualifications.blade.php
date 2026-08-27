@@ -116,16 +116,13 @@
             </div>
 
             @foreach($sections as $section)
-                <div id="group-{{ $section['group']?->id ?? 'sonstige' }}" class="mb-6 scroll-mt-4"
-                     x-data="{ open: true }">
-                    <button type="button" @click="open = !open"
-                            class="w-full flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-                        <flux:icon.chevron-down x-show="open" class="size-4 shrink-0"/>
-                        <flux:icon.chevron-right x-show="!open" class="size-4 shrink-0"/>
+                <flux:accordion id="group-{{ $section['group']?->id ?? 'sonstige' }}" class="mb-6 scroll-mt-4">
+                <flux:accordion.item expanded transition>
+                    <flux:accordion.heading class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                         {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
-                    </button>
+                    </flux:accordion.heading>
 
-                    <div x-show="open">
+                    <flux:accordion.content>
                         @foreach($section['strokes'] as $strokeGroup)
                             <div class="mb-4">
                                 <h3 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
@@ -169,8 +166,9 @@
                                 </div>
                             </div>
                         @endforeach
-                    </div>
-                </div>
+                    </flux:accordion.content>
+                </flux:accordion.item>
+                </flux:accordion>
             @endforeach
         @endif
     </div>
