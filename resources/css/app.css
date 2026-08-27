@@ -24,16 +24,29 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /*
+     * Akzentfarbe an den öffentlichen Bereich angeglichen (layouts/public.blade.php + Tailkit:
+     * durchgängig Blau, dort bg-blue-600 für gefüllte Buttons in beiden Darstellungsmodi,
+     * text-blue-600/dark:text-blue-400 für Links). --color-accent (Füllfarbe) und
+     * --color-accent-foreground (Inhalt auf der Füllung, z. B. Button-Text, Checkbox-Häkchen)
+     * bleiben deshalb bewusst in beiden Modi gleich - genau wie die blauen Buttons im Frontend
+     * ihre Füllung beim Moduswechsel nicht invertieren. Nur --color-accent-content (akzentfarbener
+     * Text auf normalem Seitenhintergrund, z. B. Links, aktive Sidebar-Einträge) wechselt auf
+     * blue-400, weil blue-600 auf dunklem Grund zu wenig Kontrast hätte. Kontrast geprüft (WCAG
+     * AA, docs/accessibility.md): Weiß auf blue-600 ~5,16:1, blue-600 auf hellem Grund ~4,95:1,
+     * blue-400 auf zinc-900/950 (Dunkelmodus-Flächen) ~6,97:1 - jeweils über der 4,5:1-Grenze für
+     * Fließtext.
+     */
+    --color-accent: var(--color-blue-600);
+    --color-accent-content: var(--color-blue-600);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-blue-600);
+        --color-accent-content: var(--color-blue-400);
+        --color-accent-foreground: var(--color-white);
     }
 }
 
@@ -56,10 +69,18 @@
     @apply !mb-0 !leading-tight;
 }
 
+/*
+ * Der Fokusring-Versatz (ring-offset) muss die tatsächliche Fläche hinter dem fokussierten Feld
+ * treffen, nicht die Akzent-Inhaltsfarbe: Seit --color-accent-foreground (s. o.) in beiden Modi
+ * Weiß ist - passend zum Button-Text auf blauer Füllung -, wäre ein darüber abgeleiteter
+ * Ring-Versatz im Dunkelmodus falsch (weißer Rand um ein dunkles Eingabefeld). Stattdessen direkt
+ * an die Feldflächen gekoppelt: Weiß im Hellmodus, zinc-900 (Kopf-/Karten-/Formularflächen) im
+ * Dunkelmodus.
+ */
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-white dark:ring-offset-zinc-900;
 }
 
 /* \[:where(&)\]:size-4 {
