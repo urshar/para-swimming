@@ -93,13 +93,12 @@
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Excel-Datei</h2>
 
-                <flux:field>
+                <flux:field x-data="fileUploadField()">
                     <flux:label>World-Aquatics-Basiswert-Datei *</flux:label>
-                    <input type="file" name="base_time_file" accept=".xlsx" required
-                           class="block w-full text-sm text-zinc-600 dark:text-zinc-400
-                                  file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
-                                  file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-950/30 dark:file:text-blue-400
-                                  file:cursor-pointer cursor-pointer"/>
+                    <flux:file-upload name="base_time_file" accept=".xlsx" x-on:change="onChange">
+                        <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
+                    </flux:file-upload>
+                    <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>
                     <flux:error name="base_time_file"/>
                     <flux:description>.xlsx · Max. 20 MB</flux:description>
                 </flux:field>

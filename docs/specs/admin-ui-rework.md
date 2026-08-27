@@ -82,59 +82,197 @@ Kein einzelnes Fach-Modul, sondern die Shell selbst (`resources/views/layouts/ap
 angemeldeten Bereich verwendet wird. Auslöser: Die Sidebar war durch die vielen Fach-Module (siehe oben) so lang, dass
 ständiges Scrollen nötig war, und es fehlte ein erreichbarer Menüpunkt für Profil/Abmelden.
 
-| Baustein                                  | Art   | Zweck                                                                 |
-|--------------------------------------------|-------|------------------------------------------------------------------------|
-| Neue Kopfzeile (`flux:header`)              | Blade | Logo, Dark/Light-Umschalter, Benutzermenü — volle Breite über Sidebar + Content |
-| Sidebar-Gruppen (`flux:navlist.group`)      | Blade | Nur die Gruppe der aktuellen Route ist beim Laden aufgeklappt          |
-| Dark/Light-Umschaltung                      | Blade/JS | Umgestellt von eigenem Alpine-State auf Flux' natives `$flux.appearance`-System |
+| Baustein                               | Art      | Zweck                                                                           |
+|----------------------------------------|----------|---------------------------------------------------------------------------------|
+| Neue Kopfzeile (`flux:header`)         | Blade    | Logo, Dark/Light-Umschalter, Benutzermenü — volle Breite über Sidebar + Content |
+| Sidebar-Gruppen (`flux:navlist.group`) | Blade    | Nur die Gruppe der aktuellen Route ist beim Laden aufgeklappt                   |
+| Dark/Light-Umschaltung                 | Blade/JS | Umgestellt von eigenem Alpine-State auf Flux' natives `$flux.appearance`-System |
 
 ### Kopfzeile
 
 - Logo aus der Sidebar in eine neue, volle Breite über Sidebar UND Content spannende Kopfzeile verschoben. Wichtig:
   Die DOM-Reihenfolge (`flux:header` **vor** `flux:sidebar`) entscheidet über das Grid-Layout, das Flux automatisch
-  anlegt (`vendor/livewire/flux/dist/flux.css`, `*:has(>[data-flux-main])` vs. `*:has(>[data-flux-sidebar]+[data-flux-header])`)
+  anlegt (`vendor/livewire/flux/dist/flux.css`, `*:has(>[data-flux-main])` vs.
+  `*:has(>[data-flux-sidebar]+[data-flux-header])`)
   — Header vor Sidebar ergibt eine volle Kopfzeile, nicht nur eine neben der Sidebar.
-- Logo-Abschnitt der Kopfzeile ist exakt `w-64` breit (dieselbe Breitenklasse wie `flux:sidebar` selbst), damit er
-  mit der Sidebar-Spalte fluchtet, unabhängig von der tatsächlichen Sidebar-Breite. Der Dark/Light-Umschalter sitzt
-  direkt danach — dadurch auf Höhe des Hauptinhalts, nicht am Logo klebend und nicht ganz am rechten Rand beim
-  Benutzermenü.
+- Logo-Abschnitt der Kopfzeile ist exakt `w-64` breit (dieselbe Breitenklasse wie `flux:sidebar` selbst), damit er mit
+  der Sidebar-Spalte fluchtet, unabhängig von der tatsächlichen Sidebar-Breite. Der Dark/Light-Umschalter sitzt direkt
+  danach — dadurch auf Höhe des Hauptinhalts, nicht am Logo klebend und nicht ganz am rechten Rand beim Benutzermenü.
 - `flux:header` bringt selbst `px-6 lg:px-8` mit, das gegen von außen übergebene Padding-Klassen mit derselben
   Spezifität verliert (derselbe Effekt wie der `flux:input`-Breitenbefund oben) — hier mit dem Tailwind-v4-
   `!`-Suffix (`px-0!`) übersteuert, die Innenabstände tragen die beiden Abschnitte in der Kopfzeile selbst.
 - Benutzermenü (Avatar/Name, "Einstellungen", "Abmelden") existierte bereits als
   `components/desktop-user-menu.blade.php`, hing aber nur im nie eingebundenen Starter-Kit-Rest
-  `layouts/app/header.blade.php` und war dadurch im echten Layout nie erreichbar. Direkt in die neue Kopfzeile
-  eingebaut (kompaktere `flux:profile` statt `flux:sidebar.profile`).
+  `layouts/app/header.blade.php` und war dadurch im echten Layout nie erreichbar. Direkt in die neue Kopfzeile eingebaut
+  (kompaktere `flux:profile` statt `flux:sidebar.profile`).
 
 ### Sidebar: einklappbare Gruppen
 
-Jede `flux:navlist.group` bekommt `expandable` + ein berechnetes `:expanded` (dieselben `routeIs()`-Bedingungen wie
-die enthaltenen Items). Flux stellt das nativ über `<ui-disclosure>` bereit, kein eigenes JS nötig. Beim Laden ist
-nur die Gruppe der aktuellen Route offen, alle anderen zeigen nur die Überschrift; der Nutzer kann jede Gruppe
-weiterhin manuell auf-/zuklappen (kein exklusives Akkordeon — mehrere können gleichzeitig offen sein).
+Jede `flux:navlist.group` bekommt `expandable` + ein berechnetes `:expanded` (dieselben `routeIs()`-Bedingungen wie die
+enthaltenen Items). Flux stellt das nativ über `<ui-disclosure>` bereit, kein eigenes JS nötig. Beim Laden ist nur die
+Gruppe der aktuellen Route offen, alle anderen zeigen nur die Überschrift; der Nutzer kann jede Gruppe weiterhin manuell
+auf-/zuklappen (kein exklusives Akkordeon — mehrere können gleichzeitig offen sein).
 
 ### Zwei Bugs beim Reachable-Machen der Settings-Seite gefunden
 
-Das neue Benutzermenü macht `/settings/profile` und `/settings/appearance` erstmals über die UI erreichbar — dabei
-zwei vorbestehende, bis dahin unbemerkte Bugs aufgedeckt:
+Das neue Benutzermenü macht `/settings/profile` und `/settings/appearance` erstmals über die UI erreichbar — dabei zwei
+vorbestehende, bis dahin unbemerkte Bugs aufgedeckt:
 
-- **Dark/Light flippte beim Besuch von Settings → Appearance.** Es liefen zwei unabhängige Dark-Mode-Systeme
-  parallel: ein eigener Alpine-`x-data` auf `<html>` (`localStorage['theme']`) und Flux' eigenes, von der
-  Appearance-Seite intern bereits genutztes `$flux.appearance`-System (`localStorage['flux.appearance']`,
-  Alpine-Magic aus dem Flux-JS-Bundle). Sobald die Appearance-Seite geladen wurde, hat Flux seinen eigenen
-  (nie gesetzten) Zustand angewendet und den eigenen Alpine-State überschrieben. Fix: komplett auf Flux' natives
-  System umgestellt (`$flux.dark` als Getter/Setter, `@fluxAppearance` in `<head>` für FOUC-freies frühes Anwenden),
-  eigenen Alpine-State entfernt. Header-Umschalter und Settings-Seite teilen sich jetzt denselben Zustand.
-- **`@fluxStyles`** stand als literaler Text sichtbar oben im Body. In der installierten Flux-Version ist das gar
-  keine registrierte Blade-Direktive mehr (nur `@fluxScripts`/`@fluxAppearance`, siehe
-  `vendor/livewire/flux/src/AssetManager.php::registerAssetDirective()`) — unregistrierte `@wort`-Muster lässt
-  Blade unverändert im Output stehen. Ersetzt durch `@fluxAppearance` (siehe oben).
+- **Dark/Light flippte beim Besuch von Settings → Appearance.** Es liefen zwei unabhängige Dark-Mode-Systeme parallel:
+  ein eigener Alpine-`x-data` auf `<html>` (`localStorage['theme']`) und Flux' eigenes, von der Appearance-Seite intern
+  bereits genutztes `$flux.appearance`-System (`localStorage['flux.appearance']`, Alpine-Magic aus dem Flux-JS-Bundle).
+  Sobald die Appearance-Seite geladen wurde, hat Flux seinen eigenen (nie gesetzten) Zustand angewendet und den eigenen
+  Alpine-State überschrieben. Fix: komplett auf Flux' natives System umgestellt (`$flux.dark` als Getter/Setter,
+  `@fluxAppearance` in `<head>` für FOUC-freies frühes Anwenden), eigenen Alpine-State entfernt. Header-Umschalter und
+  Settings-Seite teilen sich jetzt denselben Zustand.
+- **`@fluxStyles`** stand als literaler Text sichtbar oben im Body. In der installierten Flux-Version ist das gar keine
+  registrierte Blade-Direktive mehr (nur `@fluxScripts`/`@fluxAppearance`, siehe
+  `vendor/livewire/flux/src/AssetManager.php::registerAssetDirective()`) — unregistrierte `@wort`-Muster lässt Blade
+  unverändert im Output stehen. Ersetzt durch `@fluxAppearance` (siehe oben).
 
 **Tests**: `composer test` (volle Suite, betrifft jede Seite) — 1387 Tests, keine Regressionen. Kein eigener
 `--group`, da reine Layout-/Blade-Änderung ohne neue fachliche Logik.
 
+## Phase 3 — Farbschema — **abgeschlossen**
+
+Kein einzelnes Fach-Modul, sondern global wirkendes Theming (`resources/css/app.css`) plus die Grundinstallation von
+Flux Pro (`composer.json`, `.gitignore`). Auslöser: Das bisherige Akzent-Farbschema war monochrom (`neutral-800`/Weiß),
+der öffentliche Bereich nutzt seit `36d9157` durchgängig Blau als Akzentfarbe — Admin und öffentlicher Bereich sollten
+optisch zusammenpassen.
+
+| Baustein                      | Art    | Zweck                                                                                                                       |
+|-------------------------------|--------|-----------------------------------------------------------------------------------------------------------------------------|
+| `resources/css/app.css`       | CSS    | `--color-accent`/`--color-accent-content`/`--color-accent-foreground` auf Blau umgestellt (hell + dunkel), Fokusring-Fix    |
+| `composer.json`, `.gitignore` | Config | Flux Pro als Composer-Abhängigkeit (`livewire/flux-pro: ^2.17`), privates Repo `composer.fluxui.dev`, `auth.json` ignoriert |
+
+### Drei Flux-Farbtoken, drei unterschiedliche Rollen
+
+Flux unterscheidet nicht nur "eine Akzentfarbe", sondern drei leicht verwechselbare Rollen:
+
+- `--color-accent` — die Füllfarbe selbst (Button-Hintergrund, ausgewählte Kalendertage, aktive Tabs).
+- `--color-accent-content` — akzentfarbener **Text auf normalem Seitenhintergrund** (Links, aktiver Sidebar-Eintrag).
+- `--color-accent-foreground` — Textfarbe **auf** einer akzentgefüllten Fläche (Button-Beschriftung, Checkbox-Häkchen,
+  Switch-Thumb).
+
+Vorher waren alle drei praktisch identisch (`neutral-800`/`neutral-800`/`white`) — funktioniert in einem monochromen
+Schema, führt mit Blau als Akzent aber zu Kontrastproblemen. Neue Werte, gegen `docs/accessibility.md`
+(WCAG AA: ≥4.5:1 Fließtext, ≥3:1 UI-Komponenten/Fokusringe) geprüft:
+
+| Token                       | Hell                     | Dunkel                      | Kontrast          |
+|-----------------------------|--------------------------|-----------------------------|-------------------|
+| `--color-accent`            | `blue-600`               | `blue-600`                  | — (Füllfarbe)     |
+| `--color-accent-content`    | `blue-600` (auf Weiß)    | `blue-400` (auf `zinc-900`) | ~5,16:1 / ~4,95:1 |
+| `--color-accent-foreground` | `white` (auf `blue-600`) | `white` (auf `blue-600`)    | ~6,97:1           |
+
+`--color-accent-content` wechselt zwischen den Modi (helleres Blau im Dunkelmodus, sonst zu dunkel auf dunklem Grund),
+`--color-accent`/`--color-accent-foreground` bleiben modusunabhängig — exakt das Muster, das Flux' eigene eingebaute
+Farbpresets verwenden (`color="blue"` bei `flux:button variant="primary"`,
+`vendor/livewire/flux/stubs/resources/views/flux/button/index.blade.php`), als Gegenprobe herangezogen.
+
+### Fokusring-Kopplung aufgelöst
+
+Die bestehende Fokusring-Regel nutzte `ring-offset-accent-foreground` — im alten Schema zufällig identisch mit dem
+Seitenhintergrund. Mit `accent-foreground` jetzt modusunabhängig Weiß hätte das im Dunkelmodus einen weißen Ring-Abstand
+auf dunklem Grund erzeugt. Entkoppelt: `ring-offset-white dark:ring-offset-zinc-900`, direkt an die tatsächliche
+Flächenfarbe gebunden statt an ein Akzent-Token, das nur zufällig passte.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Kein eigener `--group`, reine CSS-Änderung
+ohne fachliche Logik.
+
+## Phase 4 — Datumsfelder (`flux:date-picker`) — **abgeschlossen**
+
+23 Datumsfelder in 10 Views von `<flux:input type="date">` auf `<flux:date-picker type="input">` umgestellt. Auslöser:
+`type="date"` zeigt browser-/systemabhängig unterschiedliche Formate (z. B. `mm/dd/yyyy` in en-US), was in einer
+österreichischen Fachanwendung Verwechslungsgefahr ist. `flux:date-picker` (Flux Pro) rendert stattdessen ein
+locale-unabhängiges Tag/Monat/Jahr-Segment-Feld mit Kalender-Popup.
+
+| Baustein                                  | Art      | Zweck                                                                                                  |
+|-------------------------------------------|----------|--------------------------------------------------------------------------------------------------------|
+| 10 Views (siehe unten)                    | Blade    | `type="date"` → `flux:date-picker type="input"`, `clearable` bei optionalen Feldern                    |
+| `athletes/form.blade.php`                 | Blade/JS | Geburtsdatum von IMask-Maske (`type="text"` + `00.00.0000`) auf `flux:date-picker` umgestellt          |
+| `livewire/wps-athlete-analysis.blade.php` | Blade    | `x-model` → `wire:model` (date-picker ist ein Custom Element, kein reiner Input)                       |
+| `records/form.blade.php`                  | Blade    | Staffel-Geburtsdatum-Grid-Spalte `6rem` → `10rem` verbreitert (Platz für Segment-Trigger), `size="sm"` |
+
+Betroffene Views: `athletes/{show,form}.blade.php`, `base-times/{import,versions/form}.blade.php`,
+`championships/form.blade.php`, `wps/import/form.blade.php`, `meets/form.blade.php`,
+`qualifying-time-lists/form.blade.php`, `records/form.blade.php`, `livewire/wps-athlete-analysis.blade.php`.
+
+### `locale`-Attribut nötig — Segmentreihenfolge folgt nicht `<html lang>`
+
+`flux:date-picker` bestimmt Reihenfolge/Trennzeichen der Tag/Monat/Jahr-Segmente über `Intl.DateTimeFormat`, primär
+anhand von `navigator.language` (Browsersprache des jeweiligen Nutzers) — **nicht** anhand von `<html lang="de">`
+(`ui-date-picker.mount()`, `vendor/livewire/flux-pro/dist/flux.js`). Ohne Gegenmaßnahme hätte ein Admin mit
+englischsprachigem Browser `mm/dd/yyyy` statt `dd.mm.yyyy` gesehen. Fix: `locale="de-AT"` explizit an jedem
+`flux:date-picker` gesetzt (wird als Attribut an das zugrunde liegende `<ui-date-picker>`-Element durchgereicht,
+erzwingt Tag→Monat→Jahr mit Punkt-Trennzeichen unabhängig vom Browser).
+
+### Geburtsdatum: IMask-Maske abgelöst
+
+`athletes/form.blade.php` nutzte bisher eine IMask-Maske (`00.00.0000`) statt `type="date"`, um genau dasselbe
+Format-Problem zu umgehen. Mit `flux:date-picker` + `locale="de-AT"` entfällt der Sonderfall — der Wert läuft jetzt wie
+bei allen anderen Datumsfeldern intern als ISO `yyyy-mm-dd`, passend zur bestehenden
+`'birth_date' => 'nullable|date'`-Validierung (`AthleteController::validateAthlete()`).
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Kein eigener `--group`, reine
+Formularänderung.
+
+## Phase 5 — Datei-Upload (`flux:file-upload`) — **abgeschlossen**
+
+Native `<input type="file">` in 3 der 5 ursprünglich geprüften Import-/Upload-Formulare durch `flux:file-upload` +
+`flux:file-upload.dropzone` ersetzt (Klick **und** Drag & Drop statt nur Klick).
+
+| Baustein                                                                                     | Art   | Zweck                                                                                      |
+|----------------------------------------------------------------------------------------------|-------|--------------------------------------------------------------------------------------------|
+| `wps/import/form.blade.php`, `base-times/import.blade.php`, `admin/documents/form.blade.php` | Blade | `<input type="file">` → `flux:file-upload` + Dropzone                                      |
+| `resources/js/flux-file-upload-sync.js`                                                      | JS    | Fix: Drag&Drop-Dateien zusätzlich auf das echte `<input>` schreiben (Details unten)        |
+| `resources/js/file-upload-field.js`                                                          | JS    | Alpine-Komponente, zeigt gewählten Dateinamen an                                           |
+| `resources/js/document-form.js`                                                              | JS    | Dateinamen-Anzeige direkt in bestehenden `x-data`-Scope integriert statt zweite Komponente |
+
+`records/import.blade.php` und `lenex/import.blade.php` bewusst **nicht** umgestellt — beide haben bereits eine eigene,
+funktionierende Alpine-Dropzone samt Lade-Overlay während der Analyse (Spinner, Auto-Submit), die
+`flux:file-upload` nicht von Haus aus mitbringt; ein Umstieg hätte diesen Teil ohne echten Gewinn neu bauen müssen.
+
+### Gefundener Bug: Drag & Drop schreibt nicht auf das echte `<input>`
+
+`flux:file-upload` hält ausgewählte Dateien intern in einem JS-Array (für Vorschau/Chips und Livewires
+`wire:model`-Upload). Beim Klick-Weg setzt der Browser `.files` auf dem versteckten echten `<input>` selbst — das reicht
+für ein normales `multipart/form-data`-POST. Beim Drag & Drop passiert das **nicht**: Flux liest die Dateien nur in das
+interne Array ein, ohne sie auf das echte `<input>` zurückzuschreiben (verifiziert: kein einziges Vorkommen von
+`DataTransfer` im kompletten `flux.js`). Da alle drei betroffenen Formulare klassische (nicht-Livewire) POST-Formulare
+sind, hätte eine per Drag & Drop abgelegte Datei optisch ausgewählt gewirkt, wäre beim Absenden aber verschwunden.
+
+**Fix** (`flux-file-upload-sync.js`, global in `app.js` registriert, kein Alpine nötig): `flux:file-upload` feuert bei
+jeder Änderung — Klick wie Drop — ein `change`-Event direkt auf dem `<ui-file-upload>`-Element selbst. Der Listener
+greift dieses Signal ab und schreibt die aktuelle Dateiliste per `DataTransfer` auf das echte `<input>`
+zurück. Per simuliertem `drop`-Event im Browser verifiziert: Datei landet nachweislich im echten, absendbaren
+`<input>`.
+
+### Dateinamen-Anzeige nötig
+
+`flux:file-upload` versteckt das eigentliche `<input>` (`sr-only`) und zeigt — anders als ein sichtbares natives
+`<input type="file">` — den gewählten Dateinamen nicht von selbst an; `flux:file-item` liefert nur die Optik einer
+Datei-Karte, keine Bindung an die aktuelle Auswahl. Für `wps/import` und `base-times/import` eine neue,
+wiederverwendbare Alpine-Komponente (`fileUploadField`), für `admin/documents/form.blade.php` direkt in die bestehende
+`documentForm()`-Komponente integriert (die dort schon den Dateinamen für den LENEX-Hinweis auswertet).
+
+### Kein natives `required`-Popup mehr
+
+HTML5-`required`-Validierung wirkt nur auf einem echten, form-assoziierten `<input>` — `flux:file-upload` reicht
+`required` nicht auf das versteckte `<input>` durch (anders als `accept`, das Flux selbst weiterreicht). Betrifft alle
+drei Felder; serverseitig ist `required|file` in allen drei Controllern bereits vorhanden (`WpsPointImportController`,
+`BaseTimeImportController`, `DocumentController::store()`), der Fehler erscheint also weiterhin zuverlässig über
+`flux:error`, nur ohne sofortiges Browser-Popup.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, keine Regressionen. Kein eigener `--group`, reine
+Formularänderung.
+
 ## Geplante nächste Module
 
-Reihenfolge noch offen wird beim jeweiligen Start festgelegt. Kandidaten mit bekanntem `flux:input`-Breitenbefund (siehe
-oben) aus einem ersten Grep: `qualifying-time-lists/form.blade.php`, `records/index.blade.php` — dort im Rahmen der
-jeweiligen Phase mitfixen.
+- **Phase 6 — Accordion**: `athletes/show.blade.php`, `cups/club-ranking.blade.php`,
+  `qualifying-time-lists/{qualifications,show}.blade.php`, `records/import-preview.blade.php`,
+  `results/index.blade.php`.
+- **Phase 7 — Autocomplete/Tab**: Autocomplete für `club_id`/`nation_id`-Selects, `flux:tab` für die Kategorie-Reiter in
+  `records/index.blade.php`.
+
+Kandidaten mit bekanntem `flux:input`-Breitenbefund (siehe oben) aus einem ersten Grep:
+`qualifying-time-lists/form.blade.php`, `records/index.blade.php` — dort im Rahmen der jeweiligen Phase mitfixen.

@@ -29,10 +29,12 @@
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Datei</h2>
 
-                <flux:field>
+                <flux:field x-data="fileUploadField()">
                     <flux:label>WPS Point Scores (.xlsx) *</flux:label>
-                    <input type="file" name="wps_file" accept=".xlsx" required
-                           class="block w-full text-sm text-zinc-700 dark:text-zinc-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 dark:file:bg-zinc-700 file:text-zinc-700 dark:file:text-zinc-200">
+                    <flux:file-upload name="wps_file" accept=".xlsx" x-on:change="onChange">
+                        <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
+                    </flux:file-upload>
+                    <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>
                     <flux:error name="wps_file"/>
                 </flux:field>
             </div>

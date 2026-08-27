@@ -100,12 +100,10 @@
 
                 <flux:field>
                     <flux:label>{{ $document ? 'Datei ersetzen' : 'Datei *' }}</flux:label>
-                    <input type="file" name="file" x-on:change="onFileChange($event)"
-                           class="block w-full text-sm text-zinc-700 dark:text-zinc-300
-                                  file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5
-                                  file:text-sm file:font-medium file:text-zinc-700
-                                  dark:file:bg-zinc-700 dark:file:text-zinc-200"
-                        {{ $document ? '' : 'required' }}>
+                    <flux:file-upload name="file" x-on:change="onFileChange($event)">
+                        <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
+                    </flux:file-upload>
+                    <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>
                     @if($document)
                         @php
                             $currentFileLabel = collect([$document->formatLabel(), $document->sizeLabel()])
