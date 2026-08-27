@@ -87,22 +87,11 @@
                         </flux:select>
                         <flux:error name="gender"/>
                     </flux:field>
-                    {{-- Datumsmaske via IMask.js statt type="date": zeigt zuverlässig dd.mm.yyyy statt
-                         des browser-/systemabhängigen Formats von type="date" (siehe records/form.blade.php
-                         für dasselbe Muster bei der Schwimmzeit). Punkt-getrennte Eingabe wie "25.12.2000"
-                         wird von PHP/Carbon als Tag.Monat.Jahr geparst, daher genügt der maskierte Wert.
-                         lazy: true, weil das Feld optional ist — sonst stünde bei jedem leeren Feld
-                         "__.__.____" statt eines echten Leerwerts (vgl. resources/js/standard-cell.js). --}}
                     <flux:field>
                         <flux:label>Geburtsdatum</flux:label>
-                        <flux:input
-                            name="birth_date"
-                            type="text"
-                            value="{{ old('birth_date', isset($athlete) && $athlete->birth_date ? $athlete->birth_date->format('d.m.Y') : '') }}"
-                            placeholder="tt.mm.jjjj"
-                            x-data
-                            x-init="IMask($el, { mask: '00.00.0000', lazy: true, placeholderChar: '_' })"
-                        />
+                        <flux:date-picker type="input" locale="de-AT" name="birth_date"
+                                    value="{{ old('birth_date', isset($athlete) && $athlete->birth_date ? $athlete->birth_date->format('Y-m-d') : '') }}"
+                                    clearable/>
                         <flux:error name="birth_date"/>
                     </flux:field>
                     <flux:field>
@@ -140,8 +129,8 @@
                         {{-- Nur bei Neuanlage: Eintrittsdatum für die Club-History --}}
                         <flux:field>
                             <flux:label>Vereinseintritt</flux:label>
-                            <flux:input name="club_joined_at" type="date"
-                                        value="{{ old('club_joined_at', today()->format('Y-m-d')) }}"/>
+                            <flux:date-picker type="input" locale="de-AT" name="club_joined_at"
+                                        value="{{ old('club_joined_at', today()->format('Y-m-d')) }}" clearable/>
                             <flux:error name="club_joined_at"/>
                         </flux:field>
                     @endif

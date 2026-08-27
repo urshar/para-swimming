@@ -51,15 +51,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Startdatum *</flux:label>
-                        <flux:input name="start_date" type="date"
+                        <flux:date-picker type="input" locale="de-AT" name="start_date"
                                     value="{{ old('start_date', isset($meet) ? $meet->start_date->format('Y-m-d') : '') }}"
                                     required/>
                         <flux:error name="start_date"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Enddatum</flux:label>
-                        <flux:input name="end_date" type="date"
-                                    value="{{ old('end_date', isset($meet) && $meet->end_date ? $meet->end_date->format('Y-m-d') : '') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="end_date"
+                                    value="{{ old('end_date', isset($meet) && $meet->end_date ? $meet->end_date->format('Y-m-d') : '') }}" clearable/>
                         <flux:error name="end_date"/>
                     </flux:field>
                 </div>
@@ -121,8 +121,8 @@
 
                 <flux:field>
                     <flux:label>Meldeschluss</flux:label>
-                    <flux:input name="entries_deadline" type="date"
-                                value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}"/>
+                    <flux:date-picker type="input" locale="de-AT" name="entries_deadline"
+                                value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}" clearable/>
                     <flux:description>Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
                     <flux:error name="entries_deadline"/>
                 </flux:field>

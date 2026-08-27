@@ -195,7 +195,7 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Datum *</flux:label>
-                        <flux:input name="joined_at" type="date"
+                        <flux:date-picker type="input" locale="de-AT" name="joined_at"
                                     value="{{ old('joined_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="joined_at"/>
                     </flux:field>
@@ -279,7 +279,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>Datum *</flux:label>
-                        <flux:input name="classified_at" type="date"
+                        <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                     value="{{ old('classified_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="classified_at"/>
                     </flux:field>
@@ -523,7 +523,7 @@
                                 <div class="grid grid-cols-2 gap-3">
                                     <flux:field>
                                         <flux:label>Datum *</flux:label>
-                                        <flux:input name="classified_at" type="date"
+                                        <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                                     value="{{ $cl->classified_at->format('Y-m-d') }}" required/>
                                         <flux:error name="classified_at"/>
                                     </flux:field>
@@ -725,7 +725,7 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Datum *</flux:label>
-                        <flux:input name="changed_at" type="date"
+                        <flux:date-picker type="input" locale="de-AT" name="changed_at"
                                     value="{{ old('changed_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="changed_at"/>
                     </flux:field>
@@ -805,12 +805,12 @@
                 <div class="grid grid-cols-2 gap-3 mt-3">
                     <flux:field>
                         <flux:label>Gültig ab <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_from" value="{{ old('valid_from') }}" clearable/>
                         <flux:error name="valid_from"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_until" value="{{ old('valid_until') }}" clearable/>
                         <flux:error name="valid_until"/>
                     </flux:field>
                 </div>

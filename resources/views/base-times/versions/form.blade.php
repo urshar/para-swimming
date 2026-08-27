@@ -39,14 +39,14 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Gültig ab *</flux:label>
-                        <flux:input name="valid_from" type="date"
+                        <flux:date-picker type="input" locale="de-AT" name="valid_from"
                                     value="{{ old('valid_from', $version?->valid_from?->toDateString()) }}" required/>
                         <flux:error name="valid_from"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_until" type="date"
-                                    value="{{ old('valid_until', $version?->valid_until?->toDateString()) }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_until"
+                                    value="{{ old('valid_until', $version?->valid_until?->toDateString()) }}" clearable/>
                         <flux:error name="valid_until"/>
                     </flux:field>
                 </div>

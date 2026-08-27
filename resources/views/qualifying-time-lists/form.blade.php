@@ -59,15 +59,15 @@
                 <div class="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-700">
                     <flux:field>
                         <flux:label>Qualifikationszeitraum — Beginn</flux:label>
-                        <flux:input name="qualification_period_start" type="date"
-                                    value="{{ old('qualification_period_start', $list?->qualification_period_start?->toDateString()) }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="qualification_period_start"
+                                    value="{{ old('qualification_period_start', $list?->qualification_period_start?->toDateString()) }}" clearable/>
                         <flux:description>Erster Wettkampftag der vorherigen ÖSTM & ÖM.</flux:description>
                         <flux:error name="qualification_period_start"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Qualifikationszeitraum — Ende</flux:label>
-                        <flux:input name="qualification_period_end" type="date"
-                                    value="{{ old('qualification_period_end', $list?->qualification_period_end?->toDateString()) }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="qualification_period_end"
+                                    value="{{ old('qualification_period_end', $list?->qualification_period_end?->toDateString()) }}" clearable/>
                         <flux:description>14 Tage vor dem ersten Wettkampftag dieser ÖSTM & ÖM — kann später
                             nachgetragen/geändert werden, sobald der Termin feststeht.
                         </flux:description>

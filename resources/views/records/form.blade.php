@@ -205,7 +205,7 @@
                         werden ignoriert.</p>
                     <div class="space-y-2">
                         <div
-                            class="grid grid-cols-[2rem_1fr_1fr_6rem] gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-1">
+                            class="grid grid-cols-[2rem_1fr_1fr_10rem] gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-1">
                             <span>#</span>
                             <span>Nachname</span>
                             <span>Vorname</span>
@@ -215,7 +215,7 @@
                             @php
                                 $member = $rec?->relayTeam[$i] ?? null;
                             @endphp
-                            <div class="grid grid-cols-[2rem_1fr_1fr_6rem] gap-2 items-center">
+                            <div class="grid grid-cols-[2rem_1fr_1fr_10rem] gap-2 items-center">
                                 <span class="text-xs text-zinc-400 font-mono text-center">{{ $i + 1 }}</span>
                                 <flux:input
                                     name="relay_members[{{ $i }}][last_name]"
@@ -227,10 +227,12 @@
                                     placeholder="Vorname"
                                     value="{{ old('relay_members.' . $i . '.first_name', $member?->first_name ?? '') }}"
                                 />
-                                <flux:input
+                                <flux:date-picker
+                                    type="input" locale="de-AT"
+                                    size="sm"
                                     name="relay_members[{{ $i }}][birth_date]"
-                                    type="date"
                                     value="{{ old('relay_members.' . $i . '.birth_date', $member?->birth_date?->format('Y-m-d') ?? '') }}"
+                                    clearable
                                 />
                             </div>
                         @endfor
@@ -252,8 +254,8 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Datum</flux:label>
-                        <flux:input name="set_date" type="date"
-                                    value="{{ old('set_date', $rec?->set_date?->format('Y-m-d') ?? '') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="set_date"
+                                    value="{{ old('set_date', $rec?->set_date?->format('Y-m-d') ?? '') }}" clearable/>
                     </flux:field>
                 </div>
 

@@ -70,13 +70,13 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Gültig ab *</flux:label>
-                        <flux:input type="date" name="valid_from" value="{{ old('valid_from') }}" required/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_from" value="{{ old('valid_from') }}" required/>
                         <flux:error name="valid_from"/>
                     </flux:field>
 
                     <flux:field>
                         <flux:label>Gültig bis</flux:label>
-                        <flux:input type="date" name="valid_until" value="{{ old('valid_until') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_until" value="{{ old('valid_until') }}" clearable/>
                         <flux:description>Leer lassen für "bis auf Weiteres".</flux:description>
                         <flux:error name="valid_until"/>
                     </flux:field>
