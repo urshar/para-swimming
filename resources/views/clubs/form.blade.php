@@ -28,7 +28,7 @@
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Vereinsdaten</h2>
 
                 <flux:field>
-                    <flux:label>Name *</flux:label>
+                    <flux:label>Name <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:input name="name" value="{{ old('name', $club->name ?? '') }}" required/>
                     <flux:error name="name"/>
                 </flux:field>
@@ -50,7 +50,7 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Nation *</flux:label>
+                        <flux:label>Nation <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" searchable name="nation_id" placeholder="Wählen…" required>
                             @foreach($nations as $nation)
                                 <flux:select.option value="{{ $nation->id }}" :selected="old('nation_id', $club->nation_id ?? $autId) == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
@@ -59,7 +59,7 @@
                         <flux:error name="nation_id"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Typ *</flux:label>
+                        <flux:label>Typ <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" name="type" required>
                             @foreach(['CLUB' => 'Verein', 'NATIONALTEAM' => 'Nationalteam', 'REGIONALTEAM' => 'Regionalteam', 'VERBAND' => 'Verband', 'UNATTACHED' => 'Ohne Zuordnung'] as $value => $label)
                                 <flux:select.option value="{{ $value }}" :selected="old('type', $club->type ?? 'CLUB') === $value">{{ $label }}</flux:select.option>

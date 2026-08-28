@@ -36,6 +36,10 @@ class ClubEntryController extends Controller
     {
         $this->authorizeMeet($meet);
 
+        if ($chooser = $this->clubChooserView($meet, 'club-entries.index')) {
+            return $chooser;
+        }
+
         $club = $this->userClub();
 
         $entries = Entry::query()
@@ -227,6 +231,10 @@ class ClubEntryController extends Controller
     public function indexRelay(Meet $meet): View
     {
         $this->authorizeMeet($meet);
+
+        if ($chooser = $this->clubChooserView($meet, 'club-entries.relay.index')) {
+            return $chooser;
+        }
 
         $club = $this->userClub();
 
@@ -533,7 +541,7 @@ class ClubEntryController extends Controller
         $this->authorizeClubAccess();
 
         $user = auth()->user();
-        $openMeets = Meet::where('is_open', true)->orderBy('start_date')->get();
+        $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
         $clubs = $user->is_admin ? Club::orderBy('name')->get() : null;
 
         if (! $user->is_admin && $openMeets->count() === 1) {
@@ -556,7 +564,7 @@ class ClubEntryController extends Controller
         $this->authorizeClubAccess();
 
         $user = auth()->user();
-        $openMeets = Meet::where('is_open', true)->orderBy('start_date')->get();
+        $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
         $clubs = $user->is_admin ? Club::orderBy('name')->get() : null;
 
         if (! $user->is_admin && $openMeets->count() === 1) {
@@ -586,6 +594,26 @@ class ClubEntryController extends Controller
         if (! $user->is_admin && ! $meet->is_open) {
             abort(403, 'Dieser Wettkampf ist nicht für Vereinsmeldungen geöffnet.');
         }
+    }
+
+    /**
+     * Für Admins, die über die Wettkampf-Detailseite direkt auf "Meldungen" kommen (ohne
+     * vorher wie auf pick-meet.blade.php einen Verein gewählt zu haben), fehlte bislang jede
+     * Möglichkeit, einen Verein auszuwählen — userClub() bricht in dem Fall nur mit 400 ab.
+     * Zeigt statt des Fehlers eine einfache Vereinsauswahl für dieses Meet; gibt null zurück,
+     * wenn kein Auswahlschritt nötig ist (Club-User, oder Admin mit bereits gesetztem club_id).
+     */
+    private function clubChooserView(Meet $meet, string $routeName): ?View
+    {
+        if (! auth()->user()->is_admin || request()->filled('club_id')) {
+            return null;
+        }
+
+        return view('club-entries.choose-club', [
+            'meet' => $meet,
+            'clubs' => Club::orderBy('name')->get(),
+            'routeName' => $routeName,
+        ]);
     }
 
     /**

@@ -7,24 +7,29 @@
 @section('content')
     @php $clubParam = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
 
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldungen</h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {{ $meet->name }} · {{ $club->display_name }}
-            </p>
-        </div>
-        <div class="flex items-center gap-2">
-            <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParam)) }}"
-                         variant="ghost" size="sm">
-                Einzelmeldungen
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldungen</h1>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {{ $meet->name }} · {{ $club->display_name }}
+        </p>
+
+        <div class="flex items-center flex-wrap gap-2 mt-4">
+            <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
+                Zurück
             </flux:button>
-            @if($canManage)
-                <flux:button href="{{ route('club-entries.relay.create', array_merge(['meet' => $meet], $clubParam)) }}"
-                             variant="primary" icon="plus">
-                    Neue Staffelmeldung
+
+            <div class="ml-auto flex items-center flex-wrap gap-2">
+                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParam)) }}"
+                             variant="filled" size="sm">
+                    Einzelmeldungen
                 </flux:button>
-            @endif
+                @if($canManage)
+                    <flux:button href="{{ route('club-entries.relay.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                                 variant="primary" icon="plus">
+                        Neue Staffelmeldung
+                    </flux:button>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -78,15 +83,12 @@
                                 {{ $relay->swimEvent->event_number ? 'Nr. '.$relay->swimEvent->event_number.' – ' : '' }}
                                 {{ $relay->swimEvent->relay_count }}×{{ $relay->swimEvent->distance }}m
                                 {{ $relay->swimEvent->strokeType?->name_de }}
-                                @php
-                                    $gLabel = match($relay->swimEvent->gender) {
-                                        'M'       => 'Männer',
-                                        'F'       => 'Frauen',
-                                        'X','MX'  => 'Mixed',
-                                        default   => 'Offen',
-                                    };
-                                @endphp
-                                ({{ $gLabel }})
+                                {{-- Geschlecht aus den tatsächlichen Mitgliedern, nicht aus
+                                     swim_events.gender (gibt nur die Zulassung des Bewerbs an,
+                                     z.B. "A" = offen — nicht die Team-Zusammensetzung). Ohne
+                                     Mitglieder mit bekanntem Geschlecht Fallback auf die
+                                     Event-Zulassung. --}}
+                                <x-gender-icon :gender="$relay->teamGender() ?? $relay->swimEvent->gender" class="ml-1"/>
                             </span>
 
                             {{-- Vollständigkeit --}}
@@ -127,6 +129,7 @@
                                 <div class="flex-1 min-w-0">
                                     <span class="font-medium text-zinc-900 dark:text-zinc-100 truncate block">
                                         {{ $member->athlete?->last_name }}, {{ $member->athlete?->first_name }}
+                                        <x-gender-icon :gender="$member->athlete?->gender" class="text-xs ml-1"/>
                                     </span>
                                     <span class="text-xs text-zinc-400">
                                         {{ $member->sport_class ?? '–' }}

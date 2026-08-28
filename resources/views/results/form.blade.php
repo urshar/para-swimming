@@ -17,7 +17,7 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Disziplin</flux:label>
+                        <flux:label>Disziplin <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" name="swim_event_id" required>
                             @foreach($swimEvents as $event)
                                 <flux:select.option
@@ -30,11 +30,12 @@
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Athlet</flux:label>
                         @if(isset($result))
+                            <flux:label>Athlet</flux:label>
                             <flux:input value="{{ $result->athlete?->display_name }}" disabled/>
                             <input type="hidden" name="athlete_id" value="{{ $result->athlete_id }}">
                         @else
+                            <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                             <flux:select variant="listbox" searchable name="athlete_id" required>
                                 @foreach($entries->pluck('athlete')->unique('id') as $athlete)
                                     @if($athlete)
@@ -51,11 +52,12 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Club</flux:label>
                         @if(isset($result))
+                            <flux:label>Club</flux:label>
                             <flux:input value="{{ $result->club?->display_name }}" disabled/>
                             <input type="hidden" name="club_id" value="{{ $result->club_id }}">
                         @else
+                            <flux:label>Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                             <flux:select variant="listbox" searchable name="club_id" required>
                                 @foreach($entries->pluck('club')->unique('id') as $club)
                                     @if($club)

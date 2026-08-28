@@ -3,36 +3,44 @@
 @section('title', 'Neue Meldung – ' . $meet->name)
 
 @section('content')
+    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-2xl">
 
         {{-- Header --}}
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('club-entries.index', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Neue Meldung</h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $meet->name }} · {{ $club->display_name }}
-                </p>
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Neue Meldung</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $meet->name }} · {{ $club->display_name }}
+            </p>
+
+            <div class="mt-4">
+                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                             variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             </div>
         </div>
 
         @php
-            $clubParams   = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : [];
-            $eligibleUrl  = route('club-entries.eligible-athletes', array_merge(['meet' => $meet], $clubParams));
-            $bestTimesUrl = route('club-entries.best-times', array_merge(['meet' => $meet], $clubParams));
-            $oldCourse    = old('entry_course', $meet->course);
+            // Konfiguration als EIN zusammenhängender JSON-Wert übergeben (siehe
+            // meets/form.blade.php $wpsAlpineConfig): einzelne {{ }}-Ausdrücke, über mehrere
+            // Zeilen verteilt mitten in einem JS-Objektliteral im x-data-Attribut, lassen sich
+            // von PhpStorms JS-Parser nicht mehr als zusammenhängender Ausdruck lesen ("Expression
+            // statement is not assignment or call", kaskadiert bis in die Typprüfung gegen
+            // SingleEntryFormConfig). @json() macht daraus einen einzigen Blade-Ausdruck.
+            $singleEntryFormConfig = [
+                'eligibleUrl' => route('club-entries.eligible-athletes', array_merge(['meet' => $meet], $clubParams)),
+                'bestTimesUrl' => route('club-entries.best-times', array_merge(['meet' => $meet], $clubParams)),
+                'meetCourse' => $meet->course,
+                'selectedEventId' => old('swim_event_id', ''),
+                'selectedAthleteId' => old('athlete_id', ''),
+                'entryTime' => old('entry_time', ''),
+                'entryCourse' => old('entry_course', $meet->course),
+            ];
         @endphp
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6"
-             x-data="singleEntryForm({
-                 eligibleUrl:       '{{ $eligibleUrl }}',
-                 bestTimesUrl:      '{{ $bestTimesUrl }}',
-                 meetCourse:        '{{ $meet->course }}',
-                 selectedEventId:   '{{ old('swim_event_id', '') }}',
-                 selectedAthleteId: '{{ old('athlete_id', '') }}',
-                 entryTime:         '{{ old('entry_time', '') }}',
-                 entryCourse:       '{{ $oldCourse }}',
-             })">
+             x-data='singleEntryForm(@json($singleEntryFormConfig))'>
 
             <form method="POST" action="{{ route('club-entries.store', $meet) }}" @submit="onSubmit()">
                 @csrf
@@ -42,19 +50,19 @@
 
                 {{-- Event-Auswahl --}}
                 <flux:field class="mb-5">
-                    <flux:label>Event *</flux:label>
+                    <flux:label>Event <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select
+                        variant="listbox"
                         name="swim_event_id"
                         x-model="selectedEventId"
                         @change="onEventChange()"
                         required>
-                        <option value="">Bitte wählen…</option>
                         @foreach($events as $event)
-                            <option value="{{ $event->id }}"
-                                @selected(old('swim_event_id') == $event->id)>
+                            <flux:select.option value="{{ $event->id }}"
+                                :selected="old('swim_event_id') == $event->id">
                                 {{ $event->event_number ? 'Nr. '.$event->event_number.' – ' : '' }}{{ $event->display_name }}
                                 ({{ $event->gender === 'M' ? 'Männer' : ($event->gender === 'F' ? 'Frauen' : 'Offen') }})
-                            </option>
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="swim_event_id"/>
@@ -62,7 +70,7 @@
 
                 {{-- Athlet-Auswahl (wird per AJAX befüllt) --}}
                 <flux:field class="mb-5">
-                    <flux:label>Athlet *</flux:label>
+                    <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <div x-show="loadingAthletes" class="flex items-center gap-2 text-sm text-zinc-400 py-2">
                         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -71,17 +79,17 @@
                         Athleten werden geladen…
                     </div>
                     <flux:select
+                        variant="listbox"
                         name="athlete_id"
                         x-model="selectedAthleteId"
                         @change="onAthleteChange()"
                         x-show="!loadingAthletes"
                         x-bind:disabled="!selectedEventId"
                         required>
-                        <option value="">Athlet wählen…</option>
                         <template x-for="athlete in eligibleAthletes" x-bind:key="athlete.id">
-                            <option x-bind:value="athlete.id"
+                            <flux:select.option x-bind:value="athlete.id"
                                     x-text="athlete.name + (athlete.classes ? ' (' + athlete.classes + ')' : '')">
-                            </option>
+                            </flux:select.option>
                         </template>
                     </flux:select>
                     <p x-show="!loadingAthletes && selectedEventId && eligibleAthletes.length === 0"
@@ -146,10 +154,10 @@
 
                     <flux:field>
                         <flux:label>Kurs</flux:label>
-                        <flux:select name="entry_course" x-model="entryCourse">
-                            <option value="LCM">LCM (50m)</option>
-                            <option value="SCM">SCM (25m)</option>
-                            <option value="SCY">SCY (Yards)</option>
+                        <flux:select variant="listbox" name="entry_course" x-model="entryCourse">
+                            <flux:select.option value="LCM">LCM (50m)</flux:select.option>
+                            <flux:select.option value="SCM">SCM (25m)</flux:select.option>
+                            <flux:select.option value="SCY">SCY (Yards)</flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

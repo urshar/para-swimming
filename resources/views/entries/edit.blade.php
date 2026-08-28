@@ -29,7 +29,7 @@
                 @method('PUT')
 
                 <flux:field>
-                    <flux:label>Meldender Club</flux:label>
+                    <flux:label>Meldender Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="club_id" required>
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $entry->club_id) == $club->id">

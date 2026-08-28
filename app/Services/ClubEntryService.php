@@ -31,7 +31,7 @@ readonly class ClubEntryService
      *   1. Gleiche Geschlechtsklasse (event.gender = athlete. gender, oder 'X'/'A' = alle)
      *   2. Athlet hat mindestens eine Sportklasse, die im Event enthalten ist
      *
-     * @return Collection<Athlete>
+     * @return Collection<int, Athlete>
      */
     public function eligibleAthletes(SwimEvent $event, Club $club): Collection
     {
@@ -73,7 +73,7 @@ readonly class ClubEntryService
      * Beim Bearbeiten einer bestehenden Staffel ($excludeRelayEntryId) bleiben
      * die eigenen Mitglieder dieser Staffel weiterhin wählbar.
      *
-     * @return Collection<Athlete>
+     * @return Collection<int, Athlete>
      */
     public function eligibleRelayAthletes(
         SwimEvent $event,
@@ -146,7 +146,14 @@ readonly class ClubEntryService
     }
 
     /**
-     * Parst die sport_classes-Spalte ("1 2 9 10") in eine Collection von ints.
+     * Parst die sport_classes-Spalte in eine Collection von reinen Klassennummern (ints).
+     *
+     * swim_events.sport_classes speichert die vollen Codes mit Kategorie-Präfix
+     * (z. B. "S1 S2 S9 SB4"), passend zum Formularhinweis in swim-events/form.blade.php.
+     * (int) "S1" liefert 0 (PHP bricht beim ersten Nicht-Ziffern-Zeichen ab) — das
+     * ließ hier JEDEN Athleten als nicht passend durchfallen, weil $eventClasses nur
+     * Nullen enthielt, athlete_sport_classes.class_number aber nie 0 ist. Vor dem Cast
+     * daher alles außer Ziffern entfernen ("S1" → "1", "SB4" → "4").
      */
     private function parseEventClasses(?string $sportClasses): Collection
     {
@@ -156,7 +163,7 @@ readonly class ClubEntryService
 
         return collect(preg_split('/[\s,]+/', trim($sportClasses)))
             ->filter(fn ($v) => $v !== '')
-            ->map(fn ($v) => (int) $v);
+            ->map(fn ($v) => (int) preg_replace('/\D+/', '', $v));
     }
 
     // ── Bestzeiten ────────────────────────────────────────────────────────────

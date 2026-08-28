@@ -53,3 +53,78 @@ Athletendaten-Veröffentlichung.
 `@section('robots', 'noindex, nofollow')` entfernen, die beiden Routen aus den
 `Disallow`-Zeilen in `app/Http/Controllers/Public/RobotsController.php` streichen und in
 `app/Http/Controllers/Public/SitemapController.php::STATIC_ROUTES` aufnehmen.
+
+## Status-Spalte in `meets/index` — I/E/R-Schema statt LENEX-Status
+
+**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
+
+**Was fehlt:** Die Spalte "Status" in der Wettkampfliste zeigt aktuell `$meet->lenex_status`
+(OFFICIAL/RUNNING/SEEDED, ein LENEX-Importfeld). Gewünscht ist stattdessen ein Schema, das auf
+einen Blick zeigt, was zu einem Wettkampf schon existiert: **I** = Disziplinen mit
+Wertungsgruppen angelegt, **E** = Meldungen liegen vor, **R** = Ergebnisse liegen vor. Braucht
+eine eigene Abfrage pro Zeile (vermutlich `withCount`/`withExists` auf `swimEvents`/`entries`/
+`results`, plus Klärung ob "Disziplinen mit Wertungsgruppen" `sport_classes IS NOT NULL` meint
+oder etwas anderes) und wahrscheinlich Tooltip-Text pro Buchstabe.
+
+**Wer entscheidet:** Erik — ob `lenex_status` daneben erhalten bleibt oder ersetzt wird, und die
+genaue Definition von "I" (welche Wertungsgruppen-Zuordnung genau gemeint ist).
+
+**Zum Schließen nötig:** Definition der drei Zustände abstimmen, `MeetController::index()` um die
+nötigen Zähl-/Exists-Abfragen erweitern, `meets/index.blade.php`-Statusspalte umbauen.
+
+## Tooltip/Popover statt Info-Text bei Disziplin-Formular-Hinweisen
+
+**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
+
+**Was fehlt:** In `swim-events/form.blade.php` stehen bei "Schwimmer/Staffel" ("1 = Einzel") und
+"Sport-Klassen" ("Leerzeichen-getrennt") aktuell permanent sichtbare `flux:description`-Zeilen.
+Gewünscht: Anzeige als Tooltip/Popover statt dauerhaft sichtbarem Text. Noch keine entschiedene
+Lösung — Nutzer ist offen für Vorschläge (`flux:tooltip`? Info-Icon mit `flux:popover`?).
+
+**Wer entscheidet:** Erik — welche Variante (Tooltip vs. Popover vs. Icon-Trigger).
+
+**Zum Schließen nötig:** Kurze Abstimmung über die Zielkomponente, dann Umbau der beiden Felder
+(und ggf. gleichartiger `flux:description`-Hinweise an anderen Stellen, falls das Muster
+gefallen soll).
+
+## Meldezeit bei Staffelmeldungen aus den gemeldeten Athleten herleiten
+
+**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
+
+**Was fehlt:** Bei `club-entries/create-relay.blade.php`/`edit-relay.blade.php` soll die Meldezeit
+sich (wenn möglich) automatisch aus den Bestzeiten der ausgewählten Staffel-Schwimmer als
+Vorschlag/Default ableiten lassen — analog zur bereits bestehenden Bestzeit-Übernahme bei
+Einzelmeldungen (`ClubEntryService::bestTimes()`). Für Staffeln braucht das eine eigene Regel
+(Summe der Einzel-Bestzeiten über die passende Teilstrecke/Bahnlänge? Nur wenn alle vier Plätze
+belegt sind? Rundungs-/Sicherheitsaufschlag?) — nicht ohne Rücksprache zu implementieren.
+
+**Wer entscheidet:** Erik — die genaue Herleitungsregel (Summenbildung, Umgang mit fehlenden
+Einzel-Bestzeiten einzelner Mitglieder, Kurzbahn/Langbahn-Umrechnung wie bei Einzelmeldungen).
+
+**Zum Schließen nötig:** Regel abstimmen, dann in `ClubEntryService` eine
+`relayBestTime()`-ähnliche Methode ergänzen, per AJAX-Endpunkt (analog `best-times`) an
+`relay-entry-form.js` liefern, dort als Vorschlag mit "Bestzeit übernehmen"-Button anzeigen
+(gleiches UI-Muster wie bei Einzelmeldungen).
+
+## Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick
+
+**Seit:** Admin-UI-Rework Phase 9, Design-Feedback nach Live-Test der Athleten-Auswahl.
+
+**Was fehlt:** In `club-entries/create.blade.php` wird bei Athlet+Event-Auswahl aktuell nur die
+*Jahresbestzeit* angezeigt (`ClubEntryService::bestTimes()` — Zeitraum Vorjahr bis Meetbeginn).
+Gewünscht: zusätzlich die *absolute Bestzeit* (ohne Datumsfilter) anzeigen. Die Backend-Methode
+dafür existiert bereits (`ClubEntryService::absoluteBestTime(Athlete $athlete, SwimEvent $event,
+string $course): ?int`), wird aber aktuell nirgends aufgerufen/ausgeliefert. Zusätzlich:
+Doppelklick auf eine der beiden angezeigten Zeiten soll sie automatisch als Meldezeit übernehmen
+(bisheriges "Bestzeit übernehmen"-Button-Muster bleibt vermutlich zusätzlich bestehen, oder wird
+dadurch ersetzt — zu klären).
+
+**Wer entscheidet:** Erik — ob beide Zeiten permanent nebeneinander stehen oder z. B. als Tabs/
+Toggle, und ob der bestehende "Bestzeit übernehmen"-Button neben dem neuen Doppelklick-Verhalten
+bestehen bleibt.
+
+**Zum Schließen nötig:** `ClubEntryController::bestTimes()` (AJAX-Endpunkt) um die absolute
+Bestzeit ergänzen (LCM + SCM, wie schon bei der Jahresbestzeit), `single-entry-form.js` um das
+zusätzliche Datenfeld und einen `@dblclick`-Handler auf die Zeit-Anzeige erweitern, der
+`entryTime`/`entryCourse` setzt (gleiche Methode wie das bestehende `applyBestTime()`),
+`create.blade.php`-Anzeige um die zweite Zeile ergänzen.

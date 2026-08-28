@@ -11,28 +11,31 @@
     <div class="max-w-5xl">
 
         {{-- Header --}}
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
-                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
-                             variant="ghost" size="sm">Staffelmeldungen
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Einzelmeldungen</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $meet->name }} · {{ $meet->city }} ·
+                {{ $meet->start_date->format('d.m.Y') }}
+                · {{ $club->display_name }}
+            </p>
+
+            <div class="flex items-center flex-wrap gap-2 mt-4">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
                 </flux:button>
-                <div>
-                    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Einzelmeldungen</h1>
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                        {{ $meet->name }} · {{ $meet->city }} ·
-                        {{ $meet->start_date->format('d.m.Y') }}
-                        · {{ $club->display_name }}
-                    </p>
+
+                <div class="ml-auto flex items-center flex-wrap gap-2">
+                    <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
+                                 variant="filled" size="sm">Staffelmeldungen
+                    </flux:button>
+                    @if($canManage)
+                        <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                                     variant="primary" icon="plus">
+                            Neue Meldung
+                        </flux:button>
+                    @endif
                 </div>
             </div>
-
-            @if($canManage)
-                <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
-                             variant="primary" icon="plus">
-                    Neue Meldung
-                </flux:button>
-            @endif
         </div>
 
         {{-- Flash --}}
@@ -74,6 +77,7 @@
                         <th class="text-left px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Nr.</th>
                         <th class="text-left px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Event</th>
                         <th class="text-left px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Athlet</th>
+                        <th class="text-center px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Geschl.</th>
                         <th class="text-left px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Klasse</th>
                         <th class="text-right px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Meldezeit</th>
                         <th class="text-left px-4 py-3 font-medium text-zinc-600 dark:text-zinc-400">Kurs</th>
@@ -90,12 +94,13 @@
                             </td>
                             <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">
                                 {{ $entry->swimEvent->display_name }}
-                                <span class="text-xs text-zinc-400 dark:text-zinc-500 ml-1">
-                                        {{ $entry->swimEvent->gender === 'M' ? '♂' : ($entry->swimEvent->gender === 'F' ? '♀' : '⚥') }}
-                                    </span>
+                                <x-gender-icon :gender="$entry->swimEvent->gender" class="text-base ml-1"/>
                             </td>
                             <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">
                                 {{ $entry->athlete->last_name }}, {{ $entry->athlete->first_name }}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <x-gender-icon :gender="$entry->athlete->gender"/>
                             </td>
                             <td class="px-4 py-3">
                                     <span class="inline-block px-2 py-0.5 text-xs font-mono rounded

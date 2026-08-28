@@ -7,7 +7,7 @@ use App\Services\ClubEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-uses(TestCase::class, RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class)->group('club-entry-service');
 
 // ── Tests: eligibleAthletes ───────────────────────────────────────────────────
 
@@ -18,14 +18,32 @@ describe('eligibleAthletes', function () {
         $meet = makeMeet_p5();
         $event = makeEvent_p5($meet, ['sport_classes' => '9', 'gender' => 'M']);
 
-        $eligible = makeAthlete_p5($club, 'M', ['S9']);
-        makeAthlete_p5($club, 'M', ['S12']); // andere Klasse → nicht eligible
+        $eligible = makeAthlete_p5($club);
+        makeAthlete_p5($club, sportClasses: ['S12']); // andere Klasse → nicht eligible
 
         $service = new ClubEntryService;
         $result = $service->eligibleAthletes($event, $club);
 
-        expect($result)->toHaveCount(1);
-        expect($result->first()->id)->toBe($eligible->id);
+        expect($result)->toHaveCount(1)
+            ->and($result->first()->id)->toBe($eligible->id);
+    });
+
+    it('erkennt Sportklassen mit Kategorie-Präfix wie in swim_events.sport_classes tatsächlich gespeichert', function () {
+        // Regression: swim_events.sport_classes speichert volle Codes ("S1 S9 S12"), nicht
+        // nackte Nummern — (int) "S9" lieferte vorher 0 und liess dadurch JEDEN Athleten
+        // durchfallen, ganz unabhängig von seiner tatsächlichen Klasse.
+        $club = makeClub_p5();
+        $meet = makeMeet_p5();
+        $event = makeEvent_p5($meet, ['sport_classes' => 'S1 S9 S12', 'gender' => 'M']);
+
+        $eligible = makeAthlete_p5($club);
+        makeAthlete_p5($club, sportClasses: ['S4']); // andere Klasse → nicht eligible
+
+        $service = new ClubEntryService;
+        $result = $service->eligibleAthletes($event, $club);
+
+        expect($result)->toHaveCount(1)
+            ->and($result->first()->id)->toBe($eligible->id);
     });
 
     it('filtert nach Geschlecht', function () {
@@ -33,14 +51,14 @@ describe('eligibleAthletes', function () {
         $meet = makeMeet_p5();
         $event = makeEvent_p5($meet, ['sport_classes' => '9', 'gender' => 'F']);
 
-        makeAthlete_p5($club, 'M', ['S9']); // falsches Geschlecht
-        $eligible = makeAthlete_p5($club, 'F', ['S9']);
+        makeAthlete_p5($club); // falsches Geschlecht
+        $eligible = makeAthlete_p5($club, 'F');
 
         $service = new ClubEntryService;
         $result = $service->eligibleAthletes($event, $club);
 
-        expect($result)->toHaveCount(1);
-        expect($result->first()->id)->toBe($eligible->id);
+        expect($result)->toHaveCount(1)
+            ->and($result->first()->id)->toBe($eligible->id);
     });
 
     it('gibt alle Athleten zurück wenn keine Sportklassen am Event', function () {
@@ -48,8 +66,8 @@ describe('eligibleAthletes', function () {
         $meet = makeMeet_p5();
         $event = makeEvent_p5($meet, ['sport_classes' => null, 'gender' => 'M']);
 
-        makeAthlete_p5($club, 'M', ['S9']);
-        makeAthlete_p5($club, 'M', ['S12']);
+        makeAthlete_p5($club);
+        makeAthlete_p5($club, sportClasses: ['S12']);
 
         $service = new ClubEntryService;
         $result = $service->eligibleAthletes($event, $club);
@@ -62,8 +80,8 @@ describe('eligibleAthletes', function () {
         $meet = makeMeet_p5();
         $event = makeEvent_p5($meet, ['sport_classes' => '9', 'gender' => 'X']);
 
-        makeAthlete_p5($club, 'M', ['S9']);
-        makeAthlete_p5($club, 'F', ['S9']);
+        makeAthlete_p5($club);
+        makeAthlete_p5($club, 'F');
 
         $service = new ClubEntryService;
         $result = $service->eligibleAthletes($event, $club);
@@ -76,7 +94,7 @@ describe('eligibleAthletes', function () {
         $meet = makeMeet_p5();
         $event = makeEvent_p5($meet, ['sport_classes' => '14', 'gender' => 'M']);
 
-        makeAthlete_p5($club, 'M', ['S9']);
+        makeAthlete_p5($club);
 
         $service = new ClubEntryService;
         $result = $service->eligibleAthletes($event, $club);
@@ -84,7 +102,7 @@ describe('eligibleAthletes', function () {
         expect($result)->toBeEmpty();
     });
 
-})->group('club-entry-service');
+});
 
 // ── Tests: bestTimes ──────────────────────────────────────────────────────────
 
@@ -132,8 +150,8 @@ describe('bestTimes', function () {
         $service = new ClubEntryService;
         $times = $service->bestTimes($athlete, $event, $meet);
 
-        expect($times['LCM'])->toBe(6000);
-        expect($times['SCM'])->toBeNull();
+        expect($times['LCM'])->toBe(6000)
+            ->and($times['SCM'])->toBeNull();
     });
 
     it('ignoriert DSQ/DNS Results (status != null)', function () {
@@ -170,7 +188,7 @@ describe('bestTimes', function () {
         expect($times['LCM'])->toBeNull();
     });
 
-})->group('club-entry-service');
+});
 
 // ── Tests: Zeitformatierung ───────────────────────────────────────────────────
 
@@ -178,14 +196,16 @@ describe('formatTime / parseTime', function () {
 
     it('formatiert Hundertstelsekunden korrekt', function () {
         $service = new ClubEntryService;
-        expect($service->formatTime(6345))->toBe('01:03.45');
-        expect($service->formatTime(null))->toBeNull();
+
+        expect($service->formatTime(6345))->toBe('01:03.45')
+            ->and($service->formatTime(null))->toBeNull();
     });
 
     it('parst Zeitstring korrekt', function () {
         $service = new ClubEntryService;
-        expect($service->parseTime('01:03.45'))->toBe(6345);
-        expect($service->parseTime('NT'))->toBeNull();
+
+        expect($service->parseTime('01:03.45'))->toBe(6345)
+            ->and($service->parseTime('NT'))->toBeNull();
     });
 
-})->group('club-entry-service');
+});

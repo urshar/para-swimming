@@ -65,6 +65,20 @@
     @apply grid gap-2;
 }
 
+/*
+ * flux:field ist selbst grid gap-2 (Label/Control/Description als eigene Zeilen). Steht ein
+ * Feld ohne flux:description neben einem mit Description in derselben äußeren
+ * grid-cols-*-Zeile (z. B. swim-events/form.blade.php: "Schwimmstil"+"Distanz" ohne Hinweistext
+ * neben "Schwimmer/Staffel" mit "1 = Einzel"), stretcht der Grid-Default (align-items: stretch)
+ * das kürzere Feld auf die Höhe des längeren - die zusätzliche Höhe verteilt sich dabei auf
+ * SEINE eigenen auto-Zeilen (Label und Control bekommen beide etwas mehr Raum), wodurch Label
+ * und Eingabefeld nicht mehr auf gleicher Höhe wie in den Nachbarspalten sitzen. Felder sollen
+ * immer oben an ihrer Zeile ausgerichtet bleiben, unabhängig von einer Description beim Nachbarn.
+ */
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    align-self: start;
+}
+
 [data-flux-label] {
     @apply !mb-0 !leading-tight;
 }
@@ -86,3 +100,16 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/*
+ * Gruppenüberschriften in flux:select.group (z. B. Schwimmstil-Kategorien in
+ * swim-events/form.blade.php, Session-Gruppen in entries/form.blade.php) hatten mit
+ * text-zinc-500/dark:text-zinc-300 zu wenig Kontrast zum eigentlichen Optionstext. Die
+ * Vorlage (vendor/livewire/flux-pro/.../select/group/variants/custom.blade.php) reicht
+ * kein class-Attribut vom flux:select.group-Aufruf an das Label-Div durch - nur an den
+ * äußeren Wrapper -, daher globaler CSS-Override statt Vendor-Datei anpassen (Änderung
+ * ginge bei einem Composer-Update sonst verloren).
+ */
+[data-flux-option-group] > div[aria-hidden='true'] {
+    @apply !text-blue-600 dark:!text-blue-400;
+}

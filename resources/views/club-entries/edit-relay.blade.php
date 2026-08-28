@@ -5,46 +5,56 @@
 @section('title', 'Staffelmeldung bearbeiten – ' . $meet->name)
 
 @section('content')
+    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-2xl">
 
         {{-- Header --}}
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('club-entries.relay.index', $meet) }}" variant="ghost" icon="arrow-left"
-                         size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldung bearbeiten</h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $meet->name }} · {{ $club->display_name }}
-                </p>
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldung bearbeiten</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $meet->name }} · {{ $club->display_name }}
+            </p>
+
+            <div class="mt-4">
+                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                             variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             </div>
         </div>
 
         @php
             $event           = $relayEntry->swimEvent;
             $relayCount      = $event->relay_count ?? 4;
+            // Bleibt ein PHP-Array (kein ->toJson()): @json() unten kodiert die gesamte
+            // Konfiguration inklusive dieser verschachtelten Liste in einem Zug.
             $currentAthletes = $relayEntry->members->map(fn ($m) => [
                 'id'         => $m->athlete?->id,
                 'name'       => $m->athlete ? $m->athlete->last_name.', '.$m->athlete->first_name : '–',
                 'birth_year' => $m->athlete?->birth_date?->format('Y'),
                 'classes'    => $m->athlete?->sportClasses->pluck('sport_class')->join(', ') ?? '',
-            ])->filter(fn ($a) => $a['id'])->values()->toJson();
+            ])->filter(fn ($a) => $a['id'])->values()->toArray();
 
             $currentTime = $relayEntry->entry_time
                 ? TimeParser::display($relayEntry->entry_time)
                 : ($relayEntry->entry_time_code ?? '');
+
+            // Konfiguration als EIN zusammenhängender JSON-Wert übergeben (siehe
+            // club-entries/create.blade.php). $clubParams bereits oben (Zurück-Button) gesetzt.
+            $relayEntryFormConfig = [
+                'relayAthletesUrl' => route('club-entries.relay.relay-athletes', array_merge(['meet' => $meet], $clubParams)),
+                'meetCourse' => $meet->course,
+                'relayCount' => $relayCount,
+                'fixedEventId' => $event->id,
+                'relayEntryId' => $relayEntry->id,
+                'selectedAthletes' => $currentAthletes,
+                'entryTime' => old('entry_time', $currentTime),
+                'entryCourse' => old('entry_course', $relayEntry->entry_course ?? $meet->course),
+            ];
         @endphp
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6"
-             x-data="relayEntryForm({
-                 relayAthletesUrl: '{{ route('club-entries.relay.relay-athletes', array_merge(['meet' => $meet], auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : [])) }}',
-                 meetCourse:       '{{ $meet->course }}',
-                 relayCount:       {{ $relayCount }},
-                 fixedEventId:     {{ $event->id }},
-                 relayEntryId:     {{ $relayEntry->id }},
-                 selectedAthletes: {{ $currentAthletes }},
-                 entryTime:        '{{ old('entry_time', $currentTime) }}',
-                 entryCourse:      '{{ old('entry_course', $relayEntry->entry_course ?? $meet->course) }}',
-             })">
+             x-data='relayEntryForm(@json($relayEntryFormConfig))'>
 
             <form method="POST"
                   action="{{ route('club-entries.relay.update', [$meet, $relayEntry]) }}"
@@ -73,20 +83,17 @@
                             {{ $event->event_number ? 'Nr. '.$event->event_number.' – ' : '' }}
                             {{ $event->relay_count }}×{{ $event->distance }}m
                             {{ $event->strokeType?->name_de }}
-                            @php
-                                $genderLabel = match($event->gender) {
-                                    'M'       => 'Männer',
-                                    'F'       => 'Frauen',
-                                    'X','MX'  => 'Mixed',
-                                    default   => 'Offen',
-                                };
-                            @endphp
-                            ({{ $genderLabel }})
+                            ({{ match($event->gender) {
+                                'M' => 'Männer',
+                                'F' => 'Frauen',
+                                'X', 'MX' => 'Mixed',
+                                default => 'Offen',
+                            } }})
                         </span>
                         @if($relayEntry->relay_class)
                             <flux:badge color="blue" class="font-mono">{{ $relayEntry->relay_class }}</flux:badge>
                         @else
-                            <flux:badge color="amber">Klasse wird berechnet</flux:badge>
+                            <flux:badge color="amber">Klasse unbekannt</flux:badge>
                         @endif
                     </div>
                     <p class="text-xs text-zinc-400 mt-1">
@@ -135,10 +142,10 @@
 
                     <flux:field>
                         <flux:label>Kurs</flux:label>
-                        <flux:select name="entry_course" x-model="entryCourse">
-                            <option value="LCM">LCM (50m)</option>
-                            <option value="SCM">SCM (25m)</option>
-                            <option value="SCY">SCY (Yards)</option>
+                        <flux:select variant="listbox" name="entry_course" x-model="entryCourse">
+                            <flux:select.option value="LCM">LCM (50m)</flux:select.option>
+                            <flux:select.option value="SCM">SCM (25m)</flux:select.option>
+                            <flux:select.option value="SCY">SCY (Yards)</flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

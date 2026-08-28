@@ -182,7 +182,7 @@
                 @csrf
                 <div class="grid grid-cols-3 gap-3">
                     <flux:field class="col-span-2">
-                        <flux:label>Neuer Verein *</flux:label>
+                        <flux:label>Neuer Verein <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" searchable name="club_id" placeholder="Bitte wählen…" required>
                             @foreach($clubs as $club)
                                 <flux:select.option value="{{ $club->id }}" :selected="$club->id === $athlete->club_id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
@@ -191,7 +191,7 @@
                         <flux:error name="club_id"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" name="joined_at"
                                     value="{{ old('joined_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="joined_at"/>
@@ -275,7 +275,7 @@
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                     value="{{ old('classified_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="classified_at"/>
@@ -292,7 +292,7 @@
                 <div class="grid grid-cols-3 gap-3 mt-3"
                      x-data="{ status: @js($classificationStatusOld) }">
                     <flux:field>
-                        <flux:label>Gültigkeit *</flux:label>
+                        <flux:label>Gültigkeit <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" name="classification_scope">
                             <flux:select.option value="INTL" :selected="old('classification_scope', $defaultScope) === 'INTL'">🌍 International (SDMS)</flux:select.option>
                             <flux:select.option value="NAT" :selected="old('classification_scope', $defaultScope) === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
@@ -312,7 +312,7 @@
                     </flux:field>
                     <flux:field x-show="status === 'FRD'" x-cloak>
                         @php $frdDefault = (int) date('Y') + 2; @endphp
-                        <flux:label>FRD Jahr *</flux:label>
+                        <flux:label>FRD Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="frd_year" type="number" min="2000" max="2100"
                                     value="{{ old('frd_year', $frdDefault) }}"
                                     placeholder="{{ $frdDefault }}"/>
@@ -500,7 +500,7 @@
                                 @php $clStatus = $cl->classification_status ?? ''; @endphp
                                 <div class="grid grid-cols-2 gap-3">
                                     <flux:field>
-                                        <flux:label>Datum *</flux:label>
+                                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                                         <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                                     value="{{ $cl->classified_at->format('Y-m-d') }}" required/>
                                         <flux:error name="classified_at"/>
@@ -516,7 +516,7 @@
                                 <div class="grid grid-cols-3 gap-3 mt-3"
                                      x-data="{ status: @js($clStatus) }">
                                     <flux:field>
-                                        <flux:label>Gültigkeit *</flux:label>
+                                        <flux:label>Gültigkeit <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                                         <flux:select variant="listbox" name="classification_scope">
                                             <flux:select.option value="INTL" :selected="$cl->classification_scope === 'INTL'">🌍 International (SDMS)</flux:select.option>
                                             <flux:select.option value="NAT" :selected="$cl->classification_scope === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
@@ -535,7 +535,7 @@
                                         <flux:error name="classification_status"/>
                                     </flux:field>
                                     <flux:field x-show="status === 'FRD'" x-cloak>
-                                        <flux:label>FRD Jahr *</flux:label>
+                                        <flux:label>FRD Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                                         <flux:input name="frd_year" type="number" min="2000" max="2100"
                                                     value="{{ $cl->frd_year }}"/>
                                         <flux:error name="frd_year"/>
@@ -669,13 +669,13 @@
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>Neuer Level *</flux:label>
+                        <flux:label>Neuer Level <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="level" value="{{ old('level') }}"
                                     placeholder="z.B. Elite, Talent, 1, 2 …" required/>
                         <flux:error name="level"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" name="changed_at"
                                     value="{{ old('changed_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="changed_at"/>
@@ -744,7 +744,7 @@
             <form method="POST" action="{{ route('athletes.kader-memberships.store', $athlete) }}">
                 @csrf
                 <flux:field>
-                    <flux:label>Kaderart *</flux:label>
+                    <flux:label>Kaderart <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select variant="listbox" name="kader_type_id" placeholder="– auswählen –" required>
                         @foreach($kaderTypes as $kaderType)
                             <flux:select.option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</flux:select.option>

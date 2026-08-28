@@ -13,6 +13,11 @@ export default function relayEntryForm(config) {
         // ── Von PHP initialisiert ─────────────────────────────────────────────
         relayAthletesUrl: config.relayAthletesUrl,
         meetCourse: config.meetCourse,
+        /** create-Modus: { [event_id]: relay_count } aller wählbaren Staffel-Events —
+         *  ersetzt das frühere Auslesen von data-relay-count aus dem gewählten <option>
+         *  (this.$refs.eventSelect.selectedOptions[0].dataset), das mit variant="listbox"
+         *  (kein natives <select> mehr) nicht mehr sicher funktioniert hätte. */
+        events: config.events ?? {},
         relayCount: config.relayCount ?? 4,
         entryTime: config.entryTime ?? '',
         entryCourse: config.entryCourse ?? '',
@@ -45,9 +50,7 @@ export default function relayEntryForm(config) {
             this.availableAthletes = [];
             if (!this.selectedEventId) return;
 
-            // relay_count aus data-relay-count Attribut des gewählten <option> lesen
-            const opt = this.$refs.eventSelect.selectedOptions[0];
-            this.relayCount = parseInt(opt.dataset.relayCount || 4);
+            this.relayCount = parseInt(this.events[this.selectedEventId] || 4);
 
             await this.loadAthletes(this.selectedEventId);
         },

@@ -37,26 +37,28 @@
 
     {{-- Filter --}}
     <form method="GET" class="flex flex-wrap gap-3 mb-4">
-        <flux:input
-            name="search"
-            value="{{ request('search') }}"
-            placeholder="Name oder Stadt suchen…"
-            icon="magnifying-glass"
-            class="w-64"
-        />
-        <flux:select variant="listbox" name="course" placeholder="Alle Bahnen" clearable class="w-40">
+        <div class="w-44 shrink-0">
+            <flux:input
+                name="search"
+                value="{{ request('search') }}"
+                placeholder="Name oder Stadt…"
+                icon="magnifying-glass"
+            />
+        </div>
+        <flux:select variant="listbox" name="course" placeholder="Alle Bahnen" clearable class="w-36">
             <flux:select.option value="LCM" :selected="request('course') === 'LCM'">LCM (50m)</flux:select.option>
             <flux:select.option value="SCM" :selected="request('course') === 'SCM'">SCM (25m)</flux:select.option>
             <flux:select.option value="SCY" :selected="request('course') === 'SCY'">SCY (Yards)</flux:select.option>
             <flux:select.option value="OPEN" :selected="request('course') === 'OPEN'">Freiwasser</flux:select.option>
         </flux:select>
-        <flux:input
-            name="year"
-            value="{{ request('year') }}"
-            placeholder="Jahr"
-            type="number"
-            class="w-28"
-        />
+        <div class="w-24 shrink-0">
+            <flux:input
+                name="year"
+                value="{{ request('year') }}"
+                placeholder="Jahr"
+                type="number"
+            />
+        </div>
         <div class="ml-auto flex items-center gap-3">
             @if(request()->hasAny(['search', 'course', 'year']))
                 <flux:button href="{{ route('meets.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
@@ -116,8 +118,8 @@
                             <flux:button href="{{ route('meets.edit', $meet) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('meets.destroy', $meet) }}"
-                                  x-data
-                                  @submit.prevent="if(confirm('Wettkampf wirklich löschen?')) $el.submit()">
+                                  x-data="{ submit() { if (confirm('Wettkampf wirklich löschen?')) this.$el.submit() } }"
+                                  @submit.prevent="submit()">
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                              class="text-red-500!"/>

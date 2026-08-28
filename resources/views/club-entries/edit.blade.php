@@ -8,16 +8,21 @@
 
 @section('content')
     <!--suppress BadExpressionStatementJS -->
+    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-2xl">
 
         {{-- Header --}}
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('club-entries.index', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung bearbeiten</h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $meet->name }} · {{ $club->display_name }}
-                </p>
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung bearbeiten</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $meet->name }} · {{ $club->display_name }}
+            </p>
+
+            <div class="mt-4">
+                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                             variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             </div>
         </div>
 
@@ -73,13 +78,19 @@
                 </div>
             </div>
 
-            {{-- Formular --}}
+            {{--
+                Formular. Konfiguration als EIN zusammenhängender JSON-Wert übergeben (siehe
+                club-entries/create.blade.php).
+            --}}
+            @php
+                $singleEntryFormConfig = [
+                    'meetCourse' => $meet->course,
+                    'entryTime' => old('entry_time', $entry->formatted_entry_time !== 'NT' ? $entry->formatted_entry_time : ''),
+                    'entryCourse' => old('entry_course', $entry->entry_course ?? $meet->course),
+                ];
+            @endphp
             <form method="POST" action="{{ route('club-entries.update', [$meet, $entry]) }}"
-                  x-data="singleEntryForm({
-                 meetCourse:  '{{ $meet->course }}',
-                 entryTime:   '{{ old('entry_time', $entry->formatted_entry_time !== 'NT' ? $entry->formatted_entry_time : '') }}',
-                 entryCourse: '{{ old('entry_course', $entry->entry_course ?? $meet->course) }}',
-             })">
+                  x-data='singleEntryForm(@json($singleEntryFormConfig))'>
                 @csrf
                 @method('PUT')
                 @if(auth()->user()->is_admin && request('club_id'))

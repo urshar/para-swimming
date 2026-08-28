@@ -9,7 +9,7 @@
                 @csrf
 
                 <flux:field>
-                    <flux:label>Disziplin</flux:label>
+                    <flux:label>Disziplin <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="swim_event_id" required>
                         @foreach($swimEvents->groupBy('session_number') as $session => $events)
                             <flux:select.group label="Session {{ $session }}">
@@ -27,7 +27,7 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Athlet</flux:label>
+                    <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="athlete_id" required>
                         @foreach($athletes as $athlete)
                             <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
@@ -41,7 +41,7 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Meldender Club</flux:label>
+                    <flux:label>Meldender Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="club_id" required>
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}" :selected="old('club_id') == $club->id">
