@@ -201,13 +201,13 @@
                                 <flux:table.cell>
                                     <div class="flex items-center gap-1 justify-end">
                                         <flux:button href="{{ route('events.edit', $event) }}" size="sm"
-                                                     variant="ghost" icon="pencil"/>
+                                                     variant="ghost" icon="pencil" class="text-amber-500!"/>
                                         <form method="POST" action="{{ route('events.destroy', $event) }}"
                                               x-data="{ submit() { if (confirm('Disziplin löschen?')) this.$el.submit() } }"
                                               @submit.prevent="submit()">
                                             @csrf @method('DELETE')
                                             <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                                         class="text-red-500"/>
+                                                         class="text-red-500!"/>
                                         </form>
                                     </div>
                                 </flux:table.cell>

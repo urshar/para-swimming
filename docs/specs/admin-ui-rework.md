@@ -359,7 +359,7 @@ verworfene Combobox-Umstellung wurde vor dem Commit vollständig zurückgesetzt 
 Dateien). Kein eigener `--group`, reine Formular-/Anzeigeänderung.
 
 **Nachtrag (Phase 8)**: Der obige Befund stimmt nur für den Weg über `value=""` am äußeren `<flux:select>`. Es gibt
-einen zweiten, funktionierenden Weg — siehe „Runde 2" unten.
+einen zweiten, funktionierenden Weg — siehe "Runde 2" unten.
 
 ## Runde 2: Chevron-Dropdowns & Switches (Phase 8+)
 
@@ -408,10 +408,10 @@ Funktioniert identisch mit `wire:model` (Livewire übernimmt dort ohnehin die We
 
 `flux:switch` hat einen einfachen `checked`-Boolean-Prop, der (wie `selected` bei Optionen) direkt und synchron aus
 dem HTML gelesen wird (`UISwitch.boot()`: `selectedInitially: this.hasAttribute("checked")`, `js/switch.js`) — kein
-Risiko wie beim Combobox-`value`-Bug. Nur für **einzelne** Ein/Aus-Einstellungen (z. B. „Aktiv", „Öffentlich
+Risiko wie beim Combobox-`value`-Bug. Nur für **einzelne** Ein/Aus-Einstellungen (z. B. "Aktiv", "Öffentlich
 sichtbar") — Checkbox-**Gruppen** (mehrere Optionen aus einer Liste wählen, z. B. WPS-Exceptions) bleiben Checkboxen.
 
-Formulare mit dem klassischen „Checkbox + verstecktes `value=0`"-Trick (verhindert, dass ein abgewähltes Feld beim
+Formulare mit dem klassischen "Checkbox + verstecktes `value=0`"-Trick (verhindert, dass ein abgewähltes Feld beim
 Absenden ganz fehlt) behalten das versteckte Feld **vor** dem `flux:switch` — Submittable erzeugt bei
 `flux:switch`/aus wie bei einer nativen Checkbox **kein** eigenes Hidden-Feld (`includeWhenEmpty: false`,
 `js/submittable.js`), das Formular bräuchte also weiterhin den manuellen Fallback, sofern der Controller nicht schon
@@ -422,12 +422,12 @@ Absenden ganz fehlt) behalten das versteckte Feld **vor** dem `flux:switch` — 
 Athleten, Vereine, Nationen, Klassifizierer — alle `flux:select`-Dropdowns auf `variant="listbox"` (+ `searchable` bei
 langen Listen) umgestellt, alle Einzel-Toggle-Checkboxen auf `flux:switch`.
 
-| Baustein                                        | Art   | Zweck                                                                      |
-|---------------------------------------------------|-------|--------------------------------------------------------------------------------|
-| `athletes/{index,form,show}.blade.php`             | Blade | Alle Dropdowns (Geschlecht, Nation, Verein, Status, Behinderungsart, Klassifikations-Felder, Kaderart) umgestellt; „Aktiver Schwimmer"-Checkbox → `flux:switch` |
-| `clubs/{index,form}.blade.php`                     | Blade | Nation-, Typ-, Regionalverband-Dropdown umgestellt                            |
-| `nations/edit.blade.php`                           | Blade | „Aktiv"-`flux:checkbox` → `flux:switch`                                       |
-| `classifiers/{index,form}.blade.php`               | Blade | Typ-, Geschlecht-, Nation-Dropdown umgestellt; „Aktiv"-Checkbox → `flux:switch` |
+| Baustein                               | Art   | Zweck                                                                                                                                                           |
+|----------------------------------------|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `athletes/{index,form,show}.blade.php` | Blade | Alle Dropdowns (Geschlecht, Nation, Verein, Status, Behinderungsart, Klassifikations-Felder, Kaderart) umgestellt; "Aktiver Schwimmer"-Checkbox → `flux:switch` |
+| `clubs/{index,form}.blade.php`         | Blade | Nation-, Typ-, Regionalverband-Dropdown umgestellt                                                                                                              |
+| `nations/edit.blade.php`               | Blade | "Aktiv"-`flux:checkbox` → `flux:switch`                                                                                                                         |
+| `classifiers/{index,form}.blade.php`   | Blade | Typ-, Geschlecht-, Nation-Dropdown umgestellt; "Aktiv"-Checkbox → `flux:switch`                                                                                 |
 
 Bewusst unverändert: die WPS-Exceptions-Checkboxliste (`athletes/show.blade.php`) — echte Mehrfachauswahl, kein
 Einzel-Schalter.
@@ -444,25 +444,25 @@ Athleten-Detailseite mit Klassifikations-Selects. Kein eigener `--group`, reine 
 
 Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 eingearbeitet (keine eigene Phase):
 
-- **`athletes/form.blade.php`**: Der volle Hinweis-Banner „Vereinswechsel, Klassifikationen … werden in der
+- **`athletes/form.blade.php`**: Das volle Hinweis-Banner "Vereinswechsel, Klassifikationen … werden in der
   Detailansicht verwaltet" (eigene Zeile über der Stammdaten-Karte) sitzt jetzt kompakt **in derselben Zeile wie die
-  Überschrift „Stammdaten"** — nutzt den bis dahin leeren Platz zwischen Überschrift und dem „Aktiver
-  Schwimmer"-Schalter, spart eine ganze Zeile Scroll-Strecke bis zum Speichern-Button. Der Link „Zur Detailansicht →"
-  ist jetzt ein `flux:button` „Detailansicht" (kein Pfeil-Icon, kein „Zur" mehr nötig).
+  Überschrift "Stammdaten"** — nutzt den bis dahin leeren Platz zwischen Überschrift und dem "Aktiver
+  Schwimmer"-Schalter, spart eine ganze Zeile Scroll-Strecke bis zum Speichern-Button. Der Link "Zur Detailansicht →"
+  ist jetzt ein `flux:button` "Detailansicht" (kein Pfeil-Icon, kein "Zur" mehr nötig).
 - **AUT-Standardauswahl**: Alle Nation-Dropdowns in Neuanlage-Formularen (Athlet, Verein, Meet, Rekord — Klassifizierer
   hatte das schon) wählen jetzt automatisch Österreich vor, sofern noch kein Wert gesetzt ist
   (`$nations->firstWhere('code', 'AUT')?->id` als Fallback in `old(...)`/`@selected()`). **Nicht** bei
   Filter-Dropdowns (dort bliebe sonst die Liste beim ersten Aufruf ungewollt auf AUT gefiltert) und nicht bei
-  `records/form.blade.php`s „Austragungsland" (Land des Wettkampfs, nicht des Athleten — oft im Ausland).
+  `records/form.blade.php`s "Austragungsland" (Land des Wettkampfs, nicht des Athleten — oft im Ausland).
 - **Nation-Sortierung vereinheitlicht**: `ClubController`, `ClassifierController`, `MeetController`, `RecordController`
   sortierten Nationen noch nach `name_de` — jetzt wie `AthleteController` einheitlich nach `code` (IOC-Reihenfolge).
-- **`clubs/index.blade.php`**: Spalte „Nation" zeigt jetzt eine Flagge (`<x-flag>`, wie in `nations/index.blade.php`)
-  statt Text-Badge; Spalten-Header „Kürzel" → „Code" (zeigte ohnehin schon `$club->code`). Nation-Filter zeigt jetzt
+- **`clubs/index.blade.php`**: Spalte "Nation" zeigt jetzt eine Flagge (`<x-flag>`, wie in `nations/index.blade.php`)
+  statt Text-Badge; Spalten-Header "Kürzel" → "Code" (zeigte ohnehin schon `$club->code`). Nation-Filter zeigt jetzt
   Code **und** Name, breiter (`w-56` statt `w-40`); Namenssuche schmaler (`w-48` statt `w-64`, war zu breit für ein
   einzelnes Suchfeld).
 - **Filtern-Buttons** (`athletes/index`, `clubs/index`, `classifiers/index`): `variant="primary"` (statt Standard) und
   per `ml-auto`-Wrapper an den rechten Rand der Filterzeile geschoben — exakt das im öffentlichen Bereich bereits
-  gelöste Muster (`public/qualifying-times/index.blade.php`: `ml-auto` statt nur „letztes Element", sonst bleibt bei
+  gelöste Muster (`public/qualifying-times/index.blade.php`: `ml-auto` statt nur "letztes Element", sonst bleibt bei
   viel Platz in der Zeile ein sichtbarer Leerraum bis zum tatsächlichen rechten Rand).
 - **`classifiers/index.blade.php`**: Filterfeld-Breiten verkleinert (Suche `w-64`→`w-44`, Typ/Aktiv `w-48`→`w-36`,
   Nation `w-40`→`w-44`), passen dadurch in eine Zeile statt umzubrechen.
@@ -479,7 +479,7 @@ Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 
   (Auge) bleibt neutral (Ausgangspunkt, gegen den die anderen Farben abstechen). Feste Utility-Klasse ohne
   `dark:`-Variante — dieselbe Farbe in Hell- und Dunkelmodus.
 
-  **Fund (Rückmeldung „Buttons sind alle weiß oder schwarz"):** `flux:button variant="ghost"` setzt selbst
+  **Fund (Rückmeldung "Buttons sind alle weiß oder schwarz"):** `flux:button variant="ghost"` setzt selbst
   `text-zinc-800 dark:text-white` (`vendor/livewire/flux/.../button/index.blade.php`). Eine von außen übergebene
   Farbklasse wie `class="text-amber-500"` hat dieselbe CSS-Spezifität (0,1,0) — welche Regel gewinnt, entscheidet bei
   Tailwind dann die Reihenfolge der generierten Utilities in der kompilierten CSS-Datei, **nicht** die Reihenfolge im
@@ -492,7 +492,7 @@ Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 
 - **`athletes/form.blade.php` — Layout zweimal überarbeitet.** Erster Versuch: Stammdaten/Kontakt&Adresse/Notizen
   nebeneinander in einem `grid-cols-3`-Layout (Stammdaten `lg:col-span-2`, die anderen beiden gestapelt in
   `lg:col-span-1`) — Rückmeldung: die schmale rechte Spalte drängte Kontakt&Adresse/Notizen unangenehm zusammen.
-  Stattdessen `flux:tab.group`/`flux:tabs`/`flux:tab.panel` (zwei Reiter: „Stammdaten", „Kontakt & Adresse" inkl.
+  Stattdessen `flux:tab.group`/`flux:tabs`/`flux:tab.panel` (zwei Reiter: "Stammdaten", "Kontakt & Adresse" inkl.
   Notizen) — reines Client-seitiges Umschalten ohne Livewire (`ui-tab-group`/`ui-tabs`, `flux:tab` ohne `href`
   fungiert als Button, kein Navigations-Link), jede Karte bekommt dadurch wieder die volle Formularbreite. Der
   Detailansicht-Hinweis (siehe oben) bekam dabei zusätzlich eine eigene Zeile statt in der Überschriftenzeile
@@ -503,3 +503,63 @@ Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 
 `/meets/create`) — Layout-Prüfung per `getComputedStyle` zeigte zunächst `display: block` statt `flex`
 (bekannte Sandbox-Einschränkung dieses Browser-Tools, Port 5173 blockiert, siehe Phase 3/4/5); per `curl` gegen den
 Dev-Server bestätigt, dass `.flex{display:flex}` etc. korrekt kompiliert sind — kein echter Bug.
+
+## Phase 9 — Wettkämpfe & Meldungen — **abgeschlossen**
+
+Umbau von `meets`, `entries`, `results` und `club-entries` (Vereins-Meldewesen) nach dem in Phase 8 etablierten
+Muster: statische Dropdowns → `flux:select variant="listbox"` (+ `searchable` bei langen/DB-gespeisten Listen wie
+Nation/Athlet/Club/Wettkampf), reine Einzel-Flags → `flux:switch`, Zeilen-Buttons farblich vereinheitlicht
+(Bearbeiten `text-amber-500!`, Löschen `text-red-500!`), Filtern-Buttons `variant="primary"` + `ml-auto`.
+
+| Datei | Änderung |
+|---|---|
+| `meets/index.blade.php` | Bahnlänge-Filter → `listbox`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt |
+| `meets/form.blade.php` | Nation (searchable), Bahnlänge, Zeitnahme, Meldetyp, Cup, Richtzeitenliste, WPS-Version → `listbox`; `is_open`/`is_published`/`wps_approved` → `flux:switch` |
+| `meets/show.blade.php` | Disziplin-Zeilen-Buttons eingefärbt |
+| `entries/index.blade.php` | Wettkampf-Filter → `listbox searchable`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt |
+| `entries/form.blade.php` | Disziplin (mit `flux:select.group` statt `optgroup`), Athlet, Club, Kurs, Status → `listbox` (+searchable) |
+| `entries/edit.blade.php` | Club, Kurs, Status → `listbox` (+searchable) |
+| `results/index.blade.php` | Punkteversion, Wettkampf-Filter, Status-Filter → `listbox` (+searchable); Filtern-Button `ml-auto`+primary; Bearbeiten-Icon eingefärbt |
+| `results/form.blade.php` | Disziplin, Athlet, Club, Status → `listbox` (+searchable); WR/ER/NR-Checkboxen → `flux:switch` |
+| `club-entries/index.blade.php`, `index-relay.blade.php` | Zeilen-Buttons eingefärbt |
+| `club-entries/edit.blade.php` | Kurs-Select → `listbox` |
+| `app/Http/Controllers/ResultController.php` | Bug-Fix (siehe unten) |
+
+### `flux:select.group` statt `optgroup`
+
+`entries/form.blade.php`s Disziplin-Auswahl gruppierte Optionen bisher über natives `<optgroup label="…">`. Für
+`variant="listbox"` (custom `ui-select`-Element statt echtem `<select>`) existiert dafür ein eigenes Flux-Pro-Pendant:
+`<flux:select.group label="…">…</flux:select.group>`, das intern per `componentExists('select.variants.' . $variant)`
+erkennt, dass es innerhalb eines Nicht-Default-Varianten-Selects steht, und automatisch die passende (custom) Gruppen-
+Darstellung rendert (Trennlinie + Label, blendet sich selbst aus, wenn keine sichtbare Option enthalten ist). Funktioniert
+identisch zu `flux:select.option` außerhalb von Livewire.
+
+### Bewusst NICHT umgestellt: Alpine-`x-model`-gebundene Selects
+
+`club-entries/create.blade.php` (Einzelmeldung) und `club-entries/create-relay.blade.php` (Staffelmeldung) binden
+ihre Event-/Athlet-/Kurs-Selects über `x-model` + `@change` an Alpine-Komponenten (`singleEntryForm`/`relayEntryForm`
+aus den zugehörigen `.js`-Dateien), die daraus per AJAX Folgezustand nachladen (verfügbare Athleten, Bestzeiten). Ob
+`variant="listbox"` (ein Custom-Element, das Wert-Änderungen anders auslöst als ein natives `<select>`) mit diesem
+bereits produktiv genutzten Zwei-Wege-Datenfluss zuverlässig zusammenspielt, ließe sich nur per Browser-Test mit
+funktionierendem CSS zuverlässig verifizieren (Sandbox-Einschränkung, siehe frühere Phasen) — das Risiko einer
+stillen Regression in einem von echten Vereinen genutzten Meldeformular wurde als zu hoch bewertet. Bewusst als
+Ausnahme stehen gelassen (default `flux:select`), analog zur dokumentierten Kombobox-Ausnahme aus Phase 7/Runde 2.
+Ebenso unangetastet: `club-entries/pick-meet.blade.php`s nativer Vereins-Umschalter (kein Flux-Select, `onchange`
+navigiert direkt per JS) und `club-entries/edit-relay.blade.php`s Kurs-Select (`x-model="entryCourse"`).
+
+### Bug-Fund: Rekord-Flags gingen beim Abhaken nicht verloren — wurden gar nicht zurückgesetzt
+
+Beim Umstellen der WR/ER/NR-Checkboxen auf `flux:switch` fiel in `ResultController::validateResult()` auf: Die
+Validierungsregel `'is_world_record' => 'boolean'` (ohne `sometimes`) nimmt das Feld nur dann ins `$validated`-Array
+auf, wenn der Request es überhaupt enthält. Sowohl eine native, nicht angehakte Checkbox als auch ein nicht
+aktivierter `flux:switch` senden beim Submit **gar keinen Wert** (kein Pflichtfeld-Fallback) — das Feld fehlt dann
+komplett in `$validated`, und `$result->update(...)`/`Result::create(...)` lässt einen zuvor gesetzten Wert
+unverändert. Ergebnis: Ein bereits als Weltrekord markiertes Ergebnis ließ sich über das Formular **nicht** wieder
+entmarkieren. Vorher bestehender Fehler, unabhängig vom UI-Umbau selbst entdeckt (identisches Verhalten hätte auch
+mit der alten `flux:checkbox` bestanden) — gemeldet und in derselben Phase mitbehoben, da direkt im bearbeiteten
+Feld: `$validated['is_world_record'] = $request->boolean('is_world_record')` (analog zum bereits korrekten Muster in
+`MeetController::store()`/`update()`), ebenso für `is_european_record`/`is_national_record`.
+
+**Tests**: `composer test` (volle Suite) — 1387 Tests, weiterhin grün, inkl. `composer lint:check`. Zusätzlich
+`php artisan view:cache` zur Kompilierprüfung sämtlicher Blade-Views (fängt Syntaxfehler in den neuen
+`flux:select.option`/`flux:select.group`-Blöcken ab, die von der Test-Suite ggf. nicht direkt gerendert werden).

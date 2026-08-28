@@ -37,13 +37,12 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Nation *</flux:label>
-                        <flux:select name="nation_id" required>
-                            <option value="">Bitte wählen…</option>
+                        <flux:select variant="listbox" searchable name="nation_id" required>
                             @foreach($nations as $nation)
-                                <option value="{{ $nation->id }}"
-                                    @selected(old('nation_id', $meet->nation_id ?? $autId) == $nation->id)>
+                                <flux:select.option value="{{ $nation->id }}"
+                                    :selected="old('nation_id', $meet->nation_id ?? $autId) == $nation->id">
                                     {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="nation_id"/>
@@ -69,23 +68,22 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Bahnlänge *</flux:label>
-                        <flux:select name="course" required>
+                        <flux:select variant="listbox" name="course" required>
                             @foreach(['LCM' => 'LCM (50m)', 'SCM' => 'SCM (25m)', 'SCY' => 'SCY (Yards)', 'OPEN' => 'Freiwasser'] as $val => $label)
-                                <option value="{{ $val }}" @selected(old('course', $meet->course ?? 'LCM') === $val)>
+                                <flux:select.option value="{{ $val }}" :selected="old('course', $meet->course ?? 'LCM') === $val">
                                     {{ $label }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="course"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Zeitnahme</flux:label>
-                        <flux:select name="timing">
-                            <option value="">Nicht angegeben</option>
+                        <flux:select variant="listbox" name="timing" placeholder="Nicht angegeben" clearable>
                             @foreach(['AUTOMATIC' => 'Automatisch', 'SEMIAUTOMATIC' => 'Halbautomatisch', 'MANUAL3' => 'Manuell 3', 'MANUAL2' => 'Manuell 2', 'MANUAL1' => 'Manuell 1'] as $val => $label)
-                                <option value="{{ $val }}" @selected(old('timing', $meet->timing ?? '') === $val)>
+                                <flux:select.option value="{{ $val }}" :selected="old('timing', $meet->timing ?? '') === $val">
                                     {{ $label }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="timing"/>
@@ -101,15 +99,13 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Meldetyp</flux:label>
-                        <flux:select name="entry_type">
-                            <option value="">Nicht angegeben</option>
-                            <option value="OPEN" @selected(old('entry_type', $meet->entry_type ?? '') === 'OPEN')>
+                        <flux:select variant="listbox" name="entry_type" placeholder="Nicht angegeben" clearable>
+                            <flux:select.option value="OPEN" :selected="old('entry_type', $meet->entry_type ?? '') === 'OPEN'">
                                 Offen
-                            </option>
-                            <option
-                                value="INVITATION" @selected(old('entry_type', $meet->entry_type ?? '') === 'INVITATION')>
+                            </flux:select.option>
+                            <flux:select.option value="INVITATION" :selected="old('entry_type', $meet->entry_type ?? '') === 'INVITATION'">
                                 Nur Eingeladene
-                            </option>
+                            </flux:select.option>
                         </flux:select>
                         <flux:error name="entry_type"/>
                     </flux:field>
@@ -131,31 +127,15 @@
 
                 <flux:field>
                     <flux:label>Vereinsmeldungen freigegeben</flux:label>
-                    <div class="flex items-center gap-3 mt-1">
-                        <input type="checkbox" name="is_open" value="1" id="is_open"
-                               class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
-                                      text-blue-600 bg-white dark:bg-zinc-800
-                                      focus:ring-blue-500 focus:ring-2"
-                            {{ old('is_open', $meet->is_open ?? false) ? 'checked' : '' }}>
-                        <label for="is_open" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
-                            Österreichische Vereine können sich für diesen Wettkampf anmelden
-                        </label>
-                    </div>
+                    <flux:switch name="is_open" value="1" :checked="old('is_open', $meet->is_open ?? false)"
+                                 label="Österreichische Vereine können sich für diesen Wettkampf anmelden"/>
                 </flux:field>
 
                 @if(auth()->user()?->is_admin)
                     <flux:field>
                         <flux:label>Auf der öffentlichen Seite sichtbar</flux:label>
-                        <div class="flex items-center gap-3 mt-1">
-                            <input type="checkbox" name="is_published" value="1" id="is_published"
-                                   class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
-                                          text-blue-600 bg-white dark:bg-zinc-800
-                                          focus:ring-blue-500 focus:ring-2"
-                                {{ old('is_published', $meet->is_published ?? false) ? 'checked' : '' }}>
-                            <label for="is_published" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
-                                Erscheint in der öffentlichen Veranstaltungsliste
-                            </label>
-                        </div>
+                        <flux:switch name="is_published" value="1" :checked="old('is_published', $meet->is_published ?? false)"
+                                     label="Erscheint in der öffentlichen Veranstaltungsliste"/>
                         <flux:description>
                             Ohne diese Freigabe ist der Wettkampf für Besucher der öffentlichen Seite unsichtbar —
                             auch dann, wenn bereits Dokumente dazu freigegeben sind (Spec public-frontend §4.2).
@@ -173,16 +153,8 @@
 
                     <flux:field>
                         <flux:label>WPS-anerkannter Wettkampf</flux:label>
-                        <div class="flex items-center gap-3 mt-1">
-                            <input type="checkbox" name="wps_approved" value="1" id="wps_approved"
-                                   class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600
-                                          text-blue-600 bg-white dark:bg-zinc-800
-                                          focus:ring-blue-500 focus:ring-2"
-                                {{ old('wps_approved', $meet->wps_approved ?? false) ? 'checked' : '' }}>
-                            <label for="wps_approved" class="text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
-                                Von World Para Swimming sanktioniert
-                            </label>
-                        </div>
+                        <flux:switch name="wps_approved" value="1" :checked="old('wps_approved', $meet->wps_approved ?? false)"
+                                     label="Von World Para Swimming sanktioniert"/>
                         <flux:description>
                             Nur Zeiten aus sanktionierten Wettkämpfen gelten als Qualifikationsnachweis
                             für internationale Meisterschaften. Ohne diese Kennzeichnung erscheint ein
@@ -202,13 +174,12 @@
 
                     <flux:field>
                         <flux:label>ÖBSV Cup</flux:label>
-                        <flux:select name="cup_id">
-                            <option value="">Kein Cup</option>
+                        <flux:select variant="listbox" name="cup_id" placeholder="Kein Cup" clearable>
                             @foreach($cups as $cup)
-                                <option value="{{ $cup->id }}"
-                                    @selected(old('cup_id', $meet->cup_id ?? '') == $cup->id)>
+                                <flux:select.option value="{{ $cup->id }}"
+                                    :selected="old('cup_id', $meet->cup_id ?? '') == $cup->id">
                                     {{ $cup->name }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:description>
@@ -219,13 +190,12 @@
 
                     <flux:field>
                         <flux:label>Richtzeitenliste (ÖSTM & ÖM)</flux:label>
-                        <flux:select name="qualifying_time_list_id">
-                            <option value="">Keine Richtzeitenliste</option>
+                        <flux:select variant="listbox" name="qualifying_time_list_id" placeholder="Keine Richtzeitenliste" clearable>
                             @foreach($qualifyingTimeLists as $qtl)
-                                <option value="{{ $qtl->id }}"
-                                    @selected(old('qualifying_time_list_id', $meet->qualifying_time_list_id ?? '') == $qtl->id)>
+                                <flux:select.option value="{{ $qtl->id }}"
+                                    :selected="old('qualifying_time_list_id', $meet->qualifying_time_list_id ?? '') == $qtl->id">
                                     {{ $qtl->year }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:description>
@@ -299,16 +269,14 @@
                     <div x-show="wps" x-cloak class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
                         <flux:field>
                             <flux:label>WPS-Version</flux:label>
-                            <select name="wps_point_version_id"
-                                    class="w-full rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 text-sm">
-                                <option value="">automatisch nach Wettkampfdatum</option>
+                            <flux:select variant="listbox" name="wps_point_version_id" placeholder="automatisch nach Wettkampfdatum" clearable>
                                 @foreach($wpsVersions as $wpsVersion)
-                                    <option value="{{ $wpsVersion->id }}"
-                                            @selected((int) old('wps_point_version_id', $selectedWpsVersionId) === $wpsVersion->id)>
+                                    <flux:select.option value="{{ $wpsVersion->id }}"
+                                        :selected="(int) old('wps_point_version_id', $selectedWpsVersionId) === $wpsVersion->id">
                                         {{ $wpsVersion->label }}
-                                    </option>
+                                    </flux:select.option>
                                 @endforeach
-                            </select>
+                            </flux:select>
                             <flux:description>
                                 Leer lassen, damit die zum Wettkampfdatum gültige Version verwendet wird.
                             </flux:description>

@@ -213,6 +213,14 @@ class ResultController extends Controller
             'splits.*.split_time' => 'nullable|integer|min:0',
         ]);
 
+        // Checkbox-/Switch-Felder fehlen im Request komplett, wenn sie nicht angehakt
+        // sind — dann fehlen sie auch in $validated, und ein zuvor gesetztes Flag würde
+        // beim Abhaken NICHT zurückgesetzt. Explizit über boolean() normalisieren
+        // (gleiches Muster wie MeetController::store()/update()).
+        $validated['is_world_record'] = $request->boolean('is_world_record');
+        $validated['is_european_record'] = $request->boolean('is_european_record');
+        $validated['is_national_record'] = $request->boolean('is_national_record');
+
         return [
             'result' => collect($validated)->except('splits')->toArray(),
             'splits' => collect($validated['splits'] ?? [])

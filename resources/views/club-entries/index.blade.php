@@ -116,6 +116,7 @@
                                             href="{{ route('club-entries.edit', array_merge(['meet' => $meet, 'entry' => $entry], $clubParam)) }}"
                                             variant="ghost"
                                             icon="pencil"
+                                            class="text-amber-500!"
                                             size="sm"/>
                                         <form method="POST"
                                               action="{{ route('club-entries.destroy', array_merge(['meet' => $meet, 'entry' => $entry], $clubParam)) }}"
@@ -123,7 +124,7 @@
                                               @submit.prevent="submit($el)">
                                             @csrf
                                             @method('DELETE')
-                                            <flux:button type="submit" variant="ghost" icon="trash" size="sm"/>
+                                            <flux:button type="submit" variant="ghost" icon="trash" class="text-red-500!" size="sm"/>
                                         </form>
                                     </div>
                                 </td>

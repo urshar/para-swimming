@@ -103,13 +103,13 @@
                             <div class="flex items-center gap-1 shrink-0">
                                 <flux:button
                                     href="{{ route('club-entries.relay.edit', array_merge(['meet' => $meet, 'relayEntry' => $relay], $clubParam)) }}"
-                                    size="sm" variant="ghost" icon="pencil"/>
+                                    size="sm" variant="ghost" icon="pencil" class="text-amber-500!"/>
                                 <form method="POST"
                                       action="{{ route('club-entries.relay.destroy', array_merge(['meet' => $meet, 'relayEntry' => $relay], $clubParam)) }}"
                                       x-data="{ submit(f){ if(confirm('Staffelmeldung wirklich löschen?')) f.submit() } }">
                                     @csrf @method('DELETE')
                                     <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                                 class="text-red-500"/>
+                                                 class="text-red-500!"/>
                                 </form>
                             </div>
                         @endif

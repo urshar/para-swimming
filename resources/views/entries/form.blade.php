@@ -10,18 +10,17 @@
 
                 <flux:field>
                     <flux:label>Disziplin</flux:label>
-                    <flux:select name="swim_event_id" required>
-                        <option value="">Disziplin wählen…</option>
+                    <flux:select variant="listbox" searchable name="swim_event_id" required>
                         @foreach($swimEvents->groupBy('session_number') as $session => $events)
-                            <optgroup label="Session {{ $session }}">
+                            <flux:select.group label="Session {{ $session }}">
                                 @foreach($events as $event)
-                                    <option value="{{ $event->id }}" @selected(old('swim_event_id') == $event->id)>
+                                    <flux:select.option value="{{ $event->id }}" :selected="old('swim_event_id') == $event->id">
                                         {{ $event->display_name }}
                                         {{ $event->gender !== 'A' ? '(' . $event->gender . ')' : '' }}
                                         {{ $event->sport_classes ? '– ' . $event->sport_classes : '' }}
-                                    </option>
+                                    </flux:select.option>
                                 @endforeach
-                            </optgroup>
+                            </flux:select.group>
                         @endforeach
                     </flux:select>
                     <flux:error name="swim_event_id"/>
@@ -29,14 +28,13 @@
 
                 <flux:field>
                     <flux:label>Athlet</flux:label>
-                    <flux:select name="athlete_id" required>
-                        <option value="">Athlet wählen…</option>
+                    <flux:select variant="listbox" searchable name="athlete_id" required>
                         @foreach($athletes as $athlete)
-                            <option value="{{ $athlete->id }}" @selected(old('athlete_id') == $athlete->id)>
+                            <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
                                 {{ $athlete->display_name }}
                                 {{ $athlete->sport_classes_display ? '– ' . $athlete->sport_classes_display : '' }}
                                 ({{ $athlete->nation?->code }})
-                            </option>
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="athlete_id"/>
@@ -44,12 +42,11 @@
 
                 <flux:field>
                     <flux:label>Meldender Club</flux:label>
-                    <flux:select name="club_id" required>
-                        <option value="">Club wählen…</option>
+                    <flux:select variant="listbox" searchable name="club_id" required>
                         @foreach($clubs as $club)
-                            <option value="{{ $club->id }}" @selected(old('club_id') == $club->id)>
+                            <flux:select.option value="{{ $club->id }}" :selected="old('club_id') == $club->id">
                                 {{ $club->name }} ({{ $club->nation?->code }})
-                            </option>
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="club_id"/>
@@ -65,10 +62,9 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Bahnlänge der Meldezeit</flux:label>
-                        <flux:select name="entry_course">
-                            <option value="">–</option>
-                            <option value="LCM" @selected(old('entry_course') === 'LCM')>LCM (50m)</option>
-                            <option value="SCM" @selected(old('entry_course') === 'SCM')>SCM (25m)</option>
+                        <flux:select variant="listbox" name="entry_course" placeholder="–" clearable>
+                            <flux:select.option value="LCM" :selected="old('entry_course') === 'LCM'">LCM (50m)</flux:select.option>
+                            <flux:select.option value="SCM" :selected="old('entry_course') === 'SCM'">SCM (25m)</flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>
@@ -84,11 +80,10 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Status</flux:label>
-                        <flux:select name="status">
-                            <option value="">Normal</option>
-                            <option value="EXH" @selected(old('status') === 'EXH')>EXH – Ausstellungsstart</option>
-                            <option value="WDR" @selected(old('status') === 'WDR')>WDR – Zurückgezogen</option>
-                            <option value="SICK" @selected(old('status') === 'SICK')>SICK – Krank</option>
+                        <flux:select variant="listbox" name="status" placeholder="Normal" clearable>
+                            <flux:select.option value="EXH" :selected="old('status') === 'EXH'">EXH – Ausstellungsstart</flux:select.option>
+                            <flux:select.option value="WDR" :selected="old('status') === 'WDR'">WDR – Zurückgezogen</flux:select.option>
+                            <flux:select.option value="SICK" :selected="old('status') === 'SICK'">SICK – Krank</flux:select.option>
                         </flux:select>
                         <flux:error name="status"/>
                     </flux:field>

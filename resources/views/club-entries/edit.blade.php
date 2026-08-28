@@ -120,19 +120,19 @@
 
                     <flux:field>
                         <flux:label>Kurs</flux:label>
-                        <flux:select name="entry_course">
-                            <option value="LCM"
-                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'LCM')>
+                        <flux:select variant="listbox" name="entry_course">
+                            <flux:select.option value="LCM"
+                                :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'LCM'">
                                 LCM (50m)
-                            </option>
-                            <option value="SCM"
-                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCM')>
+                            </flux:select.option>
+                            <flux:select.option value="SCM"
+                                :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'SCM'">
                                 SCM (25m)
-                            </option>
-                            <option value="SCY"
-                                @selected(old('entry_course', $entry->entry_course ?? $meet->course) === 'SCY')>
+                            </flux:select.option>
+                            <flux:select.option value="SCY"
+                                :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'SCY'">
                                 SCY (Yards)
-                            </option>
+                            </flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

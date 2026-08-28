@@ -18,13 +18,12 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Disziplin</flux:label>
-                        <flux:select name="swim_event_id" required>
-                            <option value="">Disziplin wählen…</option>
+                        <flux:select variant="listbox" name="swim_event_id" required>
                             @foreach($swimEvents as $event)
-                                <option
-                                    value="{{ $event->id }}" @selected(old('swim_event_id', $result->swim_event_id ?? '') == $event->id)>
+                                <flux:select.option
+                                    value="{{ $event->id }}" :selected="old('swim_event_id', $result->swim_event_id ?? '') == $event->id">
                                     {{ $event->display_name }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="swim_event_id"/>
@@ -36,13 +35,12 @@
                             <flux:input value="{{ $result->athlete?->display_name }}" disabled/>
                             <input type="hidden" name="athlete_id" value="{{ $result->athlete_id }}">
                         @else
-                            <flux:select name="athlete_id" required>
-                                <option value="">Athlet wählen…</option>
+                            <flux:select variant="listbox" searchable name="athlete_id" required>
                                 @foreach($entries->pluck('athlete')->unique('id') as $athlete)
                                     @if($athlete)
-                                        <option value="{{ $athlete->id }}" @selected(old('athlete_id') == $athlete->id)>
+                                        <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
                                             {{ $athlete->display_name }}
-                                        </option>
+                                        </flux:select.option>
                                     @endif
                                 @endforeach
                             </flux:select>
@@ -58,12 +56,11 @@
                             <flux:input value="{{ $result->club?->display_name }}" disabled/>
                             <input type="hidden" name="club_id" value="{{ $result->club_id }}">
                         @else
-                            <flux:select name="club_id" required>
-                                <option value="">Club wählen…</option>
+                            <flux:select variant="listbox" searchable name="club_id" required>
                                 @foreach($entries->pluck('club')->unique('id') as $club)
                                     @if($club)
-                                        <option
-                                            value="{{ $club->id }}" @selected(old('club_id') == $club->id)>{{ $club->name }}</option>
+                                        <flux:select.option
+                                            value="{{ $club->id }}" :selected="old('club_id') == $club->id">{{ $club->name }}</flux:select.option>
                                     @endif
                                 @endforeach
                             </flux:select>
@@ -89,26 +86,26 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Status</flux:label>
-                        <flux:select name="status">
-                            <option value="" @selected(!old('status', $result->status ?? ''))>Gültig</option>
-                            <option value="DSQ" @selected(old('status', $result->status ?? '') === 'DSQ')>DSQ –
+                        <flux:select variant="listbox" name="status">
+                            <flux:select.option value="" :selected="!old('status', $result->status ?? '')">Gültig</flux:select.option>
+                            <flux:select.option value="DSQ" :selected="old('status', $result->status ?? '') === 'DSQ'">DSQ –
                                 Disqualifiziert
-                            </option>
-                            <option value="DNS" @selected(old('status', $result->status ?? '') === 'DNS')>DNS – Nicht
+                            </flux:select.option>
+                            <flux:select.option value="DNS" :selected="old('status', $result->status ?? '') === 'DNS'">DNS – Nicht
                                 angetreten
-                            </option>
-                            <option value="DNF" @selected(old('status', $result->status ?? '') === 'DNF')>DNF – Nicht
+                            </flux:select.option>
+                            <flux:select.option value="DNF" :selected="old('status', $result->status ?? '') === 'DNF'">DNF – Nicht
                                 beendet
-                            </option>
-                            <option value="EXH" @selected(old('status', $result->status ?? '') === 'EXH')>EXH –
+                            </flux:select.option>
+                            <flux:select.option value="EXH" :selected="old('status', $result->status ?? '') === 'EXH'">EXH –
                                 Ausstellungsstart
-                            </option>
-                            <option value="SICK" @selected(old('status', $result->status ?? '') === 'SICK')>SICK –
+                            </flux:select.option>
+                            <flux:select.option value="SICK" :selected="old('status', $result->status ?? '') === 'SICK'">SICK –
                                 Krank
-                            </option>
-                            <option value="WDR" @selected(old('status', $result->status ?? '') === 'WDR')>WDR –
+                            </flux:select.option>
+                            <flux:select.option value="WDR" :selected="old('status', $result->status ?? '') === 'WDR'">WDR –
                                 Zurückgezogen
-                            </option>
+                            </flux:select.option>
                         </flux:select>
                         <flux:error name="status"/>
                     </flux:field>
@@ -159,15 +156,15 @@
                 <div class="pt-2 pb-2">
                     <div class="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Rekord-Flags</div>
                     <div class="flex gap-6">
-                        <flux:checkbox name="is_world_record" value="1"
-                                       :checked="old('is_world_record',    $result->is_world_record    ?? false)"
-                                       label="Weltrekord (WR)"/>
-                        <flux:checkbox name="is_european_record" value="1"
-                                       :checked="old('is_european_record', $result->is_european_record ?? false)"
-                                       label="Europarekord (ER)"/>
-                        <flux:checkbox name="is_national_record" value="1"
-                                       :checked="old('is_national_record', $result->is_national_record ?? false)"
-                                       label="Nationalrekord (NR)"/>
+                        <flux:switch name="is_world_record" value="1"
+                                     :checked="old('is_world_record',    $result->is_world_record    ?? false)"
+                                     label="Weltrekord (WR)"/>
+                        <flux:switch name="is_european_record" value="1"
+                                     :checked="old('is_european_record', $result->is_european_record ?? false)"
+                                     label="Europarekord (ER)"/>
+                        <flux:switch name="is_national_record" value="1"
+                                     :checked="old('is_national_record', $result->is_national_record ?? false)"
+                                     label="Nationalrekord (NR)"/>
                     </div>
                 </div>
 
