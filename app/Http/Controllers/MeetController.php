@@ -70,7 +70,7 @@ class MeetController extends Controller
     public function show(Meet $meet): View
     {
         $meet->load(['nation', 'cup', 'clubs.nation', 'pointSystems']);
-        $meet->loadCount(['swimEvents', 'entries', 'results', 'documents']);
+        $meet->loadCount(['swimEvents', 'entries', 'relayEntries', 'results', 'documents']);
 
         $swimEvents = $meet->swimEvents()
             ->with('strokeType')
@@ -78,7 +78,10 @@ class MeetController extends Controller
             ->orderBy('event_number')
             ->get();
 
-        return view('meets.show', compact('meet', 'swimEvents'));
+        $participantsCount = $meet->participantsCount();
+        $participatingClubsCount = $meet->participatingClubsCount();
+
+        return view('meets.show', compact('meet', 'swimEvents', 'participantsCount', 'participatingClubsCount'));
     }
 
     public function edit(Meet $meet): View

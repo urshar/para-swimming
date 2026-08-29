@@ -5,6 +5,26 @@ Eintrag: was fehlt, warum es zurückgestellt wurde, was zum Schließen gebraucht
 dieser Datei entfernt (Historie steht im jeweiligen Phasen-Abschnitt von `specs/public-frontend-modules.md`), nicht
 nur abgehakt liegen gelassen.
 
+## Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung
+
+**Seit:** Design-Feedback nach Admin-UI-Rework Phase 9 (29.08.2026).
+
+**Was fehlt:** `resources/views/club-entries/create.blade.php` (Vereinsmeldungen) zeigt nach Auswahl von Athlet und
+Disziplin ein Live-Panel "Jahresbestzeit (Vorjahr bis Meetbeginn)" mit LCM-/SCM-Zeit und einem
+"Bestzeit übernehmen"-Button (Alpine-Komponente `singleEntryForm`, gespeist über
+`club-entries.eligible-athletes` / `club-entries.best-times`). Die admin-seitige Meldungserfassung
+(`resources/views/entries/form.blade.php`, `EntryController`) hat dieses Feature nicht — Athlet/Disziplin werden dort
+über einfache `flux:select`-Dropdowns statt der Such-Alpine-Komponente gewählt, es gibt keinen Best-Times-Abruf.
+
+**Warum zurückgestellt:** Kein einzeiliger Fix — würde bedeuten, entweder die komplette Alpine-Suchkomponente aus
+club-entries in die admin-Meldungserfassung zu portieren (inkl. eigenem Best-Times-Endpoint-Aufruf für die
+admin-Variante, da `club-entries.best-times` an eine Club-Auswahl gebunden ist), oder ein eigenständiges,
+schlankeres Äquivalent zu bauen. Beides ist eine Design-Entscheidung, keine Bugfix-Zeile.
+
+**Zum Schließen nötig:** Entscheidung, ob die admin-Meldungserfassung dieselbe Such-UI wie club-entries bekommen soll
+(Konsistenz) oder eine eigene, einfachere Variante nur für den Best-Times-Hinweis; danach Umsetzung in
+`entries/form.blade.php` + ggf. neuer Controller-Endpoint (analog `ClubEntryController::bestTimes()`).
+
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 
 **Seit:** Phase 9 (`/de/barrierefreiheit`, `docs/accessibility.md` §Erklärung zur Barrierefreiheit).

@@ -102,7 +102,7 @@
     <flux:label>Meldeschluss</flux:label>
     <flux:date-picker type="input" locale="de-AT" name="entries_deadline"
                 value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}" clearable/>
-    <flux:description>Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
+    <flux:description class="mt-1">Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
     <flux:error name="entries_deadline"/>
 </flux:field>
 

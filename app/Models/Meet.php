@@ -148,6 +148,11 @@ class Meet extends Model
         return $this->hasMany(Entry::class);
     }
 
+    public function relayEntries(): HasMany
+    {
+        return $this->hasMany(RelayEntry::class);
+    }
+
     public function results(): HasMany
     {
         return $this->hasMany(Result::class);
@@ -168,6 +173,45 @@ class Meet extends Model
         }
 
         return $this->start_date->format('d.m.Y').' – '.$this->end_date->format('d.m.Y');
+    }
+
+    /**
+     * Anzahl der eindeutigen Athleten mit mindestens einer Einzel- oder Staffelmeldung
+     * ODER einem Ergebnis zu dieser Veranstaltung. Das Ergebnis zählt bewusst mit: bei
+     * per LENEX importierten Meets liegen mitunter nur Ergebnisse ohne zugehörige
+     * Meldungen vor (das LENEX enthielt keinen Meldungen-Abschnitt) — ohne diese
+     * Ergänzung stünde hier trotz hunderter Ergebnisse fälschlich 0. Portabel (kein
+     * DISTINCT-COUNT über einen JOIN mit MySQL-only-Funktionen), damit die Query auf
+     * SQLite (Tests) und MySQL (Dev/Prod) gleich läuft.
+     */
+    public function participantsCount(): int
+    {
+        $individualAthleteIds = $this->entries()->pluck('athlete_id');
+
+        $relayAthleteIds = RelayEntryMember::query()
+            ->whereIn('relay_entry_id', $this->relayEntries()->pluck('id'))
+            ->pluck('athlete_id');
+
+        $resultAthleteIds = $this->results()->pluck('athlete_id');
+
+        return $individualAthleteIds->merge($relayAthleteIds)->merge($resultAthleteIds)->unique()->count();
+    }
+
+    /**
+     * Anzahl der Vereine mit mindestens einer Einzel- oder Staffelmeldung ODER einem
+     * Ergebnis zu dieser Veranstaltung. Bewusst NICHT $this->clubs() (meet_club-Pivot) —
+     * die wird nur beim LENEX-Import befüllt, nicht beim regulären Melden über die
+     * Meldungen-Oberfläche, und wäre bei einem UI-erfassten Meet trotz vorhandener
+     * Meldungen fälschlich leer. Ergebnisse fließen aus demselben Grund wie bei
+     * participantsCount() mit ein (LENEX-Importe ohne Meldungen-Abschnitt).
+     */
+    public function participatingClubsCount(): int
+    {
+        $individualClubIds = $this->entries()->pluck('club_id');
+        $relayClubIds = $this->relayEntries()->pluck('club_id');
+        $resultClubIds = $this->results()->pluck('club_id');
+
+        return $individualClubIds->merge($relayClubIds)->merge($resultClubIds)->unique()->count();
     }
 
     /** Ob für diese Veranstaltung WPS-Punkte berechnet werden sollen. */

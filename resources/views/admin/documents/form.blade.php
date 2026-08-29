@@ -11,19 +11,33 @@
 @section('title', $document ? 'Dokument bearbeiten' : 'Dokument hochladen')
 
 @section('content')
+    @php
+        // In eine einzelne Variable vorberechnet, weil @json() sein Argument naiv an jedem
+        // Komma aufteilt (Blade\Compilers\Concerns\CompilesJson::compileJson()) — ein Ausdruck
+        // mit eigenen Kommas darin (old() mit Default-Wert, ein mehrelementiges Array) würde
+        // dadurch mitten im Ausdruck zerschnitten und ergäbe kaputtes PHP. @json() bekommt daher
+        // immer nur eine einzelne, bereits fertige Variable.
+        $documentFormConfig = [
+            'category' => old('category', $document?->category ?? ''),
+            'candidates' => $pairCandidates,
+        ];
+    @endphp
     <div class="max-w-2xl">
 
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button
-                href="{{ $meet ? route('admin.meets.documents.index', $meet) : route('admin.documents.index') }}"
-                variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                    {{ $document ? 'Dokument bearbeiten' : 'Dokument hochladen' }}
-                </h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $meet ? $meet->name : 'Regelmente & Formulare — kein Veranstaltungsbezug' }}
-                </p>
+        {{-- Header --}}
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {{ $document ? 'Dokument bearbeiten' : 'Dokument hochladen' }}
+            </h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $meet ? $meet->name : 'Regelmente & Formulare — kein Veranstaltungsbezug' }}
+            </p>
+            <div class="mt-4">
+                <flux:button
+                    href="{{ $meet ? route('admin.meets.documents.index', $meet) : route('admin.documents.index') }}"
+                    variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             </div>
         </div>
 
@@ -32,10 +46,7 @@
                   ? route('admin.documents.update', $document)
                   : ($meet ? route('admin.meets.documents.store', $meet) : route('admin.documents.store')) }}"
               enctype="multipart/form-data"
-              x-data='documentForm({
-                  category: "{{ old('category', $document?->category ?? '') }}",
-                  candidates: @json($pairCandidates),
-              })'>
+              x-data='documentForm(@json($documentFormConfig))'>
             @csrf
             @if($document)
                 @method('PUT')
@@ -53,31 +64,30 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Kategorie *</flux:label>
-                        <flux:select name="category" x-model="category" required>
-                            <option value="">Bitte wählen…</option>
+                        <flux:select variant="listbox" name="category" x-model="category" placeholder="Bitte wählen…" required>
                             @foreach(['INVITATION', 'START_LIST', 'RESULTS', 'REGULATION', 'FORM'] as $category)
-                                <option value="{{ $category }}"
-                                    @selected(old('category', $document->category ?? '') === $category)>
+                                <flux:select.option value="{{ $category }}"
+                                    :selected="old('category', $document->category ?? '') === $category">
                                     {{ __('public.documents.category.'.$category) }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="category"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Sprache</flux:label>
-                        <flux:select name="locale">
-                            <option value="" @selected(old('locale', $document->locale ?? '') === '')>
+                        <flux:select variant="listbox" name="locale">
+                            <flux:select.option value="" :selected="old('locale', $document->locale ?? '') === ''">
                                 Sprachneutral (beide Sprachen)
-                            </option>
-                            <option value="de" @selected(old('locale', $document->locale ?? '') === 'de')>
+                            </flux:select.option>
+                            <flux:select.option value="de" :selected="old('locale', $document->locale ?? '') === 'de'">
                                 Deutsch
-                            </option>
-                            <option value="en" @selected(old('locale', $document->locale ?? '') === 'en')>
+                            </flux:select.option>
+                            <flux:select.option value="en" :selected="old('locale', $document->locale ?? '') === 'en'">
                                 Englisch
-                            </option>
+                            </flux:select.option>
                         </flux:select>
-                        <flux:description>
+                        <flux:description class="mt-1">
                             Sprachneutrale Dokumente werden in beiden Sprachen gezeigt.
                         </flux:description>
                     </flux:field>
@@ -92,7 +102,7 @@
                             <option :value="candidate.id" x-text="candidate.label"></option>
                         </template>
                     </select>
-                    <flux:description>
+                    <flux:description class="mt-1">
                         Verknüpft dieses Dokument mit der bestehenden Fassung — auf der öffentlichen Seite wird die
                         passende Sprache gezeigt und die andere daneben verlinkt (§4.1).
                     </flux:description>
@@ -110,7 +120,7 @@
                                 ->filter()
                                 ->implode(', ');
                         @endphp
-                        <flux:description>
+                        <flux:description class="mt-1">
                             Aktuell: {{ $document->title }}
                             @if($currentFileLabel)
                                 ({{ $currentFileLabel }})
@@ -118,7 +128,7 @@
                             — leer lassen, um die bestehende Datei zu behalten.
                         </flux:description>
                     @else
-                        <flux:description>PDF, DOC(X), XLS(X), ZIP oder LENEX (.lxf/.lef/.xml) · max. 20 MB.</flux:description>
+                        <flux:description class="mt-1">PDF, DOC(X), XLS(X), ZIP oder LENEX (.lxf/.lef/.xml) · max. 20 MB.</flux:description>
                     @endif
                     <flux:error name="file"/>
                 </flux:field>
@@ -142,7 +152,7 @@
                             Für eine öffentliche Auslieferung freigegeben
                         </label>
                     </div>
-                    <flux:description>
+                    <flux:description class="mt-1">
                         Grundvoraussetzung für die Sichtbarkeit — entscheidet zusammen mit dem
                         Veröffentlichungsdatum, ob das Dokument aktuell auf der öffentlichen Seite erscheint.
                     </flux:description>
@@ -152,7 +162,7 @@
                     <flux:label>Veröffentlichungsdatum</flux:label>
                     <flux:input name="published_at" type="datetime-local"
                                 value="{{ old('published_at', $document?->published_at?->format('Y-m-d\TH:i') ?? '') }}"/>
-                    <flux:description>
+                    <flux:description class="mt-1">
                         Leer = Entwurf, auch wenn "Öffentlich" angehakt ist. Ein Zeitpunkt in der Zukunft
                         veröffentlicht das Dokument erst ab diesem Zeitpunkt.
                     </flux:description>

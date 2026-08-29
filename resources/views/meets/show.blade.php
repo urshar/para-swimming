@@ -30,6 +30,13 @@
                     </flux:button>
                 @endif
 
+                @if(auth()->user()?->is_admin)
+                    <flux:button href="{{ route('meets.results.create', $meet) }}" variant="filled"
+                                 icon="plus" size="sm">
+                        Ergebnis erfassen
+                    </flux:button>
+                @endif
+
                 @if($meet->cup_id)
                     <flux:button href="{{ route('meets.cup-daily-ranking.show', $meet) }}" variant="filled"
                                  icon="trophy" size="sm">
@@ -133,18 +140,30 @@
     @endif
 
     {{-- Stats --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
             <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->swim_events_count }}</div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400">Disziplinen</div>
         </div>
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
             <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->entries_count }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Meldungen</div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400">Einzelmeldungen</div>
+        </div>
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->relay_entries_count }}</div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400">Staffelmeldungen</div>
         </div>
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
             <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400">Ergebnisse</div>
+        </div>
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $participantsCount }}</div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400">Teilnehmer</div>
+        </div>
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $participatingClubsCount }}</div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400">Clubs</div>
         </div>
     </div>
 

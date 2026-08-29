@@ -8,6 +8,7 @@ use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\SwimEvent;
+use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -88,7 +89,14 @@ class EntryController extends Controller
             ]);
         }
 
-        Entry::create(array_merge($data, ['meet_id' => $meet->id]));
+        [$entryTime, $entryTimeCode] = $this->parseEntryTime($data['entry_time'] ?? null);
+        unset($data['entry_time']);
+
+        Entry::create(array_merge($data, [
+            'meet_id' => $meet->id,
+            'entry_time' => $entryTime,
+            'entry_time_code' => $entryTimeCode,
+        ]));
 
         return redirect()
             ->route('meets.show', $meet)
@@ -115,6 +123,10 @@ class EntryController extends Controller
             $this->sharedEntryRules()
         ));
 
+        [$entryTime, $entryTimeCode] = $this->parseEntryTime($data['entry_time'] ?? null);
+        $data['entry_time'] = $entryTime;
+        $data['entry_time_code'] = $entryTimeCode;
+
         $entry->update($data);
 
         return redirect()
@@ -137,11 +149,31 @@ class EntryController extends Controller
     private function sharedEntryRules(): array
     {
         return [
-            'entry_time' => 'nullable|integer|min:0',
-            'entry_time_code' => 'nullable|string|max:10',
+            'entry_time' => 'nullable|string|max:20',
             'entry_course' => 'nullable|in:LCM,SCM,SCY,SCM16,SCM20,SCM33,SCY20,SCY27,SCY33,SCY36,OPEN',
             'sport_class' => 'nullable|string|max:15',
             'status' => 'nullable|in:EXH,RJC,SICK,WDR',
         ];
+    }
+
+    /**
+     * Parst das Meldezeit-Feld (Format "MM:SS.hh", wie club-entries — statt roher
+     * Hundertstelsekunden, die ein User erst im Kopf umrechnen müsste). "NT"/"NS"/"WO"
+     * werden als Code statt als Zeit gespeichert.
+     *
+     * @return array{0: ?int, 1: ?string}
+     */
+    private function parseEntryTime(?string $raw): array
+    {
+        if (! $raw || trim($raw) === '') {
+            return [null, null];
+        }
+
+        $upper = strtoupper(trim($raw));
+        if (in_array($upper, ['NT', 'NS', 'WO'], true)) {
+            return [null, $upper];
+        }
+
+        return [TimeParser::parse($raw), null];
     }
 }

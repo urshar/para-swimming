@@ -324,6 +324,7 @@ gesetzt ist. Per echtem Klick auf einen Reiter im Browser verifiziert: korrekter
 folgt der aktuellen Kategorie.
 
 ### Autocomplete zurückgestellt:
+
 `flux:select variant="combobox"` liest den Startwert nur aus der JS-Eigenschaft, nicht aus dem HTML-Attribut
 
 Ursprünglich für 13 Dateien mit `club_id`/`nation_id`-Dropdowns geplant (53 Vereine, 96 Nationen — eine Suchbox ist dort
@@ -363,8 +364,8 @@ einen zweiten, funktionierenden Weg — siehe "Runde 2" unten.
 
 ## Runde 2: Chevron-Dropdowns & Switches (Phase 8+)
 
-Auslöser: `flux:select` (Standard-Variante) rendert ein natives `<select appearance-none>` **ohne** Pfeil-Ersatz
-(kein `@tailwindcss/forms`-Plugin im Projekt) — alle bisherigen Dropdowns sind dadurch pfeillos. Zusätzlich: einige
+Auslöser: `flux:select` (Standard-Variante) rendert ein natives `<select appearance-none>` **ohne** Pfeil-Ersatz (kein
+`@tailwindcss/forms`-Plugin im Projekt) — alle bisherigen Dropdowns sind dadurch pfeillos. Zusätzlich: einige
 Ein/Aus-Checkboxen sollen zu `flux:switch` werden. Diese Runde geht dafür **alle** Admin-Module durch, gröber
 geschnitten als Runde 1 (Phase 1–7): Phase 8 Stammdaten, 9 Wettkämpfe & Meldungen, 10 Rekorde & Richtzeiten, 11 WPS &
 Auswertungen, 12 Cup & Meisterschaften, 13 LENEX & Admin-Werkzeuge.
@@ -377,8 +378,8 @@ Der in Phase 7 gefundene Bug (`value=""` am `<flux:select>` wird nie gelesen) ha
 liest `hasAttribute("selected")` **synchron und direkt** (`selectedInitially: this.hasAttribute("selected")`,
 `js/option.js`) — komplett unabhängig vom kaputten `Controllable.boot()`-Pfad, der nur beim äußeren `value`-Attribut
 greift. Live geprüft (`/athletes`, `/clubs`, Formulare mit vorbelegtem Wert): verstecktes Submit-Feld **und**
-sichtbarer Trigger-Text beide korrekt vorbelegt — sowohl mit `flux:select variant="listbox"` (Button-Trigger) als
-auch mit `variant="combobox"`.
+sichtbarer Trigger-Text beide korrekt vorbelegt — sowohl mit `flux:select variant="listbox"` (Button-Trigger) als auch
+mit `variant="combobox"`.
 
 ```blade
 <flux:select variant="listbox" searchable name="nation_id" placeholder="…" clearable>
@@ -394,22 +395,22 @@ Funktioniert identisch mit `wire:model` (Livewire übernimmt dort ohnehin die We
 
 ### Variantenwahl: `listbox` vs. `listbox searchable`
 
-- **`variant="listbox"`** (Button-Trigger, `flux:select.button` bringt `<flux:icon.chevron-down>` fest mit) für
-  kurze, statische Options-Listen (Geschlecht, Status, feste Enums) — kein Suchfeld nötig.
-- **`variant="listbox" searchable`** zusätzlich für lange, DB-gespeiste Listen (Nation ~96, Verein ~53,
-  Klassifizierer): `searchable` blendet ein Suchfeld **im Popover** ein (separates Element, `flux:select.search`),
-  ohne den Trigger selbst zu einem Texteingabefeld zu machen — deshalb bleibt die Trigger-Anzeige korrekt, anders als
-  bei `variant="combobox"` (dort *ist* der Trigger das Textfeld, und dessen sichtbarer Wert synchronisiert sich nur
-  über einen echten Nutzerklick, nicht beim initialen Setzen über `selected` — siehe Phase-7-Befund oben, der für den
-  Combobox-**Trigger-Text** also weiterhin gilt). `variant="listbox" searchable` ist daher durchgängig die richtige
+- **`variant="listbox"`** (Button-Trigger, `flux:select.button` bringt `<flux:icon.chevron-down>` fest mit) für kurze,
+  statische Options-Listen (Geschlecht, Status, feste Enums) — kein Suchfeld nötig.
+- **`variant="listbox" searchable`** zusätzlich für lange, DB-gespeiste Listen (Nation ~96, Verein ~53, Klassifizierer):
+  `searchable` blendet ein Suchfeld **im Popover** ein (separates Element, `flux:select.search`), ohne den Trigger
+  selbst zu einem Texteingabefeld zu machen — deshalb bleibt die Trigger-Anzeige korrekt, anders als bei
+  `variant="combobox"` (dort *ist* der Trigger das Textfeld, und dessen sichtbarer Wert synchronisiert sich nur über
+  einen echten Nutzerklick, nicht beim initialen Setzen über `selected` — siehe Phase-7-Befund oben, der für den
+  Combobox- **Trigger-Text** also weiterhin gilt). `variant="listbox" searchable` ist daher durchgängig die richtige
   Wahl für lange Listen in dieser App, nicht `variant="combobox"`.
 
 ### Checkbox → `flux:switch`: nur bei echten Einzel-Schaltern
 
-`flux:switch` hat einen einfachen `checked`-Boolean-Prop, der (wie `selected` bei Optionen) direkt und synchron aus
-dem HTML gelesen wird (`UISwitch.boot()`: `selectedInitially: this.hasAttribute("checked")`, `js/switch.js`) — kein
-Risiko wie beim Combobox-`value`-Bug. Nur für **einzelne** Ein/Aus-Einstellungen (z. B. "Aktiv", "Öffentlich
-sichtbar") — Checkbox-**Gruppen** (mehrere Optionen aus einer Liste wählen, z. B. WPS-Exceptions) bleiben Checkboxen.
+`flux:switch` hat einen einfachen `checked`-Boolean-Prop, der (wie `selected` bei Optionen) direkt und synchron aus dem
+HTML gelesen wird (`UISwitch.boot()`: `selectedInitially: this.hasAttribute("checked")`, `js/switch.js`) — kein Risiko
+wie beim Combobox-`value`-Bug. Nur für **einzelne** Ein/Aus-Einstellungen (z. B. "Aktiv", "Öffentlich sichtbar") —
+Checkbox- **Gruppen** (mehrere Optionen aus einer Liste wählen, z. B. WPS-Exceptions) bleiben Checkboxen.
 
 Formulare mit dem klassischen "Checkbox + verstecktes `value=0`"-Trick (verhindert, dass ein abgewähltes Feld beim
 Absenden ganz fehlt) behalten das versteckte Feld **vor** dem `flux:switch` — Submittable erzeugt bei
@@ -451,8 +452,8 @@ Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 
   ist jetzt ein `flux:button` "Detailansicht" (kein Pfeil-Icon, kein "Zur" mehr nötig).
 - **AUT-Standardauswahl**: Alle Nation-Dropdowns in Neuanlage-Formularen (Athlet, Verein, Meet, Rekord — Klassifizierer
   hatte das schon) wählen jetzt automatisch Österreich vor, sofern noch kein Wert gesetzt ist
-  (`$nations->firstWhere('code', 'AUT')?->id` als Fallback in `old(...)`/`@selected()`). **Nicht** bei
-  Filter-Dropdowns (dort bliebe sonst die Liste beim ersten Aufruf ungewollt auf AUT gefiltert) und nicht bei
+  (`$nations->firstWhere('code', 'AUT')?->id` als Fallback in `old(...)`/`@selected()`). **Nicht** bei Filter-Dropdowns
+  (dort bliebe sonst die Liste beim ersten Aufruf ungewollt auf AUT gefiltert) und nicht bei
   `records/form.blade.php`s "Austragungsland" (Land des Wettkampfs, nicht des Athleten — oft im Ausland).
 - **Nation-Sortierung vereinheitlicht**: `ClubController`, `ClassifierController`, `MeetController`, `RecordController`
   sortierten Nationen noch nach `name_de` — jetzt wie `AthleteController` einheitlich nach `code` (IOC-Reihenfolge).
@@ -475,8 +476,8 @@ Nach erster Durchsicht kam Detail-Feedback zu Layout/Styling, direkt in Phase 8 
   validiert die Sortierspalte gegen eine feste Liste (`code`/`name_de`/`name_en`), Fallback `code` ASC.
 - **Zeilen-Buttons farblich vereinheitlicht** (`athletes/index`, `clubs/index`, `classifiers/index`,
   `nations/index`): Bearbeiten-Icon (Stift) durchgängig `text-amber-500!`, WPS-Analyse-Icon (Chart) `text-violet-500!`,
-  Löschen-Icon (Mülleimer) `text-red-500!` (war schon vorhanden, aber ohne `!` — siehe Fund unten), Anzeigen-Icon
-  (Auge) bleibt neutral (Ausgangspunkt, gegen den die anderen Farben abstechen). Feste Utility-Klasse ohne
+  Löschen-Icon (Mülleimer) `text-red-500!` (war schon vorhanden, aber ohne `!` — siehe Fund unten), Anzeigen-Icon (Auge)
+  bleibt neutral (Ausgangspunkt, gegen den die anderen Farben abstechen). Feste Utility-Klasse ohne
   `dark:`-Variante — dieselbe Farbe in Hell- und Dunkelmodus.
 
   **Fund (Rückmeldung "Buttons sind alle weiß oder schwarz"):** `flux:button variant="ghost"` setzt selbst
@@ -506,24 +507,24 @@ Dev-Server bestätigt, dass `.flex{display:flex}` etc. korrekt kompiliert sind �
 
 ## Phase 9 — Wettkämpfe & Meldungen — **abgeschlossen**
 
-Umbau von `meets`, `entries`, `results` und `club-entries` (Vereins-Meldewesen) nach dem in Phase 8 etablierten
-Muster: statische Dropdowns → `flux:select variant="listbox"` (+ `searchable` bei langen/DB-gespeisten Listen wie
-Nation/Athlet/Club/Wettkampf), reine Einzel-Flags → `flux:switch`, Zeilen-Buttons farblich vereinheitlicht
-(Bearbeiten `text-amber-500!`, Löschen `text-red-500!`), Filtern-Buttons `variant="primary"` + `ml-auto`.
+Umbau von `meets`, `entries`, `results` und `club-entries` (Vereins-Meldewesen) nach dem in Phase 8 etablierten Muster:
+statische Dropdowns → `flux:select variant="listbox"` (+ `searchable` bei langen/DB-gespeisten Listen wie
+Nation/Athlet/Club/Wettkampf), reine Einzel-Flags → `flux:switch`, Zeilen-Buttons farblich vereinheitlicht (Bearbeiten
+`text-amber-500!`, Löschen `text-red-500!`), Filtern-Buttons `variant="primary"` + `ml-auto`.
 
-| Datei | Änderung |
-|---|---|
-| `meets/index.blade.php` | Bahnlänge-Filter → `listbox`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt |
-| `meets/form.blade.php` | Nation (searchable), Bahnlänge, Zeitnahme, Meldetyp, Cup, Richtzeitenliste, WPS-Version → `listbox`; `is_open`/`is_published`/`wps_approved` → `flux:switch` |
-| `meets/show.blade.php` | Disziplin-Zeilen-Buttons eingefärbt |
-| `entries/index.blade.php` | Wettkampf-Filter → `listbox searchable`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt |
-| `entries/form.blade.php` | Disziplin (mit `flux:select.group` statt `optgroup`), Athlet, Club, Kurs, Status → `listbox` (+searchable) |
-| `entries/edit.blade.php` | Club, Kurs, Status → `listbox` (+searchable) |
-| `results/index.blade.php` | Punkteversion, Wettkampf-Filter, Status-Filter → `listbox` (+searchable); Filtern-Button `ml-auto`+primary; Bearbeiten-Icon eingefärbt |
-| `results/form.blade.php` | Disziplin, Athlet, Club, Status → `listbox` (+searchable); WR/ER/NR-Checkboxen → `flux:switch` |
-| `club-entries/index.blade.php`, `index-relay.blade.php` | Zeilen-Buttons eingefärbt |
-| `club-entries/edit.blade.php` | Kurs-Select → `listbox` |
-| `app/Http/Controllers/ResultController.php` | Bug-Fix (siehe unten) |
+| Datei                                                   | Änderung                                                                                                                                                     |
+|---------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `meets/index.blade.php`                                 | Bahnlänge-Filter → `listbox`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt                                                                    |
+| `meets/form.blade.php`                                  | Nation (searchable), Bahnlänge, Zeitnahme, Meldetyp, Cup, Richtzeitenliste, WPS-Version → `listbox`; `is_open`/`is_published`/`wps_approved` → `flux:switch` |
+| `meets/show.blade.php`                                  | Disziplin-Zeilen-Buttons eingefärbt                                                                                                                          |
+| `entries/index.blade.php`                               | Wettkampf-Filter → `listbox searchable`; Filtern-Button `ml-auto`+primary; Zeilen-Buttons eingefärbt                                                         |
+| `entries/form.blade.php`                                | Disziplin (mit `flux:select.group` statt `optgroup`), Athlet, Club, Kurs, Status → `listbox` (+searchable)                                                   |
+| `entries/edit.blade.php`                                | Club, Kurs, Status → `listbox` (+searchable)                                                                                                                 |
+| `results/index.blade.php`                               | Punkteversion, Wettkampf-Filter, Status-Filter → `listbox` (+searchable); Filtern-Button `ml-auto`+primary; Bearbeiten-Icon eingefärbt                       |
+| `results/form.blade.php`                                | Disziplin, Athlet, Club, Status → `listbox` (+searchable); WR/ER/NR-Checkboxen → `flux:switch`                                                               |
+| `club-entries/index.blade.php`, `index-relay.blade.php` | Zeilen-Buttons eingefärbt                                                                                                                                    |
+| `club-entries/edit.blade.php`                           | Kurs-Select → `listbox`                                                                                                                                      |
+| `app/Http/Controllers/ResultController.php`             | Bug-Fix (siehe unten)                                                                                                                                        |
 
 ### `flux:select.group` statt `optgroup`
 
@@ -531,33 +532,33 @@ Nation/Athlet/Club/Wettkampf), reine Einzel-Flags → `flux:switch`, Zeilen-Butt
 `variant="listbox"` (custom `ui-select`-Element statt echtem `<select>`) existiert dafür ein eigenes Flux-Pro-Pendant:
 `<flux:select.group label="…">…</flux:select.group>`, das intern per `componentExists('select.variants.' . $variant)`
 erkennt, dass es innerhalb eines Nicht-Default-Varianten-Selects steht, und automatisch die passende (custom) Gruppen-
-Darstellung rendert (Trennlinie + Label, blendet sich selbst aus, wenn keine sichtbare Option enthalten ist). Funktioniert
-identisch zu `flux:select.option` außerhalb von Livewire.
+Darstellung rendert (Trennlinie + Label, blendet sich selbst aus, wenn keine sichtbare Option enthalten ist).
+Funktioniert identisch zu `flux:select.option` außerhalb von Livewire.
 
 ### Bewusst NICHT umgestellt: Alpine-`x-model`-gebundene Selects
 
-`club-entries/create.blade.php` (Einzelmeldung) und `club-entries/create-relay.blade.php` (Staffelmeldung) binden
-ihre Event-/Athlet-/Kurs-Selects über `x-model` + `@change` an Alpine-Komponenten (`singleEntryForm`/`relayEntryForm`
+`club-entries/create.blade.php` (Einzelmeldung) und `club-entries/create-relay.blade.php` (Staffelmeldung) binden ihre
+Event-/Athlet-/Kurs-Selects über `x-model` + `@change` an Alpine-Komponenten (`singleEntryForm`/`relayEntryForm`
 aus den zugehörigen `.js`-Dateien), die daraus per AJAX Folgezustand nachladen (verfügbare Athleten, Bestzeiten). Ob
 `variant="listbox"` (ein Custom-Element, das Wert-Änderungen anders auslöst als ein natives `<select>`) mit diesem
 bereits produktiv genutzten Zwei-Wege-Datenfluss zuverlässig zusammenspielt, ließe sich nur per Browser-Test mit
-funktionierendem CSS zuverlässig verifizieren (Sandbox-Einschränkung, siehe frühere Phasen) — das Risiko einer
-stillen Regression in einem von echten Vereinen genutzten Meldeformular wurde als zu hoch bewertet. Bewusst als
-Ausnahme stehen gelassen (default `flux:select`), analog zur dokumentierten Kombobox-Ausnahme aus Phase 7/Runde 2.
-Ebenso unangetastet: `club-entries/pick-meet.blade.php`s nativer Vereins-Umschalter (kein Flux-Select, `onchange`
+funktionierendem CSS zuverlässig verifizieren (Sandbox-Einschränkung, siehe frühere Phasen) — das Risiko einer stillen
+Regression in einem von echten Vereinen genutzten Meldeformular wurde als zu hoch bewertet. Bewusst als Ausnahme stehen
+gelassen (default `flux:select`), analog zur dokumentierten Kombobox-Ausnahme aus Phase 7/Runde 2. Ebenso unangetastet:
+`club-entries/pick-meet.blade.php`s nativer Vereins-Umschalter (kein Flux-Select, `onchange`
 navigiert direkt per JS) und `club-entries/edit-relay.blade.php`s Kurs-Select (`x-model="entryCourse"`).
 
 ### Bug-Fund: Rekord-Flags gingen beim Abhaken nicht verloren — wurden gar nicht zurückgesetzt
 
 Beim Umstellen der WR/ER/NR-Checkboxen auf `flux:switch` fiel in `ResultController::validateResult()` auf: Die
 Validierungsregel `'is_world_record' => 'boolean'` (ohne `sometimes`) nimmt das Feld nur dann ins `$validated`-Array
-auf, wenn der Request es überhaupt enthält. Sowohl eine native, nicht angehakte Checkbox als auch ein nicht
-aktivierter `flux:switch` senden beim Submit **gar keinen Wert** (kein Pflichtfeld-Fallback) — das Feld fehlt dann
-komplett in `$validated`, und `$result->update(...)`/`Result::create(...)` lässt einen zuvor gesetzten Wert
-unverändert. Ergebnis: Ein bereits als Weltrekord markiertes Ergebnis ließ sich über das Formular **nicht** wieder
-entmarkieren. Vorher bestehender Fehler, unabhängig vom UI-Umbau selbst entdeckt (identisches Verhalten hätte auch
-mit der alten `flux:checkbox` bestanden) — gemeldet und in derselben Phase mitbehoben, da direkt im bearbeiteten
-Feld: `$validated['is_world_record'] = $request->boolean('is_world_record')` (analog zum bereits korrekten Muster in
+auf, wenn der Request es überhaupt enthält. Sowohl eine native, nicht angehakte Checkbox als auch ein nicht aktivierter
+`flux:switch` senden beim Submit **gar keinen Wert** (kein Pflichtfeld-Fallback) — das Feld fehlt dann komplett in
+`$validated`, und `$result->update(...)`/`Result::create(...)` lässt einen zuvor gesetzten Wert unverändert. Ergebnis:
+Ein bereits als Weltrekord markiertes Ergebnis ließ sich über das Formular **nicht** wieder entmarkieren. Vorher
+bestehender Fehler, unabhängig vom UI-Umbau selbst entdeckt (identisches Verhalten hätte auch mit der alten
+`flux:checkbox` bestanden) — gemeldet und in derselben Phase mitbehoben, da direkt im bearbeiteten Feld:
+`$validated['is_world_record'] = $request->boolean('is_world_record')` (analog zum bereits korrekten Muster in
 `MeetController::store()`/`update()`), ebenso für `is_european_record`/`is_national_record`.
 
 **Tests**: `composer test` (volle Suite) — 1387 Tests, weiterhin grün, inkl. `composer lint:check`. Zusätzlich
@@ -566,120 +567,121 @@ Feld: `$validated['is_world_record'] = $request->boolean('is_world_record')` (an
 
 ### Design-Feedback-Nachtrag zu Phase 9
 
-- **`meets/form.blade.php` war zu lang** (Rückmeldung: "Beim erstellen eines neuen Wettkampfes... ist das Formular
-  zu lange"). Umgebaut auf `flux:tab.group` mit drei Reitern für Admins — **Grunddaten**, **Öffentlichkeit & WPS**,
+- **`meets/form.blade.php` war zu lang** (Rückmeldung: "Beim erstellen eines neuen Wettkampfes... ist das Formular zu
+  lange"). Umgebaut auf `flux:tab.group` mit drei Reitern für Admins — **Grunddaten**, **Öffentlichkeit & WPS**,
   **Punkteberechnung** (dieselbe eigene Karte wie vorher, jetzt als dritter Tab statt zweite Karte darunter). Für
-  Nicht-Admins (die nur die Grunddaten-Felder sehen, keine Cup-/WPS-/Sichtbarkeits-Verwaltung) lohnen sich Tabs mit
-  nur einem sichtbaren Reiter nicht — dort bleibt es bei der einfachen Karte ohne Tabs. Die Grunddaten-Felder wurden
-  dafür in ein Partial (`meets/_grunddaten-fields.blade.php`) ausgelagert, um Duplikation zwischen dem
-  Admin-Tab-Pfad und dem Nicht-Admin-Pfad zu vermeiden — analog zu `club-entries/_athlete-picker.blade.php` als
-  bereits bestehendem Partial-Muster im Projekt.
-- **Card-Breite vergrößert**: `max-w-2xl` → `max-w-3xl` (gleiche Breite wie `athletes/form.blade.php` seit
-  Phase 8 — einheitliche Formular-Breite für Tab-basierte Formulare).
+  Nicht-Admins (die nur die Grunddaten-Felder sehen, keine Cup-/WPS-/Sichtbarkeits-Verwaltung) lohnen sich Tabs mit nur
+  einem sichtbaren Reiter nicht — dort bleibt es bei der einfachen Karte ohne Tabs. Die Grunddaten-Felder wurden dafür
+  in ein Partial (`meets/_grunddaten-fields.blade.php`) ausgelagert, um Duplikation zwischen dem Admin-Tab-Pfad und dem
+  Nicht-Admin-Pfad zu vermeiden — analog zu `club-entries/_athlete-picker.blade.php` als bereits bestehendem
+  Partial-Muster im Projekt.
+- **Card-Breite vergrößert**: `max-w-2xl` → `max-w-3xl` (gleiche Breite wie `athletes/form.blade.php` seit Phase 8 —
+  einheitliche Formular-Breite für Tab-basierte Formulare).
 - Live im Browser geprüft (eingeloggt als Admin): alle drei Tabs vorhanden, Tab-Wechsel per Klick funktioniert
-  (`aria-selected` wechselt korrekt, inaktive Panels werden `hidden`), AUT-Vorbelegung bei Nation funktioniert
-  weiterhin innerhalb des Tab-Panels, `max-w-3xl` korrekt angewendet (kein `max-w-2xl` mehr im DOM). `composer test`
+  (`aria-selected` wechselt korrekt, inaktive Panels werden `hidden`), AUT-Vorbelegung bei Nation funktioniert weiterhin
+  innerhalb des Tab-Panels, `max-w-3xl` korrekt angewendet (kein `max-w-2xl` mehr im DOM). `composer test`
   weiterhin grün (1387 Tests) + `composer lint:check`.
 
 ### Zweiter Design-Feedback-Nachtrag zu Phase 9 (nach `npm run dev`-Test)
 
 - **`meets/index.blade.php`**: Filterzeile brach um, weil die Feldbreiten (anders als bei Athleten/Vereine/
-  Klassifizierer) nie auf das schmalere Phase-8-Maß gebracht wurden. Suche `w-64`→`w-44`, Bahnlänge `w-40`→`w-36`,
-  Jahr `w-28`→`w-24`.
-- **`swim-events/form.blade.php` (Disziplin anlegen/bearbeiten) in Phase 9 übersehen** (falscher Verzeichnisname
-  bei der Dateisuche — liegt unter `swim-events/`, nicht `events/`). Jetzt nachgezogen: Runde, Geschlecht, Zeitnahme
-  → `listbox`; Schwimmstil → `listbox` mit `flux:select.group` statt `optgroup` (Kategorien Standard/Freiwasser
-  etc.).
+  Klassifizierer) nie auf das schmalere Phase-8-Maß gebracht wurden. Suche `w-64`→`w-44`, Bahnlänge `w-40`→`w-36`, Jahr
+  `w-28`→`w-24`.
+- **`swim-events/form.blade.php` (Disziplin anlegen/bearbeiten) in Phase 9 übersehen** (falscher Verzeichnisname bei der
+  Dateisuche — liegt unter `swim-events/`, nicht `events/`). Jetzt nachgezogen: Runde, Geschlecht, Zeitnahme →
+  `listbox`; Schwimmstil → `listbox` mit `flux:select.group` statt `optgroup` (Kategorien Standard/Freiwasser etc.).
 - **Pflichtfeld-Sternchen rot markiert**: `<span class="text-red-500 dark:text-red-400">*</span>` statt reinem
   Text-Sternchen — nachgezogen in allen bereits umgebauten Formularen (`athletes/form`, `athletes/show`,
   `clubs/form`, `classifiers/form`, `meets/_grunddaten-fields`, `swim-events/form`, `club-entries/create(-relay)`)
   sowie ergänzt, wo `required`-Felder bislang **gar kein** Sternchen hatten (`entries/form`, `entries/edit`,
-  `results/form` — bei Athlet/Club im Ergebnis-Formular nur im Anlege-Fall, da beim Bearbeiten ein deaktiviertes
-  Feld ohne Pflicht-Semantik angezeigt wird: `@unless(isset($result))`).
+  `results/form` — bei Athlet/Club im Ergebnis-Formular nur im Anlege-Fall, da beim Bearbeiten ein deaktiviertes Feld
+  ohne Pflicht-Semantik angezeigt wird: `@unless(isset($result))`).
 - **`flux:select.group`-Gruppenüberschriften** (z. B. Schwimmstil-Kategorien, Session-Gruppen in
   `entries/form.blade.php`) hatten mit `text-zinc-500`/`dark:text-zinc-300` zu wenig Kontrast. Die Flux-Pro-Vorlage
   reicht kein `class`-Attribut vom `flux:select.group`-Aufruf an das Label-Div durch (nur an den äußeren Wrapper) —
   daher globaler CSS-Override in `resources/css/app.css`: `[data-flux-option-group] > div[aria-hidden='true']`
-  auf `!text-blue-600`/`dark:!text-blue-400`. Per `curl` gegen den Vite-Dev-Server verifiziert, dass die Regel
-  korrekt kompiliert (`color: var(--color-blue-600) !important` bzw. `--color-blue-400` im `.dark`-Zweig) — im
-  Sandbox-Browser selbst nicht sichtbar prüfbar, da dieser (bekannte Einschränkung, siehe frühere Phasen) gar keine
-  Assets vom Vite-Dev-Server auf Port 5173 lädt (`read_network_requests` zeigt für `app.css` keine einzige
-  Anfrage).
+  auf `!text-blue-600`/`dark:!text-blue-400`. Per `curl` gegen den Vite-Dev-Server verifiziert, dass die Regel korrekt
+  kompiliert (`color: var(--color-blue-600) !important` bzw. `--color-blue-400` im `.dark`-Zweig) — im Sandbox-Browser
+  selbst nicht sichtbar prüfbar, da dieser (bekannte Einschränkung, siehe frühere Phasen) gar keine Assets vom
+  Vite-Dev-Server auf Port 5173 lädt (`read_network_requests` zeigt für `app.css` keine einzige Anfrage).
 - **Bug: "Meldungen"-Button auf `meets/show.blade.php` führte bei Admins zu 400 "Bitte einen Verein auswählen"** —
   `ClubEntryController::userClub()` verlangt für Admins zwingend `?club_id=`, aber der Link von der
-  Wettkampf-Detailseite übergab keins (anders als der Weg über `pick-meet.blade.php`, die eigene
-  Admin-Vereinsauswahl hat). Fix: neue private Methode `clubChooserView()` in `ClubEntryController`, aufgerufen am
-  Anfang von `index()` und `indexRelay()` — zeigt bei fehlendem `club_id` (nur für Admins) eine neue, einfache
-  Auswahlseite (`club-entries/choose-club.blade.php`, `flux:select variant="listbox" searchable`) statt des
-  Fehlers; Club-User sind nicht betroffen (ihr Verein kommt ohnehin aus `auth()->user()->club_id`). Live im Browser
-  end-to-end geprüft: `/meets/182/club-entries` zeigt jetzt die Auswahlseite, `/meets/182/club-entries?club_id=43`
+  Wettkampf-Detailseite übergab keins (anders als der Weg über `pick-meet.blade.php`, die eigene Admin-Vereinsauswahl
+  hat). Fix: neue private Methode `clubChooserView()` in `ClubEntryController`, aufgerufen am Anfang von `index()` und
+  `indexRelay()` — zeigt bei fehlendem `club_id` (nur für Admins) eine neue, einfache Auswahlseite
+  (`club-entries/choose-club.blade.php`, `flux:select variant="listbox" searchable`) statt des Fehlers; Club-User sind
+  nicht betroffen (ihr Verein kommt ohnehin aus `auth()->user()->club_id`). Live im Browser end-to-end geprüft:
+  `/meets/182/club-entries` zeigt jetzt die Auswahlseite, `/meets/182/club-entries?club_id=43`
   lädt korrekt die Meldungsliste.
-- **`meets/show.blade.php` Kopfbereich umgebaut**: Überschrift + Metazeile jetzt in eigener Zeile über volle
-  Breite (vorher neben dem Zurück-Pfeil, drängte bei langen Namen). Alle Aktions-"Menüpunkte" von
-  `variant="ghost"` auf `variant="filled"` (sichtbarer Button-Hintergrund statt reinem Hover-Text) — inklusive
-  eines neuen "Zurück"-Buttons (Text statt nur Pfeil-Icon) als erstes Element derselben Button-Leiste, restliche
-  Buttons per `ml-auto`-Wrapper rechtsbündig.
+- **`meets/show.blade.php` Kopfbereich umgebaut**: Überschrift + Metazeile jetzt in eigener Zeile über volle Breite
+  (vorher neben dem Zurück-Pfeil, drängte bei langen Namen). Alle Aktions-"Menüpunkte" von
+  `variant="ghost"` auf `variant="filled"` (sichtbarer Button-Hintergrund statt reinem Hover-Text) — inklusive eines
+  neuen "Zurück"-Buttons (Text statt nur Pfeil-Icon) als erstes Element derselben Button-Leiste, restliche Buttons per
+  `ml-auto`-Wrapper rechtsbündig.
 
 **Nicht in dieser Runde behoben (siehe Rückmeldung/ToDo-Triage):**
+
 - Status-Spalte in `meets/index` (I/E/R-Schema) — eigenständiges neues Feature, eigene Phase.
 - Tooltip/Popover statt Info-Text bei "Schwimmer/Staffel" und "Sport-Klassen" — offene Design-Frage, noch keine
   Entscheidung getroffen.
 
-**Tests**: `composer test` (1387 Tests) + `composer lint:check` weiterhin grün nach allen Änderungen dieses
-Nachtrags. `php artisan view:cache` zur Kompilierprüfung. Live im Browser (eingeloggt als Admin) verifiziert:
+**Tests**: `composer test` (1387 Tests) + `composer lint:check` weiterhin grün nach allen Änderungen dieses Nachtrags.
+`php artisan view:cache` zur Kompilierprüfung. Live im Browser (eingeloggt als Admin) verifiziert:
 Disziplin-Formular-Dropdowns + Pflichtfeld-Sternchen, meets/show-Kopfbereich-Struktur (Zurück-Button in der Leiste,
 `filled`-Klassen bestätigt), kompletter Meldungen-Flow über die neue Vereinsauswahl.
 
 ### PhpStorm-Inspektionen behoben (nach Phase 9)
 
-- **`ClubEntryController.php`**: `orderBy('start_date')` → `oldest('start_date')` an zwei Stellen
-  (`pickMeet()`, `pickMeetRelay()`) — Laravel-Idea-Hinweis "orderBy() call can be simplified".
+- **`ClubEntryController.php`**: `orderBy('start_date')` → `oldest('start_date')` an zwei Stellen (`pickMeet()`,
+  `pickMeetRelay()`) — Laravel-Idea-Hinweis "orderBy () call can be simplified".
 - **`club-entries/create(-relay).blade.php`, `edit(-relay).blade.php`**: `x-data="funcName({ … {{ old(...) }} … })"`
   mit über mehrere Zeilen verteilten Blade-Ausdrücken *innerhalb* eines JS-Objektliterals ließ sich von PhpStorms
   JS-Parser nicht mehr als zusammenhängender Ausdruck lesen ("Expression statement is not assignment or call") —
-  kaskadierte so weit, dass sogar spätere, damit gar nicht zusammenhängende `@php`/`@endphp`-Blöcke im selben File
-  als kaputt gemeldet wurden ("Undefined function 'endphp'", "Element is not exported"). Fix: Konfiguration als
-  **ein** zusammenhängender JSON-Wert per `@json($config)` übergeben (Muster aus `meets/form.blade.php`s
+  kaskadierte so weit, dass sogar spätere, damit gar nicht zusammenhängende `@php`/`@endphp`-Blöcke im selben File als
+  kaputt gemeldet wurden ("Undefined function 'endphp'", "Element is not exported"). Fix: Konfiguration als **ein**
+  zusammenhängender JSON-Wert per `@json($config)` übergeben (Muster aus `meets/form.blade.php`s
   `meetPointSystems(@json($wpsAlpineConfig))`).
 
   **Dabei zweiten, echten (nicht nur IDE-kosmetischen) Bug gefunden:** `@json()` kodiert nur die *Inhalte* von
   JSON-Strings HTML/JS-sicher (`JSON_HEX_QUOT` etc.), **nicht** die strukturellen Anführungszeichen von JSON selbst
-  (`{"key":"value"}` bleibt `"`-delimitiert). In einem **doppelt** gequoteten `x-data="…@json(...)…"`-Attribut
-  bricht der Browser das HTML-Attribut daher an der ersten literalen `"` ab — der Rest der Konfiguration (fast alles)
-  ging verloren, ohne Fehler in der Konsole (kein Parse-Error, einfach ein kürzeres, falsches Attribut). Betraf
-  **auch das bereits bestehende** `meets/form.blade.php` (`x-data="meetPointSystems(@json(...))"`, seit Phase 9) —
-  nie aufgefallen, weil in diesem Sandbox-Browser generell keine JS-Assets laden (siehe frühere Phasen) und die
+  (`{"key":"value"}` bleibt `"`-delimitiert). In einem **doppelt** gequoteten `x-data="…@json(...)…"`-Attribut bricht
+  der Browser das HTML-Attribut daher an der ersten literalen `"` ab — der Rest der Konfiguration (fast alles)
+  ging verloren, ohne Fehler in der Konsole (kein Parse-Error, einfach ein kürzeres, falsches Attribut). Betraf **auch
+  das bereits bestehende** `meets/form.blade.php` (`x-data="meetPointSystems(@json(...))"`, seit Phase 9) — nie
+  aufgefallen, weil in diesem Sandbox-Browser generell keine JS-Assets laden (siehe frühere Phasen) und die
   Struktur-Prüfung sich bislang auf DOM-Refs/Attribut-Präsenz beschränkte, nicht auf den vollständigen Attribut-Wert.
   Per `curl` (echter eingeloggter Request, nicht der Sandbox-Browser) nachgewiesen: `x-data="singleEntryForm({"` —
-  abgeschnitten nach der ersten Struktur-Anführung. Fix: **einfach** gequotetes Attribut (`x-data='funcName(@json(...))'`),
-  analog zum bereits korrekt gelösten `admin/documents/form.blade.php` (`x-data='documentForm({ …, candidates: @json(...) })'`).
-  Nach dem Fix per `curl` und im Browser (`getAttribute('x-data')`, `new Function()`-Syntaxcheck) als vollständig und
-  syntaktisch gültig verifiziert.
-- **`meets/index.blade.php`, `clubs/index.blade.php`**: Lösch-Bestätigung nutzte `x-data @submit.prevent="if(confirm(...)) $el.submit()"`
+  abgeschnitten nach der ersten Struktur-Anführung. Fix: **einfach** gequotetes Attribut
+  (`x-data='funcName(@json(...))'`), analog zum bereits korrekt gelösten `admin/documents/form.blade.php`
+  (`x-data='documentForm({ …, candidates: @json(...) })'`). Nach dem Fix per `curl` und im Browser
+  (`getAttribute('x-data')`, `new Function()`-Syntaxcheck) als vollständig und syntaktisch gültig verifiziert.
+- **`meets/index.blade.php`, `clubs/index.blade.php`**: Lösch-Bestätigung nutzte
+  `x-data @submit.prevent="if(confirm(...)) $el.submit()"`
   (leeres `x-data`, `$el.submit()` inline in der Direktive) — PhpStorm kann `$el` dort nicht als `HTMLFormElement`
-  auflösen ("Unresolved function or method submit()"). Auf das im selben Projekt bereits etablierte Muster
-  umgestellt (`meets/show.blade.php`, `club-entries/index.blade.php`): `x-data="{ submit() { if (confirm(...)) this.$el.submit() } }" @submit.prevent="submit()"`.
+  auflösen ("Unresolved function or method submit ()"). Auf das im selben Projekt bereits etablierte Muster umgestellt
+  (`meets/show.blade.php`, `club-entries/index.blade.php`):
+  `x-data="{ submit() { if (confirm(...)) this.$el.submit() } }" @submit.prevent="submit()"`.
 - **`results/form.blade.php`**: `<flux:label>Athlet @unless(isset($result))<span>*</span>@endunless</flux:label>`
-  direkt gefolgt von `@if(isset($result))…@else…@endif` ließ PhpStorms Kontrollfluss-Analyse fälschlich "Condition
-  is always false" für die zweite, eigentlich unabhängige `isset($result)`-Prüfung melden. Umgebaut: Label und
-  Inhalt (inkl. Sternchen nur im Neuanlage-Zweig) jeweils **innerhalb** desselben `@if(isset($result))…@else…@endif`
+  direkt gefolgt von `@if(isset($result))…@else…@endif` ließ PhpStorms Kontrollfluss-Analyse fälschlich "Condition is
+  always false" für die zweite, eigentlich unabhängige `isset($result)`-Prüfung melden. Umgebaut: Label und Inhalt
+  (inkl. Sternchen nur im Neuanlage-Zweig) jeweils **innerhalb** desselben `@if(isset($result))…@else…@endif`
   — nur noch eine `isset($result)`-Prüfung statt zwei benachbarter, gleichwertiger.
 
 **Tests**: `composer test` (1387 Tests) + `composer lint:check` weiterhin grün nach allen Fixes.
 
 ### Nachtrag: verbleibende PhpStorm-Fehler in create-relay/edit-relay
 
-Der `@json()`-Fix (siehe oben) hat die Kaskade nicht vollständig behoben — die Fehler ("Expected: )", "Expected: }
-or ]", "Undefined function 'endphp'") saßen tatsächlich an einer eigenen, unabhängigen Stelle: einem
-`@php ... @endphp`-Block, der `$genderLabel`/`$gLabel` per `match()` berechnet, **innerhalb** einer `<option>` in
-einer `@foreach`-Schleife (`create-relay.blade.php`, `edit-relay.blade.php`) bzw. innerhalb eines `<span>` in einer
-`@foreach`-Schleife (`index-relay.blade.php`, dort proaktiv mitgefixt — noch nicht gemeldet, aber identisches
-Muster). PhpStorms Blade-Parser kommt mit einem eigenständigen `@php`/`@endphp`-Anweisungsblock so tief verschachtelt
+Der `@json()`-Fix (siehe oben) hat die Kaskade nicht vollständig behoben — die Fehler ("Expected: )", "Expected: } or ]
+", "Undefined function 'endphp'") saßen tatsächlich an einer eigenen, unabhängigen Stelle: einem
+`@php ... @endphp`-Block, der `$genderLabel`/`$gLabel` per `match()` berechnet, **innerhalb** einer `<option>` in einer
+`@foreach`-Schleife (`create-relay.blade.php`, `edit-relay.blade.php`) bzw. innerhalb eines `<span>` in einer
+`@foreach`-Schleife (`index-relay.blade.php`, dort proaktiv mitgefixt — noch nicht gemeldet, aber identisches Muster).
+PhpStorms Blade-Parser kommt mit einem eigenständigen `@php`/`@endphp`-Anweisungsblock so tief verschachtelt
 (Component-Tag → foreach → option/span) offenbar nicht zurecht.
 
-Fix: `match()` ist ein PHP-**Ausdruck** (kein Statement) — lässt sich direkt in eine `{{ }}`-Echo-Anweisung
-schreiben, ganz ohne separaten `@php`/`@endphp`-Block. Genau dieses Muster wird an anderen Stellen im Projekt
-bereits so verwendet (`meets/show.blade.php`, `results/index.blade.php`: `{{ match($x->gender) { 'M' => 'Herren',
+Fix: `match()` ist ein PHP- **Ausdruck** (kein Statement) — lässt sich direkt in eine `{{ }}`-Echo-Anweisung schreiben,
+ganz ohne separaten `@php`/`@endphp`-Block. Genau dieses Muster wird an anderen Stellen im Projekt bereits so verwendet
+(`meets/show.blade.php`, `results/index.blade.php`: `{{ match($x->gender) { 'M' => 'Herren',
 … } }}`). Alle drei Stellen umgebaut:
 
 ```blade
@@ -691,19 +693,19 @@ bereits so verwendet (`meets/show.blade.php`, `results/index.blade.php`: `{{ mat
 } }})
 ```
 
-Live im Browser geprüft (`/meets/1/relay-entries/create?club_id=43`, echte Staffel-Disziplinen mit Gender "A" →
-korrekt "(Offen)" gerendert). `composer test` (1387) + `composer lint:check` weiterhin grün.
+Live im Browser geprüft (`/meets/1/relay-entries/create?club_id=43`, echte Staffel-Disziplinen mit Gender "A" → korrekt
+"(Offen)" gerendert). `composer test` (1387) + `composer lint:check` weiterhin grün.
 
 ### Dritter Design-Feedback-Nachtrag zu Phase 9
 
-- **Kopfbereiche vereinheitlicht** (Überschrift über volle Breite, Zurück-Button unten links in eigener
-  Button-Leiste, analog zu `meets/show.blade.php`): `club-entries/choose-club.blade.php`,
-  `club-entries/index.blade.php` (zusätzlich: "Staffelmeldungen" + "Neue Meldung" jetzt per `ml-auto` rechtsbündig
-  statt links neben der Überschrift gequetscht), `club-entries/index-relay.blade.php` (identisches Muster,
-  proaktiv mitgezogen — hatte bislang gar keinen Zurück-Button), `club-entries/create.blade.php`,
-  `club-entries/create-relay.blade.php`, `club-entries/edit.blade.php`, `club-entries/edit-relay.blade.php`.
-  Der Zurück-Link berücksichtigt jetzt überall `$clubParams` (Admin-`club_id` bleibt beim Zurückgehen erhalten,
-  vorher ging sie auf einigen dieser Seiten verloren und man landete wieder auf der Vereinsauswahl).
+- **Kopfbereiche vereinheitlicht** (Überschrift über volle Breite, Zurück-Button unten links in eigener Button-Leiste,
+  analog zu `meets/show.blade.php`): `club-entries/choose-club.blade.php`,
+  `club-entries/index.blade.php` (zusätzlich: "Staffelmeldungen" + "Neue Meldung" jetzt per `ml-auto` rechtsbündig statt
+  links neben der Überschrift gequetscht), `club-entries/index-relay.blade.php` (identisches Muster, proaktiv
+  mitgezogen — hatte bislang gar keinen Zurück-Button), `club-entries/create.blade.php`,
+  `club-entries/create-relay.blade.php`, `club-entries/edit.blade.php`, `club-entries/edit-relay.blade.php`. Der
+  Zurück-Link berücksichtigt jetzt überall `$clubParams` (Admin-`club_id` bleibt beim Zurückgehen erhalten, vorher ging
+  sie auf einigen dieser Seiten verloren und man landete wieder auf der Vereinsauswahl).
 
 - **Bug gefunden und behoben: Athletenauswahl bei Einzelmeldungen lieferte nie einen Treffer.**
   `ClubEntryService::parseEventClasses()` castete die Sportklassen-Codes aus `swim_events.sport_classes`
@@ -712,32 +714,31 @@ korrekt "(Offen)" gerendert). `composer test` (1387) + `composer lint:check` wei
   Sportklassen-Abgleich, unabhängig von seiner tatsächlichen Klasse — exakt die gemeldete Meldung "Keine geeigneten
   Athleten gefunden". Der Docblock der Methode ging fälschlich von nackten Nummern ("1 2 9 10") aus; tatsächlich
   gespeichert werden die vollen Codes mit Kategorie-Präfix (passend zum Formularhinweis "z.B. S1 S2 S3" in
-  `swim-events/form.blade.php`). Fix: `preg_replace('/\D+/', '', $v)` vor dem Cast, entfernt den Buchstaben-Präfix.
-  Per `curl` gegen den echten, vom User angelegten Wettkampf ("LM Salzburg mit ÖBSV Cup 2026", `meet_id=182`)
-  end-to-end verifiziert — der AJAX-Endpunkt `eligible-athletes` liefert jetzt tatsächlich passende Athleten statt
-  einer leeren Liste. Neuer Regressionstest in `ClubEntryServiceTest.php` mit Kategorie-Präfix-Sportklassen
-  (vorher testeten alle Fälle nur mit nackten Nummern, deckte den Bug nie auf).
+  `swim-events/form.blade.php`). Fix: `preg_replace('/\D+/', '', $v)` vor dem Cast, entfernt den Buchstaben-Präfix. Per
+  `curl` gegen den echten, vom User angelegten Wettkampf ("LM Salzburg mit ÖBSV Cup 2026", `meet_id=182`)
+  end-to-end verifiziert — der AJAX-Endpunkt `eligible-athletes` liefert jetzt tatsächlich passende Athleten statt einer
+  leeren Liste. Neuer Regressionstest in `ClubEntryServiceTest.php` mit Kategorie-Präfix-Sportklassen (vorher testeten
+  alle Fälle nur mit nackten Nummern, deckte den Bug nie auf).
 
 - **`club-entries/create.blade.php`: Dropdowns umgestellt** (Disziplin, Athlet, Kurs → `flux:select
-  variant="listbox"`) — trotz aktiver `x-model`/`@change`-Bindung, entgegen der ursprünglichen Phase-9-Entscheidung,
-  auf ausdrücklichen Wunsch. Die Athleten-Auswahl bleibt weiterhin dynamisch per Alpine `x-for` über
-  `flux:select.option` befüllt (`eligibleAthletes`-Array aus dem AJAX-Response) — `flux:select.option` reicht
-  beliebige zusätzliche Attribute (`x-bind:value`, `x-text`) unverändert an das zugrundeliegende `<ui-option>`
+  variant="listbox"`) — trotz aktiver `x-model`/`@change`-Bindung, entgegen der ursprünglichen Phase-9-Entscheidung, auf
+  ausdrücklichen Wunsch. Die Athleten-Auswahl bleibt weiterhin dynamisch per Alpine `x-for` über
+  `flux:select.option` befüllt (`eligibleAthletes`-Array aus dem AJAX-Response) — `flux:select.option` reicht beliebige
+  zusätzliche Attribute (`x-bind:value`, `x-text`) unverändert an das zugrundeliegende `<ui-option>`
   durch (bestätigt im Blade-Quelltext von `flux-pro/.../select/option/variants/custom.blade.php`), strukturell im
   gerenderten HTML verifiziert. Flux Pros eigene Custom-Elemente feuern bewusst native `input`/`change`-Events für
   Framework-Interop (siehe `flux-pro/CLAUDE.md`), worauf Alpines `x-model` für Nicht-`<select>`-Elemente aufbaut —
-  spricht dafür, dass die Bindung funktioniert. **Nicht live end-to-end mit tatsächlicher Alpine-Ausführung
-  getestet**, da in diesem Sandbox-Browser grundsätzlich keine JS-Assets von Port 5173 laden (bekannte
-  Einschränkung). Der Nutzer hat eine eigene lokale Umgebung (`npm run dev`) und wurde gebeten, das Formular dort
-  zu prüfen.
+  spricht dafür, dass die Bindung funktioniert. **Nicht live end-to-end mit tatsächlicher Alpine-Ausführung getestet**,
+  da in diesem Sandbox-Browser grundsätzlich keine JS-Assets von Port 5173 laden (bekannte Einschränkung). Der Nutzer
+  hat eine eigene lokale Umgebung (`npm run dev`) und wurde gebeten, das Formular dort zu prüfen.
 - **`club-entries/create-relay.blade.php`, `edit-relay.blade.php`: Kurs-Dropdown ebenfalls auf `listbox`
   umgestellt** (nur `x-model`, kein AJAX-Seiteneffekt — risikoarm). Das **Staffel-Event-Dropdown in
   `create-relay.blade.php` bewusst NICHT umgestellt**: `relay-entry-form.js` liest den `relay_count` des gewählten
   Events über `this.$refs.eventSelect.selectedOptions[0].dataset.relayCount` — eine native-`<select>`-API
   (`.selectedOptions`). Bei `variant="listbox"` ist das zugrundeliegende Element ein `<ui-select>`
-  Custom-Element, nicht zwangsläufig mit derselben API kompatibel — ungeprüft ein konkretes Risiko einzugehen,
-  das eine zentrale Funktion (Staffelgröße ermitteln) bricht, wurde hier als zu hoch bewertet. Dokumentierte
-  Ausnahme, analog zur bereits bestehenden Kombobox-Ausnahme.
+  Custom-Element, nicht zwangsläufig mit derselben API kompatibel — ungeprüft ein konkretes Risiko einzugehen, das eine
+  zentrale Funktion (Staffelgröße ermitteln) bricht, wurde hier als zu hoch bewertet. Dokumentierte Ausnahme, analog zur
+  bereits bestehenden Kombobox-Ausnahme.
 
 **Tests**: `composer test` — 1388 Tests (neuer Regressionstest), `composer lint:check` grün. `php artisan
 view:cache` zur Kompilierprüfung. Live per `curl` (echter eingeloggter Request) gegen `meet_id=182` verifiziert:
@@ -749,10 +750,10 @@ AJAX-Endpunkt liefert jetzt Athleten; Kopfbereiche strukturell korrekt gerendert
   `describe()->group(...)`-Ketten auf file-level `uses()->group('club-entry-service')` verschoben (PhpStorm kennt
   `.group()` auf `describe()`s Rückgabetyp nicht — entspricht ohnehin der in CLAUDE.md vorgeschriebenen Konvention).
   Mehrere `expect()`-Aufrufe pro Test auf verkettete `->and()` umgestellt. Redundante Default-Wert-Argumente an
-  `makeAthlete_p5($club, 'M', ['S9'])`-Aufrufstellen entfernt (Default ist bereits `'M'`/`['S9']`). "Property 'id'
-  not found in $1|Closure|null" behoben durch `@return Collection<Athlete>` → `Collection<int, Athlete>` in
-  `ClubEntryService.php` (Illuminate-Collection-Generics brauchen zwei Typparameter — Stichprobe im Rest des
-  Projekts zeigt `Collection<int, Athlete>` durchgängig als Konvention, die zwei betroffenen Stellen in
+  `makeAthlete_p5($club, 'M', ['S9'])`-Aufrufstellen entfernt (Default ist bereits `'M'`/`['S9']`). "Property 'id' not
+  found in $1|Closure|null" behoben durch `@return Collection<Athlete>` → `Collection<int, Athlete>` in
+  `ClubEntryService.php` (Illuminate-Collection-Generics brauchen zwei Typparameter — Stichprobe im Rest des Projekts
+  zeigt `Collection<int, Athlete>` durchgängig als Konvention, die zwei betroffenen Stellen in
   `ClubEntryService.php` waren die einzige Abweichung).
 - **`swim-events/form.blade.php`**: Kopfbereich ebenfalls auf Überschrift-über-Zurück-Button umgestellt.
 - **Vereinheitlichte "Klasse unbekannt"-Beschriftung**: `edit-relay.blade.php` zeigte bei fehlender `relay_class`
@@ -760,69 +761,257 @@ AJAX-Endpunkt liefert jetzt Athleten; Kopfbereiche strukturell korrekt gerendert
   aber synchron bei jedem Speichern berechnet; `null` heißt entweder "noch keine Athleten zugeordnet" oder "ungültige
   Klassenkombination", nicht "wird gerade berechnet"). Auf "Klasse unbekannt" vereinheitlicht (wie bereits in
   `index-relay.blade.php`). Die Berechnung selbst (`ClubEntryController::computeRelayClass()` →
-  `RelayClassValidator::resolveRelayClass()`) war bereits korrekt verdrahtet und wird sowohl in `index-relay` als
-  auch `edit-relay` angezeigt — kein fehlendes Feature.
-- **Neue Komponente `<x-flag>`-Analogon: `<x-gender-icon :gender="…"/>`** (`resources/views/components/gender-icon.blade.php`):
-  einheitliches Symbol+Farbe (♂ blau / ♀ pink / ⚥ violett bei Mixed / ⚥ grau bei "Offen" oder unbekannt), Farbschema
-  wie bereits in `meets/show.blade.php` für Geschlecht-Badges (`M→blue, F→pink, sonst zinc`) etabliert. Ersetzt den
-  reinen (ungefärbten) Symbol-Ternary in `club-entries/index.blade.php`; neu eingesetzt für: Athlet-Geschlecht als
-  eigene Spalte in `club-entries/index.blade.php`, Event-Geschlecht in `club-entries/index-relay.blade.php`,
+  `RelayClassValidator::resolveRelayClass()`) war bereits korrekt verdrahtet und wird sowohl in `index-relay` als auch
+  `edit-relay` angezeigt — kein fehlendes Feature.
+- **Neue Komponente `<x-flag>`-Analogon: `<x-gender-icon :gender="…"/>`**
+  (`resources/views/components/gender-icon.blade.php`):
+  einheitliches Symbol+Farbe (♂ blau / ♀ pink / ⚥ violett bei Mixed / ⚥ grau bei "Offen" oder unbekannt), Farbschema wie
+  bereits in `meets/show.blade.php` für Geschlecht-Badges (`M→blue, F→pink, sonst zinc`) etabliert. Ersetzt den reinen
+  (ungefärbten) Symbol-Ternary in `club-entries/index.blade.php`; neu eingesetzt für: Athlet-Geschlecht als eigene
+  Spalte in `club-entries/index.blade.php`, Event-Geschlecht in `club-entries/index-relay.blade.php`,
   Mitglied-Geschlecht je Staffel-Athlet in `club-entries/index-relay.blade.php`.
-- **`club-entries/create-relay.blade.php`: Staffel-Event-Dropdown jetzt doch auf `listbox` umgestellt** — die
-  zuvor dokumentierte Blockade (`relay-entry-form.js` las `relay_count` über
-  `this.$refs.eventSelect.selectedOptions[0].dataset`, eine native-`<select>`-API) wurde behoben, statt die
-  Umstellung weiter aufzuschieben: `relay-entry-form.js` bekommt jetzt eine `events`-Map (`{event_id: relay_count}`)
+- **`club-entries/create-relay.blade.php`: Staffel-Event-Dropdown jetzt doch auf `listbox` umgestellt** — die zuvor
+  dokumentierte Blockade (`relay-entry-form.js` las `relay_count` über
+  `this.$refs.eventSelect.selectedOptions[0].dataset`, eine native-`<select>`-API) wurde behoben, statt die Umstellung
+  weiter aufzuschieben: `relay-entry-form.js` bekommt jetzt eine `events`-Map (`{event_id: relay_count}`)
   aus der PHP-Konfiguration mitgegeben (`$events->pluck('relay_count', 'id')` via `@json()`) und schlägt
   `relayCount` dort nach (`this.events[this.selectedEventId]`) statt im DOM zu lesen — funktioniert unabhängig vom
-  zugrundeliegenden Select-Markup. `data-relay-count`-Attribut und `x-ref="eventSelect"` dadurch überflüssig,
-  entfernt. `RelayEntryFormConfig` in `alpine-components.d.ts` um `events?: Record<string, number>` ergänzt. Per
+  zugrundeliegenden Select-Markup. `data-relay-count`-Attribut und `x-ref="eventSelect"` dadurch überflüssig, entfernt.
+  `RelayEntryFormConfig` in `alpine-components.d.ts` um `events?: Record<string, number>` ergänzt. Per
   `curl` verifiziert: die gerenderte Konfiguration enthält die korrekte `events`-Map.
-- **Drei neue Einträge in `docs/open-points.md`**: Status-Spalte in `meets/index` (I/E/R-Schema), Tooltip/Popover
-  statt Info-Text bei Disziplin-Formular-Hinweisen, Meldezeit bei Staffeln aus Athleten-Bestzeiten herleiten — alle
-  drei sind neue Features bzw. offene Design-Entscheidungen, keine Bugfixes, daher bewusst nicht in dieser Runde
-  umgesetzt.
+- **Drei neue Einträge in `docs/open-points.md`**: Status-Spalte in `meets/index` (I/E/R-Schema), Tooltip/Popover statt
+  Info-Text bei Disziplin-Formular-Hinweisen, Meldezeit bei Staffeln aus Athleten-Bestzeiten herleiten — alle drei sind
+  neue Features bzw. offene Design-Entscheidungen, keine Bugfixes, daher bewusst nicht in dieser Runde umgesetzt.
 
-**Tests**: `composer test` — 1388 Tests, `composer lint:check` grün. `php artisan view:cache` zur
-Kompilierprüfung. Konfiguration von `create-relay.blade.php` per `curl` gegen echten Wettkampf (`meet_id=1`)
+**Tests**: `composer test` — 1388 Tests, `composer lint:check` grün. `php artisan view:cache` zur Kompilierprüfung.
+Konfiguration von `create-relay.blade.php` per `curl` gegen echten Wettkampf (`meet_id=1`)
 verifiziert.
 
 ### Fünfter Design-Feedback-Nachtrag zu Phase 9
 
 - **Ursache für "Label-Abstand passt nicht" / "Eingabefelder nicht in einer Linie" gefunden**
-  (`swim-events/form.blade.php`, Schwimmstil+Distanz vs. Schwimmer/Staffel, Geschlecht vs.
-  Sport-Klassen): `flux:field` ist selbst `display:grid` (Label/Control/Description als eigene
-  Zeilen). Steht ein Feld ohne `flux:description` in derselben äußeren `grid-cols-*`-Zeile neben
-  einem MIT Description, stretcht CSS Grids Default (`align-items: stretch`) das kürzere Feld auf
-  die Höhe des längeren — die zusätzliche Höhe verteilt sich dabei auf seine eigenen `auto`-Zeilen
-  (Label UND Control bekommen beide etwas mehr Raum zugewiesen), wodurch Label und Eingabefeld
-  nicht mehr auf gleicher Höhe wie in den nicht gestreckten Nachbarspalten sitzen. Fix: globale
-  Regel `[data-flux-field]:not(ui-radio, ui-checkbox) { align-self: start; }` in `app.css` — Felder
-  bleiben jetzt immer oben an ihrer Grid-Zeile ausgerichtet, unabhängig von einer Description beim
-  Nachbarn. Betrifft potenziell jede `grid grid-cols-*`-Feldzeile im ganzen Projekt mit
-  ungleicher Description-Verteilung, nicht nur diese eine Stelle — global statt lokal gefixt.
+  (`swim-events/form.blade.php`, Schwimmstil+Distanz vs. Schwimmer/Staffel, Geschlecht vs. Sport-Klassen): `flux:field`
+  ist selbst `display:grid` (Label/Control/Description als eigene Zeilen). Steht ein Feld ohne `flux:description` in
+  derselben äußeren `grid-cols-*`-Zeile neben einem MIT Description, stretcht CSS Grids Default (`align-items: stretch`)
+  das kürzere Feld auf die Höhe des längeren — die zusätzliche Höhe verteilt sich dabei auf seine eigenen `auto`-Zeilen
+  (Label UND Control bekommen beide etwas mehr Raum zugewiesen), wodurch Label und Eingabefeld nicht mehr auf gleicher
+  Höhe wie in den nicht gestreckten Nachbarspalten sitzen. Fix: globale Regel
+  `[data-flux-field]:not(ui-radio, ui-checkbox) { align-self: start; }` in `app.css` — Felder bleiben jetzt immer oben
+  an ihrer Grid-Zeile ausgerichtet, unabhängig von einer Description beim Nachbarn. Betrifft potenziell jede
+  `grid grid-cols-*`-Feldzeile im ganzen Projekt mit ungleicher Description-Verteilung, nicht nur diese eine Stelle —
+  global statt lokal gefixt.
 
-- **Bug gefunden: Geschlechts-Icon bei Staffeln zeigte fälschlich "Offen" (grau) statt der
-  tatsächlichen Team-Zusammensetzung.** Ursache: Das Icon wurde aus `$relay->swimEvent->gender`
-  gespeist — das ist aber nur die *Zulassung* des Bewerbs (z. B. "A" = offen für alle
-  Geschlechter), nicht die tatsächliche Zusammensetzung der gemeldeten Staffel. Eine rein
-  männliche Staffel in einem offenen Bewerb zeigte dadurch grau ("Offen") statt blau ("Männer") —
-  wirkte wie ein CSS-Farbfehler, war aber eine falsche Datenquelle. Neue Methode
-  `RelayEntry::teamGender()` (`app/Models/RelayEntry.php`) leitet das Geschlecht stattdessen aus
-  den tatsächlichen Mitgliedern her, nach der vom User vorgegebenen Regel: rein männlich → Herren,
-  rein weiblich → Damen, jede andere Kombination bleibt Herren — außer bei exakt zwei Männern und
-  zwei Frauen, das gilt als Mixed. `null` (noch keine Mitglieder mit bekanntem Geschlecht) fällt
-  auf die Event-Zulassung zurück. `index-relay.blade.php` verwendet jetzt
+- **Bug gefunden: Geschlechts-Icon bei Staffeln zeigte fälschlich "Offen" (grau) statt der tatsächlichen
+  Team-Zusammensetzung.** Ursache: Das Icon wurde aus `$relay->swimEvent->gender`
+  gespeist — das ist aber nur die *Zulassung* des Bewerbs (z. B. "A" = offen für alle Geschlechter), nicht die
+  tatsächliche Zusammensetzung der gemeldeten Staffel. Eine rein männliche Staffel in einem offenen Bewerb zeigte
+  dadurch grau ("Offen") statt blau ("Männer") — wirkte wie ein CSS-Farbfehler, war aber eine falsche Datenquelle. Neue
+  Methode
+  `RelayEntry::teamGender()` (`app/Models/RelayEntry.php`) leitet das Geschlecht stattdessen aus den tatsächlichen
+  Mitgliedern her, nach der vom User vorgegebenen Regel: rein männlich → Herren, rein weiblich → Damen, jede andere
+  Kombination bleibt Herren — außer bei exakt zwei Männern und zwei Frauen, das gilt als Mixed. `null` (noch keine
+  Mitglieder mit bekanntem Geschlecht) fällt auf die Event-Zulassung zurück. `index-relay.blade.php` verwendet jetzt
   `$relay->teamGender() ?? $relay->swimEvent->gender`. 6 neue Tests in `RelayEntryTest.php`
-  (`describe('RelayEntry::teamGender', …)`), `makeAthlete()`-Testhelper um `$gender`-Parameter
-  erweitert. Per `curl` gegen echte Daten verifiziert (4 männliche Mitglieder → Icon jetzt blau
+  (`describe('RelayEntry::teamGender', …)`), `makeAthlete()`-Testhelper um `$gender`-Parameter erweitert. Per `curl`
+  gegen echte Daten verifiziert (4 männliche Mitglieder → Icon jetzt blau
   "Männer" statt grau "Offen").
-- **Farb-Klassen selbst waren nie das Problem** — per `curl` gegen den Vite-Dev-Server bestätigt,
-  dass `.text-blue-500`/`.text-pink-500`/`.text-violet-500`/`.text-zinc-400` korrekt kompiliert
-  sind und im gerenderten HTML auch korrekt angewendet werden; das grau wirkende Icon war fachlich
-  korrektes "Offen"-Grau für die falsche (Event- statt Team-)Datenquelle.
-- **`club-entries/index.blade.php`**: Geschlechts-Icon neben dem Bewerbsnamen vergrößert
-  (`text-xs` → `text-base`).
+- **Farb-Klassen selbst waren nie das Problem** — per `curl` gegen den Vite-Dev-Server bestätigt, dass `.text-blue-500`/
+  `.text-pink-500`/`.text-violet-500`/`.text-zinc-400` korrekt kompiliert sind und im gerenderten HTML auch korrekt
+  angewendet werden; das grau wirkende Icon war fachlich korrektes "Offen"-Grau für die falsche (Event- statt Team-)
+  Datenquelle.
+- **`club-entries/index.blade.php`**: Geschlechts-Icon neben dem Bewerbsnamen vergrößert (`text-xs` → `text-base`).
 
 **Tests**: `composer test` — 1394 Tests (6 neu), `composer lint:check` grün. `php artisan
 view:cache` zur Kompilierprüfung. Live per `curl` gegen echte Wettkampf-/Staffeldaten (`meet_id=182`,
 `club_id=1`, vier männliche Mitglieder) verifiziert.
+
+### Sechster Design-Feedback-Nachtrag zu Phase 9 (nach Session-Fortsetzung)
+
+- **Bug gefunden: admin `entries/edit` (`/entries/{id}/edit`, `EntryController`) zeigte die Meldezeit als rohe
+  Hundertstelsekunden-Zahl** (`8322` statt `01:23.22`) — anders als
+  `club-entries/edit.blade.php`, das seit Phase 9 bereits das IMask-`MM:SS.hh`-Muster verwendet. Der admin-seitige Weg
+  war beim Umbau übersehen worden. Fix: `entries/edit.blade.php` UND
+  `entries/form.blade.php` (Create-Formular — teilt sich `EntryController::sharedEntryRules()`
+  mit `update()`, musste also mitgezogen werden, sonst wäre die Zeitparsung dort gebrochen)
+  auf dasselbe `x-data='{ entryTime: @json(...) }'` + IMask-Textfeld umgestellt.
+  `EntryController::sharedEntryRules()`: `entry_time` von `nullable|integer|min:0` auf
+  `nullable|string|max:20`; neue private `parseEntryTime()` (identisches Muster wie
+  `ClubEntryController::parseEntryTime()`) übernimmt "MM:SS.hh" → Hundertstelsekunden via
+  `TimeParser::parse()`, erkennt "NT"/"NS"/"WO" als Code statt Zeit. `store()`/`update()`
+  entsprechend angepasst.
+- **Bug gefunden: "Abbrechen" auf `entries/edit` führte immer fix zu `meets.show`**, obwohl die Seite von zwei
+  verschiedenen Stellen aus erreichbar ist (`entries/index`, gefiltert nach Wettkampf/Suche, UND potenziell
+  `meets/show`) — der User landete beim Abbrechen nicht dort, woher er kam. Fix:
+  `href="{{ route('meets.show', $entry->meet) }}"` → `href="{{
+  url()->previous() }}"`. Per `curl` mit echter Session (`entries/index` → `entries/1/edit` bzw.
+  `meets/182` → `entries/1/edit`) verifiziert: Abbrechen führt jetzt jeweils zur tatsächlichen Herkunftsseite zurück.
+- **Feature: `meets/show.blade.php` — Stats-Zeile um vier Werte erweitert.** Bisher nur Disziplinen/Meldungen/Ergebnisse
+  (3 Karten); jetzt 6: Disziplinen, **Einzelmeldungen**
+  (vormals nur "Meldungen"), **Staffelmeldungen** (neu), Ergebnisse, **Teilnehmer** (neu), **Clubs** (neu). Neue `Meet`
+  -Relation `relayEntries(): HasMany` (fehlte bisher komplett —
+  `RelayEntry::meet()` existierte, aber keine Rückrichtung). Neue Model-Methoden:
+    - `Meet::participantsCount()`: eindeutige Athleten über Einzel- UND Staffelmeldungen (`entries.athlete_id` ∪
+      `relay_entry_members.athlete_id` via `relay_entries.meet_id`), portabel über Collection-
+      `merge()->unique()->count()` statt einem MySQL-spezifischen
+      `DISTINCT`-JOIN.
+    - `Meet::participatingClubsCount()`: eindeutige Vereine über Einzel- UND Staffelmeldungen. **Bewusst nicht
+      `$meet->clubs` (die `meet_club`-Pivot-Relation)** — die wird nur beim LENEX-Import befüllt, nicht beim regulären
+      Melden über die Meldungen-Oberfläche. Per `curl`
+      gegen `meet_id=182` verifiziert: `$meet->clubs()->count()` war `0`, obwohl 1 Verein tatsächlich gemeldet hatte —
+      hätte als "Clubs: 0"-Karte trotz vorhandener Meldungen in die Irre geführt. Die bereits bestehende "Teilnehmende
+      Vereine"-Badges-Sektion weiter unten auf der Seite nutzt weiterhin `$meet->clubs` unverändert (anderer Zweck,
+      nicht Teil dieser Änderung).
+      `MeetController::show()`: `loadCount()` um `relayEntries` erweitert, `participantsCount`/
+      `participatingClubsCount` einmalig berechnet und an die View übergeben.
+- **Feature: Button "Ergebnis erfassen" auf `meets/show.blade.php` ergänzt.** Das Ergebnis-Erfassungsformular
+  (`results/form.blade.php`, `ResultController::create()`/`store()`, Route `meets.results.create`) existierte bereits
+  vollständig und funktionsfähig (u. a. schon in einem früheren Nachtrag dieser Phase mit roten Sternchen nachgezogen),
+  war aber von nirgends aus verlinkt — eine Sackgassen-Funktion. Fix ist reine Verlinkung, keine neue Implementierung:
+  Button neben "Meldungen"/"Cup-Tageswertung" in der Aktionsleiste, sichtbar nur für Admins (`meets.results.*` liegt
+  ohnehin komplett hinter `RequireAdmin`-Middleware, siehe
+  `routes/web.php`).
+
+**Tests**: `composer test` — weiterhin 1394 Tests, `composer lint:check` grün (keine neuen Tests nötig — reine Bugfixes
+an bereits getesteten Pfaden bzw. reine Verlinkung/Anzeige ohne neue Business-Logik, die nicht bereits durch bestehende
+Tests abgedeckt wäre). `php artisan view:cache`
+zur Kompilierprüfung. Live per `curl` gegen `meet_id=182`/`entry_id=1` verifiziert (Meldezeit-Anzeige, Abbrechen-Ziel
+aus zwei Herkunftsseiten, Stats-Werte, Ergebnis-erfassen-Link).
+
+### Siebter Design-Feedback-Nachtrag zu Phase 9 (nach weiterer Session-Fortsetzung)
+
+- **Bug gefunden und gefixt: `ResultController::store()` griff auf `$data['swim_event_id']` zu, obwohl
+  `validateResult()` seit jeher die Struktur `['result' => [...], 'splits' => [...]]` zurückgibt** — der Schlüssel
+  existierte nie, jede Ergebnis-Anlage wäre mit `ModelNotFoundException` (404) fehlgeschlagen. Null Testabdeckung auf
+  diesem Pfad bestätigte, dass er nie ausgeführt wurde. Fix: `$data['result']['swim_event_id']`. Reiner Zufallsfund
+  beim Umbau von `store()` für die Splitzeiten-Änderungen unten — direkt mitgefixt statt in die Open Points, da im
+  selben, ohnehin bearbeiteten Zweig.
+- **Feature: Ergebnis-Erfassung erlaubt jetzt Athleten ohne Meldung zu diesem Wettkampf.** Bisher listete das
+  Anlegen-Formular nur `$meet->entries()->pluck('athlete')` — ein Athlet ohne (oder mit fehlender) Meldung war nicht
+  wählbar. `ResultController::create()` liefert jetzt (wie schon `EntryController::create()`) alle Athleten/Vereine
+  durchsuchbar; `edit()` bleibt unverändert (Athlet dort weiterhin fix, nicht änderbar).
+- **Feature: Club-Auto-Vorbelegung beim Athleten-Wechsel** — sowohl in `entries/form.blade.php` (Meldungserfassung)
+  als auch in `results/form.blade.php` (Anlegen-Modus): `$athletes->pluck('club.id', 'id')` als Alpine-Konfiguration,
+  `x-model` auf Athlet-/Club-Select, `$watch('athleteId', ...)` setzt `clubId` beim Wechsel — bleibt danach änderbar.
+  Per Browser-Test verifiziert (Alpine-State direkt gesetzt, Flux-`ui-select`-Wert und gerenderter Club-Name geprüft).
+- **Feature: Splitzeiten in `results/form.blade.php` in einen eigenen `flux:tab.panel` ausgelagert** (statt 10 fixer
+  Zeilen im durchlaufenden Formular), Formularbreite `max-w-2xl` → `max-w-4xl`. `swim_time` und alle
+  `splits[*][split_time]` von rohen Hundertstel-Zahlenfeldern auf das etablierte IMask-`MM:SS.hh`-Muster umgestellt
+  (bisher einzige verbliebene Zeit-Rohwert-Eingaben in einem Ergebnis-Formular). Jede Split-Zeile trägt dafür einen
+  eigenen, isolierten `x-data`-Scope (kein gemeinsamer Zustand zwischen den zehn Zeilen nötig).
+  `ResultController::validateResult()`: `swim_time`/`splits.*.split_time` von `integer` auf `string` umgestellt, neue
+  private `parseTime()` (analog `EntryController::parseEntryTime()`, ohne Status-Code-Sonderfall — Ergebnisse haben
+  dafür bereits das separate `status`-Feld) übernimmt die Umrechnung über `TimeParser::parse()`. `store()`/`update()`
+  reichen jetzt `$data['splits']` (bereits geparst) an `storeSplits()` durch statt wie zuvor ungenutzt
+  `$request->input('splits', [])` roh weiterzureichen — sonst wären ab dieser Umstellung Zeit-Strings statt Integers
+  in die `split_time`-Spalte gewandert.
+  **Beim ersten Implementierungsversuch selbst einen Bug gebaut und über Browser-Test gefunden**: die pro-Zeile
+  `x-data`-Deklaration stand zunächst in doppelten Anführungszeichen (`<div x-data="{ splitTime: @json(...) }">`) —
+  exakt die bereits dokumentierte Fallstricke-Klasse (`@json()` erzeugt doppelte Anführungszeichen, die ein
+  doppelt-quotiertes HTML-Attribut vorzeitig beenden). Wirkung: das Feld blieb beim Bearbeiten eines Ergebnisses mit
+  Splits immer leer statt die vorhandene Zeit zu zeigen. Fix: einfache Anführungszeichen (`x-data='{ ... }'`), wie im
+  Rest der Datei. Alle Vorkommen in dieser Session per `grep` auf das Muster durchsucht — keine weiteren Treffer.
+- **Bug gefixt: "EXH" fälschlich als "Ausstellungsstart" übersetzt** in `entries/edit.blade.php`,
+  `entries/form.blade.php`, `results/form.blade.php` — der Rest der Anwendung (z. B.
+  `championship-development-table.blade.php`) verwendet bereits korrekt "außer Konkurrenz". Alle drei Stellen auf
+  "EXH – Außer Konkurrenz" korrigiert.
+- **Bug gefixt: `meets/show.blade.php`-Stats zeigten bei rein per LENEX importierten Meets (nur Ergebnisse, keine
+  Meldungen) fälschlich 0 Teilnehmer/Clubs trotz hunderter Ergebnisse.** Konkret nachvollzogen an Meet 171 (142
+  Ergebnisse, 0 Meldungen — das importierte LENEX enthielt keinen Meldungen-Abschnitt). `Meet::participantsCount()`/
+  `participatingClubsCount()` (aus dem sechsten Nachtrag) betrachteten bisher nur `entries`/`relay_entries`. Fix:
+  beide Methoden beziehen jetzt zusätzlich `results.athlete_id`/`results.club_id` mit ein (Vereinigung, weiterhin
+  Collection-`merge()->unique()->count()`, kein MySQL-only-SQL). Live verifiziert: Meet 171 zeigte davor 0/0, danach
+  korrekt 39 Teilnehmer/12 Clubs (per Tinker-Skript gegenverifiziert); nach testweisem Anlegen eines weiteren
+  Ergebnisses live auf 40/13 hochgezählt und der Testdatensatz wieder gelöscht.
+- **Feature: Formular-Header vereinheitlicht** — Muster aus `meets/show.blade.php` (Überschrift allein oben,
+  darunter eine Zeile mit dem Zurück-Button links und `ml-auto` für weitere Buttons rechts) auf alle Formulare der
+  Bereiche Wettkämpfe/Meldungen/Ergebnisse/Dokumente übertragen: `meets/form.blade.php` und
+  `admin/documents/form.blade.php` hatten den Zurück-Button bisher direkt neben der Überschrift in derselben Zeile;
+  `entries/form.blade.php`, `entries/edit.blade.php`, `results/form.blade.php` hatten gar keinen Header/Zurück-Button.
+  Zurück-Ziel jeweils `url()->previous()`, außer wo die Seite eindeutig nur von einer Stelle erreichbar ist (Meet-
+  bezogene Create-Formulare → `route('meets.show', $meet)`, analog zur bereits bestehenden Abbrechen-Logik).
+- **Feature: Abstand zwischen Eingabefeld und darunterstehendem `flux:description`-Hinweistext verkleinert.**
+  Ursache in `vendor/livewire/flux/…/field.blade.php` gefunden: die Standard-Variante von `flux:field` setzt per CSS
+  `[&>*:not([data-flux-label])+[data-flux-description]]:mt-3` — jede Beschreibung nach einem Kontrollelement bekommt
+  automatisch 12px Abstand. Bereits in einem früheren Nachtrag für die Meldezeit-Felder mit `class="mt-1"`
+  überschrieben; dieses Mal konsequent auf alle betroffenen `flux:description`-Vorkommen in
+  `meets/form.blade.php`, `meets/_grunddaten-fields.blade.php`, `entries/form.blade.php` und
+  `admin/documents/form.blade.php` angewendet.
+- **Feature: Dokumente-Dropdowns ("Kategorie", "Sprache") auf die Listbox-Optik umgestellt**, die der Rest der
+  Anwendung verwendet (`variant="listbox"`, `flux:select.option` + `:selected="…"` statt nativem `<option>` +
+  `@selected()`). Die dritte, dynamisch per `x-for` befüllte "Sprachvariante zu"-Auswahl bleibt bewusst ein natives
+  `<select>` — die Optionen kommen aus einem JS-Array, nicht aus einer Blade-Schleife, eine Umstellung wäre unnötig
+  invasiv für ein Feld ohne das gemeldete Problem. `document-form.js`s `x-model="category"`-Bindung funktioniert mit
+  der Listbox-Variante unverändert (kein JS geändert).
+- **Umgebungsproblem gefunden und behoben (kein Code-Bug): eine verwaiste `public/hot`-Datei** (Überbleibsel eines
+  nicht sauber beendeten `npm run dev`) ließ Laravels `@vite()`-Direktive Skripte von einem nicht laufenden
+  Vite-Dev-Server einbinden — `resources/js/app.js` (registriert u. a. `IMask`, `documentForm`,
+  `meetPointSystems` global) lud dadurch die gesamte Session über nicht, ohne dass das im Server-HTML sichtbar war.
+  Betraf vermutlich auch frühere Nachträge dieser Phase, soweit sie auf `npm run dev` bzw. denselben Dev-Server
+  angewiesen waren. `public/hot` gelöscht → Laravel liefert wieder die bereits vorhandenen, aktuellen
+  `public/build`-Assets aus; per Browser-Konsole vor/nach dem Fix verifiziert (`IMask is not defined` /
+  `documentForm is not defined` verschwanden). `composer dev` (Vite im Dev-Modus) neu starten legt die Datei bei
+  Bedarf wieder korrekt an.
+
+**Tests**: `composer test` — weiterhin 1394 Tests, `composer lint:check` grün. `php artisan view:cache` zur
+Kompilierprüfung. Vollständiger Browser-Test mit echter Session gegen `meet_id=171` (0 Meldungen/142 Ergebnisse,
+gezielt gewählt um den LENEX-only-Fall abzudecken): Ergebnis-Anlage mit Athlet ohne Meldung, Club-Auto-Vorbelegung,
+maskierte Schwimm-/Splitzeit, Tab-Wechsel, Speichern (Redirect + korrekte DB-Werte per Tinker-Skript geprüft,
+Testdatensatz wieder gelöscht) und ein zusätzlicher Update-Rundlauf auf einem historischen Ergebnis mit Splits
+(Werte vor/nach identisch). Dokumente-Formular: Header-Layout, Listbox-Dropdown-Rendering und `x-model`-Reaktivität
+per Browser-Konsole/JS-Introspektion geprüft.
+
+### Korrekturen nach Design-Feedback zum siebten Nachtrag (zwei eigene Regressionen)
+
+Der Nutzer meldete nach dem siebten Nachtrag zwei Klassen von Problemen zurück, die sich beide auf eigene Fehler
+aus diesem Nachtrag zurückführen ließen:
+
+- **Weiße statt blaue Buttons, fehlende Icon-Farben, unstrukturierter Datepicker-Kalender, Hinweistext-Abstand
+  "nicht übernommen".** Ursache: `public/build` war zum Zeitpunkt des vorherigen Fixes ~8 Tage alt (älter als jede
+  einzelne Datei in `resources/css`/`resources/js`) — das Löschen der verwaisten `public/hot`-Datei (siehe siebter
+  Nachtrag) hat die Session korrekt von einem toten Vite-Dev-Server auf `public/build` umgeschaltet, aber dieser
+  Build war selbst veraltet und enthielt weder aktuelle Tailwind-Klassen noch aktuelle Flux-Styles. `npm run build`
+  neu ausgeführt → aktueller Build (`app-DC135VSO.css`, deutlich größer als der alte `app-ByByB95u.css`). Per
+  Browser verifiziert: Speichern-Button `background-color: oklch(0.546 0.245 262.881)` (Blau) statt Weiß,
+  Datepicker-Kalender rendert wieder als vollständiges Grid mit blauer Selektion statt als unstrukturierte
+  Zahlenkette.
+- **PhpStorm-Inspektionsfehler in `documents/form.blade.php` (":39/:40") und `results/form.blade.php` (":258")** —
+  beide echte Bugs, keine falsch-positiven IDE-Meldungen. Ursache: `@blade`s `@json()`-Direktive
+  (`Illuminate\View\Compilers\Concerns\CompilesJson::compileJson()`) zerlegt ihr Argument naiv per
+  `explode(',', ...)` — jedes Komma IM Argument (nicht nur das trennende Komma vor optionalen
+  `$options`/`$depth`-Parametern) zerschneidet den Ausdruck. `@json(old("key", "default"))` hat durch Zufall genau
+  ein internes Komma und wird beim Wiederzusammensetzen zufällig syntaktisch korrekt rekonstruiert — verändert dabei
+  aber unbemerkt die JSON-Encoding-Flags (`$options` wird zum String-Rest statt der beabsichtigten
+  `JSON_HEX_*`-Konstanten). Bei `documents/form.blade.php`s `@json([...])` mit mehreren Feldern UND einem
+  verschachtelten `old(...)` (3 interne Kommas) führte dieselbe Zerlegung zu einem **abgeschnittenen, syntaktisch
+  kaputten PHP-Ausdruck** — `ParseError: Unclosed '[' … does not match ')'`, 500 bei jedem Laden des Formulars.
+  `php artisan view:cache` hatte das nicht erkannt (kompiliert Blade-Direktiven zu PHP-Text, ohne die erzeugte Datei
+  tatsächlich zu requiren/parsen) — erst ein echter Seitenaufruf im Browser deckte es auf.
+  **Fix, app-weit durchsucht (kein weiterer Treffer):** `@json()` bekommt grundsätzlich nur noch eine einzelne,
+  bereits fertige Variable (z. B. `$oldAthleteId = old('athlete_id', ''); … @json($oldAthleteId)`), nie einen
+  Ausdruck mit eigenen Kommas — in `entries/form.blade.php`, `results/form.blade.php` und
+  `admin/documents/form.blade.php` entsprechend umgestellt.
+  **Gleichzeitig CLAUDE.md-Konvention nachgezogen** ("Alpine-Logik in separate .js-Dateien auslagern und via
+  Alpine.data() registrieren (reduziert IDE-Warnungen)"): das bisher wiederholt inline in `x-init` stehende
+  IMask-Muster (Meldezeit/Schwimmzeit/Splitzeiten) in eine registrierte Komponente
+  `resources/js/masked-time-field.js` (`Alpine.data('maskedTimeField', …)`) ausgelagert und in
+  `results/form.blade.php` (Schwimmzeit + alle 10 Splitzeiten-Zeilen) sowie `entries/form.blade.php` (Meldezeit)
+  eingesetzt — reduziert nicht nur IDE-Rauschen, sondern hätte den obigen `@json()`-Bug in der ursprünglichen
+  10-fach-inline-Variante deutlich schwerer auffindbar gemacht.
+  Ein weiterer, bei diesem Umbau selbst gemachter Fehler (doppelte statt einfache Anführungszeichen um
+  `x-data="maskedTimeField(@json(...))"`) wurde noch vor dem Melden per eigenem Browser-Test gefunden und behoben.
+- **Nicht behoben, bewusst außerhalb dieses Nachtrags:** die gemeldeten PhpStorm-Hinweise zu `classifiers/show.blade.php`,
+  `components/action-message.blade.php`, `flux/icon/*` und `flux/navlist/group.blade.php` betreffen Dateien, die in
+  dieser Runde nicht angefasst wurden. `action-message.blade.php` (`@this.on(...)`) und die `flux/icon/*`-Hinweise
+  ("Method 'classes' not found …", doppelter `match`-Arm) sind bekannte Fehlalarme des PhpStorm-Blade-Plugins bei
+  Livewires `@this`-Magic-Property bzw. bei den generierten Flux-Icon-Komponenten — nicht behebbar, ohne
+  Vendor-/Publish-Code zu verändern, der beim nächsten `flux:publish`/Composer-Update ohnehin überschrieben würde.
+  `classifiers/show.blade.php` (`match($cl->status)`, "Potentially polymorphic call") ist eine Typinferenz-Warnung
+  auf funktionierendem, unverändertem Code. `flux/navlist/group.blade.php` (Tailwind-Kurzschreibweisen wie
+  `mb-[2px]` → `mb-0.5`) ist rein kosmetisch und funktional folgenlos, aber eine app-weit genutzte
+  Sidebar-Komponente außerhalb des Themas dieser Runde — auf Wunsch in einer eigenen, dedizierten Änderung.
+
+**Tests**: `composer test` — weiterhin 1394 Tests, `composer lint:check` grün. `php artisan view:clear` + frischer
+Browser-Tab (kein Cache) für jede der drei korrigierten Dateien: keine Konsolenfehler mehr, `documentForm`/
+`maskedTimeField`-Alpine-Daten korrekt befüllt, Ergebnis-Anlage per Browser erneut vollständig durchgespielt
+(Athlet-Auswahl → Club-Auto-Vorbelegung → maskierte Schwimm-/Splitzeit → Speichern → DB-Werte per Tinker-Skript
+verifiziert, Testdatensatz gelöscht).
