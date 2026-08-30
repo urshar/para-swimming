@@ -373,6 +373,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
 
+        Route::patch('{record}/status', [RecordController::class, 'updateStatus'])->name('status.update');
+
         Route::get('{record}/edit', [RecordController::class, 'edit'])->name('edit');
         Route::put('{record}', [RecordController::class, 'update'])->name('update');
         Route::get('{record}', [RecordController::class, 'show'])->name('show');

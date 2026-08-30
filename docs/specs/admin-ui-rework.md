@@ -1317,3 +1317,243 @@ Alpine-State-Zugriff getestet), Jugend/Offen, Region/Typ — jedes löst sofort 
 Query-Parameter aus und bleibt danach sichtbar vorbelegt. Region-Feld nach Kategoriewechsel auf Regional weiterhin
 korrekt "BBSV Burgenland" statt leer (Bug-Fix hält mit dem neuen Mechanismus). Filtern-Button ist aus dem DOM
 verschwunden.
+
+### Achter Design-Feedback-Nachtrag zu Phase 10 — Rekord manuell eintragen komplett überarbeitet
+
+`records/form.blade.php` (Create + Edit) auf das etablierte P9-Formularmuster umgestellt: Header (Titel oben,
+Zurück darunter links), Card auf `max-w-4xl` verbreitert, die drei bisherigen Cards (Rekord-Klassifizierung,
+Leistung, Splitzeiten) in `flux:tab.group` verschoben — eine Card umschließt jetzt Formular und Tabs zusammen,
+gleiches Muster wie `results/form.blade.php`.
+
+- **Regional-Bezeichnungen** im Rekord-Typ-Dropdown auf "Kürzel Bundesland" umgestellt (`Club::REGIONAL_
+  ASSOCIATION_STATES`, wie im Listenfilter) statt des vollen, oft abgeschnittenen Vereinsnamens — pro Verband
+  weiterhin zwei Zeilen (offen/Jugend), da das Formular anders als der Filter kein eigenes Jugend/Offen-Dropdown
+  hat und `record_type` beides in einem String kodieren muss.
+- **Bahn-Default SCM**, **Disziplin-Feld verbreitert** (`col-span-2` in einer `grid-cols-4`-Zeile, gleiches Muster
+  wie `swim-events/form.blade.php`), **Distanz vom Zahlenfeld auf Dropdown** mit denselben erlaubten Werten
+  (25/50/75/100/150/200/400/800/1500 m) inkl. Erhalt eines abweichenden Bestandswerts als Zusatzoption.
+- **`mt-1!`-Fix** auf die Schwimmzeit-Beschreibung nachgezogen (hatte noch gar keine Klasse, also auch keinen
+  Abstand).
+- **Athlet-/Verein-Labels**: `ms-1` zwischen Label und Klammerzusatz ("(leer bei Staffeln)" /
+  "(zum Zeitpunkt des Rekords)") — vorher ein einzelnes Leerzeichen im Blade-Quelltext, das visuell praktisch
+  keinen Abstand ergab.
+- **Athlet ↔ Verein bidirektional verknüpft, plus Aktiv/Inaktiv-Filter — alles rein clientseitig, keine neue
+  Route.** Athlet gewählt → Verein wird automatisch vorbelegt (etabliertes `athleteClubMap` + `$watch`-Muster aus
+  `entries/form.blade.php`/`results/form.blade.php`). Umgekehrt: Verein zuerst gewählt → die Athletenliste
+  schränkt sich per `x-show` auf dessen Athleten ein (beide Richtungen greifen ineinander, ohne AJAX-Rundgang —
+  alle 542 Athleten inkl. `club_id` sind bereits als Optionen im DOM, wie es entries/results/form auch schon so
+  machen). Inaktive Athleten sind standardmäßig ausgeblendet (`is_active`-Flag je Option), ein Switch
+  "Auch inaktive Athleten anzeigen" blendet sie ein — beim Bearbeiten eines Rekords mit bereits inaktivem Athleten
+  ist der Switch von vornherein aktiv, sonst wäre die eigene Auswahl in der Liste unsichtbar.
+- **Wettkampf/Ort/Land neu proportioniert** (`grid-cols-6`: Wettkampf 3, Ort 1, Land 2) statt gleich breiter
+  Drittel, damit "Code – Name" bei Austragungsland nicht abgeschnitten wird.
+- **Schwimmzeit-Eingabe eigens verschmälert** (`w-56`-Wrapper-Div um das `flux:input`, nicht direkt eine
+  Breitenklasse am Feld — `flux:input` bringt intern ein festes `w-full` mit, das eine Klasse am selben Element
+  überstimmt, siehe Kommentar in `athletes/index.blade.php`) statt die volle Card-Breite auszufüllen.
+
+**Beim Verifizieren zwei Verdachtsfälle, die sich als Test-Artefakte herausstellten, nicht als Bugs:**
+Erstens ein per Klick gewählter Verein ohne einzige Zeile ("AG Down Syndrom Vorarlberg") zeigte 0 Athleten — gegen
+die DB geprüft: der Verein hat tatsächlich 0 Athleten, korrektes Verhalten. Zweitens ein direktes Setzen von
+`Alpine.$data(form).clubId` per JS (statt eines echten Klicks durchs Dropdown) triggerte die `x-show`-Reaktivität
+nicht zuverlässig — beim Nachstellen über echte Klicks funktionierte die Filterung sofort korrekt. Für die
+Aktiv/Inaktiv-Filterung gab es in den Testdaten keinen einzigen inaktiven Athleten (542/542 aktiv) — ein
+Datensatz testweise auf inaktiv gesetzt, Verhalten bestätigt, wieder zurückgesetzt.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün (keine Controller-Änderung, nur die View), `composer
+lint:check` grün, `php artisan view:cache` fehlerfrei. Live im Browser: Verein-zuerst-wählen schränkt die
+Athletenliste korrekt ein (2/2 für einen echten Verein mit Athleten), Athlet-zuerst-wählen setzt den Verein
+korrekt, Inaktiv-Switch blendet einen testweise deaktivierten Athleten korrekt ein/aus, kompletter
+Anlegen-Rundgang per Fetch (inkl. Distanz-Dropdown-Wert, Athlet, Verein) gegen die DB verifiziert und wieder
+gelöscht, Bearbeiten-Ansicht eines bestehenden Rekords zeigt Athlet/Verein/Schwimmzeit korrekt vorbelegt.
+
+### Neunter Design-Feedback-Nachtrag zu Phase 10 — Gliederung Leistung-Tab, PhpStorm-Befunde
+
+- **"Leistung"-Tab zweigeteilt**: erst "Rekordinhaber" (Athlet/Verein, Staffelteam), dann — durch eine
+  Trennlinie/Zwischenüberschrift "Rekorddaten" abgesetzt — Schwimmzeit, Nation, Datum, Wettkampf/Ort/Land,
+  Anmerkung. Vorher stand die Schwimmzeit zuerst, unabhängig davon, wer den Rekord hält.
+- **Label "Datum" → "Rekorddatum"**, um es von anderen Datumsfeldern im Formular (Staffelmitglieder-Geburtsjahr)
+  eindeutig zu unterscheiden.
+- **PhpStorm-Befunde**: redundanter `(bool)`-Cast entfernt (der Ausdruck war durch `&&`/`!` schon ein Bool).
+  Das Staffelteam-`x-data` nutzte noch das alte Muster (PHP-Ternäre direkt im JS-Objektliteral statt
+  `@json()` mit vorberechneten Variablen, einfach angeführt) — auf das seit dem `@json()`-Komma-Fallstrick
+  etablierte Muster umgestellt; das dürfte auch die gemeldeten "Missing opening directive"/"Method expression
+  is not of Function type"-Befunde miterledigen, da PhpStorms Blade-Parser bei roher `{{ }}`-Verschachtelung in
+  einem JS-Attribut nachweislich (siehe frühere Nachträge) die Klammerbalance verliert. `@unless`/`@endunless`
+  bei der Inaktiv-Kennzeichnung auf `@if(! …)`/`@endif` umgestellt (funktional identisch, aber die im Projekt
+  weitaus geläufigere Direktive).
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün. Live im Browser:
+Reihenfolge innerhalb des Leistung-Tabs per Textindex im tatsächlichen `[data-flux-tab-panel="leistung"]`-Element
+geprüft (Rekordinhaber → Athlet → Rekorddaten → Schwimmzeit), "Rekorddatum"-Label vorhanden, kompletter
+Anlegen-Rundgang mit Jugend-Regionaltyp per Fetch gegen die DB verifiziert und wieder gelöscht.
+
+### Zehnter Design-Feedback-Nachtrag zu Phase 10 — Layout, Athleten-Filter nach Klasse/Geschlecht
+
+- **"Rekordinhaber"-Titel und "Auch inaktive Athleten anzeigen"-Schalter in einer Zeile** (`flex justify-between`).
+- **Rekorddaten neu geordnet**: Wettkampf + Ort zuerst (`grid-cols-3`, Wettkampf `col-span-2`), dann Schwimmzeit +
+  Rekorddatum + Austragungsland (`grid-cols-3`), zum Schluss Anmerkung. "Nation" war in der Anfrage nicht erwähnt —
+  thematisch in den Abschnitt "Rekordinhaber" verschoben (wessen Nationalität, nicht wo der Wettkampf stattfand;
+  Letzteres bleibt "Austragungsland" bei den Rekorddaten).
+- **Neuer Athleten-Filter nach Geschlecht + aktueller Sportklasse aus dem Klassifizierung-Tab.** `gender` und
+  `sport_class` dort bekamen `x-model`, dieselbe `x-show`-Bedingung wie beim Verein-Filter prüft zusätzlich
+  Geschlecht (`athlete->gender`) und ob die eingegebene Sportklasse in `athlete->sportClasses` vorkommt (Codes
+  clientseitig als rohe JS-Array-Literal-Elemente eingebettet, kein `@json()` — der ganze `x-show`-Ausdruck ist
+  doppelt angeführt, `@json()`s eingebettete doppelte Anführungszeichen hätten das Attribut gebrochen).
+  **Zum genannten Problem** (Sportklassen ändern sich durch Reviews — ein alter Rekord kann einem Athleten
+  gehören, der inzwischen anders klassifiziert ist): kein Open Point geworden, sondern direkt gelöst — ein
+  zweiter Schalter "Klasse/Geschlecht ignorieren" (Standard aus) schaltet die Prüfung bei Bedarf komplett ab.
+  Deckt beide genannten Fälle ab: im Normalfall (neuer Rekord) zählt die aktuell gültige Klasse automatisch,
+  ohne dass jemand etwas umschalten muss; beim Nacherfassen eines alten Rekords mit inzwischen reklassifiziertem
+  Athleten bleibt der Zugriff auf die volle, ungefilterte Liste eine bewusste Ein-Klick-Aktion statt eines
+  stillen Workarounds. Eine "echte" historische Klassifizierung zum Rekorddatum aufzulösen wäre ein separates,
+  deutlich größeres Feature (Klassifizierungshistorie existiert aktuell nicht) — dafür bliebe bei Bedarf
+  weiterhin die Option, das später als eigenen Punkt aufzunehmen.
+- **PhpStorm-Befunde, zweiter Versuch**: Das Staffelteam-`x-data` war schon auf `@json()` umgestellt (voriger
+  Nachtrag), blieb aber einzeilig — auf dasselbe mehrzeilige Format wie das äußere Formular-`x-data` gebracht,
+  falls die Formatierung selbst zur Verwirrung beigetragen hat. Ob das die gemeldeten "Missing opening
+  directive"/"Method expression is not of Function type"-Befunde tatsächlich auflöst, lässt sich von hier aus
+  nicht direkt in PhpStorm nachvollziehen — die betroffenen Blade-Konstrukte selbst (`@if`/`@endif`,
+  `@for`/`@endfor` in Komponenten-Slots) sind Standard-Blade-Syntax, an mehreren Stellen dieser Datei und
+  anderswo im Projekt identisch verwendet und dort nicht gemeldet.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün. Live im Browser: Filter nach
+Geschlecht=Damen + Sportklasse=S9 liefert exakt die 4 Athletinnen, die auch eine direkte DB-Abfrage liefert;
+"Klasse/Geschlecht ignorieren" stellt alle 542 wieder her; Layout-Reihenfolge (Rekordinhaber+Schalter,
+Wettkampf+Ort, Rekorddaten, Schwimmzeit/Rekorddatum/Austragungsland, Anmerkung) per Textindex im echten
+Tab-Panel-Element bestätigt; kompletter Anlegen-Rundgang für einen Staffel-Rekord mit Team-Mitgliedern gegen die
+DB verifiziert und wieder gelöscht.
+
+### Elfter Design-Feedback-Nachtrag zu Phase 10 — Splitzeiten-Schrittweite, Status-Spalte/-Filter/-Schnelländerung, Show-Header
+
+- **Splitzeiten: Distanz-Schrittweite 50 statt 1** (`step="50"` am Zahlenfeld) und **Zeilenanzahl abhängig von
+  der gewählten Distanz statt fix 10** — vorher waren bei 800m/1500m-Rekorden nicht genug Zeilen für alle
+  50m-Splits vorhanden. Neue Berechnung `$maxSplitRows = (int) (max($distanceOptions) / 50) - 1` (= 29 bei
+  1500m als größter erlaubter Distanz) ersetzt die feste `@for`-Obergrenze; die Klassifizierung-Tab-Distanz
+  bekam `x-model="distanceValue"`, jede Splitzeiten-Zeile blendet sich per
+  `x-show="!distanceValue || (i+1)*50 < parseInt(distanceValue)"` passend zur aktuell gewählten Distanz ein/aus
+  (reaktiv bei Distanzwechsel, kein Reload nötig).
+- **Rekordlisten: Status-Spalte, -Filter, -Schnelländerung.** `RecordController::index()` filtert jetzt zusätzlich
+  nach `record_status` (neue Konstante `STATUS_OPTIONS`, ungültige/leere Werte werden zu "kein Filter"
+  normalisiert). Neues `flux:select variant="listbox" x-model="status"` im Filter (gleiches
+  `x-init`+`$watch`-Auto-Submit-Muster wie die übrigen Listenfilter), Status-Badge in der aktiven-Filter-Zeile,
+  neue Tabellenspalte mit Status-Badge (Farbe je Status: APPROVED emerald, PENDING amber, INVALID red, TARGETTIME
+  blue) — Spalte blendet sich aus, sobald der Status-Filter selbst aktiv ist (gleiches Muster wie die übrigen
+  spaltenausblendenden Filter). Pro Zeile ein neues `flux:dropdown`+`flux:menu` mit einem `arrow-path`-Icon-Button
+  (eingefärbt nach aktuellem Status): jeder Menüpunkt ist ein eigenes kleines `POST`-Formular auf eine neue Route
+  `PATCH records/{record}/status` → `RecordController::updateStatus()`, der aktuell aktive Status ist deaktiviert
+  und mit einem Häkchen markiert. Erlaubt die Status-Änderung direkt aus der Liste, ohne das Bearbeiten-Formular
+  zu öffnen.
+  **Selbst gefundener Bug vor der Verifizierung**: die Icon-Einfärbung war zunächst als Laufzeit-String-Verkettung
+  geschrieben (`'text-'.$farbe.'-500!'`) — Tailwinds Content-Scanner erkennt nur wörtlich im Quelltext vorkommende
+  Klassennamen, keine zur Laufzeit zusammengesetzten Strings, die passende CSS-Regel wäre also nie kompiliert
+  worden. Behoben durch eine statische PHP-Map (`$statusIconClasses`) mit dem vollen Klassennamen als Literal pro
+  Status; per Grep im kompilierten `public/build/assets/app-*.css` bestätigt, dass alle vier `text-{farbe}-500!`
+  Regeln korrekt mit `!important` kompiliert sind.
+- **`records/show.blade.php`: Titelleiste auf das seit Phase 9 etablierte Muster umgestellt** (Titel/Badges oben,
+  darunter eine Zeile mit "Zurück" links und den übrigen Aktions-Buttons rechtsbündig) — diese Seite war bisher
+  nie migriert worden und hatte noch die alte einzeilige Anordnung.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün, `php artisan view:cache`
+fehlerfrei, `npm run build` erfolgreich. Live im Browser: Splitzeiten-Zeilen reagieren korrekt auf die Distanz
+(1500m-Rekord → alle 29 Zeilen sichtbar, 100m-Rekord → nur 1 Zeile sichtbar), `step="50"` an allen 29
+Distanzfeldern bestätigt; Status-Schnelländerung per echtem Fetch-Rundgang gegen die neue Route getestet
+(APPROVED → PENDING → zurück auf APPROVED, jeweils gegen die DB verifiziert); Show-Seiten-Header eines
+1500m-Rekords zeigt Titel oben, "Zurück" als ersten Button links, "Bearbeiten"/"Löschen" rechtsbündig darunter.
+
+### Zwölfter Design-Feedback-Nachtrag zu Phase 10 — `$el.submit()`-Muster projektweit bereinigt, Vereinszuordnung beim Import
+
+- **PhpStorm-Befund "Unresolved function or method submit()" auf `records/show.blade.php` (:39/:224/:231) war mit
+  dem vorigen JSDoc-Cast-Versuch (`/** @type {HTMLFormElement} */ ($el).submit()`) nicht behoben** — laut
+  Screenshot bestand die Meldung unverändert weiter. Der tatsächlich in Phase 9 bereits etablierte und dort
+  bestätigt wirksame Fix (siehe dortiger Nachtrag zu `meets/index.blade.php`/`clubs/index.blade.php`) ist ein
+  anderer: nicht `$el` bare innerhalb der `@submit.prevent`-Direktive referenzieren, sondern eine benannte Methode
+  im `x-data`-Objekt anlegen und darin `this.$el.submit()` aufrufen — `x-data="{ submit() { if(confirm(...))
+  this.$el.submit() } }" @submit.prevent="submit()"`. Auf allen drei Stellen in `records/show.blade.php`
+  nachgezogen.
+- **Auf Zuruf ("mach es gleich überall wo du es findest") das gesamte Projekt nach dem bare `$el.submit()`-Muster
+  durchsucht**: 16 Dateien nutzen `$el.submit()` insgesamt, die meisten bereits korrekt mit dem
+  `this.$el`-in-benannter-Methode-Muster. Eine verbleibende Fundstelle mit der bare Variante innerhalb einer
+  bereits benannten Methode: `athletes/index.blade.php` (:131, `del() { … $el.submit() }` → `del() { …
+  this.$el.submit() }`). Keine weiteren Treffer mehr (`grep` nach `[^.]\$el\.submit\(\)` liefert 0 Treffer).
+- **Import-Vorschau: unbekannte Vereine jetzt auch einem bestehenden Verein zuordenbar** (z. B. bei
+  Tippfehlern/abweichender Schreibweise im LENEX-Export), statt nur "Neu anlegen"/"Überspringen". Die
+  Backend-Logik in `RecordImportService::resolveClubs()` unterstützte das bereits (jeder Entscheidungswert
+  außer `'new'`/`'skip'` wird als `(int)` gecastete bestehende Club-ID behandelt) — reine UI-Lücke.
+  `RecordImportController::preview()` lädt jetzt zusätzlich alle Vereine (`Club::orderBy('name')->get(['id',
+  'name'])`), die View zeigt sie als `flux:select.group label="Bestehendem Verein zuordnen (falsch
+  geschrieben?)"` mit einer Option je Verein (`value` = Club-ID) unterhalb der bestehenden "Neu
+  anlegen"/"Überspringen"-Optionen. Bei 53 Vereinen im Bestand eine flache Liste statt Combobox mit
+  Suche — genug, um sie ohne Scrollen-über-Suchfeld durchzugehen.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün, `php artisan view:cache`
+fehlerfrei. Live im Browser: Löschen-Bestätigung auf `records/show.blade.php` (Haupt-Rekord und
+Historie-Zeilen) sowie `athletes/index.blade.php` per simuliertem `submit`-Event mit gemocktem `confirm()`
+verifiziert (Dialog wird weiterhin aufgerufen, `submit()` bei Abbruch korrekt nicht ausgelöst). Für die
+Vereinszuordnung ein Test-LENEX mit einem absichtlich unbekannten Verein per echtem Fetch-Rundgang gegen
+`/records/import/preview` hochgeladen: `flux:select.group`-Abschnitt "Bestehendem Verein zuordnen" im
+gerenderten HTML gefunden, alle 53 Vereine als Optionen mit numerischer Club-ID bestätigt, "Neu
+anlegen"/"Überspringen" weiterhin vorhanden. Test-Datei und Session-Artefakte danach entfernt.
+
+### Dreizehnter Design-Feedback-Nachtrag zu Phase 10 — Import-Vorschau: Dropdown-Breite, Kurzname, alphabetisch, Athleten-Zuordnung
+
+- **Vereins-Dropdown verbreitert** (`w-64` → `w-96`) und zeigt jetzt `Club::display_name` (Kurzname, falls
+  vorhanden, sonst voller Name) statt immer des vollen Namens — lesbarer bei langen Vereinsnamen.
+- **Alphabetische Sortierung nach dem angezeigten Namen statt dem vollen Namen**: `Club::orderByRaw('COALESCE
+  (short_name, name)')` statt `orderBy('name')` — sonst würde z. B. "BS Raiffeisen Osttirol" (voller Name)
+  einsortiert, obwohl "BS Osttirol" (Kurzname) angezeigt wird. `COALESCE` ist Standard-SQL, läuft identisch auf
+  MySQL und SQLite. Ein einzelner Ausreißer bleibt bewusst unangetastet: "ÖBSV" landet wegen
+  Byte-/Codepoint-Sortierung (Ö > Z) ganz am Ende statt nahe "O" — echte deutsche Locale-Kollation wäre
+  DB-Engine-spezifisch und würde die MySQL/SQLite-Portabilität verletzen (siehe CLAUDE.md), für einen einzelnen
+  Verein in einer 53er-Liste kein ausreichender Grund dafür.
+- **Unbekannte Athleten jetzt ebenfalls einer bestehenden Person zuordenbar** — exakt wie beim
+  Vereins-Matching zuvor war das eine reine UI-Lücke: `RecordImportService::resolveAthletes()` behandelte
+  einen Entscheidungswert außer `'new'`/`'skip'` schon immer als `(int)` gecastete bestehende Athlet-ID.
+  `RecordImportController::preview()` lädt jetzt zusätzlich alle Athleten (`Athlete::orderBy('last_name')
+  ->orderBy('first_name')->get(...)`), sortiert alphabetisch nach Nachname. Bei 542 Athleten wäre eine
+  ungefilterte Liste pro unbekanntem Athleten unbrauchbar — die View grenzt deshalb pro Zeile auf Athleten mit
+  demselben Anfangsbuchstaben des Nachnamens ein wie der nicht gefundene Athlet (Beispiel aus der Anfrage:
+  "Kasper Thomas" nicht gefunden → Gruppe "Bestehendem Athlet zuordnen (Nachname K…)" zeigt nur K-Nachnamen).
+  Anzeige je Option: `Athlete::display_name` ("Nachname, Vorname") plus Geburtsjahr in Klammern zur
+  Unterscheidung gleichnamiger Personen. Keine Treffer für den Anfangsbuchstaben → Gruppe wird ausgeblendet
+  statt leer angezeigt.
+- **Beim Testen mit dem echten ÖBSV-Rekordfile aufgefallen, nicht behoben**: Der Nachname "Kasper" kommt im
+  File zweimal als eigener `unknown_athletes`-Eintrag vor — einmal als `"KASPER"`, einmal als `"KASPER "` (mit
+  Leerzeichen am Ende), weil `RecordImportService::parseAthleteXml()` LENEX-Attribute unbeschnitten übernimmt.
+  Beide erscheinen dadurch als zwei getrennte Zeilen in der Vorschau, obwohl es derselbe Sportler ist —
+  betrifft nicht nur diese Datei, sondern jeden Export mit Whitespace-Rauschen in Namen. Nicht angefasst, da
+  nicht Teil der Anfrage; bei Bedarf ein `trim()` auf `firstname`/`lastname`/`license` in
+  `parseAthleteXml()`/`parseClubXml()`.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün, `php artisan view:cache`
+fehlerfrei. Live gegen das echte, vom Nutzer beigefügte `oebsv.lxf` getestet (1344 Records, davon 496 regulär
+verwertbar, 97 unbekannte Athleten, 13 unbekannte Vereine): Vereins-Dropdown zeigt Kurznamen alphabetisch
+korrekt sortiert (`BS Osttirol` statt `BS Raiffeisen Osttirol`, an der richtigen Stelle einsortiert);
+Athleten-Beispiel "KASPER, Thomas" (identisch zum in der Anfrage genannten Beispiel) erzeugt korrekt die Gruppe
+"Bestehendem Athlet zuordnen (Nachname K…)" mit ausschließlich K-Nachnamen, alphabetisch sortiert (Kapl, Karajic,
+Kaser, Kases, Kaspar, Kaufmann, Kerl, Kern, …). Test-Datei und Session-Artefakte danach entfernt.
+
+### Vierzehnter Design-Feedback-Nachtrag zu Phase 10 — Trim-Fix, Card-/Dropdown-Breite
+
+- **Trim-Problem aus dem vorigen Nachtrag behoben**: `RecordImportService::parseAthleteXml()` (last_name,
+  first_name, birth_date, gender, license) und `parseClubXml()` (code, name, nation) trimmen jetzt alle
+  LENEX-Attributwerte. Vorher erzeugte z. B. `"KASPER"` und `"KASPER "` (Leerzeichen am Ende) zwei getrennte
+  `unknown_athletes`-Einträge für dieselbe Person — am echten `oebsv.lxf` bestätigt: unbekannte Athleten sanken
+  dadurch von 97 auf 92 (5 zusammengeführte Whitespace-Duplikate), der "KASPER, Thomas"-Fall aus der Anfrage
+  taucht jetzt nur noch einmal auf.
+- **Import-Vorschau-Seite verbreitert** (`max-w-3xl` → `max-w-4xl`).
+- **Athleten-Dropdown verbreitert** (`w-72` → `w-96`, wie schon das Vereins-Dropdown), damit die
+  Untergruppen-Überschrift ("Bestehendem Athlet zuordnen (Nachname K…)") nicht umbricht.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün, `php artisan view:cache`
+fehlerfrei. Trim-Fix direkt gegen `RecordImportService::preview()` mit dem echten `oebsv.lxf` verifiziert
+(Anzahl unbekannter Athleten 97 → 92, `KASPER, Thomas` nur noch ein Eintrag). Für die Dropdown-Breite: die
+Browser-Pane lieferte in dieser Session durchgehend nur ein statisches Platzhalterbild bei Screenshots (auch
+nach neuem Tab) — `getBoundingClientRect()`/`getComputedStyle()` degradierten ebenfalls auf 0/Default-Werte
+(bekannte Einschränkung bei "hidden" Pane, hier aber auch nach Refokussieren nicht behoben). Ausgewichen auf
+eine pane-unabhängige Canvas-Textmessung mit der tatsächlichen App-Schrift (System-Sans-Stack aus der
+kompilierten CSS, `text-xs`/`font-medium` = 12px/500 laut CSS-Variablen): Athleten-Überschrift ≈ 255px,
+Vereins-Überschrift (bereits unbeanstandet bei `w-96` im Einsatz) ≈ 284px — beide deutlich unter der
+verfügbaren Breite von 384px (`w-96`) abzüglich Innenabstand. Die bisherige `w-72` (288px) ließ dagegen nur
+~272px nutzbare Breite bei 255px Textbedarf, was das gemeldete Umbrechen erklärt. Echte visuelle Bestätigung
+per Screenshot war in dieser Session nicht möglich — falls die Überschrift trotzdem noch umbricht, bitte mit
+Screenshot melden.

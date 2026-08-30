@@ -128,7 +128,7 @@
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"
-                                  x-data="{ del() { if(confirm('Athlet wirklich löschen?')) $el.submit() } }"
+                                  x-data="{ del() { if(confirm('Athlet wirklich löschen?')) this.$el.submit() } }"
                                   @submit.prevent="del()">
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>

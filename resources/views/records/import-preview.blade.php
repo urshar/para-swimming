@@ -7,12 +7,18 @@
 @section('title', 'Import Vorschau')
 
 @section('content')
-    <div class="max-w-3xl">
+    <div class="max-w-4xl">
 
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('records.import') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import Vorschau</h1>
-            <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import Vorschau</h1>
+                <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
+            </div>
+            <div class="mt-4">
+                <flux:button href="{{ route('records.import') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         {{-- ── Zusammenfassung ─────────────────────────────────────────────── --}}
@@ -42,8 +48,8 @@
                         <flux:icon.exclamation-triangle class="size-4 text-amber-500"/>
                         Unbekannte Vereine ({{ count($preview['unknown_clubs']) }})
                     </h2>
-                    <p class="text-xs text-zinc-400 mb-4">Diese Vereine wurden in der Datenbank nicht gefunden. Bitte
-                        entscheiden Sie für jeden Verein.</p>
+                    <p class="text-xs text-zinc-400 mb-4">Diese Vereine wurden in der Datenbank nicht gefunden — ggf.
+                        falsch geschrieben. Bitte entscheiden Sie für jeden Verein.</p>
 
                     <div class="space-y-3">
                         @foreach($preview['unknown_clubs'] as $club)
@@ -56,9 +62,15 @@
                                         <flux:badge size="sm" color="zinc"
                                                     class="ml-1">{{ $club['nation'] }}</flux:badge>
                                     </span>
-                                    <flux:select variant="listbox" name="clubs[{{ $club['key'] }}]" size="sm" class="w-40">
+                                    <flux:select variant="listbox" name="clubs[{{ $club['key'] }}]" size="sm" class="w-96">
                                         <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
                                         <flux:select.option value="skip">Überspringen</flux:select.option>
+                                        <flux:select.group label="Bestehendem Verein zuordnen (falsch geschrieben?)">
+                                            @foreach($clubs as $existingClub)
+                                                <flux:select.option
+                                                    value="{{ $existingClub->id }}">{{ $existingClub->display_name }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select.group>
                                     </flux:select>
                                 </div>
                                 <div class="grid grid-cols-3 gap-2">
@@ -104,9 +116,30 @@
                                         <flux:badge size="sm" color="blue"
                                                     class="ml-1">{{ $ath['sport_class'] }}</flux:badge>
                                     </span>
-                                    <flux:select variant="listbox" name="athletes[{{ $ath['key'] }}]" size="sm" class="w-40">
+                                    @php
+                                        // Bestehende Athleten auf denselben Anfangsbuchstaben des Nachnamens
+                                        // eingegrenzt — sonst müsste man sich durch 500+ Namen scrollen.
+                                        $firstLetter = mb_strtoupper(mb_substr($ath['last_name'], 0, 1));
+                                        $matchingAthletes = $athletes->filter(
+                                            fn ($a) => mb_strtoupper(mb_substr($a->last_name, 0, 1)) === $firstLetter
+                                        );
+                                    @endphp
+                                    <flux:select variant="listbox" name="athletes[{{ $ath['key'] }}]" size="sm" class="w-96">
                                         <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
                                         <flux:select.option value="skip">Überspringen</flux:select.option>
+                                        @if($matchingAthletes->isNotEmpty())
+                                            <flux:select.group
+                                                label="Bestehendem Athlet zuordnen (Nachname {{ $firstLetter }}…)">
+                                                @foreach($matchingAthletes as $existingAthlete)
+                                                    <flux:select.option value="{{ $existingAthlete->id }}">
+                                                        {{ $existingAthlete->display_name }}
+                                                        @if($existingAthlete->birth_date)
+                                                            (*{{ $existingAthlete->birth_date->format('Y') }})
+                                                        @endif
+                                                    </flux:select.option>
+                                                @endforeach
+                                            </flux:select.group>
+                                        @endif
                                     </flux:select>
                                 </div>
                             </div>

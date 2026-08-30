@@ -550,9 +550,9 @@ class RecordImportService
         array &$seenClubKeys,
         array &$unknownClubs
     ): ?array {
-        $clubCode = (string) ($clubXml['code'] ?? '');
-        $clubName = (string) ($clubXml['name'] ?? '');
-        $clubNation = (string) ($clubXml['nation'] ?? 'AUT');
+        $clubCode = trim((string) ($clubXml['code'] ?? ''));
+        $clubName = trim((string) ($clubXml['name'] ?? ''));
+        $clubNation = trim((string) ($clubXml['nation'] ?? 'AUT'));
         $clubKey = $clubCode ?: $clubName;
 
         if (! $clubKey || $clubName === '???') {
@@ -619,11 +619,11 @@ class RecordImportService
     private function parseAthleteXml(SimpleXMLElement $athleteXml, string $fallbackGender): array
     {
         return [
-            'last_name' => (string) ($athleteXml['lastname'] ?? ''),
-            'first_name' => (string) ($athleteXml['firstname'] ?? ''),
-            'birth_date' => (string) ($athleteXml['birthdate'] ?? ''),
-            'gender' => (string) ($athleteXml['gender'] ?? $fallbackGender),
-            'license' => (string) ($athleteXml['license'] ?? ''),
+            'last_name' => trim((string) ($athleteXml['lastname'] ?? '')),
+            'first_name' => trim((string) ($athleteXml['firstname'] ?? '')),
+            'birth_date' => trim((string) ($athleteXml['birthdate'] ?? '')),
+            'gender' => trim((string) ($athleteXml['gender'] ?? $fallbackGender)),
+            'license' => trim((string) ($athleteXml['license'] ?? '')),
         ];
     }
 

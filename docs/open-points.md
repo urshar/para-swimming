@@ -5,6 +5,67 @@ Eintrag: was fehlt, warum es zurückgestellt wurde, was zum Schließen gebraucht
 dieser Datei entfernt (Historie steht im jeweiligen Phasen-Abschnitt von `specs/public-frontend-modules.md`), nicht
 nur abgehakt liegen gelassen.
 
+## Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren
+
+**Seit:** Admin-UI-Rework Phase 10, Rückfrage nach dem Vereins-/Athleten-Zuordnungs-Feature (30.08.2026).
+
+**Was fehlt:** Wird bei "Unbekannte Vereine" ein Verein einem bestehenden zugeordnet (z. B. "Flying Flippers
+Schwimmteam" → bestehender Verein "Flying Flippers"), bleibt der bei "Unbekannte Athleten" angezeigte
+Vereinsname (z. B. bei "Zimmermann, Elfriede") weiterhin der alte, unveränderte Text aus dem LENEX-File
+("Flying Flippers Schwimmteam"). Das sieht so aus, als würde die Zuordnung nicht greifen — **greift aber
+tatsächlich korrekt**: geprüft mit einem echten, in einer Transaktion zurückgerollten Importlauf gegen das
+beigefügte `oebsv.lxf` (Verein `FFST` → bestehende ID zugeordnet, `Zimmermann, Elfriede` neu angelegt) — die
+neu angelegte Athletin bekam korrekt `club_id` des zugeordneten bestehenden Vereins, nicht den unbekannten. Der
+Vereinsname-Text bei "Unbekannte Athleten" ist rein optisch veraltet, keine Datenkorrektheits-Lücke.
+
+**Warum zurückgestellt:** Für eine Live-Aktualisierung müsste der Vereins-Auswahlzustand aus dem Abschnitt
+"Unbekannte Vereine" mit der Textanzeige im (weiter unten liegenden, separaten) Abschnitt "Unbekannte Athleten"
+verknüpft werden — eine seitenweite Alpine-`x-data` mit einer geteilten `club_key → gewählter Wert`-Map, aus der
+sich der angezeigte Name bei jedem unbekannten Athleten reaktiv ableitet. Umfang ist größer als eine
+Ein-Zeilen-Korrektur; keine reine Bugfix-Zeile.
+
+**Wer entscheidet:** Keine offene Design-Frage — reine Umsetzungsarbeit, kein Entscheidungsbedarf.
+
+**Zum Schließen nötig:** Seitenweite `x-data` einführen (oder bestehende erweitern), `club_key`-Auswahl der
+Vereins-Selects per `x-model` in eine gemeinsame Map schreiben, Textanzeige bei "Unbekannte Athleten" durch
+einen reaktiven Ausdruck ersetzen, der bei `'new'`/`'skip'` den LENEX-Namen zeigt und bei einer zugeordneten
+bestehenden ID den Namen/Kurznamen dieses Vereins nachschlägt (Vereinsliste ist als `$clubs` bereits im DOM
+verfügbar).
+
+## Titelleisten-Muster (Titel oben, "Zurück" links / Aktionen rechts in eigener Zeile) auf alle `show.blade.php` übertragen
+
+**Seit:** Admin-UI-Rework Phase 10, Design-Feedback nach `records/show.blade.php`-Umbau (30.08.2026).
+
+**Was fehlt:** Das in Phase 9 etablierte Titelleisten-Muster (Titel/Badges in einer Zeile, darunter eine
+`mt-4`-Zeile mit "Zurück" links und den übrigen Aktions-Buttons rechtsbündig via `ml-auto`) wurde ausdrücklich
+gelobt ("Das mit den Button in rekorde.show gefällt mir sehr gut") und soll konsequent auf **alle** `show`-Seiten
+angewendet werden. Aktuell nur in `records/show.blade.php` und den Formularen (`records/form.blade.php` u. a.)
+umgesetzt. Noch zu migrieren:
+
+- `resources/views/athletes/show.blade.php`
+- `resources/views/base-times/categories/show.blade.php`
+- `resources/views/championships/show.blade.php`
+- `resources/views/classifiers/show.blade.php`
+- `resources/views/clubs/show.blade.php`
+- `resources/views/meets/show.blade.php`
+- `resources/views/qualifying-time-lists/show.blade.php`
+- `resources/views/results/show.blade.php`
+- `resources/views/wps/athletes/show.blade.php`
+- `resources/views/wps/versions/show.blade.php`
+
+(`resources/views/public/meets/show.blade.php` nicht enthalten — öffentlicher Bereich nutzt Tailkit statt Flux,
+siehe `docs/specs/public-frontend.md` §3.1, kein Admin-Muster übertragbar.)
+
+**Warum zurückgestellt:** Reine Layout-Fleißarbeit über zehn Dateien mit unterschiedlichen bestehenden
+Kopfzeilen/Aktions-Buttons — pro Datei muss geprüft werden, welche Aktionen aktuell im Header stehen und wie sie
+sich auf "Zurück links / Rest rechts" abbilden, kein Copy-Paste-Batch ohne Sichtprüfung jeder einzelnen Seite.
+
+**Wer entscheidet:** Keine offene Design-Frage — Muster ist bestätigt, es fehlt nur die Umsetzung. Reihenfolge
+der Dateien nach Priorität mit Erik abstimmen, falls nicht alle auf einmal gewünscht sind.
+
+**Zum Schließen nötig:** Jede der zehn Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen,
+live verifizieren, danach aus dieser Liste streichen.
+
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
 **Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).

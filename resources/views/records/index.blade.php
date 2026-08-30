@@ -28,6 +28,7 @@
               sportClass: @js($sportClass),
               gender: @js($gender),
               course: @js($course),
+              status: @js($status),
               submitForm() { this.$el.submit(); },
           }"
           x-init="
@@ -38,6 +39,7 @@
               $watch('sportClass', () => submitForm());
               $watch('gender', () => submitForm());
               $watch('course', () => submitForm());
+              $watch('status', () => submitForm());
           ">
         <flux:select variant="listbox" name="category" x-model="category" class="w-40">
             <flux:select.option value="international">International</flux:select.option>
@@ -98,6 +100,12 @@
             <flux:select.option value="LCM">LCM (50m)</flux:select.option>
             <flux:select.option value="SCM">SCM (25m)</flux:select.option>
         </flux:select>
+
+        <flux:select variant="listbox" name="status" x-model="status" placeholder="Alle Status" clearable class="w-40">
+            @foreach($statusOptions as $val => $label)
+                <flux:select.option value="{{ $val }}">{{ $label }}</flux:select.option>
+            @endforeach
+        </flux:select>
     </form>
 
     {{-- Aktiver Typ als Badge --}}
@@ -117,6 +125,9 @@
         @if($course)
             <flux:badge color="zinc" size="sm">{{ $course }}</flux:badge>
         @endif
+        @if($status)
+            <flux:badge color="zinc" size="sm">{{ $statusOptions[$status] }}</flux:badge>
+        @endif
     </div>
 
     {{--
@@ -131,7 +142,25 @@
         $columnCount += $sportClass ? 0 : 1;
         $columnCount += $gender ? 0 : 1;
         $columnCount += $course ? 0 : 1;
+        $columnCount += $status ? 0 : 1;
         $columnCount += $showAgeGroupColumn ? 1 : 0;
+
+        $statusColors = [
+            'APPROVED' => 'emerald',
+            'PENDING' => 'amber',
+            'INVALID' => 'red',
+            'TARGETTIME' => 'blue',
+        ];
+
+        // Statische Klassen-Strings statt "text-{$color}-500!" — Tailwinds Build-Scanner findet
+        // nur wörtlich im Quelltext stehende Utility-Klassen, keine zur Laufzeit
+        // zusammengesetzten (siehe CLAUDE.md-Konventionen für dieses Projekt).
+        $statusIconClasses = [
+            'APPROVED' => 'text-emerald-500!',
+            'PENDING' => 'text-amber-500!',
+            'INVALID' => 'text-red-500!',
+            'TARGETTIME' => 'text-blue-500!',
+        ];
     @endphp
     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
         <flux:table.columns>
@@ -147,6 +176,9 @@
             <flux:table.column>Disziplin</flux:table.column>
             @unless($course)
                 <flux:table.column>Bahn</flux:table.column>
+            @endunless
+            @unless($status)
+                <flux:table.column>Status</flux:table.column>
             @endunless
             <flux:table.column>Zeit</flux:table.column>
             <flux:table.column>Athlet / Team</flux:table.column>
@@ -187,6 +219,13 @@
                     @unless($course)
                         <flux:table.cell>
                             <flux:badge size="sm" color="zinc">{{ $record->course }}</flux:badge>
+                        </flux:table.cell>
+                    @endunless
+                    @unless($status)
+                        <flux:table.cell>
+                            <flux:badge size="sm" color="{{ $statusColors[$record->record_status] ?? 'zinc' }}">
+                                {{ $statusOptions[$record->record_status] ?? $record->record_status }}
+                            </flux:badge>
                         </flux:table.cell>
                     @endunless
                     <flux:table.cell class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
@@ -251,6 +290,27 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
+                            {{-- Status-Schnelländerung ohne das Formular zu öffnen. --}}
+                            <flux:dropdown position="bottom" align="end">
+                                <flux:button size="sm" variant="ghost" icon="arrow-path"
+                                             class="{{ $statusIconClasses[$record->record_status] ?? '' }}"
+                                             title="Status ändern"/>
+                                <flux:menu>
+                                    @foreach($statusOptions as $val => $label)
+                                        <form method="POST" action="{{ route('records.status.update', $record) }}" class="w-full">
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="record_status" value="{{ $val }}">
+                                            <flux:menu.item as="button" type="submit" class="w-full"
+                                                             :disabled="$record->record_status === $val">
+                                                {{ $label }}
+                                                @if($record->record_status === $val)
+                                                    <flux:icon.check class="size-4 ms-auto"/>
+                                                @endif
+                                            </flux:menu.item>
+                                        </form>
+                                    @endforeach
+                                </flux:menu>
+                            </flux:dropdown>
                             <flux:button href="{{ route('records.show', $record) }}" size="sm" variant="ghost"
                                          icon="eye"/>
                             <flux:button href="{{ route('records.edit', $record) }}" size="sm" variant="ghost"

@@ -22,6 +22,19 @@ use Throwable;
 
 class RecordController extends Controller
 {
+    /**
+     * Manuell setzbare Status-Werte für einen aktuellen Rekord (is_current = true). Die
+     * ".HISTORY"-Varianten aus dem record_status-Enum sind bewusst ausgenommen — die werden
+     * ausschließlich programmatisch beim Überbieten/Wiederherstellen gesetzt
+     * (SwimRecord::markAsSupersededBy(), RecordController::restore()), nie manuell.
+     */
+    private const array STATUS_OPTIONS = [
+        'APPROVED' => 'Bestätigt',
+        'PENDING' => 'Ausstehend',
+        'INVALID' => 'Ungültig',
+        'TARGETTIME' => 'Zielzeit',
+    ];
+
     public function __construct(
         private readonly RecordCheckerService $checker
     ) {}
@@ -133,6 +146,12 @@ class RecordController extends Controller
             $gender = null;
         }
 
+        // Status — dieselbe null-vs-leer-Behandlung wie bei $course oben.
+        $status = $request->input('status');
+        if ($status !== null && ! array_key_exists($status, self::STATUS_OPTIONS)) {
+            $status = null;
+        }
+
         if ($sportClass) {
             $query->whereIn('swim_records.sport_class', explode(',', $sportClass));
         }
@@ -141,6 +160,9 @@ class RecordController extends Controller
         }
         if ($course) {
             $query->where('swim_records.course', $course);
+        }
+        if ($status) {
+            $query->where('swim_records.record_status', $status);
         }
 
         $records = $query->paginate(30)->withQueryString();
@@ -157,7 +179,23 @@ class RecordController extends Controller
             'sportClass' => $sportClass,
             'gender' => $gender,
             'course' => $course,
+            'status' => $status,
+            'statusOptions' => self::STATUS_OPTIONS,
         ]);
+    }
+
+    /**
+     * Status-Schnelländerung aus der Liste heraus, ohne das Bearbeiten-Formular zu öffnen.
+     */
+    public function updateStatus(Request $request, SwimRecord $record): RedirectResponse
+    {
+        $validated = $request->validate([
+            'record_status' => 'required|in:'.implode(',', array_keys(self::STATUS_OPTIONS)),
+        ]);
+
+        $record->update($validated);
+
+        return back()->with('success', 'Status aktualisiert.');
     }
 
     // ── Rekord-Check eines gesamten Meets ────────────────────────────────────
