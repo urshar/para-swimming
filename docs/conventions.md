@@ -72,8 +72,13 @@ Dev/Prod laufen auf **MySQL**, die Tests auf **In-Memory-SQLite**. Jede Abfrage 
 
 - Flux-Formularkomponenten immer mit **`x-model`**, **nie** `:value`.
 - Für **IMask** oder komplexe Alpine-Interaktion natives `<input>` statt der Flux-Komponente verwenden.
-- **Kein `<flux:select.option>` mit `@selected()`** – das bricht den Blade-Component-Parser. Stattdessen natives
-  `<option>`.
+- **`<flux:select variant="listbox">` + `<flux:select.option :selected="...">`** (Prop-Bindung) für alle
+  Dropdowns — die Standard-Variante rendert ohne `@tailwindcss/forms` keinen Pfeil. **Nicht** natives
+  `<option>` mit `@selected()`, und **nicht** `@selected()` direkt in `<flux:select.option>` (bricht den
+  Blade-Component-Parser). `:selected` funktioniert zuverlässig, weil `UIOption.mount()`
+  `hasAttribute("selected")` synchron liest — unabhängig vom kaputten `value=""`-Mechanismus am äußeren
+  `<flux:select>` (siehe `docs/specs/admin-ui-rework.md` "Combobox-Fix gefunden"). `<optgroup>` wird zu
+  `<flux:select.group label="...">`.
 - Flux-Tabellen-Padding korrigieren mit dem Arbitrary-Selector **`[&_td:first-child]:ps-4`** (Flux setzt intern
   `first:ps-0`).
 - **`flux:description` bekommt intern eine Vendor-Regel**
@@ -82,6 +87,23 @@ Dev/Prod laufen auf **MySQL**, die Tests auf **In-Memory-SQLite**. Jede Abfrage 
   `mt-1` auf der Beschreibung wird davon überstimmt, unabhängig von der Position im
   Stylesheet. Für einen wirksamen Abstand die Tailwind-v4-Important-Syntax verwenden:
   **`mt-1!`**.
+- **Auto-Submit bei Änderung eines `flux:select` NICHT über natives `onchange="this.form.submit()"`
+  lösen.** `flux:select` ist ein Custom Element (`<ui-select>`); dessen internes "change"-Event feuert mit
+  `{bubbles:false}` (`vendor/livewire/flux/dist/flux.min.js`) — auch ein `@change` direkt auf dem
+  `<ui-select>` kommt im Test nicht zuverlässig an. Stattdessen `x-model` (ohnehin vorgeschrieben) auf eine
+  Alpine-Zustandsvariable binden und in `x-init` per `$watch(...)` den Submit auslösen. `x-model` übernimmt
+  dabei auch die Vorbelegung — `:selected()` auf den Optionen wird dann nicht mehr gebraucht. Siehe
+  `qualifying-time-lists/qualifications.blade.php` für das durchgespielte Muster.
+- **`<flux:select.option value="">` für eine echte, bedeutungsvolle Option (z. B. "Alle" in einer
+  festen Auswahl) kommt beim Absenden nie im Request an** — ein leeres `value` wird nicht
+  zuverlässig gelesen. Für so eine Option immer einen echten Sentinel-Wert verwenden (z. B.
+  `value="ALL"`), nie `""`. Das ist **nicht** dasselbe wie ein `clearable`-Select — dessen leerer
+  Zustand läuft über einen eigenen, funktionierenden Platzhalter-Mechanismus. Dabei aber beachten:
+  Laravels `ConvertEmptyStringsToNull`-Middleware macht aus einem geleerten `clearable`-Feld beim
+  Request `null`, nicht `""` — eine Validierung wie `in_array($x, ['', 'A', 'B'], true)` erkennt
+  `null` nicht als gültigen "kein Filter"-Zustand und fällt fälschlich auf den Default zurück;
+  vorher explizit `$x !== null &&` prüfen. Siehe `RecordController::index()`
+  (`$relayFilter`/`$course`).
 
 ## Alpine.js
 

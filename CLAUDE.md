@@ -68,7 +68,13 @@ composer lint:check   # Pint nur prüfen
   `<x-layouts.app>`.
 - Flux-Komponenten immer mit `x-model`, **nie** `:value`.
 - Für IMask oder komplexe Alpine-Interaktion natives `<input>` verwenden.
-- **Kein** `<flux:select.option>` mit `@selected()` – bricht den Blade-Parser; stattdessen natives `<option>`.
+- `<flux:select variant="listbox">` + `<flux:select.option :selected="...">` (Prop-Bindung) für
+  Dropdowns — nicht natives `<option>` mit `@selected()` (Flux' Standard-Variante rendert ohne
+  `@tailwindcss/forms` keinen Pfeil) und **nicht** `@selected()` direkt in
+  `<flux:select.option>` (bricht den Blade-Component-Parser). `:selected` funktioniert, weil
+  `UIOption.mount()` `hasAttribute("selected")` synchron liest, unabhängig vom kaputten
+  `value=""`-Mechanismus am äußeren `<flux:select>` — siehe
+  `docs/specs/admin-ui-rework.md` "Combobox-Fix gefunden".
 - Flux-Tabellen-Padding: `[&_td:first-child]:ps-4` (Flux setzt intern
   `first:ps-0`).
 - Alpine-Logik in separate `.js`-Dateien auslagern und via `Alpine.data()`
@@ -114,6 +120,23 @@ composer lint:check   # Pint nur prüfen
   `mt-1` auf der Beschreibung wird davon überstimmt, unabhängig von der Position im
   Stylesheet. Für einen wirksamen Abstand die Tailwind-v4-Important-Syntax verwenden:
   `mt-1!`.
+- **Auto-Submit bei Änderung eines `flux:select` nicht über `onchange="this.form.submit()"` lösen.**
+  `flux:select` ist ein Custom Element (`<ui-select>`); dessen internes "change"-Event feuert mit
+  `{bubbles:false}` (`vendor/livewire/flux/dist/flux.min.js`) — auch `@change` direkt auf dem `<ui-select>`
+  kam im Live-Test nicht zuverlässig an. Stattdessen `x-model` auf eine Alpine-Zustandsvariable binden und in
+  `x-init` per `$watch(...)` den Submit auslösen (übernimmt dabei auch gleich die Vorbelegung). Siehe
+  `qualifying-time-lists/qualifications.blade.php`.
+- **`<flux:select.option value="">` für eine echte, bedeutungsvolle Option (z. B. "Alle" in einer
+  festen Auswahl) kommt beim Absenden nie im Request an** — Flux liest ein leeres `value` nicht
+  zuverlässig (verwandt mit dem oben verlinkten Combobox-Bug, aber ein eigener Fall: hier geht es
+  um eine Options-, nicht um die Wrapper-Vorbelegung). Für so eine Option einen echten
+  Sentinel-Wert verwenden (z. B. `value="ALL"`), nie `""`. Das ist **nicht** dasselbe wie ein
+  `clearable`-Select: Dessen "leerer" Zustand läuft über einen eigenen Platzhalter-Mechanismus und
+  funktioniert — dabei aber beachten: Laravels `ConvertEmptyStringsToNull`-Middleware macht aus
+  einem geleerten `clearable`-Feld beim Request `null`, nicht `""`. Eine Validierung wie
+  `in_array($x, ['', 'A', 'B'], true)` erkennt `null` nicht als gültig und fällt fälschlich auf den
+  Default zurück — vorher explizit `$x !== null &&` prüfen. Siehe
+  `RecordController::index()` (`$relayFilter`/`$course`).
 
 ## Weitere Hinweise
 

@@ -48,15 +48,14 @@
                 <div x-show="mode === 'existing'" x-cloak>
                     <flux:field>
                         <flux:label>Version *</flux:label>
-                        <flux:select name="version_id">
-                            <option value="">— wählen —</option>
+                        <flux:select variant="listbox" name="version_id" placeholder="— wählen —" clearable>
                             @foreach($versions as $version)
-                                <option value="{{ $version->id }}"
-                                    @selected((string) $selectedVersionId === (string) $version->id)>
+                                <flux:select.option value="{{ $version->id }}"
+                                    :selected="(string) $selectedVersionId === (string) $version->id">
                                     {{ $version->label }}
                                     ({{ $version->valid_from->format('d.m.Y') }} –
                                     {{ $version->valid_until?->format('d.m.Y') ?? '∞' }})
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="version_id"/>

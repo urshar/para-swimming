@@ -55,28 +55,28 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Rekord-Typ *</flux:label>
-                        <flux:select name="record_type" required>
+                        <flux:select variant="listbox" name="record_type" required>
                             @foreach($recordTypeGroups as $groupLabel => $types)
-                                <optgroup label="{{ $groupLabel }}">
+                                <flux:select.group label="{{ $groupLabel }}">
                                     @foreach($types as $val => $label)
-                                        <option value="{{ $val }}"
-                                            @selected(old('record_type', $rec->record_type ?? 'AUT') === $val)>
+                                        <flux:select.option value="{{ $val }}"
+                                            :selected="old('record_type', $rec->record_type ?? 'AUT') === $val">
                                             {{ $label }}
-                                        </option>
+                                        </flux:select.option>
                                     @endforeach
-                                </optgroup>
+                                </flux:select.group>
                             @endforeach
                         </flux:select>
                         <flux:error name="record_type"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Status *</flux:label>
-                        <flux:select name="record_status" required>
+                        <flux:select variant="listbox" name="record_status" required>
                             @foreach(['APPROVED' => 'Bestätigt', 'PENDING' => 'Ausstehend', 'TARGETTIME' => 'Zielzeit'] as $val => $label)
-                                <option value="{{ $val }}"
-                                    @selected(old('record_status', $rec->record_status ?? 'APPROVED') === $val)>
+                                <flux:select.option value="{{ $val }}"
+                                    :selected="old('record_status', $rec->record_status ?? 'APPROVED') === $val">
                                     {{ $label }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -92,23 +92,23 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Geschlecht *</flux:label>
-                        <flux:select name="gender" required>
+                        <flux:select variant="listbox" name="gender" required>
                             @foreach(['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'] as $val => $label)
-                                <option value="{{ $val }}"
-                                    @selected(old('gender', $rec->gender ?? 'M') === $val)>
+                                <flux:select.option value="{{ $val }}"
+                                    :selected="old('gender', $rec->gender ?? 'M') === $val">
                                     {{ $label }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Bahn *</flux:label>
-                        <flux:select name="course" required>
+                        <flux:select variant="listbox" name="course" required>
                             @foreach(['LCM' => 'LCM (50m)', 'SCM' => 'SCM (25m)', 'SCY' => 'SCY (Yards)'] as $val => $label)
-                                <option value="{{ $val }}"
-                                    @selected(old('course', $rec->course ?? 'LCM') === $val)>
+                                <flux:select.option value="{{ $val }}"
+                                    :selected="old('course', $rec->course ?? 'LCM') === $val">
                                     {{ $label }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -117,13 +117,12 @@
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Disziplin *</flux:label>
-                        <flux:select name="stroke_type_id" required>
-                            <option value="">Wählen…</option>
+                        <flux:select variant="listbox" name="stroke_type_id" placeholder="Wählen…" required>
                             @foreach($strokeTypes as $stroke)
-                                <option value="{{ $stroke->id }}"
-                                    @selected(old('stroke_type_id', $rec->stroke_type_id ?? '') == $stroke->id)>
+                                <flux:select.option value="{{ $stroke->id }}"
+                                    :selected="old('stroke_type_id', $rec->stroke_type_id ?? '') == $stroke->id">
                                     {{ $stroke->name_de }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="stroke_type_id"/>
@@ -167,32 +166,30 @@
                     <flux:field>
                         <flux:label>Athlet <span class="text-zinc-400 font-normal">(leer bei Staffeln)</span>
                         </flux:label>
-                        <flux:select name="athlete_id">
-                            <option value="">Kein Athlet / Staffel</option>
+                        <flux:select variant="listbox" searchable name="athlete_id" placeholder="Kein Athlet / Staffel" clearable>
                             @foreach($athletes as $athlete)
-                                <option value="{{ $athlete->id }}"
-                                    @selected(old('athlete_id', $rec->athlete_id ?? '') == $athlete->id)>
+                                <flux:select.option value="{{ $athlete->id }}"
+                                    :selected="old('athlete_id', $rec->athlete_id ?? '') == $athlete->id">
                                     {{ $athlete->last_name }} {{ $athlete->first_name }}
                                     @if($athlete->club)
                                         ({{ $athlete->club->short_name ?? $athlete->club->name }})
                                     @endif
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Verein <span class="text-zinc-400 font-normal">(zum Zeitpunkt des Rekords)</span>
                         </flux:label>
-                        <flux:select name="club_id">
-                            <option value="">Kein Verein / unbekannt</option>
+                        <flux:select variant="listbox" searchable name="club_id" placeholder="Kein Verein / unbekannt" clearable>
                             @foreach($clubs as $club)
-                                <option value="{{ $club->id }}"
-                                    @selected(old('club_id', $rec?->club_id) == $club->id)>
+                                <flux:select.option value="{{ $club->id }}"
+                                    :selected="old('club_id', $rec?->club_id) == $club->id">
                                     {{ $club->name }}
                                     @if($club->code)
                                         ({{ $club->code }})
                                     @endif
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -245,13 +242,12 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Nation</flux:label>
-                        <flux:select name="nation_id">
-                            <option value="">Keine Nation</option>
+                        <flux:select variant="listbox" searchable name="nation_id" placeholder="Keine Nation" clearable>
                             @foreach($nations as $nation)
-                                <option value="{{ $nation->id }}"
-                                    @selected(old('nation_id', $rec->nation_id ?? $autId) == $nation->id)>
+                                <flux:select.option value="{{ $nation->id }}"
+                                    :selected="old('nation_id', $rec->nation_id ?? $autId) == $nation->id">
                                     {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -273,13 +269,12 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Austragungsland</flux:label>
-                        <flux:select name="meet_nation_id">
-                            <option value="">Unbekannt</option>
+                        <flux:select variant="listbox" searchable name="meet_nation_id" placeholder="Unbekannt" clearable>
                             @foreach($nations as $nation)
-                                <option value="{{ $nation->id }}"
-                                    @selected(old('meet_nation_id', $rec->meet_nation_id ?? '') == $nation->id)>
+                                <flux:select.option value="{{ $nation->id }}"
+                                    :selected="old('meet_nation_id', $rec->meet_nation_id ?? '') == $nation->id">
                                     {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>

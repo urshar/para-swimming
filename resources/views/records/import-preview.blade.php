@@ -56,9 +56,9 @@
                                         <flux:badge size="sm" color="zinc"
                                                     class="ml-1">{{ $club['nation'] }}</flux:badge>
                                     </span>
-                                    <flux:select name="clubs[{{ $club['key'] }}]" size="sm" class="w-40">
-                                        <option value="new" selected>Neu anlegen</option>
-                                        <option value="skip">Überspringen</option>
+                                    <flux:select variant="listbox" name="clubs[{{ $club['key'] }}]" size="sm" class="w-40">
+                                        <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
+                                        <flux:select.option value="skip">Überspringen</flux:select.option>
                                     </flux:select>
                                 </div>
                                 <div class="grid grid-cols-3 gap-2">
@@ -104,9 +104,9 @@
                                         <flux:badge size="sm" color="blue"
                                                     class="ml-1">{{ $ath['sport_class'] }}</flux:badge>
                                     </span>
-                                    <flux:select name="athletes[{{ $ath['key'] }}]" size="sm" class="w-40">
-                                        <option value="new" selected>Neu anlegen</option>
-                                        <option value="skip">Überspringen</option>
+                                    <flux:select variant="listbox" name="athletes[{{ $ath['key'] }}]" size="sm" class="w-40">
+                                        <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
+                                        <flux:select.option value="skip">Überspringen</flux:select.option>
                                     </flux:select>
                                 </div>
                             </div>

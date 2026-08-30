@@ -51,9 +51,9 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:checkbox name="is_active" value="1"
-                                   :checked="old('is_active', $list?->is_active ?? true)"
-                                   label="Aktiv"/>
+                    <flux:switch name="is_active" value="1"
+                                 :checked="old('is_active', $list?->is_active ?? true)"
+                                 label="Aktiv"/>
                 </flux:field>
 
                 <div class="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-700">
@@ -134,8 +134,8 @@
                 <form method="POST" action="{{ route('qualifying-time-lists.calculate', $list) }}"
                       class="flex items-center gap-4">
                     @csrf
-                    <flux:checkbox name="overwrite_manual" value="1"
-                                   label="Auch manuell gesetzte Zeiten überschreiben"/>
+                    <flux:switch name="overwrite_manual" value="1"
+                                 label="Auch manuell gesetzte Zeiten überschreiben"/>
                     <flux:button type="submit" variant="primary" icon="calculator">
                         Richtzeiten berechnen
                     </flux:button>
@@ -153,13 +153,13 @@
                 <form method="POST" action="{{ route('qualifying-time-lists.times.store', $list) }}"
                       class="grid grid-cols-5 gap-3 mb-4">
                     @csrf
-                    <flux:select name="stroke_type_id" placeholder="Stroke">
+                    <flux:select variant="listbox" name="stroke_type_id" placeholder="Stroke">
                         @foreach($strokeTypes as $stroke)
                             <flux:select.option value="{{ $stroke->id }}">{{ $stroke->name_de }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:input name="distance" type="number" min="1" placeholder="Distanz (m)"/>
-                    <flux:select name="gender" placeholder="Geschlecht">
+                    <flux:select variant="listbox" name="gender" placeholder="Geschlecht">
                         <flux:select.option value="M">M</flux:select.option>
                         <flux:select.option value="F">F</flux:select.option>
                     </flux:select>

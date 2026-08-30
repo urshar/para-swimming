@@ -3,6 +3,16 @@
 @section('title', "Qualifikation $list->year")
 
 @section('content')
+    @php
+        // Einzelne, bereits fertige Werte statt komplexer Ausdrücke direkt im
+        // x-data-Objektliteral (siehe CLAUDE.md: @json()/@js()-Komma-Fallstrick).
+        $strokeDistanceFilter = request('stroke_type_id') !== null && request('stroke_type_id') !== ''
+            ? request('stroke_type_id').'|'.request('distance')
+            : '';
+        $genderFilter = (string) request('gender', '');
+        $sportClassFilter = (string) request('sport_class', '');
+        $clubFilter = (string) request('club_id', '');
+    @endphp
     <div class="max-w-5xl">
         <div class="flex items-center gap-3 mb-6">
             <flux:button href="{{ route('qualifying-time-lists.show', $list) }}" variant="ghost" icon="arrow-left"
@@ -15,61 +25,70 @@
             </flux:button>
         </div>
 
-        {{-- Filter --}}
+        {{--
+            Filter — vier Selects lösen bei Änderung automatisch die Suche aus. Die früheren nativen
+            <select onchange="this.form.submit()"> funktionieren mit flux:select nicht mehr: das ist ein
+            Custom Element (<ui-select>), dessen internes "change"-Event mit {bubbles:false} feuert — ein
+            @change auf dem <ui-select> selbst kam beim Test nicht an. x-model (der ohnehin für
+            Flux-Komponenten vorgeschriebene Weg, siehe CLAUDE.md) + $watch funktioniert zuverlässig.
+        --}}
         <form method="GET" action="{{ route('qualifying-time-lists.qualifications', $list) }}"
-              class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6 grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+              class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6 grid grid-cols-2 md:grid-cols-5 gap-3 items-end"
+              x-data="{
+                  strokeDistance: @js($strokeDistanceFilter),
+                  genderFilter: @js($genderFilter),
+                  sportClassFilter: @js($sportClassFilter),
+                  clubFilter: @js($clubFilter),
+                  submitFilter() {
+                      const [s, d] = (this.strokeDistance || '').split('|');
+                      this.$refs.strokeTypeIdField.value = s ?? '';
+                      this.$refs.distanceField.value = d ?? '';
+                      this.$el.submit();
+                  },
+              }"
+              x-init="
+                  $watch('strokeDistance', () => submitFilter());
+                  $watch('genderFilter', () => submitFilter());
+                  $watch('sportClassFilter', () => submitFilter());
+                  $watch('clubFilter', () => submitFilter());
+              ">
             <flux:field>
                 <flux:label>Bewerb</flux:label>
-                <flux:select name="stroke_type_id_distance" onchange="
-                    const [s, d] = this.value.split('|');
-                    this.form.stroke_type_id.value = s ?? '';
-                    this.form.distance.value = d ?? '';
-                    this.form.submit();
-                ">
-                    <option value="">Alle</option>
+                <flux:select variant="listbox" name="stroke_type_id_distance" x-model="strokeDistance"
+                    placeholder="Alle" clearable>
                     @foreach($events as $event)
-                        <option value="{{ $event['stroke_type_id'] }}|{{ $event['distance'] }}"
-                            @selected(request('stroke_type_id') == $event['stroke_type_id'] && request('distance') == $event['distance'])>
+                        <flux:select.option value="{{ $event['stroke_type_id'] }}|{{ $event['distance'] }}">
                             {{ $event['label'] }}
-                        </option>
+                        </flux:select.option>
                     @endforeach
                 </flux:select>
-                <input type="hidden" name="stroke_type_id" value="{{ request('stroke_type_id') }}"/>
-                <input type="hidden" name="distance" value="{{ request('distance') }}"/>
+                <input type="hidden" name="stroke_type_id" x-ref="strokeTypeIdField" value="{{ request('stroke_type_id') }}"/>
+                <input type="hidden" name="distance" x-ref="distanceField" value="{{ request('distance') }}"/>
             </flux:field>
 
             <flux:field>
                 <flux:label>Geschlecht</flux:label>
-                <flux:select name="gender" onchange="this.form.submit()">
-                    <option value="">Alle</option>
+                <flux:select variant="listbox" name="gender" x-model="genderFilter" placeholder="Alle" clearable>
                     @foreach($genders as $gender)
-                        <option value="{{ $gender }}" @selected(request('gender') == $gender)>
-                            {{ $gender }}
-                        </option>
+                        <flux:select.option value="{{ $gender }}">{{ $gender }}</flux:select.option>
                     @endforeach
                 </flux:select>
             </flux:field>
 
             <flux:field>
                 <flux:label>Sportklasse</flux:label>
-                <flux:select name="sport_class" onchange="this.form.submit()">
-                    <option value="">Alle</option>
+                <flux:select variant="listbox" name="sport_class" x-model="sportClassFilter" placeholder="Alle" clearable>
                     @foreach($sportClasses as $sportClass)
-                        <option value="{{ $sportClass }}" @selected(request('sport_class') == $sportClass)>
-                            {{ $sportClass }}
-                        </option>
+                        <flux:select.option value="{{ $sportClass }}">{{ $sportClass }}</flux:select.option>
                     @endforeach
                 </flux:select>
             </flux:field>
 
             <flux:field>
                 <flux:label>Verein</flux:label>
-                <flux:select name="club_id" onchange="this.form.submit()">
-                    <option value="">Alle</option>
+                <flux:select variant="listbox" searchable name="club_id" x-model="clubFilter" placeholder="Alle" clearable>
                     @foreach($clubs as $club)
-                        <option value="{{ $club->id }}" @selected(request('club_id') == $club->id)>
-                            {{ $club->display_name ?? $club->name }}
-                        </option>
+                        <flux:select.option value="{{ $club->id }}">{{ $club->display_name ?? $club->name }}</flux:select.option>
                     @endforeach
                 </flux:select>
             </flux:field>

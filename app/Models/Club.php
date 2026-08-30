@@ -27,6 +27,23 @@ class Club extends Model
         'WBSV' => 'Wiener Behindertensportverband',
     ];
 
+    /**
+     * Bundesland je Verbandscode — kurze Anzeigeform für Dropdowns (z.B. "BBSV Burgenland"
+     * statt des vollen Vereinsnamens "Burgenländischer Behindertensportverband", der in einem
+     * schmalen Select abgeschnitten wird). Siehe records/index.blade.php.
+     */
+    const array REGIONAL_ASSOCIATION_STATES = [
+        'BBSV' => 'Burgenland',
+        'KBSV' => 'Kärnten',
+        'NOEVSV' => 'Niederösterreich',
+        'OOEBSV' => 'Oberösterreich',
+        'SBSV' => 'Salzburg',
+        'STBSV' => 'Steiermark',
+        'TBSV' => 'Tirol',
+        'VBSV' => 'Vorarlberg',
+        'WBSV' => 'Wien',
+    ];
+
     protected $fillable = [
         'name',
         'short_name',

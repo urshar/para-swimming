@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Athlete;
+use App\Models\BaseTimeSportClass;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
@@ -14,6 +15,7 @@ use App\Services\RecordCheckerService;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
@@ -28,45 +30,117 @@ class RecordController extends Controller
     {
         $category = $request->input('category', 'national');
 
-        $allowedTypes = match ($category) {
+        // Basis-Typ je Kategorie: International bleibt WR/ER/OR (kennt keine Jugendrekorde).
+        // National/Regional zeigen hier nur noch die Region (Österreich bzw. der jeweilige
+        // Landesverband) — ob Jugend- oder offene Rekorde gemeint sind, entscheidet das
+        // separate Jugend/Offen/Alle-Dropdown weiter unten, nicht mehr eine eigene Options-Zeile
+        // je Verband.
+        $baseTypes = match ($category) {
             'international' => [
                 'WR' => 'Weltrekorde',
                 'ER' => 'Europarekorde',
                 'OR' => 'Olympische Rekorde',
             ],
             'regional' => $this->buildRegionalTypes(),
-            default => [
-                'AUT' => 'Österreich (gesamt)',
-                'AUT.JR' => 'Österreich Jugend',
-            ],
+            default => ['AUT' => 'Österreich'],
         };
 
-        $defaultType = array_key_first($allowedTypes);
-        $recordType = $request->input('type', $defaultType);
-        if (! array_key_exists($recordType, $allowedTypes)) {
-            $recordType = $defaultType;
+        $defaultBaseType = array_key_first($baseTypes);
+        $baseType = $request->input('type', $defaultBaseType);
+        if (! array_key_exists($baseType, $baseTypes)) {
+            $baseType = $defaultBaseType;
         }
 
-        // Einzel/Staffel Filter
-        $relayFilter = $request->input('relay', '');  // '' = alle, 'single' = Einzel, 'relay' = Staffeln
-
-        $query = SwimRecord::with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam'])
-            ->where('record_type', $recordType)
-            ->where('is_current', true)
-            ->when($relayFilter === 'single', fn ($q) => $q->where('relay_count', 1))
-            ->when($relayFilter === 'relay', fn ($q) => $q->where('relay_count', '>', 1))
-            ->orderBy('sport_class')
-            ->orderBy('gender')
-            ->orderBy('distance');
-
-        if ($sportClass = $request->input('sport_class')) {
-            $query->where('sport_class', $sportClass);
+        // Jugend/Offen/Alle — nur für National/Regional relevant. 'ALL' = alle (Jugend + Offen
+        // zusammen), 'JR' = nur Jugend, 'OPEN' = nur offene/allgemeine Rekorde (bisheriger
+        // Default-Zustand, als es diese Unterscheidung noch nicht gab). Bewusst KEIN value=""
+        // für "Alle" — Flux' <flux:select> liest ein leeres value nicht zuverlässig (bekannter
+        // Bug, siehe "Combobox-Fix gefunden" oben): beim Absenden kam serverseitig nie ein
+        // age_group-Parameter an, das Ergebnis fiel immer auf den OPEN-Default zurück.
+        $ageGroup = $category === 'international' ? 'ALL' : $request->input('age_group', 'OPEN');
+        if (! in_array($ageGroup, ['ALL', 'JR', 'OPEN'], true)) {
+            $ageGroup = 'OPEN';
         }
-        if ($gender = $request->input('gender')) {
-            $query->where('gender', $gender);
+
+        // record_type in der DB kodiert Region und Jugend-Status in einem String (z.B.
+        // "AUT.WBSV.JR") — bei "Alle" gibt es keinen einzelnen Wert dafür, daher whereIn statt
+        // eines exakten Vergleichs.
+        $recordTypes = match (true) {
+            $ageGroup === 'JR' => ["$baseType.JR"],
+            $category === 'international', $ageGroup === 'OPEN' => [$baseType],
+            default => [$baseType, "$baseType.JR"],
+        };
+        $recordTypeLabel = $baseTypes[$baseType];
+
+        // Einzel/Staffel-Filter — Default: Einzel. 'ALL' = alle, 'single' = Einzel, 'relay' =
+        // Staffeln. Bewusst KEIN value="" für "Alle" (gleicher Flux-Bug wie beim
+        // Jugend/Offen/Alle-Dropdown oben — ein leeres value kommt beim Absenden nie im
+        // Request an).
+        $relayFilter = $request->input('relay', 'single');
+        if (! in_array($relayFilter, ['ALL', 'single', 'relay'], true)) {
+            $relayFilter = 'single';
         }
-        if ($course = $request->input('course')) {
-            $query->where('course', $course);
+
+        // Sportklassen-Dropdown: Optionen UND Default hängen vom Einzel/Staffel-Filter ab.
+        // Staffeln kennen nur die kombinierten Staffelklassen (RelayClassValidator), Einzel
+        // orientiert sich an den in den Basiswerten gepflegten Klassennummern (S1…S19, S21 —
+        // je Nummer zusammengefasst über S/SB/SM, da ein Rekord genau eine dieser drei ist).
+        [$sportClassOptions, $defaultSportClass] = $this->buildSportClassOptions($relayFilter);
+
+        $sportClass = $request->input('sport_class', $defaultSportClass);
+        if ($sportClass !== null && ! $sportClassOptions->has($sportClass)) {
+            $sportClass = $defaultSportClass;
+        }
+
+        // Bahn — Default: SCM (25m), die in Österreich häufigste Bahnlänge. Ein geleertes
+        // clearable-Select kommt dank Laravels ConvertEmptyStringsToNull-Middleware als null
+        // im Request an (nicht als '') — das ist ein gültiger "kein Filter"-Zustand und darf
+        // nicht auf den Default zurückfallen, nur echte Ausreißerwerte sollen das (gleiches
+        // Muster wie $sportClass oben).
+        $course = $request->input('course', 'SCM');
+        if ($course !== null && ! in_array($course, ['', 'LCM', 'SCM'], true)) {
+            $course = 'SCM';
+        }
+
+        // Sortierung: Sportklasse → Stil (feste Reihenfolge Freistil/Brust/Rücken/Schmetterling/
+        // Lagen, alles andere danach) → Distanz → Geschlecht (Frauen vor Herren). Die
+        // Geschlecht-Sortierung greift nur sichtbar, wenn nicht schon auf ein Geschlecht gefiltert
+        // ist — bei einem einzelnen Geschlecht im Ergebnis ist sie ein No-op, daher immer aktiv,
+        // keine bedingte SQL nötig. Für die Stil-Reihenfolge muss stroke_types gejoint werden
+        // (SwimRecord speichert nur die FK, keinen Code) — explizites select() nötig, sonst
+        // überschreiben gleichnamige Spalten aus stroke_types (z.B. id) die von swim_records.
+        $query = SwimRecord::query()
+            ->select('swim_records.*')
+            ->join('stroke_types', 'stroke_types.id', '=', 'swim_records.stroke_type_id')
+            ->with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam', 'meetNation'])
+            ->whereIn('swim_records.record_type', $recordTypes)
+            ->where('swim_records.is_current', true)
+            ->when($relayFilter === 'single', fn ($q) => $q->where('swim_records.relay_count', 1))
+            ->when($relayFilter === 'relay', fn ($q) => $q->where('swim_records.relay_count', '>', 1))
+            ->orderBy('swim_records.sport_class')
+            ->orderByRaw("case stroke_types.lenex_code
+                when 'FREE' then 1
+                when 'BREAST' then 2
+                when 'BACK' then 3
+                when 'FLY' then 4
+                when 'MEDLEY' then 5
+                else 6 end")
+            ->orderBy('swim_records.distance')
+            ->orderByRaw("case swim_records.gender when 'F' then 1 when 'M' then 2 else 3 end");
+
+        $gender = $request->input('gender');
+        if (! in_array($gender, [null, 'M', 'F'], true)) {
+            $gender = null;
+        }
+
+        if ($sportClass) {
+            $query->whereIn('swim_records.sport_class', explode(',', $sportClass));
+        }
+        if ($gender) {
+            $query->where('swim_records.gender', $gender);
+        }
+        if ($course) {
+            $query->where('swim_records.course', $course);
         }
 
         $records = $query->paginate(30)->withQueryString();
@@ -74,10 +148,15 @@ class RecordController extends Controller
         return view('records.index', [
             'records' => $records,
             'category' => $category,
-            'recordType' => $recordType,
-            'recordTypeLabel' => $allowedTypes[$recordType],
-            'regionalTypes' => $category === 'regional' ? $allowedTypes : [],
+            'baseType' => $baseType,
+            'baseTypes' => $baseTypes,
+            'ageGroup' => $ageGroup,
+            'recordTypeLabel' => $recordTypeLabel,
             'relayFilter' => $relayFilter,
+            'sportClassOptions' => $sportClassOptions,
+            'sportClass' => $sportClass,
+            'gender' => $gender,
+            'course' => $course,
         ]);
     }
 
@@ -142,6 +221,7 @@ class RecordController extends Controller
 
             $record->splits()->delete();
             $this->storeSplits($record->id, $splits);
+            $this->storeRelayMembers($record, $data);
         });
 
         return redirect()
@@ -203,32 +283,6 @@ class RecordController extends Controller
             ->with('record_check_result', $sessionData);
     }
 
-    public function importForm(): View
-    {
-        return view('records.import');
-    }
-
-    public function import(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'lenex_file' => 'required|file|mimes:lxf,xml|max:20480',
-        ]);
-
-        // TODO: RecordImportService implementieren
-        return redirect()
-            ->route('records.index')
-            ->with('success', 'Rekorde erfolgreich importiert.');
-    }
-
-    public function export(Request $request): RedirectResponse
-    {
-        $recordType = $request->query('type', 'WR');
-
-        return redirect()
-            ->route('records.index', ['type' => $recordType])
-            ->with('success', 'Export wird vorbereitet.');
-    }
-
     public function createManual(): View
     {
         return view('records.form', $this->formData());
@@ -277,6 +331,7 @@ class RecordController extends Controller
             $current?->markAsSupersededBy($newRecord);
 
             $this->storeSplits($newRecord->id, $splits);
+            $this->storeRelayMembers($newRecord, $data);
         });
 
         return redirect()
@@ -324,13 +379,53 @@ class RecordController extends Controller
             ->with('success', 'Rekord wiederhergestellt.');
     }
 
+    /**
+     * Optionen für das Sportklassen-Dropdown auf records/index.
+     *
+     * Einzel: eine Option je in den Basiswerten gepflegter Klassennummer, zusammengefasst über
+     * S/SB/SM (ein SwimRecord hat immer nur eine dieser drei Kategorien) — Wert
+     * "S{n},SB{n},SM{n}" (ungepolstert, passend zu den tatsächlich gespeicherten
+     * sport_class-Werten), Label "S{n},SB{n},SM{n}" zweistellig gepolstert.
+     * Staffel: die sechs kombinierten Staffelklassen aus RelayClassValidator, keine Vorauswahl.
+     *
+     * @return array{0: Collection<string, string>, 1: ?string}
+     */
+    private function buildSportClassOptions(string $relayFilter): array
+    {
+        if ($relayFilter === 'relay') {
+            $relayClasses = ['S14', 'S15', 'S20', 'S21', 'S34', 'S49'];
+
+            return [collect($relayClasses)->mapWithKeys(fn ($code) => [$code => $code]), null];
+        }
+
+        $numbers = BaseTimeSportClass::query()
+            ->pluck('code')
+            ->map(fn ($code) => (int) preg_replace('/\D+/', '', $code))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $options = $numbers->mapWithKeys(fn ($n) => [
+            "S$n,SB$n,SM$n" => sprintf('S%02d,SB%02d,SM%02d', $n, $n, $n),
+        ]);
+
+        return [$options, $options->keys()->first()];
+    }
+
+    /**
+     * Ein Eintrag je Landesverband — Abkürzung + Bundesland statt des vollen Vereinsnamens, der
+     * in der schmalen Dropdown-Spalte abgeschnitten wurde (z.B. "BBSV Burgenland" statt "BBSV –
+     * Burgenländischer Behindertensportverband"). Die Jugend/Offen-Unterscheidung läuft seit dem
+     * Design-Feedback über das eigene Jugend/Offen/Alle-Dropdown, nicht mehr über eine eigene
+     * Options-Zeile je Verband.
+     */
     private function buildRegionalTypes(): array
     {
         $types = [];
 
         foreach (Club::REGIONAL_ASSOCIATIONS as $code => $name) {
-            $types["AUT.$code"] = "$code – $name";
-            $types["AUT.$code.JR"] = "$code – $name (Jugend)";
+            $state = Club::REGIONAL_ASSOCIATION_STATES[$code] ?? $name;
+            $types["AUT.$code"] = "$code $state";
         }
 
         return $types;
