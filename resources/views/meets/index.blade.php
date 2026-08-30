@@ -37,7 +37,7 @@
 
     {{-- Filter --}}
     <form method="GET" class="flex flex-wrap gap-3 mb-4">
-        <div class="w-44 shrink-0">
+        <div class="w-72 shrink-0">
             <flux:input
                 name="search"
                 value="{{ request('search') }}"
@@ -46,8 +46,8 @@
             />
         </div>
         <flux:select variant="listbox" name="course" placeholder="Alle Bahnen" clearable class="w-36">
-            <flux:select.option value="LCM" :selected="request('course') === 'LCM'">LCM (50m)</flux:select.option>
             <flux:select.option value="SCM" :selected="request('course') === 'SCM'">SCM (25m)</flux:select.option>
+            <flux:select.option value="LCM" :selected="request('course') === 'LCM'">LCM (50m)</flux:select.option>
             <flux:select.option value="SCY" :selected="request('course') === 'SCY'">SCY (Yards)</flux:select.option>
             <flux:select.option value="OPEN" :selected="request('course') === 'OPEN'">Freiwasser</flux:select.option>
         </flux:select>

@@ -73,6 +73,9 @@ composer lint:check   # Pint nur prüfen
   `first:ps-0`).
 - Alpine-Logik in separate `.js`-Dateien auslagern und via `Alpine.data()`
   registrieren (reduziert IDE-Warnungen).
+- `@php use Foo\Bar; @endphp` für Imports steht am Dateianfang **vor** `@extends`, nicht
+  mitten in `@section('content')` — sonst löst PhpStorm den Import nicht auf ("Missing
+  import statement"), siehe `club-entries/edit-relay.blade.php` für das korrekte Muster.
 
 ## Bewährte Architektur-Muster (Fallstricke)
 
@@ -94,10 +97,25 @@ composer lint:check   # Pint nur prüfen
   **nicht** auf, weil der falsche Wert zufällig denselben Fallback auslöst — siehe
   `Public\CupRankingController`/`Public\AnnualBestController` und die zugehörigen
   Regressionstests in `PublicFrontendPhase7Test.php`.
+- **Blade `@json()` zerlegt sein Argument naiv an jedem Komma**
+  (`Illuminate\View\Compilers\Concerns\CompilesJson::compileJson()` macht intern
+  `explode(',', ...)`) — nie einen Ausdruck mit eigenen Kommas übergeben (z. B.
+  `old('key', 'default')` oder ein mehrteiliges Array-Literal direkt in `@json([...])`),
+  sondern vorher in eine einzelne Variable schreiben (`@php $x = old('key', 'default');
+  @endphp`, dann `@json($x)`). Ein internes Komma verfälscht dabei nur unbemerkt die
+  JSON-Encoding-Flags, zwei oder mehr können den kompilierten PHP-Ausdruck abschneiden
+  (`ParseError`). Zusätzlich: `x-data`-Attribute, die `@json()` enthalten, **immer einfach
+  anführen** (`x-data='...'`), nie doppelt — `@json()`s eingebettete doppelte
+  Anführungszeichen brechen sonst das HTML-Attribut. `php artisan view:cache` erkennt beides
+  nicht (kompiliert nur, führt nichts aus) — nur ein echter Seitenaufruf deckt es auf.
+- **Flux' `flux:description` bekommt intern eine Vendor-Regel**
+  (`[&>*:not([data-flux-label])+[data-flux-description]]:mt-3` in Flux' `field.blade.php`)
+  mit strukturell höherer Spezifität als eine einzelne eigene Utility-Klasse — ein normales
+  `mt-1` auf der Beschreibung wird davon überstimmt, unabhängig von der Position im
+  Stylesheet. Für einen wirksamen Abstand die Tailwind-v4-Important-Syntax verwenden:
+  `mt-1!`.
 
-## Lieferung von Änderungen
-
-Alle geänderten/neuen Dateien als **ein einziges ZIP** liefern, nicht einzeln.
+## Weitere Hinweise
 
 - **Barrierefreiheit** nach `docs/accessibility.md` ist Teil der Definition von "fertig".
 - Der **öffentliche Bereich** nutzt Tailkit-Snippets, nicht Flux — siehe `docs/specs/public-frontend.md` §3.1.

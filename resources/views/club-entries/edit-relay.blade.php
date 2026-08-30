@@ -6,7 +6,7 @@
 
 @section('content')
     @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
-    <div class="max-w-2xl">
+    <div class="max-w-3xl">
 
         {{-- Header --}}
         <div class="mb-6">
@@ -136,7 +136,7 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1">MM:SS.hh — z.B. 04:30.25</flux:description>
+                        <flux:description class="mt-1!">MM:SS.hh — z.B. 04:30.25</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

@@ -136,12 +136,12 @@ class EntryController extends Controller
 
     public function destroy(Entry $entry): RedirectResponse
     {
-        $meet = $entry->meet;
         $entry->delete();
 
-        return redirect()
-            ->route('meets.show', $meet)
-            ->with('success', 'Meldung gelöscht.');
+        // Zurück zur (ggf. gefilterten) Meldungsliste, von der aus gelöscht wurde —
+        // nicht zur Wettkampf-Detailseite. Andernfalls verliert man beim Löschen
+        // mehrerer Meldungen nacheinander jedes Mal den Filter-/Listenkontext.
+        return back()->with('success', 'Meldung gelöscht.');
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────

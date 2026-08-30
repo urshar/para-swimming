@@ -48,7 +48,7 @@
                                 <flux:label>Auf der öffentlichen Seite sichtbar</flux:label>
                                 <flux:switch name="is_published" value="1" :checked="old('is_published', $meet->is_published ?? false)"
                                              label="Erscheint in der öffentlichen Veranstaltungsliste"/>
-                                <flux:description class="mt-1">
+                                <flux:description class="mt-1!">
                                     Ohne diese Freigabe ist der Wettkampf für Besucher der öffentlichen Seite unsichtbar —
                                     auch dann, wenn bereits Dokumente dazu freigegeben sind (Spec public-frontend §4.2).
                                 </flux:description>
@@ -59,7 +59,7 @@
                                 <flux:input name="livetiming_url" type="url"
                                             value="{{ old('livetiming_url', $meet->livetiming_url ?? '') }}"
                                             placeholder="https://…"/>
-                                <flux:description class="mt-1">Wird auf der öffentlichen Veranstaltungsseite als externer Link angezeigt.</flux:description>
+                                <flux:description class="mt-1!">Wird auf der öffentlichen Veranstaltungsseite als externer Link angezeigt.</flux:description>
                                 <flux:error name="livetiming_url"/>
                             </flux:field>
 
@@ -67,7 +67,7 @@
                                 <flux:label>WPS-anerkannter Wettkampf</flux:label>
                                 <flux:switch name="wps_approved" value="1" :checked="old('wps_approved', $meet->wps_approved ?? false)"
                                              label="Von World Para Swimming sanktioniert"/>
-                                <flux:description class="mt-1">
+                                <flux:description class="mt-1!">
                                     Nur Zeiten aus sanktionierten Wettkämpfen gelten als Qualifikationsnachweis
                                     für internationale Meisterschaften. Ohne diese Kennzeichnung erscheint ein
                                     Ergebnis nicht in der Qualifikantenliste — in der Förderansicht sehr wohl,
@@ -80,7 +80,7 @@
                                 <flux:input name="wps_approved_note"
                                             value="{{ old('wps_approved_note', $meet->wps_approved_note ?? '') }}"
                                             placeholder="z.B. WPS Sanctioned Competitions 2026, Nr. 14"/>
-                                <flux:description class="mt-1">Optional — wo die Anerkennung nachzulesen ist.</flux:description>
+                                <flux:description class="mt-1!">Optional — wo die Anerkennung nachzulesen ist.</flux:description>
                                 <flux:error name="wps_approved_note"/>
                             </flux:field>
 
@@ -94,7 +94,7 @@
                                         </flux:select.option>
                                     @endforeach
                                 </flux:select>
-                                <flux:description class="mt-1">
+                                <flux:description class="mt-1!">
                                     Ein Wettkampf kann keinem oder genau einem Cup angehören.
                                 </flux:description>
                                 <flux:error name="cup_id"/>
@@ -110,7 +110,7 @@
                                         </flux:select.option>
                                     @endforeach
                                 </flux:select>
-                                <flux:description class="mt-1">
+                                <flux:description class="mt-1!">
                                     Markiert diesen Wettkampf als die ÖSTM & ÖM-Veranstaltung des jeweiligen Jahres —
                                     Grundlage für die automatische Richtzeiten-Berechnung (Kurs/Datum) und später die
                                     Qualifikationsermittlung.
@@ -188,7 +188,7 @@
                                             </flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <flux:description class="mt-1">
+                                    <flux:description class="mt-1!">
                                         Leer lassen, damit die zum Wettkampfdatum gültige Version verwendet wird.
                                     </flux:description>
                                     <flux:error name="wps_point_version_id"/>

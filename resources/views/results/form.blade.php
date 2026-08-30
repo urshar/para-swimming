@@ -1,11 +1,11 @@
+@php use App\Support\TimeParser; @endphp
+
 @extends('layouts.app')
 
 @section('title', isset($result) ? 'Ergebnis bearbeiten' : 'Ergebnis anlegen – ' . $meet->name)
 
 @section('content')
     @php
-        use App\Support\TimeParser;
-
         // Für die automatische Club-Vorbelegung beim Athleten-Wechsel (bleibt änderbar) —
         // nur im Anlegen-Formular relevant, dort ist der Athlet frei wählbar.
         $athleteClubMap = isset($result) ? collect() : $athletes->pluck('club.id', 'id');
@@ -17,6 +17,14 @@
         $oldClubId = old('club_id', '');
 
         $swimTimeValue = old('swim_time', isset($result) && $result->swim_time ? TimeParser::display($result->swim_time) : '');
+
+        // Sekunden mit Komma statt Hundertstelsekunden-Integer (z.B. "0,14" statt "14").
+        $reactionTimeValue = old(
+            'reaction_time',
+            isset($result) && $result->reaction_time !== null
+                ? number_format($result->reaction_time / 100, 2, ',', '')
+                : ''
+        );
 
         $existingSplits = isset($result)
             ? $result->splits->map(fn ($s) => ['distance' => $s->distance, 'split_time' => $s->split_time])->values()->toArray()
@@ -92,7 +100,7 @@
                                             </flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <flux:description class="mt-1">Auch ohne Meldung zu diesem Wettkampf wählbar.</flux:description>
+                                    <flux:description class="mt-1!">Auch ohne Meldung zu diesem Wettkampf wählbar.</flux:description>
                                     <flux:error name="athlete_id"/>
                                 @endif
                             </flux:field>
@@ -112,7 +120,7 @@
                                                 value="{{ $club->id }}" :selected="old('club_id') == $club->id">{{ $club->name }}</flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <flux:description class="mt-1">Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.</flux:description>
+                                    <flux:description class="mt-1!">Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.</flux:description>
                                     <flux:error name="club_id"/>
                                 @endif
                             </flux:field>
@@ -132,7 +140,7 @@
                                     <flux:input name="swim_time" type="text" x-model="value"
                                                 placeholder="00:00.00" autocomplete="off"/>
                                 </div>
-                                <flux:description class="mt-1">MM:SS.hh — leer lassen ohne Zeit (z.B. bei DNS)</flux:description>
+                                <flux:description class="mt-1!">MM:SS.hh — leer lassen ohne Zeit (z.B. bei DNS)</flux:description>
                                 <flux:error name="swim_time"/>
                             </flux:field>
                             <flux:field>
@@ -189,10 +197,11 @@
                                 <flux:error name="points"/>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Reaktionszeit (Hundertstelsekunden)</flux:label>
-                                <flux:input name="reaction_time" type="number"
-                                            value="{{ old('reaction_time', $result->reaction_time ?? '') }}"
-                                            placeholder="z.B. 14 oder -3"/>
+                                <flux:label>Reaktionszeit (Sekunden)</flux:label>
+                                <flux:input name="reaction_time" type="text"
+                                            value="{{ $reactionTimeValue }}"
+                                            placeholder="z.B. 0,14 oder -0,03" autocomplete="off"/>
+                                <flux:description class="mt-1!">Sekunden mit Komma — negativ bei Fehlstart</flux:description>
                                 <flux:error name="reaction_time"/>
                             </flux:field>
                         </div>

@@ -5,6 +5,40 @@ Eintrag: was fehlt, warum es zurückgestellt wurde, was zum Schließen gebraucht
 dieser Datei entfernt (Historie steht im jeweiligen Phasen-Abschnitt von `specs/public-frontend-modules.md`), nicht
 nur abgehakt liegen gelassen.
 
+## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
+
+**Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).
+
+**Was fehlt:** Der Admin hat aktuell keine einzige Ansicht, die alle Meldungen einer Veranstaltung — Einzel- UND
+Staffelmeldungen, über alle Vereine hinweg — auf einen Blick zeigt und bearbeitbar macht. Stattdessen gibt es zwei
+getrennte, unvollständige Wege:
+
+1. `entries/index.blade.php` (globale Meldungsliste, `EntryController`) — nach `meet_id` filterbar, mit
+   Bearbeiten/Löschen, aber **nur Einzelmeldungen** (`Entry`-Modell); Staffelmeldungen (`RelayEntry`) tauchen dort
+   gar nicht auf.
+2. Der "Meldungen"-Button auf `meets/show.blade.php` führt zu `club-entries.index` — das verlangt von einem Admin
+   erst die Auswahl **eines** Vereins (`club-entries/choose-club.blade.php`) und zeigt danach auch nur dessen
+   Einzelmeldungen; Staffelmeldungen liegen nochmal getrennt unter `club-entries.relay.index`, ebenfalls je Verein
+   einzeln.
+
+Um sich einen Überblick über eine ganze Veranstaltung zu verschaffen, müsste ein Admin aktuell jeden Verein
+einzeln anklicken (bei größeren Meisterschaften z. B. 50+ Vereine).
+
+**Warum zurückgestellt:** Keine Bugfix-Zeile, sondern eine neue View/Route mit mehreren offenen Design-Fragen:
+Einzel- und Staffelmeldungen in einer Tabelle oder zwei Abschnitten? Gruppierung nach Disziplin, nach Verein, oder
+beides wählbar? Inline-bearbeitbar oder Klick auf Zeile → bestehendes Formular (`entries.edit`/
+`club-entries.relay.edit`)? Bei ggf. hunderten Meldungen (siehe z. B. "72. Österr. Staats- & Österr.
+Meisteschaften") Paginierung nötig, vermutlich pro Disziplin statt pro feste Seitengröße. Berechtigung: nur
+Admins, oder auch Vereinsvertreter (dann aber nur auf den eigenen Verein eingeschränkt — überschneidet sich mit
+dem bestehenden `club-entries`-Zugriff und dessen Meldeschluss-Sperre)?
+
+**Wer entscheidet:** Erik — Layout (eine Tabelle vs. Sektionen), Gruppierung/Sortierung, Inline-Edit vs.
+Formular-Link, ob Staffeln von Anfang an mit rein sollen oder eine eigene Folge-Iteration werden.
+
+**Zum Schließen nötig:** Entscheidung zu obigen Punkten, dann neue Route + Controller-Methode (liest `Entry` und
+`RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder
+ergänzt den bestehenden "Meldungen"-Button).
+
 ## Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung
 
 **Seit:** Design-Feedback nach Admin-UI-Rework Phase 9 (29.08.2026).

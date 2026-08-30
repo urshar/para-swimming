@@ -18,7 +18,11 @@ class SwimEventController extends Controller
             ->orderBy('name_de')
             ->get();
 
-        return view('swim-events.form', compact('meet', 'strokeTypes'));
+        // Vorbelegung Event-Nr.: nächste laufende Nummer nach der höchsten bereits
+        // vergebenen — bleibt im Formular änderbar.
+        $nextEventNumber = ($meet->swimEvents()->max('event_number') ?? 0) + 1;
+
+        return view('swim-events.form', compact('meet', 'strokeTypes', 'nextEventNumber'));
     }
 
     public function store(Request $request, Meet $meet): RedirectResponse

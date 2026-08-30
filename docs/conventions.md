@@ -51,6 +51,22 @@ Dev/Prod laufen auf **MySQL**, die Tests auf **In-Memory-SQLite**. Jede Abfrage 
 - Views mit **`@extends('layouts.app')` + `@section('content')`**, nicht mit
   `<x-layouts.app>`.
 - Views modulweise unter `resources/views/<modul>` ablegen.
+- **`@php use Foo\Bar; @endphp`** für Imports steht am **Dateianfang, vor `@extends`** —
+  nicht mitten in `@section('content')`. Funktioniert dort zwar zur Laufzeit (Blades
+  `@section`/`@endsection` erzeugt keinen echten PHP-Block-Scope), aber PhpStorm löst den
+  Import an dieser Stelle nicht auf ("Missing import statement"). Siehe
+  `club-entries/edit-relay.blade.php` für das korrekte Muster.
+- **`@json()` teilt sein Argument naiv an jedem Komma**
+  (`Illuminate\View\Compilers\Concerns\CompilesJson::compileJson()` macht intern
+  `explode(',', ...)`). Nie einen Ausdruck mit eigenen Kommas übergeben (`old('key',
+  'default')`, ein mehrteiliges Array-Literal) — erst in eine einzelne Variable schreiben
+  (`@php $x = old('key', 'default'); @endphp`, dann `@json($x)`). Ein internes Komma
+  verfälscht sonst nur unbemerkt die JSON-Encoding-Flags, zwei oder mehr können den
+  kompilierten PHP-Ausdruck abschneiden (`ParseError`). `php artisan view:cache` erkennt
+  das nicht (kompiliert nur, führt nichts aus) — nur ein echter Seitenaufruf deckt es auf.
+- **`x-data`-Attribute, die `@json()` enthalten, immer einfach anführen** (`x-data='...'`),
+  nie doppelt — `@json()`s eingebettete doppelte Anführungszeichen brechen sonst das
+  HTML-Attribut.
 
 ## Flux UI
 
@@ -60,6 +76,12 @@ Dev/Prod laufen auf **MySQL**, die Tests auf **In-Memory-SQLite**. Jede Abfrage 
   `<option>`.
 - Flux-Tabellen-Padding korrigieren mit dem Arbitrary-Selector **`[&_td:first-child]:ps-4`** (Flux setzt intern
   `first:ps-0`).
+- **`flux:description` bekommt intern eine Vendor-Regel**
+  (`[&>*:not([data-flux-label])+[data-flux-description]]:mt-3` in Flux' `field.blade.php`)
+  mit strukturell höherer Spezifität als eine einzelne eigene Utility-Klasse — ein normales
+  `mt-1` auf der Beschreibung wird davon überstimmt, unabhängig von der Position im
+  Stylesheet. Für einen wirksamen Abstand die Tailwind-v4-Important-Syntax verwenden:
+  **`mt-1!`**.
 
 ## Alpine.js
 

@@ -213,7 +213,10 @@ class ResultController extends Controller
             'heat' => 'nullable|integer|min:1',
             'lane' => 'nullable|integer|min:0',
             'place' => 'nullable|integer|min:1',
-            'reaction_time' => 'nullable|integer',  // kann negativ sein (Fehlstart)
+            // Kommt als Sekunden mit Komma aus dem Formular (z.B. "0,14", Fehlstart negativ
+            // möglich, z.B. "-0,03") — unten über parseReactionTime() in Hundertstelsekunden
+            // umgerechnet, wie es die Spalte speichert.
+            'reaction_time' => 'nullable|string|max:10',
             'comment' => 'nullable|string|max:255',
             'is_world_record' => 'boolean',
             'is_european_record' => 'boolean',
@@ -232,6 +235,7 @@ class ResultController extends Controller
         $validated['is_european_record'] = $request->boolean('is_european_record');
         $validated['is_national_record'] = $request->boolean('is_national_record');
         $validated['swim_time'] = $this->parseTime($validated['swim_time'] ?? null);
+        $validated['reaction_time'] = $this->parseReactionTime($validated['reaction_time'] ?? null);
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),
@@ -252,6 +256,19 @@ class ResultController extends Controller
         $raw = trim((string) $raw);
 
         return $raw === '' ? null : TimeParser::parse($raw);
+    }
+
+    /** Sekunden mit Komma (z.B. "0,14", "-0,03") → Hundertstelsekunden. */
+    private function parseReactionTime(?string $raw): ?int
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', $raw);
+
+        return is_numeric($normalized) ? (int) round(((float) $normalized) * 100) : null;
     }
 
     private function storeSplits(Result $result, array $splits): void

@@ -1015,3 +1015,69 @@ Browser-Tab (kein Cache) für jede der drei korrigierten Dateien: keine Konsolen
 `maskedTimeField`-Alpine-Daten korrekt befüllt, Ergebnis-Anlage per Browser erneut vollständig durchgespielt
 (Athlet-Auswahl → Club-Auto-Vorbelegung → maskierte Schwimm-/Splitzeit → Speichern → DB-Werte per Tinker-Skript
 verifiziert, Testdatensatz gelöscht).
+
+### Achter Design-Feedback-Nachtrag zu Phase 9
+
+- **Meetsliste**: Suchfeld "Name oder Stadt" von `w-44` auf `w-72` verbreitert.
+- **Hilfetext-Abstand — eigentliche Ursache gefunden.** Das `mt-1` aus dem sechsten/siebten Nachtrag hatte nie
+  gewirkt: Flux' `field.blade.php` setzt intern `[&>*:not([data-flux-label])+[data-flux-description]]:mt-3`, ein
+  Selektor mit strukturell höherer Spezifität als eine einzelne Utility-Klasse — gewinnt unabhängig von der
+  Reihenfolge im Stylesheet. Bestätigt durch den eigenen Nutzer-Test: manuelles Setzen von `mt-0` im DevTools
+  änderte am gerenderten Abstand nichts, weil auch das nur eine gleich-spezifische Klasse gewesen wäre. Fix:
+  Tailwind-v4-`!important`-Syntax (`mt-1!`), bereits an anderer Stelle im Projekt verwendet (`size-3!` in
+  `flux/navlist/group.blade.php`) — schlägt jede Spezifität. App-weit auf alle 25 betroffenen
+  `flux:description`-Stellen angewendet (nicht nur `meets/form.blade.php`), per Sweep + Gegenprobe (0 verbleibende
+  `mt-1` ohne `!`) und Kontrolle der kompilierten CSS-Regel (`.mt-1\!{margin-top:var(--spacing)!important}`).
+- **Bahnlänge**: SCM (häufigste Bahnlänge bei österreichischen Wettkämpfen) steht jetzt zuerst in
+  `meets/_grunddaten-fields.blade.php` und im `meets/index`-Filter; die Vorbelegung beim Neuanlegen bleibt bewusst
+  LCM (nicht Teil der Anfrage).
+- **Disziplin-Nr. automatisch vorbelegt**: `SwimEventController::create()` ermittelt `max(event_number)+1` über die
+  bereits angelegten Disziplinen des Wettkampfs, änderbar wie gefordert.
+- **`swim-events/form.blade.php` verbreitert** (`max-w-2xl` → `max-w-4xl`), Schwimmstil-Feld auf `col-span-2`
+  (doppelte Spaltenbreite in der Grid-Zeile), Distanz von Zahlenfeld auf `flux:select` mit den erlaubten Werten
+  (25/50/75/100/150/200/400/800/1500 m) umgestellt — ein beim Bearbeiten evtl. abweichender Bestandswert bleibt als
+  Zusatzoption erhalten statt beim Öffnen verworfen zu werden.
+- **Staffelmeldung (Create + Edit) zweispaltig**: `club-entries/_athlete-picker.blade.php` zeigt "Verfügbare
+  Athleten" jetzt links und "Startaufstellung" rechts (`grid grid-cols-2`) statt untereinander. Formular-Card auf
+  `max-w-3xl` verbreitert. Das Ausblenden bereits gemeldeter Athleten (auch über mehrere Staffeln desselben
+  Vereins im selben Event hinweg, `ClubEntryService::eligibleRelayAthletes()`) war serverseitig bereits korrekt
+  implementiert — per Live-Abfrage gegen echte Daten verifiziert (Event mit 2 Staffeln/8 gesetzten Athleten
+  desselben Vereins: alle 8 korrekt aus der verfügbaren Liste ausgeblendet).
+- **Reaktionszeit**: Eingabe von Hundertstelsekunden-Integer auf Sekunden mit Komma umgestellt (z. B. `0,14`,
+  Fehlstart `-0,03`) — `ResultController::parseReactionTime()` normalisiert Komma→Punkt und rechnet zurück in die
+  gespeicherte Hundertstelsekunden-Spalte; Vorbelegung beim Bearbeiten über `number_format(..., 2, ',', '')`.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün (3236 Assertions), `composer lint:check` grün, `npm run build`
+neu ausgeführt. Stichproben live gegen den Dev-Server: Distanz-Dropdown-Optionen per DOM-Abfrage geprüft,
+Event-Nr.-Vorbelegung (21 bei 20 bestehenden Disziplinen), `reaction_time`-Parser per Tinker-Skript mit 5 Fällen
+durchgespielt (Diagnose-Skripte danach wieder gelöscht).
+
+### Neunter Design-Feedback-Nachtrag zu Phase 9
+
+- **Bugfix: Meldung löschen sprang auf die Wettkampf-Detailseite statt auf die (ggf. gefilterte) Meldungsliste.**
+  `EntryController::destroy()` (admin-seitige, meet-übergreifende Meldungsliste `entries/index.blade.php`) leitete
+  hart auf `route('meets.show', $meet)` weiter — bei mehreren Löschungen hintereinander ging so bei jeder der
+  Filter-/Listenkontext verloren. Auf `back()` umgestellt; per Fetch-Test gegen eine Wegwerf-Meldung verifiziert
+  (`entries?meet_id=1` → löschen → wieder `entries?meet_id=1`).
+- **Dokumenten-Liste (`admin/documents/index.blade.php`)**: Header auf das etablierte Formular-Muster umgestellt
+  (Titel oben, "Zurück" darunter links, "Dokument hochladen" darunter rechts — wie schon in
+  `club-entries/index.blade.php`). Bearbeiten-/Löschen-Icons hatten keine bzw. eine zu schwache Farbklasse
+  (`text-red-500` ohne `!`) — auf `text-amber-500!`/`text-red-500!` umgestellt, konsistent mit
+  `meets/index.blade.php` u. a. Lösch-Formular vom bare `x-data @submit.prevent="…$el.submit()"`-Muster auf das
+  robustere, bereits anderswo verwendete `x-data="{ submit() {...} }"`-Muster umgestellt.
+- **PhpStorm-Befunde eingeordnet**: Die Meldungen zu `club-entries/_athlete-picker.blade.php` ("Element is not
+  exported", "Unresolved variable or type athlete", Parse-Fehler bei `x-for="(athlete, index) in …"`) sowie zu
+  `entries/form.blade.php` (:91) und `results/form.blade.php` (:139/:261) ("'with' statement", "Missing import
+  statement") sind größtenteils ein bekanntes PhpStorm-Limit: `x-for="(item, index) in items"` ist keine gültige
+  eigenständige JS-Syntax, und dynamisch per `Alpine.data()` registrierte Komponenten wie `maskedTimeField(...)`
+  kann die IDE ohne Alpine-Plugin nicht auflösen — genau das von CLAUDE.md vorgeschriebene Muster (Alpine-Logik in
+  `.js` auslagern). Funktional unauffällig, nicht behebbar ohne die Konvention zu brechen. Ein echter, behebbarer
+  Anteil steckte aber in `results/form.blade.php`: `use App\Support\TimeParser;` stand mitten in
+  `@section('content')` statt (wie in `club-entries/edit-relay.blade.php` korrekt vorgemacht) am Dateianfang vor
+  `@extends` — verschoben, behebt die "Missing import statement"-Meldung für die TimeParser-Aufrufe.
+  `documents/index.blade.php` :77 ("Unresolved function or method submit()", `$el.submit()`) hat dieselbe Ursache
+  und ist mit dem obigen Umbau des Lösch-Formulars miterledigt.
+
+**Tests**: `composer test` — 1394 Tests weiterhin grün, `composer lint:check` grün, `npm run build` neu ausgeführt.
+Löschen-Redirect per Fetch gegen eine per Tinker-Skript angelegte Wegwerf-Meldung verifiziert, Dokumenten-Liste
+(mit und ohne `$meet`-Kontext) per Browser-DOM-Abfrage auf Header-Struktur und Icon-Farbklassen geprüft.

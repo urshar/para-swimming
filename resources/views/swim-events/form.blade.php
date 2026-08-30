@@ -3,7 +3,18 @@
 @section('title', isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen')
 
 @section('content')
-    <div class="max-w-2xl">
+    @php
+        // Erlaubte Standard-Streckenlängen. Bereits gespeicherte Werte außerhalb dieser
+        // Liste (z.B. abweichende Freiwasser-Distanzen) bleiben als zusätzliche Option
+        // erhalten, statt beim Öffnen des Formulars stillschweigend verworfen zu werden.
+        $distanceOptions = [25, 50, 75, 100, 150, 200, 400, 800, 1500];
+        $currentDistance = old('distance', $event->distance ?? '');
+        if ($currentDistance !== '' && ! in_array((int) $currentDistance, $distanceOptions, true)) {
+            $distanceOptions[] = (int) $currentDistance;
+            sort($distanceOptions);
+        }
+    @endphp
+    <div class="max-w-4xl">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen' }}
@@ -36,7 +47,7 @@
                     <flux:field>
                         <flux:label>Event-Nr.</flux:label>
                         <flux:input name="event_number" type="number" min="1"
-                                    value="{{ old('event_number', $event->event_number ?? '') }}"/>
+                                    value="{{ old('event_number', $event->event_number ?? $nextEventNumber ?? '') }}"/>
                         <flux:error name="event_number"/>
                     </flux:field>
                     <flux:field>
@@ -50,8 +61,8 @@
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4">
-                    <flux:field>
+                <div class="grid grid-cols-4 gap-4">
+                    <flux:field class="col-span-2">
                         <flux:label>Schwimmstil <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:select variant="listbox" name="stroke_type_id" required>
                             @foreach($strokeTypes->groupBy('category') as $category => $strokes)
@@ -69,15 +80,21 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Distanz (m) <span class="text-red-500 dark:text-red-400">*</span></flux:label>
-                        <flux:input name="distance" type="number" min="1"
-                                    value="{{ old('distance', $event->distance ?? '') }}" required/>
+                        <flux:select variant="listbox" name="distance" required>
+                            @foreach($distanceOptions as $distanceOption)
+                                <flux:select.option value="{{ $distanceOption }}"
+                                    :selected="(string) $currentDistance === (string) $distanceOption">
+                                    {{ $distanceOption }} m
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
                         <flux:error name="distance"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Schwimmer/Staffel <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="relay_count" type="number" min="1"
                                     value="{{ old('relay_count', $event->relay_count ?? 1) }}" required/>
-                        <flux:description>1 = Einzel</flux:description>
+                        <flux:description class="mt-1!">1 = Einzel</flux:description>
                     </flux:field>
                 </div>
 

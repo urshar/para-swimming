@@ -81,7 +81,7 @@
                             </flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:description class="mt-1">Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.</flux:description>
+                    <flux:description class="mt-1!">Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.</flux:description>
                     <flux:error name="club_id"/>
                 </flux:field>
 
@@ -92,7 +92,7 @@
                             <flux:input name="entry_time" type="text" x-model="value"
                                         placeholder="00:00.00" autocomplete="off"/>
                         </div>
-                        <flux:description class="mt-1">MM:SS.hh — leer lassen für NT</flux:description>
+                        <flux:description class="mt-1!">MM:SS.hh — leer lassen für NT</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
                     <flux:field>
@@ -110,7 +110,7 @@
                         <flux:label>Sport-Klasse</flux:label>
                         <flux:input name="sport_class" value="{{ old('sport_class') }}" placeholder="z.B. S4"
                                     maxlength="15"/>
-                        <flux:description class="mt-1">Nur wenn abweichend vom Athleten</flux:description>
+                        <flux:description class="mt-1!">Nur wenn abweichend vom Athleten</flux:description>
                         <flux:error name="sport_class"/>
                     </flux:field>
                     <flux:field>

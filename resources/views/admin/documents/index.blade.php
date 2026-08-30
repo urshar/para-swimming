@@ -9,20 +9,26 @@
 
 @section('content')
 
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            {{ $meet ? 'Dokumente – '.$meet->name : 'Regelmente & Formulare' }}
+        </h1>
+
+        <div class="flex items-center flex-wrap gap-2 mt-4">
             @if($meet)
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             @endif
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ $meet ? 'Dokumente – '.$meet->name : 'Regelmente & Formulare' }}
-            </h1>
+
+            <div class="ml-auto flex items-center flex-wrap gap-2">
+                <flux:button
+                    href="{{ $meet ? route('admin.meets.documents.create', $meet) : route('admin.documents.create') }}"
+                    variant="primary" icon="plus">
+                    Dokument hochladen
+                </flux:button>
+            </div>
         </div>
-        <flux:button
-            href="{{ $meet ? route('admin.meets.documents.create', $meet) : route('admin.documents.create') }}"
-            variant="primary" icon="plus">
-            Dokument hochladen
-        </flux:button>
     </div>
 
     @if(session('success'))
@@ -72,12 +78,13 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('admin.documents.edit', $document) }}" size="sm"
-                                         variant="ghost" icon="pencil"/>
+                                         variant="ghost" icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('admin.documents.destroy', $document) }}"
-                                  x-data @submit.prevent="if(confirm('Dokument löschen?')) $el.submit()">
+                                  x-data="{ submit() { if (confirm('Dokument löschen?')) this.$el.submit() } }"
+                                  @submit.prevent="submit()">
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                             class="text-red-500"/>
+                                             class="text-red-500!"/>
                             </form>
                         </div>
                     </flux:table.cell>

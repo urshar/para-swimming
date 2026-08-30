@@ -125,7 +125,7 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1">MM:SS.hh — z.B. 01:23.45</flux:description>
+                        <flux:description class="mt-1!">MM:SS.hh — z.B. 01:23.45</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

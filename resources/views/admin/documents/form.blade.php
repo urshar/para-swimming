@@ -87,7 +87,7 @@
                                 Englisch
                             </flux:select.option>
                         </flux:select>
-                        <flux:description class="mt-1">
+                        <flux:description class="mt-1!">
                             Sprachneutrale Dokumente werden in beiden Sprachen gezeigt.
                         </flux:description>
                     </flux:field>
@@ -102,7 +102,7 @@
                             <option :value="candidate.id" x-text="candidate.label"></option>
                         </template>
                     </select>
-                    <flux:description class="mt-1">
+                    <flux:description class="mt-1!">
                         Verknüpft dieses Dokument mit der bestehenden Fassung — auf der öffentlichen Seite wird die
                         passende Sprache gezeigt und die andere daneben verlinkt (§4.1).
                     </flux:description>
@@ -120,7 +120,7 @@
                                 ->filter()
                                 ->implode(', ');
                         @endphp
-                        <flux:description class="mt-1">
+                        <flux:description class="mt-1!">
                             Aktuell: {{ $document->title }}
                             @if($currentFileLabel)
                                 ({{ $currentFileLabel }})
@@ -128,7 +128,7 @@
                             — leer lassen, um die bestehende Datei zu behalten.
                         </flux:description>
                     @else
-                        <flux:description class="mt-1">PDF, DOC(X), XLS(X), ZIP oder LENEX (.lxf/.lef/.xml) · max. 20 MB.</flux:description>
+                        <flux:description class="mt-1!">PDF, DOC(X), XLS(X), ZIP oder LENEX (.lxf/.lef/.xml) · max. 20 MB.</flux:description>
                     @endif
                     <flux:error name="file"/>
                 </flux:field>
@@ -152,7 +152,7 @@
                             Für eine öffentliche Auslieferung freigegeben
                         </label>
                     </div>
-                    <flux:description class="mt-1">
+                    <flux:description class="mt-1!">
                         Grundvoraussetzung für die Sichtbarkeit — entscheidet zusammen mit dem
                         Veröffentlichungsdatum, ob das Dokument aktuell auf der öffentlichen Seite erscheint.
                     </flux:description>
@@ -162,7 +162,7 @@
                     <flux:label>Veröffentlichungsdatum</flux:label>
                     <flux:input name="published_at" type="datetime-local"
                                 value="{{ old('published_at', $document?->published_at?->format('Y-m-d\TH:i') ?? '') }}"/>
-                    <flux:description class="mt-1">
+                    <flux:description class="mt-1!">
                         Leer = Entwurf, auch wenn "Öffentlich" angehakt ist. Ein Zeitpunkt in der Zukunft
                         veröffentlicht das Dokument erst ab diesem Zeitpunkt.
                     </flux:description>

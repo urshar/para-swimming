@@ -50,7 +50,8 @@
     <flux:field>
         <flux:label>Bahnlänge <span class="text-red-500 dark:text-red-400">*</span></flux:label>
         <flux:select variant="listbox" name="course" required>
-            @foreach(['LCM' => 'LCM (50m)', 'SCM' => 'SCM (25m)', 'SCY' => 'SCY (Yards)', 'OPEN' => 'Freiwasser'] as $val => $label)
+            {{-- SCM zuerst: häufigste Bahnlänge bei österreichischen Wettkämpfen. --}}
+            @foreach(['SCM' => 'SCM (25m)', 'LCM' => 'LCM (50m)', 'SCY' => 'SCY (Yards)', 'OPEN' => 'Freiwasser'] as $val => $label)
                 <flux:select.option value="{{ $val }}" :selected="old('course', $meet->course ?? 'LCM') === $val">
                     {{ $label }}
                 </flux:select.option>
@@ -102,7 +103,7 @@
     <flux:label>Meldeschluss</flux:label>
     <flux:date-picker type="input" locale="de-AT" name="entries_deadline"
                 value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}" clearable/>
-    <flux:description class="mt-1">Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
+    <flux:description class="mt-1!">Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
     <flux:error name="entries_deadline"/>
 </flux:field>
 
