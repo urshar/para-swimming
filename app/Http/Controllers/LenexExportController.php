@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Club;
 use App\Models\Meet;
 use App\Services\LenexExportService;
 use DOMException;
@@ -18,13 +17,14 @@ class LenexExportController extends Controller
         private readonly LenexExportService $exportService
     ) {}
 
-    public function showForm(): View
+    public function showForm(Request $request): View
     {
         $meets = Meet::with('nation')->orderByDesc('start_date')->get();
 
         return view('lenex.export', [
             'meets' => $meets,
-            'regionalTypes' => Club::REGIONAL_ASSOCIATIONS,
+            // Vorbelegung, wenn von meets/show.blade.php mit ?meet_id=… verlinkt.
+            'selectedMeetId' => $request->query('meet_id'),
         ]);
     }
 

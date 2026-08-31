@@ -1557,3 +1557,102 @@ verfügbaren Breite von 384px (`w-96`) abzüglich Innenabstand. Die bisherige `w
 ~272px nutzbare Breite bei 255px Textbedarf, was das gemeldete Umbrechen erklärt. Echte visuelle Bestätigung
 per Screenshot war in dieser Session nicht möglich — falls die Überschrift trotzdem noch umbricht, bitte mit
 Screenshot melden.
+
+### Fünfzehnter Design-Feedback-Nachtrag zu Phase 10 — Club-/Athleten-Matching-Diagnose, LENEX-Export-Formular
+
+- **Rückfragen zum Club-/Athleten-Matching beim Import geklärt, zwei neue offene Punkte dokumentiert** (siehe
+  `docs/open-points.md`): (1) "Post-Import Club-Konflikt-Liste" — `SwimRecord.club_id` ist bereits unabhängig vom
+  `Athlete.club_id`, Rekorde bei unterschiedlichen Vereinen für denselben Athleten (Saram-Stephan-Fall) sind
+  schon korrekt; es fehlt aber ein persistenter, abarbeitbarer Report für Fälle, in denen der LENEX-Verein vom
+  gespeicherten `Athlete.club_id` abweicht. (2) "Athleten-Matching: nur Geburtsjahr" — am echten `oebsv.lxf`
+  bestätigt: Hochenberger Philip und Rottmann Kilian stehen dort mit `birthdate="…-01-01"` (nur Jahr bekannt,
+  Tag/Monat als Platzhalter), während die DB die echten Geburtsdaten führt (`1992-12-10`/`2008-02-04`) —
+  `findAthlete()` verlangt exaktes `birth_date`, kein Bug (Namens-Suche ist bereits case-insensitiv), sondern ein
+  Domänen-Fall, der über das bestehende manuelle Zuordnungs-Dropdown lösbar ist. Beide Punkte mit vollem Befund
+  in `docs/open-points.md`.
+- **LENEX-Export-Formular** (`resources/views/lenex/export.blade.php`) an das Flux-Standardmuster angepasst: das
+  einzige verbliebene native `<flux:select><option>`-Dropdown ("Wettkampf") auf
+  `<flux:select variant="listbox">` + `<flux:select.option :selected="...">` umgestellt (Vorschriften-Muster aus
+  `CLAUDE.md`). Dabei einen bisher toten Query-Parameter gefunden und mitbehoben: Der "LENEX Export"-Button auf
+  `meets/show.blade.php` verlinkt mit `?meet_id=…`, aber `LenexExportController::showForm()` hat den Parameter
+  nie gelesen — die Vorbelegung griff nie. Jetzt liest der Controller `request()->query('meet_id')` und übergibt
+  ihn als `selectedMeetId` an die View.
+
+### Sechzehnter Design-Feedback-Nachtrag zu Phase 10 — LENEX-Export-Escaping geprüft, Open Points zusammengelegt
+
+- **LENEX-Export-Sonderzeichen (`"` → `&quot;`, `&` → `&amp;`) geprüft**: kein Bug. `LenexExportService` nutzt
+  PHPs `DOMDocument::setAttribute()`, das Attributwerte laut XML-Spezifikation zwingend so kodiert — ein rohes
+  `"`/`&` würde die Datei ungültig machen. Rückprobe (Meet-Name testweise auf `Test "Anführungszeichen" &
+  Kaufmanns-Und Meisterschaft` gesetzt, Export gebaut, Änderung per `DB::rollBack()` verworfen): Rohdatei enthält
+  `&quot;`/`&amp;`, beim Zurücklesen über `SimpleXMLElement` (derselbe Mechanismus wie in echten
+  LENEX-Programmen und im eigenen `RecordImportService`) kommt exakt der Originaltext heraus — 1:1-Round-Trip
+  bestätigt. Als offenen Punkt dokumentiert (`docs/open-points.md`), da Erik ein reales Fremdprogramm nennt, das
+  die Entities angeblich nicht zurückwandelt — das wäre ein Bug in diesem Fremdprogramm oder eine
+  Rohtext-statt-Import-Ansicht, kein Bug bei uns; braucht konkrete Gegenprobe (Programmname + Beispieldatei).
+- **Zwei Open Points zusammengelegt**: "Post-Import Club-Konflikt-Liste" und "Athleten-Matching: nur
+  Geburtsjahr" auf Eriks Wunsch ("so dass wir das in einem machen können") zu einem gemeinsamen Punkt
+  "Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches" zusammengeführt — beide brauchen dieselbe
+  Review-Infrastruktur. Der Jahres-Fallback-Regel (Namens- + Geburtsjahr-Match bei `-01-01`-Platzhalterdatum) hat
+  Erik ausdrücklich zugestimmt; Umsetzung bleibt trotzdem zurückgestellt, da das Datenmodell für die
+  Review-Liste selbst noch eine offene Entscheidung ist (siehe Punkt in `docs/open-points.md`).
+
+**Tests**: Keine Code-Änderung in diesem Nachtrag (nur Diagnose per zurückgerollter Transaktion +
+Dokumentation) — `composer test`/`composer lint:check` daher nicht erneut nötig, letzter bekannter Stand
+weiterhin 1394 Tests grün.
+
+### Siebzehnter Design-Feedback-Nachtrag zu Phase 10 — LENEX-Export-Header auf P9-Muster umgestellt
+
+- **`lenex/export.blade.php`-Header** auf das etablierte Muster umgestellt: Titel in eigener Zeile, darunter
+  ein "Zurück"-Button (`variant="filled"`, linksbündig) statt bisher nur einem einzelnen `<h1>` ohne
+  Navigations-Button. Ziel des Zurück-Buttons: `meets.index` — Erik per Rückfrage bestätigt (Seite wird sowohl
+  direkt über die Seitenleiste als auch von `meets/show.blade.php` mit vorbelegtem Wettkampf erreicht, die
+  "Wettkampf"-Tab ist die vorbelegte erste Tab).
+
+**Tests**: `composer lint:check` grün, `php artisan view:cache` fehlerfrei, `composer test` — 1394 Tests
+weiterhin grün. Live gegen `https://para-swimming.test` verifiziert: `/lenex/export` zeigt Titel + "Zurück"
+untereinander, der Link führt korrekt zu `/meets` (per `read_page` auf `href` geprüft).
+
+### Achtzehnter Design-Feedback-Nachtrag zu Phase 10 — eigentliche "Rekorde exportieren"-Seite gefunden und korrigiert
+
+- **Falsche Seite im vorigen Nachtrag korrigiert**: Eriks Screenshot zeigte einen Header mit Ghost-Icon-Button
+  inline vor dem Titel ("← Rekorde exportieren") — das war nicht `lenex/export.blade.php` (dort steht der Titel
+  "LENEX Export"), sondern eine komplett eigenständige, bis dahin übersehene Seite:
+  `resources/views/records/export.blade.php`, erreichbar über den eigenen Nav-Eintrag "Rekorde" → "Rekorde
+  exportieren" (Route `records.export`, `RecordExportController::showForm()`). Beide Seiten senden an dieselbe
+  `records.export.download`-Route — echte Duplizierung derselben Funktionalität unter zwei verschiedenen
+  Nav-Einträgen (`LENEX` → `Export` → Tab "Rekorde", und `Rekorde` → "Rekorde exportieren"), nicht Gegenstand
+  dieses Nachtrags, aber notiert falls Erik das später konsolidieren möchte.
+- **Header von `records/export.blade.php` umgestellt**: von `flex items-center gap-3` mit Ghost-Icon-Button
+  inline vor dem `<h1>` auf das P9-Muster (Titel eigene Zeile, darunter `mt-4`-Zeile mit gefülltem
+  "Zurück"-Button) — Ziel weiterhin `records.index`, wie schon beim bisherigen Ghost-Button.
+
+**Tests**: `composer lint:check` grün, `php artisan view:cache` fehlerfrei, `composer test` — 1394 Tests
+weiterhin grün. Live gegen `https://para-swimming.test` verifiziert: `/records/export` zeigt Titel + "Zurück"
+untereinander, Link-`href` per `javascript_tool` geprüft → korrekt `/records`. Screenshot lieferte erneut nur
+das bekannte statische Platzhalterbild (siehe vorherige Nachträge) — Verifikation daher über `get_page_text` +
+direkten `href`-Abgleich statt visuell.
+
+### Neunzehnter Design-Feedback-Nachtrag zu Phase 10 — Rekord-Export-Duplikat konsolidiert
+
+- **Doppelte Rekord-Export-UI entfernt**: `lenex/export.blade.php` hatte einen Tab-Switcher ("Wettkampf"/
+  "Rekorde") — die "Rekorde"-Tab war ein vollständiges Duplikat von `records/export.blade.php` (identische
+  Felder: Rekord-Kategorie, Verbände, Bahn, Geschlecht) und sendete an dieselbe `records.export.download`-Route.
+  Die eigentliche, eigenständige Seite `records/export.blade.php` (Nav: "Rekorde" → "Rekorde exportieren") blieb
+  unangetastet die alleinige Quelle für Rekord-Exporte. `lenex/export.blade.php` exportiert jetzt nur noch
+  Wettkämpfe — Tab-Switcher, `x-data="{ tab: 'meet' }"` und die komplette Rekorde-Tab-Sektion entfernt, Seite
+  wieder ein einzelnes Formular.
+- **`LenexExportController::showForm()` aufgeräumt**: `regionalTypes` (nur von der entfernten Rekorde-Tab
+  gebraucht) und der jetzt ungenutzte `Club`-Import entfernt.
+- Die Nav-Struktur war bereits vorher sauber getrennt (`LENEX` → Import/Export = Wettkampf-Ebene, `Rekorde` →
+  Rekorde importieren/exportieren = Rekord-Ebene) — keine Änderung an `layouts/app.blade.php` nötig.
+
+**Tests**: `php -l`/`composer lint:check` grün, `php artisan view:cache` fehlerfrei, `composer test` — 1394
+Tests weiterhin grün (keine bestehenden Tests deckten die entfernte Tab ab). Live geprüft: `/lenex/export` zeigt
+nur noch das Wettkampf-Formular ohne Tab-Switcher, `/records/export` weiterhin unverändert eigenständig
+funktionsfähig.
+
+**Tests**: `composer lint:check` grün, `php -l` fehlerfrei, `php artisan view:cache` fehlerfrei. Live gegen
+`https://para-swimming.test` verifiziert (Login als Seed-Admin): `/lenex/export` zeigt "Bitte wählen…" ohne
+Parameter, `/lenex/export?meet_id=182` zeigt korrekt "LM Salzburg mit ÖBSV Cup 2026 (2026)" vorbelegt — via
+`get_page_text` bestätigt (Browser-Pane-Screenshots lieferten wie im vorigen Nachtrag nur ein Platzhalterbild,
+diesmal aber funktionierte `read_page`/`find`/`form_input` nach einem neuen Tab wieder normal).
