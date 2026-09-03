@@ -167,7 +167,7 @@ describe('Qualifikationsliste — Gliederung nach Behinderungsgruppe und Lage', 
         makeQualification_qtl9($list, $club, makeAthlete_qtl9($club, 'Fiona', 'Zwei'), $qtS2);
 
         $this->actingAs(makeClubUser_qtl9())
-            ->get(route('qualifying-time-lists.qualifications', $list).'?sport_class=S9')
+            ->get(route('qualifying-time-lists.qualifications', $list).'?sport_class=S9,SB9,SM9')
             ->assertOk()
             ->assertSee('Neun')
             ->assertDontSee('Zwei');
@@ -245,7 +245,7 @@ describe('Inhaltsverzeichnis auf der Qualifikationsliste', function () {
         SportClassGroupMember::create(['sport_class_group_id' => $group->id, 'sport_class' => 'S9']);
 
         $club = makeClub_qtl9();
-        $qt = makeQualifyingTime_qtl9($list, $free, 100, 'M', 'S9', 6000);
+        $qt = makeQualifyingTime_qtl9($list, $free, 'S9');
         $meet = Meet::create([
             'name' => 'Meet', 'nation_id' => makeNation_qtl9()->id, 'course' => 'LCM', 'start_date' => '2026-08-01',
         ]);

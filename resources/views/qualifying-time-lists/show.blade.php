@@ -3,28 +3,67 @@
 @section('title', "Richtzeiten $list->year")
 
 @section('content')
-    <div class="max-w-3xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('qualifying-time-lists.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Richtzeiten {{ $list->year }}</h1>
-            @if($list->is_active)
-                <flux:badge color="emerald">Aktiv</flux:badge>
-            @else
-                <flux:badge color="zinc">Inaktiv</flux:badge>
-            @endif
-            @if($list->isLatest())
-                <flux:badge color="blue">Aktuell</flux:badge>
-            @else
-                <flux:badge color="zinc">Historisiert — schreibgeschützt</flux:badge>
-            @endif
-            <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="ghost"
-                         icon="check-badge" size="sm" class="ms-auto">
-                Qualifizierte Schwimmer anzeigen
-            </flux:button>
-            <flux:button href="{{ route('qualifying-time-lists.pdf', $list) }}" variant="ghost" icon="printer"
-                         size="sm" target="_blank">
-                PDF
-            </flux:button>
+    <div class="max-w-4xl"
+         x-data="{
+             openOnly(id) {
+                 document.querySelectorAll('[data-flux-accordion-item]').forEach(el => { el.value = el.id === id })
+             },
+             openAll() {
+                 document.querySelectorAll('[data-flux-accordion-item]').forEach(el => { el.value = true })
+             },
+         }">
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Richtzeiten {{ $list->year }}</h1>
+                @if($list->is_active)
+                    <flux:badge color="emerald">Aktiv</flux:badge>
+                @else
+                    <flux:badge color="zinc">Inaktiv</flux:badge>
+                @endif
+                @if($list->isLatest())
+                    <flux:badge color="blue">Aktuell</flux:badge>
+                @else
+                    <flux:badge color="zinc">Historisiert — schreibgeschützt</flux:badge>
+                @endif
+            </div>
+
+            <div class="flex items-center flex-wrap gap-2 mt-4">
+                <flux:button href="{{ route('qualifying-time-lists.index') }}" variant="filled" icon="arrow-left"
+                             size="sm">
+                    Zurück
+                </flux:button>
+
+                @unless($list->times->isEmpty())
+                    <flux:dropdown>
+                        <flux:button variant="filled" size="sm" icon:trailing="chevron-down" class="text-blue-500!">
+                            Inhaltsverzeichnis
+                        </flux:button>
+                        <flux:menu>
+                            @foreach($sections as $section)
+                                @php $groupId = 'group-'.($section['group']?->id ?? 'sonstige'); @endphp
+                                <flux:menu.item href="#{{ $groupId }}" @click="openOnly('{{ $groupId }}')">
+                                    {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
+                                </flux:menu.item>
+                            @endforeach
+                            <flux:menu.separator/>
+                            <flux:menu.item icon="squares-2x2" @click="openAll()">
+                                Alle aufklappen
+                            </flux:menu.item>
+                        </flux:menu>
+                    </flux:dropdown>
+                @endunless
+
+                <div class="ml-auto flex items-center flex-wrap gap-2">
+                    <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="filled"
+                                 icon="check-badge" size="sm">
+                        Qualifizierte Schwimmer anzeigen
+                    </flux:button>
+                    <flux:button href="{{ route('qualifying-time-lists.pdf', $list) }}" variant="filled"
+                                 icon="printer" size="sm" target="_blank" class="text-purple-500!">
+                        PDF
+                    </flux:button>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
@@ -50,24 +89,10 @@
                 <p class="text-sm text-zinc-400 text-center">Noch keine Richtzeiten hinterlegt.</p>
             </div>
         @else
-            {{-- ── Inhaltsverzeichnis ─────────────────────────────────────── --}}
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
-                <p class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
-                    Inhaltsverzeichnis
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    @foreach($sections as $section)
-                        <a href="#group-{{ $section['group']?->id ?? 'sonstige' }}"
-                           class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-700 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-600">
-                            {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-
             @foreach($sections as $section)
-                <flux:accordion id="group-{{ $section['group']?->id ?? 'sonstige' }}" class="mb-6 scroll-mt-4">
-                <flux:accordion.item expanded transition>
+                <flux:accordion class="mb-6">
+                <flux:accordion.item id="group-{{ $section['group']?->id ?? 'sonstige' }}" class="scroll-mt-4"
+                                      expanded transition>
                     <flux:accordion.heading class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                         {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
                     </flux:accordion.heading>

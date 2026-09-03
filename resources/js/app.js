@@ -5,6 +5,8 @@ import fileUploadField from './file-upload-field';
 import initFluxFileUploadSync from './flux-file-upload-sync';
 import maskedTimeField from './masked-time-field';
 import meetPointSystems from './meet-point-systems';
+import qualificationFilters from './qualification-filters';
+import qualifyingTimesFilter from './qualifying-times-filter';
 import relayEntryForm from './relay-entry-form';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
@@ -26,6 +28,8 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('fileUploadField', fileUploadField);
     window.Alpine.data('maskedTimeField', maskedTimeField);
     window.Alpine.data('meetPointSystems', meetPointSystems);
+    window.Alpine.data('qualificationFilters', qualificationFilters);
+    window.Alpine.data('qualifyingTimesFilter', qualifyingTimesFilter);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);

@@ -65,7 +65,7 @@
 </head>
 <body>
 <h1>Qualifikation ÖSTM & ÖM {{ $list->year }}</h1>
-<p class="subtitle">{{ $qualifications->count() }} Schwimmer</p>
+<p class="subtitle">{{ $qualifications->pluck('athlete_id')->unique()->count() }} Schwimmer</p>
 
 @php
     $activeFilters = [];
@@ -77,7 +77,7 @@
         $activeFilters[] = 'Geschlecht: '.$filters['gender'];
     }
     if (!empty($filters['sport_class'])) {
-        $activeFilters[] = 'Sportklasse: '.$filters['sport_class'];
+        $activeFilters[] = 'Sportklasse: '.($sportClassOptions[$filters['sport_class']] ?? $filters['sport_class']);
     }
     if (!empty($filters['club_id'])) {
         $club = $clubs->firstWhere('id', $filters['club_id']);

@@ -226,16 +226,33 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
+        @php
+            // Für den direkten Sprung zu den Qualifikanten braucht es eine konkrete
+            // Richtzeitenliste — es gibt keine listenübergreifende Übersicht. Genommen
+            // wird die aktuellste (höchstes Jahr), siehe QualifyingTimeList::isLatest().
+            $latestQualifyingTimeList = \App\Models\QualifyingTimeList::query()->orderByDesc('year')->first();
+        @endphp
         <flux:navlist.group heading="Richtzeiten ÖSTM & ÖM" expandable
                              :expanded="request()->routeIs('qualifying-time-lists.*') || request()->routeIs('qualifying-excluded-disciplines.*')">
             <flux:navlist.item icon="flag" href="{{ route('qualifying-time-lists.index') }}"
-                               :current="request()->routeIs('qualifying-time-lists.*')">
+                               :current="request()->routeIs('qualifying-time-lists.index') || request()->routeIs('qualifying-time-lists.show') || request()->routeIs('qualifying-time-lists.create') || request()->routeIs('qualifying-time-lists.edit')">
                 Richtzeitenlisten
             </flux:navlist.item>
+            @if($latestQualifyingTimeList)
+                <flux:navlist.item icon="check-badge"
+                                   href="{{ route('qualifying-time-lists.qualifications', $latestQualifyingTimeList) }}"
+                                   :current="request()->routeIs('qualifying-time-lists.qualifications')">
+                    Qualifikanten
+                </flux:navlist.item>
+            @endif
             @if(auth()->user()?->is_admin)
+                {{-- Kurzes Label statt "Ausgeschlossene Bewerbe" — bei dieser Länge lief der
+                     Zeilentext im eingerückten Untermenü über die feste Sidebar-Breite (w-64)
+                     hinaus, wodurch die Hover-/Aktiv-Markierung schmaler wirkte als der Text
+                     (Erik, 2026-09-03, Screenshot). --}}
                 <flux:navlist.item icon="no-symbol" href="{{ route('qualifying-excluded-disciplines.index') }}"
                                    :current="request()->routeIs('qualifying-excluded-disciplines.*')">
-                    Ausgeschlossene Bewerbe
+                    Ausschlüsse
                 </flux:navlist.item>
             @endif
         </flux:navlist.group>
