@@ -7,7 +7,8 @@
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Basiswert-Versionen</h1>
             <div class="flex gap-3">
-                <flux:button href="{{ route('base-times.import') }}" variant="ghost" icon="arrow-up-tray">
+                <flux:button href="{{ route('base-times.import') }}" variant="filled" icon="arrow-up-tray"
+                             class="text-blue-500!">
                     Importieren
                 </flux:button>
                 <flux:button href="{{ route('base-times.versions.create') }}" variant="primary" icon="plus">
@@ -48,17 +49,17 @@
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
-                                                 variant="ghost" size="sm" icon="arrow-up-tray"
+                                                 variant="ghost" size="sm" icon="arrow-up-tray" class="text-blue-500!"
                                                  title="In diese Version importieren (ersetzt vorhandene Basiswerte betroffener Kategorien)"/>
                                     <flux:button href="{{ route('base-times.export', $version) }}"
-                                                 variant="ghost" size="sm" icon="arrow-down-tray"/>
+                                                 variant="ghost" size="sm" icon="arrow-down-tray" class="text-emerald-500!"/>
                                     <flux:button href="{{ route('base-times.versions.edit', $version) }}"
-                                                 variant="ghost" size="sm" icon="pencil"/>
+                                                 variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('base-times.versions.destroy', $version) }}"
                                           onsubmit="return confirm('Version „{{ $version->label }}“ inkl. aller {{ $version->base_times_count }} Basiswerte wirklich löschen?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"/>
                                     </form>
                                 </div>
                             </flux:table.cell>

@@ -3,21 +3,26 @@
 @section('title', 'Basiswerte importieren – Vorschau')
 
 @section('content')
-    <div class="max-w-3xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('base-times.import') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
+    <div class="max-w-4xl">
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
+                <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
+            </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                @if($targetVersion)
+                    Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $targetVersion->label }}</span>
+                    <span class="text-xs">(vorhandene Basiswerte betroffener Kategorien werden ersetzt)</span>
+                @else
+                    Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">neu anzulegen</span>
+                @endif
+            </p>
+            <div class="mt-4">
+                <flux:button href="{{ route('base-times.import') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
-
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-            Datei: <span class="font-mono">{{ $fileName }}</span>
-            @if($targetVersion)
-                <br>Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $targetVersion->label }}</span>
-                <span class="text-xs">(vorhandene Basiswerte betroffener Kategorien werden ersetzt)</span>
-            @else
-                <br>Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">neu anzulegen</span>
-            @endif
-        </p>
 
         {{-- ── Zusammenfassung ──────────────────────────────────────────────── --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

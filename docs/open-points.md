@@ -43,7 +43,6 @@ werden. Aktuell nur in `records/show.blade.php` und den Formularen (`records/for
 umgesetzt. Noch zu migrieren:
 
 - `resources/views/athletes/show.blade.php`
-- `resources/views/base-times/categories/show.blade.php`
 - `resources/views/championships/show.blade.php`
 - `resources/views/classifiers/show.blade.php`
 - `resources/views/clubs/show.blade.php`
@@ -56,15 +55,46 @@ umgesetzt. Noch zu migrieren:
 (`resources/views/public/meets/show.blade.php` nicht enthalten — öffentlicher Bereich nutzt Tailkit statt Flux, siehe
 `docs/specs/public-frontend.md` §3.1, kein Admin-Muster übertragbar.)
 
-**Warum zurückgestellt:** Reine Layout-Fleißarbeit über zehn Dateien mit unterschiedlichen bestehenden
+**Warum zurückgestellt:** Reine Layout-Fleißarbeit über neun Dateien mit unterschiedlichen bestehenden
 Kopfzeilen/Aktions-Buttons — pro Datei muss geprüft werden, welche Aktionen aktuell im Header stehen und wie sie sich
 auf "Zurück links / Rest rechts" abbilden, kein Copy-Paste-Batch ohne Sichtprüfung jeder einzelnen Seite.
 
 **Wer entscheidet:** Keine offene Design-Frage — Muster ist bestätigt, es fehlt nur die Umsetzung. Reihenfolge der
 Dateien nach Priorität mit Erik abstimmen, falls nicht alle auf einmal gewünscht sind.
 
-**Zum Schließen nötig:** Jede der zehn Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen, live
+**Zum Schließen nötig:** Jede der neun Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen, live
 verifizieren, danach aus dieser Liste streichen.
+
+## Pflichtfeld-Sternchen (`*`) rot einfärben — auf weitere Formulare übertragen
+
+**Seit:** Admin-UI-Rework Phase 10, Design-Feedback nach dem Basiswerte-Umbau (03.09.2026).
+
+**Was fehlt:** Bei Pflichtfeldern steht bisher oft ein reines `*` hinter dem Label. Das bereits an mehreren Stellen
+etablierte Muster (`<flux:label>Feld <span class="text-red-500 dark:text-red-400">*</span></flux:label>`, siehe
+`swim-events/form.blade.php`, `results/form.blade.php`, `athletes/form.blade.php` u. a.) soll konsequent überall
+gelten. In den Basiswerte-Formularen (`base-times/versions/form.blade.php`, `base-times/import.blade.php`) bereits
+umgesetzt. Noch mit unfarbigem `*` (Stand 03.09.2026):
+
+- `resources/views/admin/documents/form.blade.php`
+- `resources/views/admin/users/index.blade.php`
+- `resources/views/age-groups/form.blade.php`
+- `resources/views/cups/form.blade.php`
+- `resources/views/kader-types/form.blade.php`
+- `resources/views/lenex/export.blade.php`
+- `resources/views/qualifying-time-lists/_general-fields.blade.php`
+- `resources/views/records/form.blade.php`
+- `resources/views/sport-class-groups/form.blade.php`
+- `resources/views/wps/import/form.blade.php`
+
+**Warum zurückgestellt:** Wie beim Titelleisten-Muster oben reine Fleißarbeit über zehn Dateien — pro Datei prüfen,
+welche Labels tatsächlich Pflichtfelder markieren (nicht jedes `*` im Text ist zwangsläufig ein Pflichtfeld-Marker),
+kein blindes Suchen-und-Ersetzen.
+
+**Wer entscheidet:** Keine offene Design-Frage — Muster ist bereits an über zehn Stellen im Code etabliert und wird
+hier nur konsequent zu Ende geführt.
+
+**Zum Schließen nötig:** Jede der zehn Dateien einzeln auf `<span class="text-red-500 dark:text-red-400">*</span>`
+umstellen, danach aus dieser Liste streichen.
 
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
@@ -329,3 +359,69 @@ Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
 
 **Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
 dann ggf. erneute Prüfung mit genau diesem Programm.
+
+## Zweites Basiswerte-Import-Format: MeetManager/Hy-Tek-"Points"-Textdatei
+
+**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach dem Basiswerte-Umbau (03.09.2026), Beispieldatei `502-para-2021.txt`
+mitgeschickt.
+
+**Was fehlt:** `base-times/import` akzeptiert bisher nur die World-Aquatics-Excel-Datei (`BaseTimeImportService`).
+Erik benötigt zusätzlich den Import eines zweiten, in der Praxis genutzten Formats: einer von
+MeetManager/Hy-Tek exportierten "Points"-Tabelle als Textdatei. Aufbau der Beispieldatei:
+
+```
+Formula=CUBED
+Id=502
+Name=OeBSV Table
+Options=HANDICAP
+ShortNameVersion=OeBSV 2021
+Version=2021
+<BASETIMES>
+
+COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME;MAXTIME
+SCM;F;1;25;FREE;1;00:25.78
+SCM;F;4;25;FREE;S14;01:01.42
+SCM;F;1;25;FREE;X;00:10.91
+...
+```
+
+Ein erster Abgleich mit dem bestehenden Datenmodell/`BaseTimeImportService`:
+
+- `COURSE` (SCM/LCM) und `GENDER` (F/M/X) entsprechen bereits den intern genutzten Werten.
+- `STROKE` (FREE/BACK/FLY/BREAST/MEDLEY) ist bereits exakt dasselbe Vokabular wie die Werte in
+  `BaseTimeImportService::STROKE_SUFFIX_MAP` — keine neue Übersetzungstabelle nötig.
+- `RELAYCOUNT` (1 oder 4) entspricht `base_time_disciplines.relay_count`.
+- `HANDICAP` (Sportklassen-Code) ist uneinheitlich befüllt: bei Einzelbewerben (`RELAYCOUNT=1`) ein reiner
+  Zahlenwert ("1".."21") ohne "S"-Präfix — müsste beim Import synthetisch zu "S1".."S21" ergänzt werden (kein
+  Alias-Lookup wie `SPORT_CLASS_ALIASES`, nur ein Präfix). Bei Staffeln (`RELAYCOUNT=4`) steht dagegen bereits das
+  "S"-Präfix wie in der DB gespeichert ("S14", "S15", "S20", "S21", "S34", "S49") — dort keine Umwandlung nötig.
+  Zusätzlich der Sonderwert "X" (Einzel) bzw. "SX" (Staffel): **von Erik geklärt (03.09.2026)** — das sind die
+  WA-1000-Punkte-Basiswerte für Menschen ohne Behinderung, keine Para-Sportklasse. Diese Zeilen werden beim Import
+  einfach übersprungen, keine neue `base_time_sport_classes`-Zeile nötig.
+- `MINTIME` ist der eigentliche Basiswert (Format `MM:SS.cs`), inkl. Sentinel `99:99.99` für "nicht anwendbar" —
+  der Excel-Import erkennt "nicht anwendbar" über den Literalwert 0 in der Zelle, nicht über einen Zeit-Sentinel;
+  hier bräuchte es eine eigene Erkennung dieses Werts.
+- `MAXTIME` ist in der Beispieldatei durchgängig leer (jede Datenzeile hat nur 7 statt der im Header genannten 8
+  `;`-getrennten Felder): **von Erik geklärt (03.09.2026)** — wird hier nicht verwendet und kann beim Import
+  ignoriert werden. Gehört zur Rudolph-Tabelle (DSV, Deutscher Schwimm-Verband); so eine Tabelle gibt es im
+  Behindertensport nicht.
+
+**Warum zurückgestellt:** Neues Datei-Format mit eigenem Parser, kein reiner UI-Fix — Erik hat selbst vorgeschlagen,
+das zunächst als offenen Punkt festzuhalten statt sofort umzusetzen.
+
+**Referenz:** Format-Beschreibung des Herstellers (Splash Meet Manager):
+<https://wiki.swimrankings.net/index.php/Meet_Manager:Custom_Points>
+
+**Wer entscheidet:** Keine offene Design-Frage mehr — von Erik geklärt: Das Textformat kommt **zusätzlich** zum
+bestehenden Excel-Import hinzu (keine Ablöse), "X"/"SX" (WA-1000-Punkte-Basiswerte ohne Behinderung) werden beim
+Import ignoriert, `MAXTIME` (gehört zur Rudolph-Tabelle/DSV, gibt es im Behindertensport nicht) wird ignoriert, die
+Kopf-Metadaten (`Formula`, `Id`, `Name`, `Options`, `ShortNameVersion`, `Version`) werden nicht benötigt — sie
+gehören zum Splash-Meet-Manager-eigenen Datenformat (siehe Referenz) und müssen nicht ausgewertet/gespeichert werden,
+weitere `Options`-Werte außer `HANDICAP` sind Erik nicht bekannt, der Parser muss also vorerst nur diesen einen Fall
+abdecken. Es fehlt nur noch die Umsetzung.
+
+**Zum Schließen nötig:** Neuer Parser (z. B. `BaseTimeTextImportService`, ggf. mit gemeinsamer Basis/Interface zum
+bestehenden `BaseTimeImportService` für die Persistierungs-Logik: Kopfzeilen bis `<BASETIMES>` überspringen,
+`;`-Tabelle ab der Kopfzeile lesen, Zeilen mit `HANDICAP` "X"/"SX" überspringen, `MAXTIME`-Feld ignorieren),
+Dateityp-Umschalter/-Erkennung in `base-times/import.blade.php` (.txt zusätzlich zu .xlsx, additiv — bestehender
+Excel-Import bleibt unverändert bestehen), Tests analog `BaseTimeImportServiceTest`.

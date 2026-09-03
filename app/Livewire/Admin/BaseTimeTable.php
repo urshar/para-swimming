@@ -8,6 +8,7 @@ use App\Models\BaseTimeDiscipline;
 use App\Models\BaseTimeSportClass;
 use App\Models\BaseTimeVersion;
 use App\Services\BaseTimeCalculationService;
+use App\Support\SportClassSorter;
 use App\Support\TimeParser;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -92,11 +93,17 @@ class BaseTimeTable extends Component
 
     private function loadSportClasses(): Collection
     {
+        // Nicht ->ordered() (sortiert nach sort_order, dem Erstauftreten der Spalte in der beim
+        // Import eingelesenen Excel-Datei — die World-Aquatics-Vorlage listet Sportklassen
+        // typischerweise absteigend, S19…S1). Für die Admin-Tabelle stattdessen aufsteigend nach
+        // Klassennummer, wie von Erik gewünscht (2026-09-03) — SportClassSorter::key() liefert
+        // dafür den bereits an anderer Stelle etablierten numerischen Sortierschlüssel.
         return BaseTimeSportClass::query()
             ->whereHas('baseTimes', fn ($q) => $q->where('base_time_version_id', $this->version->id)
                 ->where('base_time_category_id', $this->category->id))
-            ->ordered()
-            ->get();
+            ->get()
+            ->sortBy(fn (BaseTimeSportClass $sportClass) => SportClassSorter::key($sportClass->code))
+            ->values();
     }
 
     private function loadCells(): void

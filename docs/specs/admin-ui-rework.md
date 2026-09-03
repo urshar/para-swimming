@@ -2037,3 +2037,125 @@ Drei weitere Punkte:
 
 **Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, die komplette `qualifying-time-lists`/
 `grouping`-Gruppe (87 Tests) sowie `composer test` (volle Suite, weiterhin 1396 Tests) grün.
+
+### Zweiunddreißigster Design-Feedback-Nachtrag zu Phase 10 — Basiswerte: Header-Muster, farbige Icons, Tabellen-Split
+
+Erik wandte sich dem Basiswerte-Bereich (`base-times/*`) zu und meldete dieselben Design-Muster, die in dieser
+Phase bereits bei Rekorde/Richtzeiten etabliert wurden, plus ein neues Problem bei der breiten Basiswerte-Tabelle:
+
+- **`base-times/versions/index.blade.php`** (Basiswert-Versionen-Liste): Header-"Importieren"-Button von
+  `variant="ghost"` auf `variant="filled" class="text-blue-500!"` (analog zum bereits farbig gesetzten
+  "Bearbeiten"/"bearbeiten"-Muster andernorts in dieser Phase). In der Tabelle die vier Zeilen-Icons eingefärbt:
+  Import (`arrow-up-tray`) blau, Export (`arrow-down-tray`) smaragd, Bearbeiten (`pencil`) amber, Löschen
+  (`trash`) rot — dieselbe Amber/Rot-Konvention wie in `qualifying-time-lists/index.blade.php` und
+  `records/index.blade.php`, Blau/Smaragd neu für Import/Export (in dieser Phase noch nirgends farblich belegt).
+- **`base-times/versions/form.blade.php`** (Version anlegen/bearbeiten): Header vom alten Muster (Icon-Only-
+  Zurück-Button inline vor dem `<h1>`) auf das in dieser Phase etablierte P9-Muster umgestellt — Titel, darunter
+  in eigener Zeile (`mt-4`) ein `variant="filled"`-Zurück-Button mit Text, wie in `records/form.blade.php` und
+  `qualifying-time-lists/form.blade.php`.
+- **`base-times/categories/index.blade.php`** (Kategorie-Karten je Version) und **`.../categories/show.blade.php`**
+  (Tabelle einer einzelnen Kategorie, nach Klick auf eine Karte): Beide hatten noch das alte "Icon-Only-Zurück +
+  Titel + Buttons in einer Zeile"-Layout. Umgestellt auf das records/show.blade.php-/meets/show.blade.php-Muster:
+  Titel + Unterzeile in eigenem Block, darunter eine Button-Zeile mit `Zurück` (`variant="filled"`, Text, links)
+  und `<div class="ml-auto flex items-center flex-wrap gap-2">` für die übrigen Aktionen rechts. Import/Export dort
+  ebenfalls `variant="filled"` mit denselben Blau-/Smaragd-Farben wie in der Versionsliste.
+- **Tabelle breiter als der Bildschirm** (`livewire/admin/base-time-table.blade.php`): Bei Kategorien mit vielen
+  Sportklassen-Spalten (z.B. 19 bei "LC Men") lief die Tabelle trotz `overflow-x-auto` sichtbar über den
+  Bildschirm hinaus. Die Bewerbs-Zeilen sind identisch, nur die Sportklassen-Spalten ändern sich je Kategorie —
+  deshalb die Spalten in 10er-Blöcken auf `flux:tab.group`-Tabs aufgeteilt (Label je Tab: der tatsächliche
+  Spaltenbereich, z.B. "1–10"/"11–19" statt hartkodiert "1–10"/"11–21", da die Spaltenanzahl je Kategorie
+  variiert). Die eigentliche Tabellen-Struktur (Kopf- und Datenzeilen) wurde dafür in eine neue Partial
+  `livewire/admin/_base-time-table-grid.blade.php` ausgelagert, die pro Tab-Panel mit der jeweiligen
+  Sportklassen-Teilmenge inkludiert wird — bei ≤10 Spalten weiterhin ohne Tabs, direkt die Partial. Ein
+  `$chunkIndex` fließt in `wire:key="discipline-{{ $discipline->id }}-{{ $chunkIndex }}"` der Zeilen ein, da
+  dieselbe Discipline-ID sonst über mehrere Tab-Panels hinweg als doppelter `wire:key` auftaucht (alle Panels
+  bleiben laut Flux' Tab-Implementierung gleichzeitig im DOM, nur per `x-show` um-/ausgeblendet) — ohne das würde
+  Livewires Morph-Algorithmus beim erneuten Rendern (z.B. nach "Neu berechnen") durcheinanderkommen. Die
+  Input-`wire:key`s (`input-{disciplineId}-{sportClassId}`) waren dagegen schon vorher global eindeutig, da
+  Sportklassen-IDs nicht über Chunks hinweg wiederholt werden.
+
+  Der eigentliche Speicherpfad (`wire:model.blur` → `updated()` → `saveCell()`) wurde nach dem Refactor gezielt
+  überprüft, da die Zellen jetzt aus einer inkludierten Partial statt direkt aus der Komponentenview kommen:
+  Direktes Setzen über die Livewire-JS-API (`Livewire.find(id).set('cells.1.1', '00:19.55')`) im Browser
+  bestätigte, dass die Bindung intakt ist und der Wert in der Datenbank ankommt (Wert danach wieder
+  zurückgesetzt). Echte Klick-/Tastatur-Simulation über das Browser-Pane-Tool selbst blieb dabei wie in früheren
+  Nachträgen dieser Session unzuverlässig (Wert kam trotz sichtbarem Tippen nicht in der DB an) — die
+  Pest-Suite deckt den serverseitigen Teil (`updated()`/`saveCell()`) ohnehin bereits ab.
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün (alle geänderten Views),
+`BaseTimeCrudTest`/`BaseTimeCalculationServiceTest`/`BaseTimeExportServiceTest`/`BaseTimeImportServiceTest`/
+`BaseTimeVersionValidOnTest` (39 Tests) grün, `composer test` (volle Suite, weiterhin 1396 Tests) grün — ein
+einzelner Fehlschlag in `CupStalenessServiceTest` erwies sich beim isolierten erneuten Lauf als grün (bestehender
+flakiger Test, unabhängig von dieser Änderung).
+
+### Dreiunddreißigster Design-Feedback-Nachtrag zu Phase 10 — Basiswerte: rote Pflichtfeld-Sterne, Label-Abstand, Spalten-Reihenfolge, Neu-berechnen neben Exportieren
+
+Vier weitere Punkte zu den Basiswerte-Views:
+
+- **Pflichtfeld-Sterne rot**: `base-times/versions/form.blade.php` und `base-times/import.blade.php` hatten noch ein
+  reines `*` hinter dem Label. Auf das bereits an über zehn anderen Stellen im Code etablierte Muster umgestellt
+  (`<span class="text-red-500 dark:text-red-400">*</span>`, z. B. aus `swim-events/form.blade.php`). Da dasselbe
+  unfarbige Muster noch in zehn weiteren, nicht zu den Basiswerten gehörenden Formularen steht, dafür einen neuen
+  Punkt in `docs/open-points.md` angelegt ("Pflichtfeld-Sternchen (`*`) rot einfärben — auf weitere Formulare
+  übertragen") statt es hier blind mitzuziehen.
+- **Abstand "Gültig bis" / "(optional)"**: Der Zwischenraum fehlte trotz eines Leerzeichens im Blade-Quelltext
+  zwischen dem Label-Text und dem `<span>`. Ursache: `flux:label` rendert als `<ui-label class="inline-flex
+  items-center …">` (`vendor/livewire/flux/stubs/resources/views/flux/label.blade.php`) — in einem Flex-Container
+  wird ein Text, der ausschließlich aus kollabierbarem Whitespace besteht, laut CSS-Flexbox-Spezifikation komplett
+  entfernt statt nur kollabiert, das Leerzeichen zwischen Textknoten und `<span>` verschwindet dadurch vollständig.
+  Fix: `ms-1` auf dem `<span>` statt eines Leerzeichens im Text — an beiden betroffenen Stellen
+  (`base-times/versions/form.blade.php`, `base-times/import.blade.php`). Dasselbe Muster (Text + Leerzeichen +
+  `<span>` in `flux:label`) existiert unverändert auch in `athletes/show.blade.php` und `age-groups/form.blade.php`
+  — dort nicht mitgezogen, da außerhalb des heutigen Basiswerte-Auftrags; ggf. bei Gelegenheit separat aufgreifen.
+- **Sportklassen-Spaltenreihenfolge/Tab-Beschriftung passten nicht zusammen**: Erik meldete, Tab "1–10" habe
+  tatsächlich die Klassen 19 bis 10 gezeigt, "11–19" den Rest. Ursache: `BaseTimeTable::loadSportClasses()` nutzte
+  `BaseTimeSportClass::ordered()` (sortiert nach `sort_order` — dem Erstauftreten der Spalte beim Excel-Import, nicht
+  nach Klassennummer; die World-Aquatics-Vorlage listet die Spalten dort absteigend, S19…S1). Die Tab-Labels aus dem
+  vorigen Nachtrag sind zwar rein positionsbasiert berechnet (nicht aus dem Klassencode abgeleitet), was bei
+  absteigender Reihenfolge in der Tabelle selbst irreführend wirkte. Fix: `loadSportClasses()` sortiert jetzt
+  aufsteigend nach Klassennummer über `SportClassSorter::key()` (bereits an anderer Stelle für genau diesen Zweck
+  etabliert) statt über `->ordered()`. `->ordered()`/`sort_order` selbst unverändert gelassen (wird auch vom Export
+  und der Richtzeiten-Berechnung genutzt, dort unkritisch bzw. nicht Gegenstand der heutigen Meldung) — die Änderung
+  bleibt auf die Admin-Tabelle beschränkt.
+- **"Neu berechnen" neben "Exportieren"**: Beide Buttons standen bisher in unterschiedlichen Zeilen (Exportieren im
+  Seiten-Header, Neu berechnen in der Aktionsleiste der Livewire-Tabelle) und in unterschiedlicher Größe
+  (Exportieren `size="sm"`, Neu berechnen ohne Größenangabe). Da "Exportieren" ein reiner Routen-Link ist (kein
+  Livewire-Zustand nötig), einfacher den Button in die Livewire-Komponente verschoben als umgekehrt (kein
+  funktionierender Weg, eine Livewire-Aktion aus einer Seite ohne eigenen Component-Root anzustoßen, ohne die
+  bestehende `wire:loading`/`wire:target`-Anzeige zu riskieren). Jetzt beide nebeneinander in der Aktionsleiste der
+  Tabelle, "Exportieren" links, "Neu berechnen" rechts davon, beide `size="sm"` — Seiten-Header hat dadurch nur noch
+  den "Zurück"-Button.
+
+  Zur Kontrolle nach dem Refactor per `getComputedStyle` geprüft, ob die Buttons wirklich dieselbe Höhe/Schriftgröße
+  tragen (`h-8 text-sm` bei beiden bestätigt) — der Versuch, dabei auch die neue Sternchen-Farbe per
+  `getComputedStyle` zu verifizieren, schlug dagegen fehl (Farbe kam als reines Schwarz/Weiß statt Rot zurück, sogar
+  bei seit Wochen bestehenden, unveränderten Referenzstellen wie `athletes/create`). Ursache nicht der Code, sondern
+  das Browser-Pane selbst: `read_console_messages` zeigte durchgehend `ERR_BLOCKED_BY_CLIENT` für die
+  Vite-Dev-Assets, `document.styleSheets` bestätigte, dass praktisch keine Tailwind-Regel greift (sogar `<h1>` und
+  Linkfarben zeigten reine Browser-Standardwerte statt der seit Monaten produktiv laufenden Utility-Klassen) — das
+  Stylesheet wird in dieser Tab-Sitzung schlicht nicht geladen. Farb-Verifikation deshalb auf DOM-Ebene belassen
+  (korrektes Markup/korrekte Klassen bestätigt, wie schon in früheren Nachträgen dieser Session bei Geometrie-APIs
+  und Screenshots) statt eines falschen Bug-Befunds auf Basis eines kaputten Preview-Tabs.
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, `BaseTimeCrudTest`/`BaseTimeExportServiceTest`
+(14 Tests) grün, `composer test` (volle Suite, weiterhin 1396 Tests) grün. Live im Browser geprüft: Spaltenreihenfolge
+beginnt jetzt korrekt bei S1, Tab-Beschriftungen stimmen mit dem Inhalt überein, Exportieren/Neu-berechnen stehen
+nebeneinander mit identischer Höhe/Schriftgröße.
+
+### Vierunddreißigster Design-Feedback-Nachtrag zu Phase 10 — Import-Vorschau auf P9-Muster umgestellt
+
+- **`base-times/import-preview.blade.php`**: Breite von `max-w-3xl` auf `max-w-4xl` gebracht (wie die übrigen
+  Basiswerte-Seiten und wie `records/import-preview.blade.php`, das erkennbar als Vorlage für diese Seite diente).
+  Header umgestellt auf das records/import-preview.blade.php-Muster: Titel + Datei-Badge in einer Zeile, darunter
+  die Ziel-Version-Zeile, darunter in eigenem `mt-4`-Block der `variant="filled"`-Zurück-Button mit Text (statt
+  bisher Icon-only `variant="ghost"` links vor dem Titel).
+
+Am Rande kam bei dieser Gelegenheit auch der Wunsch nach einem zweiten, textbasierten Basiswerte-Import-Format auf
+(MeetManager/Hy-Tek-"Points"-Datei) — das ist keine UI-Korrektur, sondern neue Funktionalität und gehört damit nicht
+in diese Phase (siehe Scope-Absatz ganz oben in diesem Dokument). Bewusst **nicht** hier mitgeführt, sondern
+eigenständig in `docs/open-points.md` ("Zweites Basiswerte-Import-Format: MeetManager/Hy-Tek-'Points'-Textdatei")
+verfolgt — dort auch die volle Klärung mit Erik (Format-Details, Referenz-Link, alle Entscheidungen bereits
+getroffen, nur die Umsetzung fehlt noch).
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün (nur die geänderte View betroffen) — keine
+Logik-/Testfile-Änderung in diesem Nachtrag, `composer test`-Stand unverändert 1396 Tests grün.
