@@ -14,88 +14,81 @@
         unterschiedliche Reihenfolgen.
     </div>
 
-    {{-- ── Filter ──────────────────────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
-        <flux:field class="w-28">
-            <flux:label>Jahr</flux:label>
-            <flux:select x-on:change="$wire.setInput('year', $event.target.value)">
-                @foreach($this->availableYears() as $jahr)
-                    <option value="{{ $jahr }}" @selected($year === (string) $jahr)>{{ $jahr }}</option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-32">
-            <flux:label>Bahnlänge</flux:label>
-            <flux:select x-on:change="$wire.setInput('course', $event.target.value)">
-                <option value="SCM" @selected($course === WpsRankingFilter::COURSE_SCM)>Kurzbahn</option>
-                <option value="LCM" @selected($course === WpsRankingFilter::COURSE_LCM)>Langbahn</option>
-                <option value="MIXED" @selected($course === WpsRankingFilter::COURSE_MIXED)>beide</option>
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-40">
-            <flux:label>Bewerb</flux:label>
-            <flux:select x-on:change="$wire.setInput('strokeTypeId', $event.target.value)">
-                <option value="">Alle</option>
-                @foreach($this->strokeTypes() as $strokeType)
-                    <option value="{{ $strokeType->id }}" @selected($strokeTypeId === (string) $strokeType->id)>
-                        {{ $strokeType->name_de }}
-                    </option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-32">
-            <flux:label>Geschlecht</flux:label>
-            <flux:select x-on:change="$wire.setInput('gender', $event.target.value)">
-                <option value="">Alle</option>
-                <option value="M" @selected($gender === 'M')>männlich</option>
-                <option value="F" @selected($gender === 'F')>weiblich</option>
-            </flux:select>
-        </flux:field>
-    </div>
-
-    {{-- ── Bewertungsmethode ───────────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
-        <flux:field class="w-64">
-            <flux:label>Bewertungsmethode</flux:label>
-            <flux:select x-on:change="$wire.setInput('method', $event.target.value)">
-                <option value="sum" @selected($method === WpsClubRankingConfiguration::METHOD_SUM)>
-                    Summe der besten Leistungen
-                </option>
-                <option value="average" @selected($method === WpsClubRankingConfiguration::METHOD_AVERAGE)>
-                    Durchschnitt der besten Leistungen
-                </option>
-                <option value="count" @selected($method === WpsClubRankingConfiguration::METHOD_COUNT)>
-                    Leistungen über einer Schwelle
-                </option>
-            </flux:select>
-        </flux:field>
-
-        @if($method === WpsClubRankingConfiguration::METHOD_COUNT)
-            <flux:field class="w-36">
-                <flux:label>Punktschwelle</flux:label>
-                <flux:input x-model="$wire.threshold" type="number" min="1"
-                            x-on:change="$wire.setInput('threshold', $event.target.value)"/>
+    {{-- x-model + $watch statt x-on:change direkt am flux:select: Custom Element <ui-select>
+         feuert sein internes "change"-Event mit bubbles:false, kommt darüber nicht zuverlässig
+         an (siehe resources/js/wps-livewire-filters.js). --}}
+    <div x-data="wpsLivewireFilters(@js(['year' => $year, 'course' => $course, 'strokeTypeId' => $strokeTypeId, 'gender' => $gender, 'method' => $method]), 'setInput')">
+        {{-- ── Filter und Bewertungsmethode in einer Zeile ────────────────────── --}}
+        <div class="mb-4 flex flex-wrap items-end gap-3">
+            <flux:field class="w-28">
+                <flux:label>Jahr</flux:label>
+                <flux:select variant="listbox" x-model="year">
+                    @foreach($this->availableYears() as $jahr)
+                        <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
+                    @endforeach
+                </flux:select>
             </flux:field>
-        @else
+
+            <flux:field class="w-32">
+                <flux:label>Bahnlänge</flux:label>
+                <flux:select variant="listbox" x-model="course">
+                    <flux:select.option value="SCM">Kurzbahn</flux:select.option>
+                    <flux:select.option value="LCM">Langbahn</flux:select.option>
+                    <flux:select.option value="MIXED">beide</flux:select.option>
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-40">
+                <flux:label>Bewerb</flux:label>
+                <flux:select variant="listbox" x-model="strokeTypeId" placeholder="Alle" clearable>
+                    @foreach($this->strokeTypes() as $strokeType)
+                        <flux:select.option value="{{ $strokeType->id }}">{{ $strokeType->name_de }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-32">
+                <flux:label>Geschlecht</flux:label>
+                <flux:select variant="listbox" x-model="gender" placeholder="Alle" clearable>
+                    <flux:select.option value="M">männlich</flux:select.option>
+                    <flux:select.option value="F">weiblich</flux:select.option>
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-64">
+                <flux:label>Bewertungsmethode</flux:label>
+                <flux:select variant="listbox" x-model="method">
+                    <flux:select.option value="sum">Summe der besten Leistungen</flux:select.option>
+                    <flux:select.option value="average">Durchschnitt der besten Leistungen</flux:select.option>
+                    <flux:select.option value="count">Leistungen über einer Schwelle</flux:select.option>
+                </flux:select>
+            </flux:field>
+
+            @if($method === WpsClubRankingConfiguration::METHOD_COUNT)
+                <flux:field class="w-36">
+                    <flux:label>Punktschwelle</flux:label>
+                    <flux:input x-model="$wire.threshold" type="number" min="1"
+                                x-on:change="$wire.setInput('threshold', $event.target.value)"/>
+                </flux:field>
+            @else
+                <flux:field class="w-44">
+                    <flux:label>Leistungen je Athlet</flux:label>
+                    <flux:input x-model="$wire.countedPerAthlete" type="number" min="1"
+                                x-on:change="$wire.setInput('countedPerAthlete', $event.target.value)"/>
+                </flux:field>
+            @endif
+
             <flux:field class="w-44">
-                <flux:label>Leistungen je Athlet</flux:label>
-                <flux:input x-model="$wire.countedPerAthlete" type="number" min="1"
-                            x-on:change="$wire.setInput('countedPerAthlete', $event.target.value)"/>
+                <flux:label>Mind. Leistungen je Verein</flux:label>
+                <flux:input x-model="$wire.minEntriesPerClub" type="number" min="1"
+                            x-on:change="$wire.setInput('minEntriesPerClub', $event.target.value)"/>
             </flux:field>
-        @endif
 
-        <flux:field class="w-44">
-            <flux:label>Mind. Leistungen je Verein</flux:label>
-            <flux:input x-model="$wire.minEntriesPerClub" type="number" min="1"
-                        x-on:change="$wire.setInput('minEntriesPerClub', $event.target.value)"/>
-        </flux:field>
-
-        <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
-                     icon="document-arrow-down">PDF
-        </flux:button>
+            <flux:button href="{{ $this->pdfUrl() }}" variant="filled" icon="document-arrow-down"
+                         class="ml-auto text-purple-500!">
+                PDF
+            </flux:button>
+        </div>
     </div>
 
     @php($einstellungen = $this->configuration())

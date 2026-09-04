@@ -32,6 +32,7 @@ reaktiven Ausdruck ersetzen, der bei `'new'`/`'skip'` den LENEX-Namen zeigt und 
 den Namen/Kurznamen dieses Vereins nachschlägt (Vereinsliste ist als `$clubs` bereits im DOM verfügbar).
 
 ## Titelleisten-Muster (Titel oben, "Zurück" links / Aktionen rechts in eigener Zeile) auf alle
+
 `show.blade.php` übertragen
 
 **Seit:** Admin-UI-Rework Phase 10, Design-Feedback nach `records/show.blade.php`-Umbau (30.08.2026).
@@ -64,37 +65,6 @@ Dateien nach Priorität mit Erik abstimmen, falls nicht alle auf einmal gewünsc
 
 **Zum Schließen nötig:** Jede der neun Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen, live
 verifizieren, danach aus dieser Liste streichen.
-
-## Pflichtfeld-Sternchen (`*`) rot einfärben — auf weitere Formulare übertragen
-
-**Seit:** Admin-UI-Rework Phase 10, Design-Feedback nach dem Basiswerte-Umbau (03.09.2026).
-
-**Was fehlt:** Bei Pflichtfeldern steht bisher oft ein reines `*` hinter dem Label. Das bereits an mehreren Stellen
-etablierte Muster (`<flux:label>Feld <span class="text-red-500 dark:text-red-400">*</span></flux:label>`, siehe
-`swim-events/form.blade.php`, `results/form.blade.php`, `athletes/form.blade.php` u. a.) soll konsequent überall
-gelten. In den Basiswerte-Formularen (`base-times/versions/form.blade.php`, `base-times/import.blade.php`) bereits
-umgesetzt. Noch mit unfarbigem `*` (Stand 03.09.2026):
-
-- `resources/views/admin/documents/form.blade.php`
-- `resources/views/admin/users/index.blade.php`
-- `resources/views/age-groups/form.blade.php`
-- `resources/views/cups/form.blade.php`
-- `resources/views/kader-types/form.blade.php`
-- `resources/views/lenex/export.blade.php`
-- `resources/views/qualifying-time-lists/_general-fields.blade.php`
-- `resources/views/records/form.blade.php`
-- `resources/views/sport-class-groups/form.blade.php`
-- `resources/views/wps/import/form.blade.php`
-
-**Warum zurückgestellt:** Wie beim Titelleisten-Muster oben reine Fleißarbeit über zehn Dateien — pro Datei prüfen,
-welche Labels tatsächlich Pflichtfelder markieren (nicht jedes `*` im Text ist zwangsläufig ein Pflichtfeld-Marker),
-kein blindes Suchen-und-Ersetzen.
-
-**Wer entscheidet:** Keine offene Design-Frage — Muster ist bereits an über zehn Stellen im Code etabliert und wird
-hier nur konsequent zu Ende geführt.
-
-**Zum Schließen nötig:** Jede der zehn Dateien einzeln auf `<span class="text-red-500 dark:text-red-400">*</span>`
-umstellen, danach aus dieser Liste streichen.
 
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
@@ -269,7 +239,7 @@ SCM, wie schon bei der Jahresbestzeit), `single-entry-form.js` um das zusätzlic
 
 **Seit:** Admin-UI-Rework Phase 10, Rückfragen zu Saram Stephan / Hochenberger Philip / Rottmann Kilian in
 `oebsv.lxf` (31.08.2026). Ursprünglich zwei getrennte Punkte, auf Wunsch von Erik zusammengelegt ("so dass wir das in
-einem machen können") — beide brauchen dieselbe Grundlage: eine persistierte, abarbeitbare Review-Liste nach dem
+einem machen können") — beide brauchen dieselbe Grundlage: Eine persistierte, abarbeitbare Review-Liste nach dem
 Rekord-Import.
 
 **Teil A — Club-Konflikte:** Bei einem Rekord-Import gilt laut Erik der im LENEX-File genannte Verein als bindend,
@@ -362,11 +332,12 @@ dann ggf. erneute Prüfung mit genau diesem Programm.
 
 ## Zweites Basiswerte-Import-Format: MeetManager/Hy-Tek-"Points"-Textdatei
 
-**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach dem Basiswerte-Umbau (03.09.2026), Beispieldatei `502-para-2021.txt`
+**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach dem Basiswerte-Umbau (03.09.2026), Beispieldatei
+`502-para-2021.txt`
 mitgeschickt.
 
 **Was fehlt:** `base-times/import` akzeptiert bisher nur die World-Aquatics-Excel-Datei (`BaseTimeImportService`).
-Erik benötigt zusätzlich den Import eines zweiten, in der Praxis genutzten Formats: einer von
+Erik benötigt zusätzlich den Import eines zweiten, in der Praxis genutzten Formats: Einer von
 MeetManager/Hy-Tek exportierten "Points"-Tabelle als Textdatei. Aufbau der Beispieldatei:
 
 ```
@@ -392,7 +363,7 @@ Ein erster Abgleich mit dem bestehenden Datenmodell/`BaseTimeImportService`:
   `BaseTimeImportService::STROKE_SUFFIX_MAP` — keine neue Übersetzungstabelle nötig.
 - `RELAYCOUNT` (1 oder 4) entspricht `base_time_disciplines.relay_count`.
 - `HANDICAP` (Sportklassen-Code) ist uneinheitlich befüllt: bei Einzelbewerben (`RELAYCOUNT=1`) ein reiner
-  Zahlenwert ("1".."21") ohne "S"-Präfix — müsste beim Import synthetisch zu "S1".."S21" ergänzt werden (kein
+  Zahlenwert ("1"…"21") ohne "S"-Präfix — müsste beim Import synthetisch zu "S1"..."S21" ergänzt werden (kein
   Alias-Lookup wie `SPORT_CLASS_ALIASES`, nur ein Präfix). Bei Staffeln (`RELAYCOUNT=4`) steht dagegen bereits das
   "S"-Präfix wie in der DB gespeichert ("S14", "S15", "S20", "S21", "S34", "S49") — dort keine Umwandlung nötig.
   Zusätzlich der Sonderwert "X" (Einzel) bzw. "SX" (Staffel): **von Erik geklärt (03.09.2026)** — das sind die
@@ -425,3 +396,177 @@ bestehenden `BaseTimeImportService` für die Persistierungs-Logik: Kopfzeilen bi
 `;`-Tabelle ab der Kopfzeile lesen, Zeilen mit `HANDICAP` "X"/"SX" überspringen, `MAXTIME`-Feld ignorieren),
 Dateityp-Umschalter/-Erkennung in `base-times/import.blade.php` (.txt zusätzlich zu .xlsx, additiv — bestehender
 Excel-Import bleibt unverändert bestehen), Tests analog `BaseTimeImportServiceTest`.
+
+## Phase 14 (Vorschlag) — Flux-Pro-Rollout: Full-Bleed-Tabellen, Datepicker mit Selectable Header & Pflichtfeld-Sterne
+
+**Seit:** WPS-Design-Feedback-Runde (04.09.2026). Erik: alle Tabellen im Adminbereich sollen auf Flux Pros
+Full-Bleed-/Custom-Gutters-Muster umgestellt werden ("was halt besser aussieht bei der Implementierung"), als eigene
+Phase, vermutlich P14. Denselben Bündelungs-Vorschlag ("auch hier") für den Rollout des Flux-Pro-Datepickers mit
+`selectable-header` auf alle übrigen Datumsfelder. Am 04.09.2026 zusätzlich in diese Phase verschoben: die
+Pflichtfeld-Sternchen-Nacharbeit (Teil C) — hier aber ausdrücklich **kein** eigener Sweep, sondern nur opportunistisch
+mitnehmen, wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
+
+### Teil A — Tabellen: Full-Bleed oder Custom Gutters
+
+**Was fehlt:** Aktuell sitzt jede Tabelle in einer eigenen Card mit `p-*`-Innenabstand ODER die Card hat
+`overflow-hidden` und die Tabelle füllt sie randlos — uneinheitlich von Datei zu Datei gewachsen. Flux Pro kennt dafür
+zwei dokumentierte Muster (fluxui.dev/components/table, Stand 04.09.2026):
+
+- **Full-Bleed** (`<flux:table bleed>` innerhalb einer `flux:card`): Die Tabellen-Trennlinien laufen bis an den
+  Card-Rand durch, erste/letzte Spalte bleiben am Card-Inhalt ausgerichtet, der Gutter wird automatisch aus der
+  Card-Größe abgeleitet.
+- **Custom Gutters** (`<flux:table bleed>` in einem eigenen Container statt einer `flux:card`): Der Innenabstand wird
+  manuell über die CSS-Variable `--flux-bleed` passend zum Container-Padding gesetzt (z. B.
+  `<div class="p-4 [--flux-bleed:1rem]"><flux:table bleed>`).
+
+**Wichtiger Befund — blockiert aktuell die Umsetzung:** Die in diesem Projekt vendorte Version von `flux`
+(`vendor/livewire/flux/stubs/resources/views/flux/table/index.blade.php`) kennt den `bleed`-Prop **noch nicht** — dort
+gibt es kein `bleed`-Attribut und keine `--flux-bleed`-Variable, nur `paginate` und `container:class`. Das Muster aus
+der aktuellen Flux-Doku setzt also eine neuere Flux-/Flux-Pro-Version voraus. Diese Phase beginnt daher realistisch
+mit einem Paket-Update (`composer update livewire/flux livewire/flux-pro` o. ä.), das selbst geprüft werden muss (alle
+anderen Flux-Komponenten regressionstesten, Changelog auf Breaking Changes durchsehen), bevor überhaupt eine einzelne
+Tabelle umgestellt werden kann.
+
+**Update 04.09.2026:** Erik hat `composer.json` bereits auf `livewire/flux: ^2.18.0` / `livewire/flux-pro: ^2.18`
+angehoben. `composer show livewire/flux` bestätigt v2.18.0 als installierte Version — die neue Constraint war schon
+erfüllt, `composer.lock` blieb unverändert, es wurde nichts Neues nachgeladen. Der `bleed`-Prop fehlt in v2.18.0
+weiterhin. Der Blocker besteht also unverändert fort; sobald Flux/Flux Pro eine Version über `^2.18` hinaus
+veröffentlichen, die `bleed` mitbringt, ist ein erneuter, bewusster `composer require livewire/flux:^X livewire/flux-pro:^X`
+nötig (nicht nur ein Constraint-Bump ohne tatsächlich neue Version).
+
+**Betroffene Dateien** (jede Datei mit `<flux:table`, Stand 04.09.2026 — Zahl vorab per `grep` ermittelt, bei
+Umsetzung neu zu verifizieren): **rund 38 Dateien**, u. a. explizit von Erik genannt:
+
+- `resources/views/wps/factors/index.blade.php` (Kurzbahn-Umrechnung)
+- `resources/views/wps/factors/report.blade.php` (Faktorenbericht)
+
+Weitere (Auszug, vollständige Liste per `grep -rl "<flux:table" resources/views/` zu Beginn der Phase neu ziehen):
+`admin/documents/index`, `admin/users/index`, `age-groups/index`, `athletes/index`, `athletes/show`,
+`base-times/versions/index`, `championships/{index,import/preview,selection}`, `classifiers/{index,show}`,
+`clubs/{index,show}`, `cups/{index,club-ranking-index,daily-ranking,overall-ranking,overall-ranking-index}`,
+`entries/index`, `kader-types/index`, `livewire/admin/championship-development-table`,
+`livewire/statistics-dashboard` (5 Tabellen in einer Datei), `meets/{index,show}`, `nations/index`,
+`qualifying-excluded-disciplines/index`, `qualifying-time-lists/{form,index,qualifications,show}`,
+`records/{index,show}`, `results/index`, `sport-class-groups/index`, `wps/import/preview`, `wps/versions/{index,show}`.
+
+**Warum zurückgestellt:** Kein einzeiliger Fix, sondern (a) ein Paket-Update mit Regressionsrisiko für alle
+Flux-Komponenten, nicht nur Tabellen, und (b) danach Fleißarbeit über ~38 Dateien. Erik selbst hat vorgeschlagen, das
+als eigene Phase zu behandeln statt es in die laufende WPS-Design-Feedback-Runde zu mischen.
+
+**Wer entscheidet:** Erik — Zeitpunkt des Paket-Updates (eigener Schritt vor P14 oder Teil davon), und ob Full-Bleed
+oder Custom-Gutters das Standardmuster wird (vermutlich Full-Bleed für alle Card-Tabellen, Custom-Gutters nur dort,
+wo keine `flux:card` verwendet wird — "was halt besser aussieht" pro Fall zu entscheiden, sobald das Update steht).
+
+**Zum Schließen nötig:** Paket-Update + Regressionstest, dann pro Tabelle `bleed` ergänzen (bzw. `--flux-bleed`
+setzen) und live prüfen, vollständige Datei-Liste zu Beginn der Phase neu ziehen (Codebase wächst weiter).
+
+### Teil B — Datepicker mit `selectable-header` auf alle Date-Inputs ausrollen
+
+**Was fehlt:** `flux:date-picker` unterstützt bereits (auch in der aktuell vendorten Version, kein Update nötig) den
+Prop `selectable-header` — ersetzt die reine Text-Kopfzeile im Kalender-Popover (z. B. "September 2026") durch zwei
+`<select>`-Dropdowns für Monat und Jahr, damit man nicht monatsweise durchklicken muss, um z. B. zu einem Geburtsjahr
+zu springen. Am 04.09.2026 in `wps/import/form.blade.php` als Pilot ergänzt und live verifiziert (Kalender-Header
+zeigt jetzt ein `<select>` statt Text). Noch **ohne** `selectable-header`:
+
+- `resources/views/athletes/form.blade.php` (2 Datumsfelder)
+- `resources/views/athletes/show.blade.php` (6 Datumsfelder)
+- `resources/views/base-times/import.blade.php` (2)
+- `resources/views/base-times/versions/form.blade.php` (2)
+- `resources/views/championships/form.blade.php` (2)
+- `resources/views/livewire/wps-athlete-analysis.blade.php` (1)
+- `resources/views/meets/_grunddaten-fields.blade.php` (3)
+- `resources/views/qualifying-time-lists/_general-fields.blade.php` (2)
+- `resources/views/records/form.blade.php` (2)
+
+**Warum zurückgestellt:** Zusammen mit Teil A zu einer Phase gebündelt (Eriks Wunsch: "auch hier" dieselbe
+Vorgehensweise — Liste erstellen, dann als eigene Phase). Für sich genommen risikoarme Fleißarbeit (ein zusätzliches
+Boolean-Attribut je Datepicker, kein Package-Update nötig), könnte bei Bedarf auch unabhängig von Teil A vorgezogen
+werden.
+
+**Wer entscheidet:** Keine offene Design-Frage — Muster ist am Pilotfall verifiziert.
+
+**Zum Schließen nötig:** Jedes `flux:date-picker type="input" ...` um `selectable-header` ergänzen, danach aus dieser
+Liste streichen.
+
+### Teil C — Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
+
+**Seit:** Admin-UI-Rework Phase 10 (03.09.2026) bzw. WPS-Design-Feedback-Runde (04.09.2026, Abstands-Bug entdeckt);
+am 04.09.2026 auf Eriks Wunsch in Phase 14 verschoben statt als eigener Sweep behandelt.
+
+**Was fehlt — zwei getrennte Mängel, dieselben Dateien betreffend:**
+
+1. **Farbe fehlt komplett.** Das etablierte Muster (`<flux:label>Feld<span class="text-red-500
+   dark:text-red-400 ms-1">*</span></flux:label>`, siehe `swim-events/form.blade.php`,
+   `results/form.blade.php`, `athletes/form.blade.php` u. a.) fehlt noch in neun Dateien — dort steht bei
+   Pflichtfeldern weiterhin ein reines, unfarbiges `*`.
+2. **Farbe vorhanden, aber Abstand kollabiert auf 0px.** Das früher kopierte Muster mit einem Leerzeichen vor dem
+   `<span>` (`Feld <span class="text-red-500 dark:text-red-400">*</span>`) sieht im Code richtig aus, hat aber
+   einen Flexbox-Whitespace-Bug: `<ui-label>` rendert `inline-flex items-center`, und der Leerraum am Ende eines
+   Text-Knotens direkt vor einem folgenden `<span>` wird beim Rendern vollständig entfernt statt nur kollabiert.
+   Live mit `getBoundingClientRect()` nachgemessen: Abstand war exakt `0px`. Betrifft 13 Dateien, darunter auch
+   zwei in Phase 10 bereits "fertig" markierte Basiswerte-Formulare. Der korrekte Fix: kein Leerzeichen im
+   Label-Text, stattdessen `ms-1` auf dem `<span>` (verifiziert in `wps/import/form.blade.php`, Abstand danach
+   `4px`).
+
+**Noch ohne Farbe (9 Dateien):**
+
+- `resources/views/admin/documents/form.blade.php`
+- `resources/views/admin/users/index.blade.php`
+- `resources/views/age-groups/form.blade.php`
+- `resources/views/cups/form.blade.php`
+- `resources/views/kader-types/form.blade.php`
+- `resources/views/lenex/export.blade.php`
+- `resources/views/qualifying-time-lists/_general-fields.blade.php`
+- `resources/views/records/form.blade.php`
+- `resources/views/sport-class-groups/form.blade.php`
+
+**Farbe vorhanden, Abstand kollabiert (13 Dateien):**
+
+- `resources/views/base-times/import.blade.php`
+- `resources/views/base-times/versions/form.blade.php`
+- `resources/views/swim-events/form.blade.php`
+- `resources/views/results/form.blade.php`
+- `resources/views/meets/_grunddaten-fields.blade.php`
+- `resources/views/entries/form.blade.php`
+- `resources/views/entries/edit.blade.php`
+- `resources/views/clubs/form.blade.php`
+- `resources/views/club-entries/create.blade.php`
+- `resources/views/club-entries/create-relay.blade.php`
+- `resources/views/classifiers/form.blade.php`
+- `resources/views/athletes/show.blade.php`
+- `resources/views/athletes/form.blade.php`
+
+**Warum zurückgestellt UND wie umgesetzt wird — auf Eriks ausdrücklichen Wunsch (04.09.2026) anders als Teil
+A/B:** Kein eigener Sweep über alle 22 Dateien. Stattdessen: **nur mitnehmen, wenn eine dieser Dateien ohnehin
+im Rahmen einer anderen Änderung angefasst wird** (in Phase 14 oder später) — dann bei dieser Gelegenheit das
+Sternchen auf das korrekte Muster (`Feld<span class="text-red-500 dark:text-red-400 ms-1">*</span>`, kein
+Leerzeichen, `ms-1`) bringen und aus der jeweiligen Liste oben streichen. Kein gesonderter Termin nur dafür.
+
+**Wer entscheidet:** Keine offene Design-Frage — Fix-Muster ist bekannt und mehrfach verifiziert. Nur die
+Reihenfolge/der Anlass ist offen (siehe oben).
+
+**Zum Schließen nötig:** Wenn eine Datei aus einer der beiden Listen aus anderem Anlass geändert wird: alle
+`*`-Pflichtfeld-Markierungen darin auf `Feld<span class="text-red-500 dark:text-red-400 ms-1">*</span>` bringen,
+stichprobenartig mit `getBoundingClientRect()` nachmessen statt nur optisch zu prüfen, Datei aus der jeweiligen
+Liste streichen. Beide Listen sind erst leer, wenn alle 22 Dateien auf diesem Weg durchlaufen sind.
+
+### Randnotiz aus derselben Rückmeldung — kein Open Point, nur zur Info festgehalten
+
+Erik beschrieb beim Datumsfeld in `wps/import/form.blade.php` einen "schwarzen Rahmen" beim manuellen Eintippen. Live
+nachgestellt (fokussiertes Segment-`<input>` des Datepickers untersucht): Jedes der vier Ziffern-Segmente
+(Tag/Monat/Jahr) trägt bewusst `focus:outline-[revert]` — laut `vendor/livewire/flux-pro/CLAUDE.md` ("Focus rings:
+prefer native browser outlines... Never use `focus:outline-none focus:ring-2...`") ist das eine **bewusste**
+Design-Entscheidung von Flux Pro selbst: der native Browser-Fokusring statt eines eigenen Stils. In diesem
+Test-Environment gemessen als `1px auto`-Outline in einem Amber-/Orange-Ton (`rgb(229, 151, 0)`), nicht Schwarz — die
+genaue Farbe ist browser-/OS-abhängig (`-webkit-focus-ring-color`) und kann auf Eriks System anders/dunkler
+ausfallen. Da dieses Verhalten absichtlich auf nativen Browser-Fokus statt auf eigenes Styling setzt, wurde hier
+**nichts geändert** — ein Override würde der eigenen Konvention des Pakets widersprechen und bei einem Paket-Update
+vermutlich wieder verschwinden. Falls der native Fokusring bei Erik tatsächlich als störend schwarz erscheint, bitte
+Rückmeldung mit Browser/OS, dann gezielt nachschauen (ggf. als eigener, kleiner Punkt hier ergänzen statt in P14 zu
+verstecken).
+
+Zusätzlich aufgefallen: Die englische Fehlermeldung "The valid from field is required" im mitgeschickten Screenshot
+kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` dieser lokalen Entwicklungsumgebung setzt
+`APP_LOCALE=en`/`APP_FALLBACK_LOCALE=en` (`config/app.php` fällt sonst auf `env('APP_LOCALE', 'en')` zurück), obwohl
+`lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
+Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.

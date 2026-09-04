@@ -15,12 +15,12 @@
         "ext-simplexml": "*",
         "ext-zip": "*",
         "barryvdh/laravel-dompdf": "^3.1.2",
-        "laravel/fortify": "^1.38",
-        "laravel/framework": "^13.26",
+        "laravel/fortify": "^1.39",
+        "laravel/framework": "^13.30.1",
         "laravel/tinker": "^3.0.2",
-        "livewire/flux": "^2.17.0",
-        "livewire/flux-pro": "^2.17",
-        "livewire/livewire": "^4.4.1",
+        "livewire/flux": "^2.18.0",
+        "livewire/flux-pro": "^2.18",
+        "livewire/livewire": "^4.4.3",
         "phpoffice/phpspreadsheet": "^5.9"
     },
     "require-dev": {
@@ -28,7 +28,7 @@
         "laravel/pail": "^1.2.7",
         "laravel/pint": "^1.30.5",
         "laravel/sail": "^1.67",
-        "mockery/mockery": "^1.6.13",
+        "mockery/mockery": "^1.6.15",
         "nunomaduro/collision": "^8.9.5",
         "pestphp/pest": "^4.7.8",
         "pestphp/pest-plugin-laravel": "^4.1"

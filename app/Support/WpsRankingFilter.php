@@ -57,7 +57,7 @@ final readonly class WpsRankingFilter
      * @param  int|null  $strokeTypeId  Bewerb: Schwimmstil …
      * @param  int|null  $distance  … und Strecke
      * @param  string  $gender  M, F oder leer für alle
-     * @param  string  $sportClass  z.B. "S9"; leer für alle
+     * @param  string  $sportClass  z.B. "S9,SB9,SM9" (Klassennummer, über S/SB/SM zusammengefasst); leer für alle
      * @param  string  $course  LCM, SCM oder MIXED
      * @param  int|null  $clubId  Verein
      * @param  int|null  $minPoints  Mindestpunktzahl

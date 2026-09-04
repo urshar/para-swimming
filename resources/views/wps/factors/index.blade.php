@@ -100,7 +100,8 @@
                                           @submit.prevent="submit()">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" size="sm" variant="ghost" icon="trash"/>
+                                        <flux:button type="submit" size="sm" variant="ghost" icon="trash"
+                                                     class="text-red-500!"/>
                                     </form>
                                 </flux:table.cell>
                             </flux:table.row>

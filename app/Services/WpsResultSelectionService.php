@@ -230,7 +230,11 @@ final readonly class WpsResultSelectionService
         }
 
         if ($filter->sportClass !== '') {
-            $abfrage->where('sport_class', $filter->sportClass);
+            // Der Filterwert trägt seit dem P10-Sportklassen-Dropdown-Muster mehrere über
+            // S/SB/SM zusammengefasste Codes derselben Nummer, kommagetrennt (z.B.
+            // "S9,SB9,SM9") — ein einzelner Code (Altlast, z.B. aus einem gespeicherten Link)
+            // bleibt über explode() ein Ein-Element-Array und funktioniert unverändert.
+            $abfrage->whereIn('sport_class', explode(',', $filter->sportClass));
         }
 
         if ($filter->clubId !== null) {
@@ -348,7 +352,7 @@ final readonly class WpsResultSelectionService
             $result->getAttribute('wps_calculation_type'),
             $result->wpsPointVersion?->label,
             sprintf(
-                '%d m %s',
+                '%dm %s',
                 $event->getAttribute('distance'),
                 $event->strokeType?->name_de ?? '',
             ),

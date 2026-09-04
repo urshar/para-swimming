@@ -3,18 +3,23 @@
 @section('title', 'Import-Vorschau')
 
 @section('content')
-    <div class="max-w-4xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('wps.import') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
-        </div>
-
-        <div class="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-            Datei: <span class="font-mono">{{ $fileName }}</span> —
-            Zielversion: <span class="font-medium">{{ $version['label'] }}</span>
-            {{-- Kein @if direkt vor der schließenden Klammer: eine Blade-Direktive,
-                 der unmittelbar ')' folgt, wird als Direktiven-Parameter gelesen. --}}
-            ({{ $version['year'] }}{{ $version['version'] ? ', Version '.$version['version'] : '' }})
+    <div class="max-w-5xl">
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
+                <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
+            </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Zielversion: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $version['label'] }}</span>
+                {{-- Kein @if direkt vor der schließenden Klammer: eine Blade-Direktive,
+                     der unmittelbar ')' folgt, wird als Direktiven-Parameter gelesen. --}}
+                ({{ $version['year'] }}{{ $version['version'] ? ', Version '.$version['version'] : '' }})
+            </p>
+            <div class="mt-4">
+                <flux:button href="{{ route('wps.import') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         @if($preview->errorCount() > 0)

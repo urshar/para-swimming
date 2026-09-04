@@ -4,19 +4,25 @@
 
 @section('content')
     <div class="max-w-5xl">
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-                <flux:button href="{{ route('wps.factors.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Faktorenbericht</h1>
-            </div>
-            <form method="POST" action="{{ route('wps.factors.calibrate') }}"
-                  x-data="{ submit() { if (confirm('Faktoren aus den eigenen Ergebnissen neu ermitteln?')) this.$el.submit() } }"
-                  @submit.prevent="submit()">
-                @csrf
-                <flux:button type="submit" variant="primary" icon="arrow-path">
-                    Aus eigenen Daten ermitteln
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Faktorenbericht</h1>
+
+            <div class="flex items-center flex-wrap gap-2 mt-4">
+                <flux:button href="{{ route('wps.factors.index') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
                 </flux:button>
-            </form>
+
+                <div class="ml-auto flex items-center flex-wrap gap-2">
+                    <form method="POST" action="{{ route('wps.factors.calibrate') }}"
+                          x-data="{ submit() { if (confirm('Faktoren aus den eigenen Ergebnissen neu ermitteln?')) this.$el.submit() } }"
+                          @submit.prevent="submit()">
+                        @csrf
+                        <flux:button type="submit" variant="filled" icon="arrow-path" size="sm">
+                            Aus eigenen Daten ermitteln
+                        </flux:button>
+                    </form>
+                </div>
+            </div>
         </div>
 
         @if(session('success'))
@@ -73,7 +79,7 @@
                     <flux:table.rows class="[&_td:first-child]:ps-4">
                         @foreach($rows as $row)
                             <flux:table.row>
-                                <flux:table.cell>{{ $row['distance'] }} m {{ $row['lenex_code'] }}</flux:table.cell>
+                                <flux:table.cell>{{ $row['distance'] }}m {{ $row['stroke_name_de'] }}</flux:table.cell>
                                 <flux:table.cell>{{ $row['sport_class'] }}</flux:table.cell>
                                 <flux:table.cell align="end">
                                     <span @class(['text-zinc-400' => ! $row['sufficient']])>

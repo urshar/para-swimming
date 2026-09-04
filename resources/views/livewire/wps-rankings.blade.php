@@ -6,196 +6,189 @@
         use Illuminate\Support\Carbon;
     @endphp
 
-    {{-- ── Ranglistenart ───────────────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
-        <flux:field class="w-56">
-            <flux:label>Ranglistenart</flux:label>
-            <flux:select x-on:change="$wire.setFilter('type', $event.target.value)">
-                <option value="season" @selected($type === WpsRankingFilter::TYPE_SEASON)>Saison</option>
-                <option value="meet" @selected($type === WpsRankingFilter::TYPE_MEET)>Veranstaltung</option>
-            </flux:select>
-        </flux:field>
+    {{-- x-model + $watch statt x-on:change/x-model="$wire.property" direkt am flux:select:
+         Custom Element <ui-select> feuert sein internes "change"-Event mit bubbles:false,
+         auch Livewires eigenes $wire-Binding kommt darüber nicht zuverlässig an (siehe
+         resources/js/wps-livewire-filters.js). x-model übernimmt dabei auch die Vorbelegung —
+         :selected() auf den Optionen wird dadurch überflüssig. --}}
+    <div x-data="wpsLivewireFilters(@js(['type' => $type, 'year' => $year, 'meetId' => $meetId, 'course' => $course, 'ageGroupId' => $ageGroupId, 'strokeTypeId' => $strokeTypeId, 'gender' => $gender, 'sportClass' => $sportClass, 'clubId' => $clubId, 'calculationType' => $calculationType, 'kaderMode' => $kaderMode]), 'setFilter')">
+        {{-- ── Ranglistenart ───────────────────────────────────────────────── --}}
+        <div class="mb-4 flex flex-wrap items-end gap-3">
+            <flux:field class="w-56">
+                <flux:label>Ranglistenart</flux:label>
+                <flux:select variant="listbox" x-model="type">
+                    <flux:select.option value="season">Saison</flux:select.option>
+                    <flux:select.option value="meet">Veranstaltung</flux:select.option>
+                </flux:select>
+            </flux:field>
 
-        {{-- Das Jahr gilt für beide Ranglistenarten: Bei der Veranstaltungsrangliste grenzt
-             es die Auswahlliste ein, die sonst mit jeder Saison länger wird. --}}
-        <flux:field class="w-32">
-            <flux:label>Jahr</flux:label>
-            <flux:select x-on:change="$wire.setFilter('year', $event.target.value)">
-                @foreach($this->availableYears() as $jahr)
-                    <option value="{{ $jahr }}" @selected($year === (string) $jahr)>{{ $jahr }}</option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        @if($type === WpsRankingFilter::TYPE_MEET)
-            <flux:field class="w-80">
-                <flux:label>Veranstaltung</flux:label>
-                <flux:select x-on:change="$wire.setFilter('meetId', $event.target.value)">
-                    <option value="">Bitte wählen</option>
-                    @foreach($this->meets() as $meet)
-                        <option value="{{ $meet->id }}" @selected($meetId === (string) $meet->id)>
-                            {{ $meet->name }} ({{ $meet->start_date?->format('d.m.Y') }}, {{ $meet->course }})
-                        </option>
+            {{-- Das Jahr gilt für beide Ranglistenarten: Bei der Veranstaltungsrangliste grenzt
+                 es die Auswahlliste ein, die sonst mit jeder Saison länger wird. --}}
+            <flux:field class="w-32">
+                <flux:label>Jahr</flux:label>
+                <flux:select variant="listbox" x-model="year">
+                    @foreach($this->availableYears() as $jahr)
+                        <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
                     @endforeach
                 </flux:select>
             </flux:field>
-        @endif
 
-        <flux:field class="w-36">
-            <flux:label>Bahnlänge</flux:label>
-            <flux:select x-on:change="$wire.setFilter('course', $event.target.value)">
-                <option value="SCM" @selected($course === WpsRankingFilter::COURSE_SCM)>Kurzbahn</option>
-                <option value="LCM" @selected($course === WpsRankingFilter::COURSE_LCM)>Langbahn</option>
-                <option value="MIXED" @selected($course === WpsRankingFilter::COURSE_MIXED)>beide</option>
-            </flux:select>
-        </flux:field>
-
-        @if($this->ageGroups()->isNotEmpty())
-            <flux:field class="w-44">
-                <flux:label>Altersgruppe</flux:label>
-                <flux:select x-on:change="$wire.setFilter('ageGroupId', $event.target.value)">
-                    <option value="">Alle</option>
-                    @foreach($this->ageGroups() as $ageGroup)
-                        <option value="{{ $ageGroup->id }}" @selected($ageGroupId === (string) $ageGroup->id)>
-                            {{ $ageGroup->name_de }}
-                        </option>
-                    @endforeach
-                </flux:select>
-            </flux:field>
-        @endif
-
-        <flux:button wire:click="resetFilters" variant="ghost" size="sm">Zurücksetzen</flux:button>
-
-        {{-- Der PDF-Link trägt den Filterstand mit; das PDF zeigt sonst etwas anderes als der
-             Bildschirm, von dem aus es erzeugt wurde. --}}
-        <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
-                     icon="document-arrow-down">PDF
-        </flux:button>
-    </div>
-
-    {{-- ── Weitere Filter ──────────────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
-        <flux:field class="w-44">
-            <flux:label>Bewerb</flux:label>
-            <flux:select x-on:change="$wire.setFilter('strokeTypeId', $event.target.value)">
-                <option value="">Alle</option>
-                @foreach($this->strokeTypes() as $strokeType)
-                    <option value="{{ $strokeType->id }}" @selected($strokeTypeId === (string) $strokeType->id)>
-                        {{ $strokeType->name_de }}
-                    </option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-28">
-            <flux:label>Strecke</flux:label>
-            <flux:input x-model="$wire.distance" x-on:change="$wire.setFilter('distance', $event.target.value)"
-                        type="number" placeholder="alle"/>
-        </flux:field>
-
-        <flux:field class="w-32">
-            <flux:label>Geschlecht</flux:label>
-            <flux:select x-on:change="$wire.setFilter('gender', $event.target.value)">
-                <option value="">Alle</option>
-                <option value="M" @selected($gender === 'M')>männlich</option>
-                <option value="F" @selected($gender === 'F')>weiblich</option>
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-32">
-            <flux:label>Sportklasse</flux:label>
-            <flux:select x-on:change="$wire.setFilter('sportClass', $event.target.value)">
-                <option value="">Alle</option>
-                @foreach($this->availableSportClasses() as $klasse)
-                    <option value="{{ $klasse }}" @selected($sportClass === $klasse)>{{ $klasse }}</option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-56">
-            <flux:label>Verein</flux:label>
-            <flux:select x-on:change="$wire.setFilter('clubId', $event.target.value)">
-                <option value="">Alle</option>
-                @foreach($this->clubs() as $club)
-                    <option value="{{ $club->id }}" @selected($clubId === (string) $club->id)>{{ $club->name }}</option>
-                @endforeach
-            </flux:select>
-        </flux:field>
-
-        <flux:field class="w-36">
-            <flux:label>Mind. Punkte</flux:label>
-            <flux:input x-model="$wire.minPoints" x-on:change="$wire.setFilter('minPoints', $event.target.value)"
-                        type="number" placeholder="—"/>
-        </flux:field>
-
-        <flux:field class="w-44">
-            <flux:label>Punktart</flux:label>
-            <flux:select x-on:change="$wire.setFilter('calculationType', $event.target.value)">
-                <option value="">alle</option>
-                <option value="official" @selected($calculationType === Result::WPS_TYPE_OFFICIAL)>nur offizielle</option>
-                <option value="estimated" @selected($calculationType === Result::WPS_TYPE_ESTIMATED)>nur geschätzte</option>
-            </flux:select>
-        </flux:field>
-
-        <flux:button wire:click="toggleExhibition"
-                     variant="{{ $includeExhibition ? 'filled' : 'ghost' }}" size="sm">
-            {{ $includeExhibition ? 'EXH einbezogen' : 'EXH einbeziehen' }}
-        </flux:button>
-    </div>
-
-    {{-- ── Kaderfilter ─────────────────────────────────────────────────────── --}}
-    @if($this->kaderTypes()->isNotEmpty())
-        <div
-            class="mb-4 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl">
-            <div class="flex flex-wrap items-center gap-4">
-                {{-- Die Bezeichnungen benennen das Ergebnis, nicht den Zustand des Filters:
-                     "wirkt nicht" sagt nichts darüber, was in der Liste steht. --}}
-                <flux:field class="w-64">
-                    <flux:label>Kaderarten</flux:label>
-                    <flux:select x-on:change="$wire.setFilter('kaderMode', $event.target.value)">
-                        <option value="all" @selected($kaderMode === WpsRankingFilter::KADER_ALL)>
-                            Alle Athleten zeigen
-                        </option>
-                        <option value="only" @selected($kaderMode === WpsRankingFilter::KADER_ONLY)>
-                            Nur angehakte Kaderarten zeigen
-                        </option>
-                        <option value="except" @selected($kaderMode === WpsRankingFilter::KADER_EXCEPT)>
-                            Angehakte Kaderarten ausblenden
-                        </option>
+            @if($type === WpsRankingFilter::TYPE_MEET)
+                <flux:field class="w-80">
+                    <flux:label>Veranstaltung</flux:label>
+                    <flux:select variant="listbox" x-model="meetId" placeholder="Bitte wählen" clearable>
+                        @foreach($this->meets() as $meet)
+                            <flux:select.option value="{{ $meet->id }}">
+                                {{ $meet->name }} ({{ $meet->start_date?->format('d.m.Y') }}, {{ $meet->course }})
+                            </flux:select.option>
+                        @endforeach
                     </flux:select>
                 </flux:field>
+            @endif
 
-                <div class="flex flex-wrap items-center gap-3 pt-5">
-                    @foreach($this->kaderTypes() as $kaderType)
-                        <flux:checkbox wire:click="toggleKader({{ $kaderType->id }})"
-                                       :checked="$this->isKaderSelected($kaderType->id)"
-                                       label="{{ $kaderType->name_de }}"/>
-                    @endforeach
+            <flux:field class="w-36">
+                <flux:label>Bahnlänge</flux:label>
+                <flux:select variant="listbox" x-model="course">
+                    <flux:select.option value="SCM">Kurzbahn</flux:select.option>
+                    <flux:select.option value="LCM">Langbahn</flux:select.option>
+                    <flux:select.option value="MIXED">beide</flux:select.option>
+                </flux:select>
+            </flux:field>
 
-                    {{-- Ohne diesen Eintrag ließe sich "nur Kaderathleten" nicht ausdrücken,
-                         und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder
-                         immer oder nie — beides wäre eine stille Festlegung. --}}
-                    <flux:checkbox wire:click="toggleKader(0)"
-                                   :checked="$this->isKaderSelected(0)"
-                                   label="ohne Kaderzuordnung"/>
-                </div>
-            </div>
+            @if($this->ageGroups()->isNotEmpty())
+                <flux:field class="w-44">
+                    <flux:label>Altersgruppe</flux:label>
+                    <flux:select variant="listbox" x-model="ageGroupId" placeholder="Alle" clearable>
+                        @foreach($this->ageGroups() as $ageGroup)
+                            <flux:select.option value="{{ $ageGroup->id }}">{{ $ageGroup->name_de }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </flux:field>
+            @endif
 
-            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                @if($this->filter()->hasKaderFilter())
-                    @if($kaderMode === WpsRankingFilter::KADER_ONLY)
-                        Es werden ausschließlich Athleten der angehakten Kaderarten gezeigt.
-                    @else
-                        Athleten der angehakten Kaderarten sind ausgeblendet.
-                    @endif
-                @else
-                    Solange keine Kaderart angehakt ist, werden alle Athleten gezeigt.
-                @endif
-                Kaderzugehörigkeit zum Stichtag
-                {{ Carbon::parse($this->kaderReferenceDate())->format('d.m.Y') }}.
-            </p>
+            <flux:button wire:click="resetFilters" variant="filled" icon="x-mark" class="ml-auto text-red-500!">
+                Zurücksetzen
+            </flux:button>
+
+            {{-- Der PDF-Link trägt den Filterstand mit; das PDF zeigt sonst etwas anderes als der
+                 Bildschirm, von dem aus es erzeugt wurde. --}}
+            <flux:button href="{{ $this->pdfUrl() }}" variant="filled" icon="document-arrow-down"
+                         class="text-purple-500!">
+                PDF
+            </flux:button>
         </div>
-    @endif
+
+        {{-- ── Weitere Filter ──────────────────────────────────────────────── --}}
+        <div class="mb-4 flex flex-wrap items-end gap-3">
+            <flux:field class="w-44">
+                <flux:label>Bewerb</flux:label>
+                <flux:select variant="listbox" x-model="strokeTypeId" placeholder="Alle" clearable>
+                    @foreach($this->strokeTypes() as $strokeType)
+                        <flux:select.option value="{{ $strokeType->id }}">{{ $strokeType->name_de }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-28">
+                <flux:label>Strecke</flux:label>
+                <flux:input x-model="$wire.distance" x-on:change="$wire.setFilter('distance', $event.target.value)"
+                            type="number" placeholder="alle"/>
+            </flux:field>
+
+            <flux:field class="w-32">
+                <flux:label>Geschlecht</flux:label>
+                <flux:select variant="listbox" x-model="gender" placeholder="Alle" clearable>
+                    <flux:select.option value="M">männlich</flux:select.option>
+                    <flux:select.option value="F">weiblich</flux:select.option>
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-56">
+                <flux:label>Sportklasse</flux:label>
+                <flux:select variant="listbox" x-model="sportClass" placeholder="Alle Klassen" clearable>
+                    @foreach($this->sportClassOptions() as $value => $label)
+                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-56">
+                <flux:label>Verein</flux:label>
+                <flux:select variant="listbox" x-model="clubId" placeholder="Alle" clearable>
+                    @foreach($this->clubs() as $club)
+                        <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+
+            <flux:field class="w-36">
+                <flux:label>Mind. Punkte</flux:label>
+                <flux:input x-model="$wire.minPoints" x-on:change="$wire.setFilter('minPoints', $event.target.value)"
+                            type="number" placeholder="—"/>
+            </flux:field>
+
+            <flux:field class="w-44">
+                <flux:label>Punktart</flux:label>
+                <flux:select variant="listbox" x-model="calculationType" placeholder="alle" clearable>
+                    <flux:select.option value="official">nur offizielle</flux:select.option>
+                    <flux:select.option value="estimated">nur geschätzte</flux:select.option>
+                </flux:select>
+            </flux:field>
+
+            <flux:button wire:click="toggleExhibition"
+                         variant="{{ $includeExhibition ? 'filled' : 'ghost' }}" size="sm">
+                {{ $includeExhibition ? 'EXH einbezogen' : 'EXH einbeziehen' }}
+            </flux:button>
+        </div>
+
+        {{-- ── Kaderfilter ─────────────────────────────────────────────────── --}}
+        @if($this->kaderTypes()->isNotEmpty())
+            <div
+                class="mb-4 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl">
+                <div class="flex flex-wrap items-center gap-4">
+                    {{-- Die Bezeichnungen benennen das Ergebnis, nicht den Zustand des Filters:
+                         "wirkt nicht" sagt nichts darüber, was in der Liste steht. --}}
+                    <flux:field class="w-64">
+                        <flux:label>Kaderarten</flux:label>
+                        <flux:select variant="listbox" x-model="kaderMode">
+                            <flux:select.option value="all">Alle Athleten zeigen</flux:select.option>
+                            <flux:select.option value="only">Ausgewählte zeigen</flux:select.option>
+                            <flux:select.option value="except">Ausgewählte nicht zeigen</flux:select.option>
+                        </flux:select>
+                    </flux:field>
+
+                    <div class="flex flex-wrap items-center gap-3 pt-5">
+                        @foreach($this->kaderTypes() as $kaderType)
+                            <flux:checkbox wire:click="toggleKader({{ $kaderType->id }})"
+                                           :checked="$this->isKaderSelected($kaderType->id)"
+                                           label="{{ $kaderType->name_de }}"/>
+                        @endforeach
+
+                        {{-- Ohne diesen Eintrag ließe sich "nur Kaderathleten" nicht ausdrücken,
+                             und beim Ausblenden verschwänden Athleten ohne Zuordnung entweder
+                             immer oder nie — beides wäre eine stille Festlegung. --}}
+                        <flux:checkbox wire:click="toggleKader(0)"
+                                       :checked="$this->isKaderSelected(0)"
+                                       label="ohne Kaderzuordnung"/>
+                    </div>
+                </div>
+
+                <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    @if($this->filter()->hasKaderFilter())
+                        @if($kaderMode === WpsRankingFilter::KADER_ONLY)
+                            Es werden ausschließlich Athleten der angehakten Kaderarten gezeigt.
+                        @else
+                            Athleten der angehakten Kaderarten sind ausgeblendet.
+                        @endif
+                    @else
+                        Solange keine Kaderart angehakt ist, werden alle Athleten gezeigt.
+                    @endif
+                    Kaderzugehörigkeit zum Stichtag
+                    {{ Carbon::parse($this->kaderReferenceDate())->format('d.m.Y') }}.
+                </p>
+            </div>
+        @endif
+    </div>
 
     {{-- ── Kopfbereich ─────────────────────────────────────────────────────── --}}
     <p class="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -283,9 +276,9 @@
                          österreichischen Ergebnisse Kurzbahn sind, stünde es ohnehin in nahezu
                          jeder Zeile. Die Erklärung steht einmal unter der Tabelle. --}}
                     <td class="px-3 py-1.5 text-right whitespace-nowrap font-mono text-zinc-900 dark:text-zinc-100">
-                        {{ $eintrag->points }}@if($eintrag->isEstimated())<span
-                            class="text-amber-600 dark:text-amber-400"
-                            title="geschätzt — aus einer umgerechneten Kurzbahnzeit">~</span>@endif
+                        @if($eintrag->isEstimated())<span
+                            class="text-amber-600 dark:text-amber-400 me-1"
+                            title="geschätzt — aus einer umgerechneten Kurzbahnzeit">~</span>@endif{{ $eintrag->points }}
                     </td>
                     <td class="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                         {{ $eintrag->meetName }}

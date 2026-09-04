@@ -10,6 +10,7 @@ import qualifyingTimesFilter from './qualifying-times-filter';
 import relayEntryForm from './relay-entry-form';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
+import wpsLivewireFilters from './wps-livewire-filters';
 
 window.IMask = IMask;
 
@@ -33,4 +34,5 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);
+    window.Alpine.data('wpsLivewireFilters', wpsLivewireFilters);
 });

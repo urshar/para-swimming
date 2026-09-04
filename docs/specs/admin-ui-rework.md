@@ -1453,6 +1453,7 @@ auf APPROVED, jeweils gegen die DB verifiziert); Show-Seiten-Header eines 1500m-
 ersten Button links, "Bearbeiten"/"Löschen" rechtsbündig darunter.
 
 ### Zwölfter Design-Feedback-Nachtrag zu Phase 10 —
+
 `$el.submit()`-Muster projektweit bereinigt, Vereinszuordnung beim Import
 
 - **PhpStorm-Befund "Unresolved function or method submit ()" auf `records/show.blade.php` (:39/:224/:231) war mit dem
@@ -1582,7 +1583,7 @@ melden.
   zurückwandelt — das wäre ein Bug in diesem Fremdprogramm oder eine Rohtext-statt-Import-Ansicht, kein Bug bei uns;
   braucht konkrete Gegenprobe (Programmname + Beispieldatei).
 - **Zwei Open Points zusammengelegt**: "Post-Import Club-Konflikt-Liste" und "Athleten-Matching: nur Geburtsjahr" auf
-  Eriks Wunsch ("so dass wir das in einem machen können") zu einem gemeinsamen Punkt
+  Eriks Wunsch ("sodass wir das in einem machen können") zu einem gemeinsamen Punkt
   "Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches" zusammengeführt — beide brauchen dieselbe
   Review-Infrastruktur. Der Jahres-Fallback-Regel (Namens- + Geburtsjahr-Match bei `-01-01`-Platzhalterdatum) hat Erik
   ausdrücklich zugestimmt; Umsetzung bleibt trotzdem zurückgestellt, da das Datenmodell für die Review-Liste selbst noch
@@ -1676,6 +1677,7 @@ vorherige Nachträge); `mt-1!` auf beiden `flux:description`-Elementen per `clas
 erwarteten Kind-Cards im Bearbeiten-Modus bestätigt.
 
 ### Einundzwanzigster Design-Feedback-Nachtrag zu Phase 10 —
+
 `qualifying-time-lists/show.blade.php`: Header, Breite, Inhaltsverzeichnis-Dropdown
 
 - **Breite** `max-w-3xl` → `max-w-4xl` (wie die anderen Formulare/Records-Referenz).
@@ -1701,6 +1703,7 @@ Live gegen `https://para-swimming.test` verifiziert: Header-Struktur, Dropdown-M
 korrekten `href`s, alle Sprungziel-IDs im DOM vorhanden.
 
 ### Zweiundzwanzigster Design-Feedback-Nachtrag zu Phase 10 — Inhaltsverzeichnis klappt Accordion,
+
 `qualifications.blade.php` angeglichen
 
 - **Inhaltsverzeichnis-Button eingefärbt**: `class="text-blue-500!"` auf dem Dropdown-Trigger (war zuvor ungefärbtes
@@ -1732,6 +1735,7 @@ Accordion-Items zu (`.value` → `false`) und lässt nur das Ziel offen; "Alle a
 Button-Klasse `text-blue-500!` bestätigt.
 
 ### Dreiundzwanzigster Design-Feedback-Nachtrag zu Phase 10 —
+
 `qualifications.blade.php`: Filter ohne Button, Spaltenbreiten, Schwimmer-Zählbug, PDF-Farbe
 
 - **"Schwimmer"-Anzahl im Header war falsch** (Erik: "Ich denke hier werden alle qualifizierten Zeiten
@@ -1763,6 +1767,7 @@ Server-Anfrage aus (`?search=Marco` in der URL, Trefferzahl reduziert sich korre
 (`md:col-span-3/1/1/3/4`) und PDF-Button-Farbe auf beiden Seiten per `className`-Check bestätigt.
 
 ### Vierundzwanzigster Design-Feedback-Nachtrag zu Phase 10 —
+
 `qualifications.blade.php`: Bewerb-Sortierung, Filterleiste wie Rekorde
 
 - **"Bewerb"-Dropdown-Reihenfolge** (Erik: "wie wir es schon bei den Rekorden gemacht haben"): bisher nur nach Distanz
@@ -1878,11 +1883,13 @@ neuer Tab, harter Reload (mehrfach), `touch` auf beide JS-Dateien (Vite-Neukompi
 bestehen. `curl` gegen denselben Vite-Dev-Server liefert für beide Dateien einwandfreien Inhalt. Wirkt wie ein Problem
 dieser Browser-Pane-Session selbst (evtl. im Zusammenhang mit den während der ganzen Session wiederkehrenden
 `ERR_BLOCKED_BY_CLIENT`-Netzwerkfehlern), nicht der Codeänderung. Bitte in einem echten Browser mit hartem Reload
-(Strg+F5) gegenrüfen — falls dort ebenfalls `relayEntryForm`/maskierte Zeitfelder nicht mehr funktionieren, wäre das ein
+(Strg+F5) gegenprüfen — falls dort ebenfalls `relayEntryForm`/maskierte Zeitfelder nicht mehr funktionieren, wäre das
+ein
 eigenständiges, von dieser Änderung unabhängiges Problem (z. B. `composer dev`
 neu starten); falls dort alles normal funktioniert, war es ausschließlich ein Session-Artefakt dieser Pane.
 
 ### Achtundzwanzigster Design-Feedback-Nachtrag zu Phase 10 —
+
 `form.blade.php`: Tabs (Richtzeiten / Verwaltung), Filter, Button-Größen, Sidebar-Link
 
 Erik bestätigte per Screenshot, dass "Qualifikation ermitteln" (Fehlermeldung "kein Meet zugeordnet") wie erwartet
@@ -2023,17 +2030,18 @@ Drei weitere Punkte:
   Löschen-Icons) und in dieselbe `<form>`-Zeile wie die Filterfelder verschoben (letztes Element, erscheint nur
   bei aktivem Filter).
 - **PhpStorm-Inspections** aus einem weiteren Bericht:
-  - `QualificationGroupingTest.php:248` "Method call is provided 6 parameters, but the method signature uses 3
-    parameters" — `makeQualifyingTime_qtl9($list, $free, 100, 'M', 'S9', 6000)` rief die lokale 3-Parameter-
-    Helper-Funktion `makeQualifyingTime_qtl9(QualifyingTimeList $list, StrokeType $stroke, string $sportClass)`
-    mit 6 Argumenten auf — offenbar aus der 6-Parameter-Variante `makeQualifyingTime_qtl7()` (anderes Testfile)
-    kopiert. Da PHP überzählige Argumente bei benannten Funktionen stillschweigend ignoriert, band der Aufruf
-    `$sportClass` an den 3. Parameter (`100`, weak-typed zu `"100"` gecastet) statt an das eigentlich gemeinte
-    `'S9'` am 5. Platz — ein echter (wenn auch für diesen konkreten Test folgenloser, da `Qualification::create()`
-    direkt danach `sport_class => 'S9'` explizit setzt) Bug, kein reiner Stil-Hinweis. Korrigiert zu
-    `makeQualifyingTime_qtl9($list, $free, 'S9')`.
-  - `QualificationPhase5And6Test.php:250` "Argument matches the parameter's default value" — `makeStrokeType_qtl7('FREE')`
-    im neuen Gruppierungstest aus dem vorletzten Nachtrag; `'FREE'` ist der Funktions-Default, Argument entfernt.
+    - `QualificationGroupingTest.php:248` "Method call is provided 6 parameters, but the method signature uses 3
+      parameters" — `makeQualifyingTime_qtl9($list, $free, 100, 'M', 'S9', 6000)` rief die lokale 3-Parameter-
+      Helper-Funktion `makeQualifyingTime_qtl9(QualifyingTimeList $list, StrokeType $stroke, string $sportClass)`
+      mit 6 Argumenten auf — offenbar aus der 6-Parameter-Variante `makeQualifyingTime_qtl7()` (anderes Testfile)
+      kopiert. Da PHP überzählige Argumente bei benannten Funktionen stillschweigend ignoriert, band der Aufruf
+      `$sportClass` an den 3. Parameter (`100`, weak-typed zu `"100"` gecastet) statt an das eigentlich gemeinte
+      `'S9'` am 5. Platz — ein echter (wenn auch für diesen konkreten Test folgenloser, da `Qualification::create()`
+      direkt danach `sport_class => 'S9'` explizit setzt) Bug, kein reiner Stil-Hinweis. Korrigiert zu
+      `makeQualifyingTime_qtl9($list, $free, 'S9')`.
+    - `QualificationPhase5And6Test.php:250` "Argument matches the parameter's default value" —
+      `makeStrokeType_qtl7('FREE')`
+      im neuen Gruppierungstest aus dem vorletzten Nachtrag; `'FREE'` ist der Funktions-Default, Argument entfernt.
 
 **Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, die komplette `qualifying-time-lists`/
 `grouping`-Gruppe (87 Tests) sowie `composer test` (volle Suite, weiterhin 1396 Tests) grün.
@@ -2046,8 +2054,8 @@ Phase bereits bei Rekorde/Richtzeiten etabliert wurden, plus ein neues Problem b
 - **`base-times/versions/index.blade.php`** (Basiswert-Versionen-Liste): Header-"Importieren"-Button von
   `variant="ghost"` auf `variant="filled" class="text-blue-500!"` (analog zum bereits farbig gesetzten
   "Bearbeiten"/"bearbeiten"-Muster andernorts in dieser Phase). In der Tabelle die vier Zeilen-Icons eingefärbt:
-  Import (`arrow-up-tray`) blau, Export (`arrow-down-tray`) smaragd, Bearbeiten (`pencil`) amber, Löschen
-  (`trash`) rot — dieselbe Amber/Rot-Konvention wie in `qualifying-time-lists/index.blade.php` und
+  Import (`arrow-up-tray`) blau, Export (`arrow-down-tray`) smaragd, Bearbeiten (`pencil`) amber, Löschen (`trash`)
+  rot — dieselbe Amber/Rot-Konvention wie in `qualifying-time-lists/index.blade.php` und
   `records/index.blade.php`, Blau/Smaragd neu für Import/Export (in dieser Phase noch nirgends farblich belegt).
 - **`base-times/versions/form.blade.php`** (Version anlegen/bearbeiten): Header vom alten Muster (Icon-Only-
   Zurück-Button inline vor dem `<h1>`) auf das in dieser Phase etablierte P9-Muster umgestellt — Titel, darunter
@@ -2118,8 +2126,8 @@ Vier weitere Punkte zu den Basiswerte-Views:
   und der Richtzeiten-Berechnung genutzt, dort unkritisch bzw. nicht Gegenstand der heutigen Meldung) — die Änderung
   bleibt auf die Admin-Tabelle beschränkt.
 - **"Neu berechnen" neben "Exportieren"**: Beide Buttons standen bisher in unterschiedlichen Zeilen (Exportieren im
-  Seiten-Header, Neu berechnen in der Aktionsleiste der Livewire-Tabelle) und in unterschiedlicher Größe
-  (Exportieren `size="sm"`, Neu berechnen ohne Größenangabe). Da "Exportieren" ein reiner Routen-Link ist (kein
+  Seiten-Header, Neu berechnen in der Aktionsleiste der Livewire-Tabelle) und in unterschiedlicher Größe (Exportieren
+  `size="sm"`, Neu berechnen ohne Größenangabe). Da "Exportieren" ein reiner Routen-Link ist (kein
   Livewire-Zustand nötig), einfacher den Button in die Livewire-Komponente verschoben als umgekehrt (kein
   funktionierender Weg, eine Livewire-Aktion aus einer Seite ohne eigenen Component-Root anzustoßen, ohne die
   bestehende `wire:loading`/`wire:target`-Anzeige zu riskieren). Jetzt beide nebeneinander in der Aktionsleiste der
@@ -2159,3 +2167,321 @@ getroffen, nur die Umsetzung fehlt noch).
 
 **Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün (nur die geänderte View betroffen) — keine
 Logik-/Testfile-Änderung in diesem Nachtrag, `composer test`-Stand unverändert 1396 Tests grün.
+
+## Phase 11 — WPS & Auswertungen — **abgeschlossen**
+
+Runde 2 (Chevron-Dropdowns & Switches, siehe "Runde 2" oben) für `wps/*` (Point-Scores-Verwaltung, Kurzbahn-Faktoren)
+und die vier WPS-Livewire-Auswertungen (`wps-rankings`, `wps-club-ranking`, `wps-talent-report`,
+`wps-athlete-analysis`).
+
+| Baustein                                                      | Art      | Zweck                                                                       |
+|---------------------------------------------------------------|----------|-----------------------------------------------------------------------------|
+| `wps/versions/show.blade.php`                                 | Blade    | 3 native `<select>` → `flux:select variant="listbox"`, Header auf P9-Muster |
+| `wps/import/form.blade.php`, `wps/import/preview.blade.php`   | Blade    | Header auf P9-Muster                                                        |
+| `wps/factors/report.blade.php`                                | Blade    | Header auf P9-Muster (Zurück links / Aktion rechts)                         |
+| `wps/versions/index.blade.php`, `wps/factors/index.blade.php` | Blade    | Löschen-Icon eingefärbt (rot)                                               |
+| `livewire/wps-rankings.blade.php`                             | Livewire | 11 Filter-Selects auf `variant="listbox"` + `x-model`/`$watch` umgestellt   |
+| `livewire/wps-club-ranking.blade.php`                         | Livewire | 5 Filter-Selects umgestellt                                                 |
+| `livewire/wps-talent-report.blade.php`                        | Livewire | 5 Filter-Selects umgestellt                                                 |
+| `livewire/wps-athlete-analysis.blade.php`                     | Livewire | 4 Filter-Selects + 1 Formular-Select (Notiz-Ursache) umgestellt             |
+| `resources/js/wps-livewire-filters.js`                        | JS (neu) | Wiederverwendbare Alpine-Komponente für die vier Livewire-Filterzeilen      |
+
+### Technischer Kern: `x-on:change`/`x-model="$wire.property"` an `flux:select` funktioniert bei Livewire-Filtern nicht
+
+Die vier WPS-Auswertungen sind Livewire-Komponenten mit *live* reagierenden Filtern (kein Filtern-Button, jede
+Änderung löst sofort einen Server-Roundtrip aus). Bisher liefen die `flux:select`-Filter (Standard-Variante, ohne
+Pfeil-Icon — der eigentliche Auslöser dieser Runde) über zwei Varianten, die beide auf demselben, bereits in
+CLAUDE.md dokumentierten Problem beruhen: `flux:select` ist ein Custom Element (`<ui-select>`), dessen internes
+"change"-Event mit `{bubbles:false}` feuert.
+
+- `x-on:change="$wire.setFilter('feld', $event.target.value)"` (`wps-rankings`/`wps-club-ranking`/
+  `wps-talent-report`/die meisten Felder in `wps-athlete-analysis`) — kommt nicht zuverlässig an, exakt das in
+  CLAUDE.md beschriebene Muster.
+- `x-model="$wire.noteCategory"` (`wps-athlete-analysis`, Notiz-Formular) — sieht auf den ersten Blick wie das
+  offizielle Livewire-Alpine-Binding aus, hängt aber letztlich an denselben DOM-Events und ist von derselben
+  Custom-Element-Grenze betroffen.
+
+**Fix**: `variant="listbox"` (behebt das eigentliche Pfeil-Problem dieser Runde) + `x-model` auf eine **lokale**
+Alpine-Variable statt direkt auf `$wire`, dazu ein `$watch(...)`, der die eigentliche Livewire-Methode dynamisch
+aufruft — dasselbe Muster wie bei den GET-Formularen in `records/index.blade.php`/
+`qualifying-time-lists/qualifications.blade.php`, nur mit einem Methodenaufruf statt `this.$el.submit()` als
+Reaktion. Da alle vier Komponenten dasselbe Whitelist-Setter-Muster (`setFilter($feld, $wert)`/`setInput($feld,
+$wert)`) verwenden und `wps-rankings` allein elf Felder hat, dafür eine einzige wiederverwendbare
+`Alpine.data()`-Fabrik (`resources/js/wps-livewire-filters.js`) statt vier fast identischer Kopien:
+
+```js
+export default function wpsLivewireFilters(initial, method = 'setFilter') {
+    return {
+        ...initial,
+        init() {
+            Object.keys(initial).forEach((feld) => {
+                this.$watch(feld, (wert) => this.$wire.call(method, feld, String(wert ?? '')));
+            });
+        },
+    };
+}
+```
+
+`$wire.call(methode, ...args)` ruft intern `component.$wire[methode](...args)` auf (nachvollzogen in
+`vendor/livewire/livewire/dist/livewire.js`) — funktioniert damit sowohl für eigene Komponenten-Methoden (`setFilter`/
+`setInput`) als auch für Livewires eingebaute Alias-Methode `set` (`aliases = {"set": "$set", ...}`),
+weshalb dieselbe Fabrik auch für das Notiz-Formular (`x-data="wpsLivewireFilters(@js(['noteCategory' =>
+$noteCategory]), 'set')"`) wiederverwendet werden konnte, statt dafür eine eigene Lösung zu bauen.
+
+Verwendung in Blade, je Filterzeile (Beispiel `wps-club-ranking`):
+
+```blade
+<div x-data="wpsLivewireFilters(@js(['year' => $year, 'course' => $course, …]), 'setInput')">
+    <flux:select variant="listbox" x-model="year">
+        @foreach($this->availableYears() as $jahr)
+            <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
+        @endforeach
+    </flux:select>
+    …
+</div>
+```
+
+Da `x-model` die Vorbelegung übernimmt, wird `:selected()` auf den Optionen überflüssig — bei den ehemaligen
+"Alle"-Leerwert-Optionen (`<option value="">Alle</option>`) stattdessen `placeholder="Alle" clearable` (etabliertes
+Muster aus `qualifying-time-lists/qualifications.blade.php`).
+
+**`flux:checkbox`-Listen bewusst unverändert gelassen**: Die Kaderarten-Auswahl in `wps-rankings` und die
+Bewerbe-Auswahl in `wps-athlete-analysis` sind echte Mehrfachauswahl-Listen (mehrere gleichzeitig anhakbar), keine
+Einzel-Schalter — die in Phase 8–10 etablierte Regel "echte Einzel-Schalter → `flux:switch`" greift hier nicht.
+Beide laufen ohnehin über `wire:click` direkt (kein `x-on:change`/`x-model`), sind also von der oben beschriebenen
+Custom-Element-Problematik gar nicht betroffen.
+
+### Verifikation: Browser-Pane-Tab mit langer Sitzungshistorie zeigte alle eigenen Alpine-Komponenten als nicht
+
+registriert — falscher Befund, Ursache war der Tab, nicht der Code
+
+Die PHP-seitige Pest-Suite (`Livewire::test(...)->call('setFilter', …)`) deckt nur die Server-Seite ab, nicht die
+neue Alpine-Verdrahtung selbst — die musste separat im Browser geprüft werden. Erster Versuch im bereits seit
+Sitzungsbeginn offenen Browser-Pane-Tab: `typeof wpsLivewireFilters` lieferte `"undefined"`, jedes `x-model`-Feld warf
+`ReferenceError`. Vor einem Fehlerbericht an dieser Stelle zur Kontrolle geprüft, ob **irgendeine** der neun
+bestehenden, unveränderten `Alpine.data()`-Komponenten (`documentForm`, `fileUploadField`, `qualificationFilters`
+usw.) in genau diesem Tab funktioniert — keine einzige tat es, `window.IMask` (wird ganz am Anfang von `app.js`
+gesetzt) war ebenfalls `undefined`. Das bedeutet: `resources/js/app.js` wurde in diesem Tab nie ausgeführt, unabhängig
+vom eigenen Code. Nach `npm run build` + testweisem Deaktivieren von `public/hot` (um die gebauten, gleiche-Origin
+Assets statt der vom Vite-Dev-Server auf Port 5173 servierten zu laden, die in diesem Tool durchgehend mit
+`ERR_BLOCKED_BY_CLIENT` blockiert werden — dieselbe Ursache wie das dokumentierte CSS-Problem beim
+Sternchen-Färben-Nachtrag) funktionierte es in einem **frischen** Tab sofort korrekt: `x-data` initialisiert alle
+Felder mit den Server-Werten, ein echter Klick auf eine Option aktualisiert die lokale Alpine-Variable, `$watch`
+löst `$wire.call(...)` aus, ein `POST .../livewire/update` läuft durch, und die Filterbeschreibung unter der Tabelle
+zeigt den neuen Wert (`"Jahr 2026 · Bahnlänge SCM · weiblich"` nach Klick auf "weiblich"). Ursache damit eindeutig
+der stark strapazierte alte Tab (sehr viele Navigationen, JS-Eingriffe, `dark`-Klasse manuell entfernt/gesetzt über
+diese Session hinweg), nicht der Code. Test danach für alle vier Komponenten wiederholt (`wps-rankings`,
+`wps-club-ranking`, `wps-talent-report`, `wps-athlete-analysis` inkl. Notiz-Formular) — überall korrekt. `public/hot`
+anschließend wiederhergestellt, `npm run build` hatte nebenbei unbeabsichtigt Versionsspannen in `package.json`
+aktualisiert (`alpinejs`, `axios`, `npm-check-updates`, `@rollup/rollup-linux-x64-gnu`) — vor dem Commit verworfen
+(`git checkout -- package.json`), das war nicht Teil dieser Phase.
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, alle neun bestehenden WPS-Feature-Tests
+(`WpsAthleteAnalysisEventSelectionTest`, `WpsAthleteAnalysisTimeTest`, `WpsClubRankingTest`,
+`WpsRankingsAthleteAnalysisTest`, `WpsRankingsChartTest`, `WpsRankingsNotesTest`, `WpsRankingsPdfTest`,
+`WpsRankingsPhase1Test`, `WpsRankingsTalentReportTest`, zusammen 158 Tests) grün, `composer test` (volle Suite, 1396
+Tests) grün. Zusätzlich live im Browser (frischer Tab) verifiziert: alle vier Livewire-Filterzeilen initialisieren
+korrekt und lösen bei echtem Klick den vollständigen Roundtrip aus.
+
+### Erster Design-Feedback-Nachtrag zu Phase 11 — Sportklassen-Filter gruppiert, Buttons farbig/rechts, Vereine mit
+
+Kurzname, Kaderarten-Beschriftung, Punkte-Marker, Förderauswertung/Vereinswertung Layout
+
+Eriks Design-Feedback nach der ersten Durchsicht von Phase 11:
+
+- **`wps-rankings`: Sportklassen-Filter auf das P10-Muster umgestellt.** Zeigte bisher jede in den Ergebnissen
+  tatsächlich vorkommende Klasse einzeln (z.B. "S9", "SB9", "SM9" als drei getrennte Optionen, nur was schon
+  Punkte hat). Erik wollte dasselbe Muster wie beim Rekorde-Filter (`RecordController::buildSportClassOptions()`,
+  siehe "Dreißigster Design-Feedback-Nachtrag zu Phase 10"): eine Option je Basiswerte-Klassennummer, über S/SB/SM
+  zusammengefasst (Wert `"S9,SB9,SM9"`, Label `"S09,SB09,SM09"`), und zwar die vollständige, feste Liste — nicht nur
+  die tatsächlich vorkommenden Nummern. Umgesetzt in `WpsRankings::sportClassOptions()` (ersetzt die bisherige
+  `availableSportClasses()`, die absichtlich nur tatsächlich vorkommende Klassen zeigte — dieser Vorbehalt wird durch
+  Eriks expliziten Wunsch nach Konsistenz mit dem Rekorde-Filter aufgehoben), wortgleich abgeschrieben von
+  `RecordController::buildSportClassOptions()` (Nicht-Staffel-Zweig; WPS-Ergebnisse kennen keine Staffeln).
+  `WpsResultSelectionService::applyFilters()` filtert seitdem über `whereIn('sport_class', explode(',',
+  $filter->sportClass))` statt exaktem `where()` — ein einzelner Code (z.B. aus einem gespeicherten Link) bleibt über
+  `explode()` ein Ein-Element-Array und funktioniert unverändert, bestehende Tests mit `sportClass: 'S9'` liefen ohne
+  Änderung weiter grün.
+- **Zurücksetzen/PDF farbig und rechts.** In der ersten Filterzeile von `wps-rankings` (Ranglistenart) `ml-auto` auf
+  den "Zurücksetzen"-Button, dazu `icon="x-mark"` und `class="text-red-500!"` (identisches Muster wie
+  "Filter zurücksetzen" in `qualifying-time-lists/qualifications.blade.php`); der PDF-Button bekam
+  `class="text-purple-500!"` (etabliertes Muster für Druck-/PDF-Buttons, siehe
+  `qualifying-time-lists/{show,qualifications}.blade.php`). Beide Buttons verloren dabei `size="sm"` — die
+  `flux:select`/`flux:field`-Filterfelder daneben tragen keine Größenangabe (Standardgröße), `size="sm"` machte die
+  Buttons kleiner als die Felder und damit den von Erik gemeldeten Höhenunterschied. Dasselbe
+  Größen-/Farb-/Positions-Muster auf die PDF-Buttons in `wps-talent-report` (Förderauswertung) und `wps-club-ranking`
+  (Vereinswertung) übertragen.
+- **Verein-Dropdown zeigt wieder den Kurznamen.** `WpsRankings::clubs()` selektierte bisher nur `id`/`name`; jetzt
+  zusätzlich `short_name`, und die Option zeigt `$club->display_name` (bestehender Accessor auf `Club`:
+  `short_name ?? name`) statt `$club->name` direkt.
+- **Kaderarten-Dropdown-Beschriftung vereinfacht.** "Nur angehakte Kaderarten zeigen" → "Ausgewählte zeigen",
+  "Angehakte Kaderarten ausblenden" → "Ausgewählte nicht zeigen" (nur die beiden Options-Label geändert, die
+  Erklärung darunter und "Alle Athleten zeigen" blieben unverändert).
+- **Punkte-Spalte: `~` vor der Zahl statt danach**, mit Abstand (`me-1` auf dem `<span>`) statt direkt anliegend.
+- **`wps-talent-report`: Spalte "Abstand" färbt negative Werte jetzt rot** statt neutral grau (`$abstandFarbe`:
+  `text-zinc-500` → `text-red-600 dark:text-red-400` im else-Zweig; der positive/erreicht-Zweig
+  blieb grün).
+- **`wps-club-ranking`: beide Filterzeilen zu einer zusammengeführt** (Jahr/Bahnlänge/Bewerb/Geschlecht +
+  Bewertungsmethode + die von der Methode abhängigen Zahlenfelder + PDF, alle in einem `flex flex-wrap`-Container).
+- **`wps/versions/show.blade.php`: "Zurücksetzen"-Button auf dasselbe Muster** (`icon="x-mark"`,
+  `class="text-red-500!"`) wie oben, ohne `ml-auto` — steht wie beim Vorbild
+  (`qualifying-time-lists/qualifications.blade.php`) direkt nach dem letzten Filterfeld, nicht an den rechten Rand
+  gedrückt.
+- **`wps/versions/index.blade.php`: "Archivieren" von Text- auf Icon-Button** umgestellt (`icon="archive-box"`,
+  `class="text-indigo-500!"`, wie der bestehende Icon-only-Löschen-Button daneben) — Indigo, um sich von den bereits
+  etablierten Aktions-Farben zu unterscheiden (Amber=Bearbeiten, Rot=Löschen, Blau=Import, Smaragd=Export,
+  Lila=PDF/Druck).
+
+**Zwei Rückfragen von Erik beantwortet, keine Code-Änderung:**
+
+- **"Ich habe zwei WPS-Listen und beide sind aktiv — sollte nicht nur eine aktive sein?"** Nein, das ist so
+  beabsichtigt und unterscheidet sich vom Basiswerte-Modell: "Aktiv" bei einer `WpsPointVersion` heißt nur "nicht
+  archiviert" (`status !== 'archived'`), nicht "die eine, die gerade verwendet wird". Welche Version für ein
+  konkretes Meet gilt, entscheidet `WpsPointVersionResolver` in dieser Reihenfolge: (1) explizit am Meet zugewiesene
+  Version, sonst (2) die aktive Version, deren `valid_from`/`valid_until`-Zeitraum das Wettkampfdatum umfasst
+  (`WpsPointVersion::scopeValidOn()`); überlappen sich zwei aktive Versionen, gewinnt die mit dem späteren
+  `valid_from`. Zwei gleichzeitig aktive Versionen sind also der Normalfall, sobald es z.B. eine für ältere Jahre und
+  eine neuere, unterjährig veröffentlichte Korrekturversion gibt — "archiviert" ist für Versionen gedacht, die gar
+  nicht mehr zugeordnet werden sollen.
+- **"Ein manuelles Editieren der Tabelle ist nicht möglich."** Stimmt, und ist (anders als bei den Basiswerten, wo
+  `admin/_base-time-table-grid.blade.php` mit `wire:model.blur` echte Zell-Bearbeitung erlaubt) aktuell nicht
+  vorgesehen — die WPS-Parametertabelle unter `wps/versions/show.blade.php` ist rein lesend, Werte kommen
+  ausschließlich über den Import herein. Das wäre neue Funktionalität, keine GUI-Korrektur an Bestehendem, und ist
+  daher **nicht** Teil dieser Phase; falls gewünscht, bitte als eigenen Auftrag geben (dann als neuer Punkt in
+  `docs/open-points.md`, analog zum zweiten Basiswerte-Importformat).
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün (ein automatischer Pint-Fix in
+`WpsRankings.php`: nicht mehr benötigter `Result`-Import nach dem Ersetzen von `availableSportClasses()`), alle 158
+WPS-Feature-Tests grün (insbesondere `WpsRankingsPhase1Test` mit `sportClass: 'S9'` — bestätigt, dass die
+`whereIn()`-Umstellung mit einem einzelnen Code weiterhin funktioniert), `composer test` (volle Suite, 1396 Tests)
+grün.
+
+### Zweiter Design-Feedback-Nachtrag zu Phase 11 — Sportklassen-Sortierung, WPS-Import (Cards, Breite, Sterne,
+Selectable-Header), Vorschau-Tabelle, Phase 14 geplant
+
+Eriks nächste Rückmeldung, dieses Mal primär zu `wps/versions` und `wps/import`:
+
+- **`wps/versions/show.blade.php`: Sportklassen-Dropdown falsch sortiert** ("S1,S10,..."). Ursache:
+  `WpsPointVersionController::show()` sortierte per `->orderBy('sport_class')` — reine String-Sortierung. Gefixt
+  durch Pluck ohne `orderBy` + `->sortBy(fn ($sc) => SportClassSorter::key($sc))` in PHP, live verifiziert (erste 15
+  Werte jetzt S1…S14 statt S1,S10,S11,…). Die Zeilen-Sortierung der Parametertabelle selbst (`->orderBy('sport_class')`
+  in derselben Methode) hat denselben Makel, war aber nicht Teil der Meldung — bewusst unangetastet gelassen, um den
+  Fix auf das gemeldete Dropdown zu beschränken.
+- **`wps/import/form.blade.php` überarbeitet:**
+  - Die beiden Cards "Datei" und "Version" stehen jetzt nebeneinander (`grid grid-cols-1 lg:grid-cols-2 gap-4
+    items-start`) statt untereinander; Container-Breite `max-w-xl` → `max-w-3xl` (Größenordnung wie `meets/form.blade.php`/
+    `athletes/form.blade.php`).
+  - Pflichtfeld-Sterne eingefärbt (`text-red-500 dark:text-red-400`) für die vier `*`-Labels.
+  - **Dabei ein bisher unbemerkter Bug gefunden:** Das für diesen Zweck kopierte Muster
+    `Feld <span class="text-red-500...">*</span>` (Leerzeichen vor dem Span) hat denselben
+    Flexbox-Whitespace-Kollaps wie das in CLAUDE.md dokumentierte `(optional)`-Problem — `getBoundingClientRect()`
+    zeigte `0px` Abstand zwischen Label-Text und Stern. Betraf auch die beiden bereits in Phase 10 "fertigen"
+    Basiswerte-Formulare. Gefixt in dieser Datei mit `ms-1` auf dem Span (kein Leerzeichen mehr im Label-Text), live
+    nachgemessen (`4px`). Die übrigen 13 betroffenen Dateien als eigenen Punkt in `docs/open-points.md` festgehalten
+    (nicht in dieser Session mit erledigt — Fund lag außerhalb der eigentlichen WPS-Anfrage).
+  - Beide `flux:date-picker` bekamen `selectable-header` (Flux-Pro-Prop, bereits in der vendorten Version
+    verfügbar) — Kalender-Popover zeigt jetzt Monat/Jahr als `<select>` statt reinem Text, live verifiziert
+    (`<header>` enthält jetzt ein `<select>` mit den Monaten).
+  - **"Schwarzer Rahmen beim manuellen Datum-Eintippen"** untersucht, aber nicht verändert: Die vier
+    Ziffern-Segment-`<input>`s des Datepickers tragen absichtlich `focus:outline-[revert]` — laut
+    `vendor/livewire/flux-pro/CLAUDE.md` ("Focus rings: prefer native browser outlines... Never use
+    `focus:outline-none focus:ring-2...`") bewusstes Design, kein eigener Stil. In diesem Test-Environment als
+    `1px auto`-Outline in Amber/Orange gemessen (`rgb(229, 151, 0)`), nicht Schwarz — Farbe ist
+    browser-/OS-abhängig. Nichts geändert, um nicht gegen die eigene Konvention des Pakets zu verstoßen; Details
+    und Rückfrage an Erik in `docs/open-points.md` festgehalten.
+  - Die englische Fehlermeldung im mitgeschickten Screenshot ("The valid from field is required") kommt nicht von
+    Flux, sondern von Laravels Validierung — lokale `.env` dieser Entwicklungsumgebung setzt `APP_LOCALE=en`,
+    obwohl `lang/de/` existiert. Kein Code-Fix (`.env` ist lokal/maschinenspezifisch), Hinweis an Erik weitergegeben.
+- **`wps/import/preview.blade.php`: Breite `max-w-4xl` → `max-w-5xl`** für mehr Platz für die sechs
+  Vorschau-Spalten (Geschlecht/Strecke/Klasse/a/b/c) — konnte mangels echter `.xlsx`-Testdatei in diesem Environment
+  nicht end-to-end nachgestellt werden, daher eine vorsichtige, sicher rückgängig zu machende Breitenanpassung statt
+  einer strukturellen Änderung; Erik gebeten, bei Bedarf mit frischem Screenshot nachzumelden, falls damit noch
+  nicht alle Spalten passen.
+- **Kurzbahn-Umrechnung/Faktorenbericht bewusst NICHT umgebaut:** Erik wollte diese beiden Tabellen auf Flux Pros
+  Full-Bleed-/Custom-Gutters-Muster umgestellt sehen. Recherche (`fluxui.dev/components/table` abgeglichen mit der
+  vendorten Quelle) ergab: Der dafür nötige `bleed`-Prop existiert in der aktuell vendorten `flux`-Version noch
+  nicht (`vendor/livewire/flux/stubs/resources/views/flux/table/index.blade.php` kennt nur `paginate` und
+  `container:class`) — das Muster setzt eine neuere Paketversion voraus. Als eigene Phase 14 in
+  `docs/open-points.md` festgehalten (inkl. Paket-Update als Voraussetzung, ~38 betroffener Dateien,
+  Kurzbahn-Umrechnung/Faktorenbericht explizit gelistet), zusammen mit dem parallel gewünschten Rollout von
+  `selectable-header` auf die übrigen neun Dateien mit `flux:date-picker`.
+
+**Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, volle Suite (`composer test`) weiterhin
+1396 Tests grün. Zusätzlich live im Browser verifiziert (frischer Tab, `npm run build` + temporär deaktiviertes
+`public/hot`, danach wiederhergestellt, keine `package.json`-Nebenwirkung diesmal): Sportklassen-Sortierung,
+Cards nebeneinander, Sternchen-Abstand (`getBoundingClientRect`), `selectable-header`-Kalenderkopf, Datepicker-Fokus-Outline-Farbe.
+
+### Dritter Design-Feedback-Nachtrag zu Phase 11 — Import-Formular-Breite, echte Testdatei, Flux-Pro-Bump geprüft
+
+Eriks Rückmeldung brachte eine echte WPS-Punkte-Datei zum Testen mit und meldete einen eigenständig
+durchgeführten `composer.json`-Bump für `livewire/flux`/`livewire/flux-pro`.
+
+- **`wps/import/form.blade.php`: Container-Breite `max-w-3xl` → `max-w-4xl`**, damit die beiden nebeneinander
+  stehenden Cards ("Datei"/"Version") dieselbe Größenordnung wie die breiteren P10-Formulare
+  (`records/form.blade.php`, `results/form.blade.php`, `swim-events/form.blade.php`, alle `max-w-4xl`) bekommen,
+  statt sich an den schmaleren Einzelspalten-Formularen (`meets/form.blade.php`, `athletes/form.blade.php`,
+  jeweils `max-w-3xl`) zu orientieren — bei zwei Cards nebeneinander war `max-w-3xl` beengt.
+- **`composer.json`-Bump geprüft**: Erik hat die Versions-Constraints angehoben (`livewire/flux` `^2.17.0` →
+  `^2.18.0`, `livewire/flux-pro` `^2.17` → `^2.18`, dazu `laravel/framework`, `laravel/fortify`,
+  `livewire/livewire`, `mockery/mockery`). `composer show livewire/flux` bestätigt: bereits **v2.18.0** installiert
+  — die neue Constraint war schon erfüllt, es gab nichts nachzuladen (`composer.lock` unverändert). Der
+  `bleed`-Prop für Full-Bleed-/Custom-Gutters-Tabellen (Phase-14-Blocker, siehe oben) ist **weiterhin nicht**
+  in `vendor/livewire/flux/stubs/resources/views/flux/table/index.blade.php` vorhanden — der Bump hat diesen
+  Blocker also nicht aufgelöst, Phase 14 bleibt wie beschrieben auf ein zukünftiges Flux-Update angewiesen, das
+  über `^2.18` hinausgeht.
+- **Vorschau-Tabelle mit echter Datei verifiziert**: Erik stellte
+  `2023 World Para Swimming Senior Points Calculator .xlsx` bereit. Ein direkter Datei-Upload über die Browser-Pane
+  ist technisch nicht möglich (kein Werkzeug für native Dateiauswahl-Dialoge in diesem Environment); stattdessen
+  `WpsParameterImportService::parse()` und die `wps.import.preview`-View direkt per `artisan tinker` mit der
+  echten Datei ausgeführt und das Ergebnis als statisches HTML gerendert, um denselben Blade-Output wie im echten
+  Request zu prüfen. Ergebnis: 384 Parametersätze, 0 Fehler, `counts` (2 Geschlechter, 18 Bewerbe,
+  41 Sportklassen) und `metadata` (`version: 1`, `date: 09.02.2023`) korrekt gelesen. Tabellenbreite per
+  `getBoundingClientRect()` gemessen: `943px` Inhalt in einem `945px`-Container bei `1280px` Fensterbreite —
+  **kein horizontales Scrollen, keine abgeschnittene Spalte**, letzte Zelle (Spalte "c") endet bei `1232px`,
+  deutlich innerhalb des Viewports. Die zuvor vorgenommene Breitenanpassung (`max-w-4xl` → `max-w-5xl`, voriger
+  Nachtrag) reicht damit nachweislich aus.
+
+**Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live-Verifikation
+wie gehabt über `npm run build` + temporär deaktiviertes `public/hot` (danach wiederhergestellt, keine
+`package.json`-Nebenwirkung); die Debug-Renderdatei (`public/wps_preview_debug.html`) wurde nach der Prüfung wieder
+gelöscht.
+
+### Vierter Design-Feedback-Nachtrag zu Phase 11 — `bleed`-Recherche geklärt, "50m"-Schreibweise, Sternchen-Punkt in
+Phase 14 verschoben
+
+Erik fragte nach, warum Flux/Flux Pro die Full-Bleed-Tabelle nicht hätten, obwohl fluxui.dev sie dokumentiert —
+und bat danach um drei weitere kleine Änderungen.
+
+- **`bleed`-Recherche:** `composer show -a livewire/flux` zeigt `v2.18.0` (released 31.08.2026, "this week") als
+  neueste getaggte Version — exakt die installierte. Über GitHub (`livewire/flux`, Commit-Historie der Datei
+  `stubs/resources/views/flux/table/index.blade.php`) gefunden: Commit `2daaf94` "Add table bleed prop (#2790)"
+  wurde erst am **01.09.2026** in `main` gemerged — einen Tag nach dem `v2.18.0`-Tag. fluxui.dev dokumentiert
+  offenbar den `main`-Stand, nicht den letzten getaggten Release. Erik ist damit bestätigt: kein neues Feature,
+  keine Fehleinschätzung unsererseits — reines Timing. Es existiert aktuell nur als `dev-main`
+  (Composer-Repo listet `dev-main` unter den verfügbaren Referenzen), kein neuer Tag. Erik entschied: auf den
+  nächsten echten Tag warten statt auf `dev-main` zu pinnen — Phase 14 bleibt wie zuvor beschrieben zurückgestellt.
+- **Sternchen-Punkt in Phase 14 verschoben:** Auf Eriks Wunsch wandern die beiden offenen Sternchen-Punkte
+  (fehlende Farbe in neun Dateien; kollabierter Abstand in 13 Dateien) als neuer "Teil C" in
+  `docs/open-points.md` unter Phase 14 — aber **ohne** eigenen Sweep. Statt eines eigenen Termins: nur
+  mitnehmen, wenn eine der betroffenen Dateien ohnehin aus anderem Anlass geändert wird.
+- **"50m" statt "50 m" — Distanz ohne Leerzeichen vor der Einheit:**
+  - `wps/factors/report.blade.php` (Faktorenbericht), Spalte "Bewerb": zeigte bisher LENEX-Kürzel
+    (`50 m FREE`). Da `WpsScmFactorCalibrationService::report()` bereits `stroke_type_id` je Zeile führt, dort
+    eine `StrokeType::pluck('name_de', 'id')`-Lookup ergänzt (`stroke_name_de` im Row-Array) statt in der View
+    nachzuschlagen (keine N+1-Query pro Zeile). Anzeige jetzt `50m Freistil`. Live mit echten Daten verifiziert.
+  - `wps/versions/show.blade.php` (Point-Score-Parameterliste einer Version): nutzte bereits
+    `$parameter->strokeType?->name_de` — nur das Leerzeichen vor `m` entfernt.
+  - **WPS-Rangliste und Förderauswertung teilen sich denselben Aufbau-Ort:** `eventLabel` für beide entsteht in
+    `WpsResultSelectionService::toEntry()` (`sprintf('%d m %s', ...)` → `sprintf('%dm %s', ...)`); die
+    Förderauswertung übernimmt `$eintrag->eventLabel` unverändert von dort (`WpsTalentReportService.php:237`),
+    ein Fix an einer Stelle deckte also beide gemeldeten Seiten ab. Der breiter geteilte `eventLabel()`-Baustein
+    in `WpsAthleteAnalysisService`/`QualificationRow` (Meisterschaften, Qualifikationen, Athletenanalyse, diverse
+    PDFs) blieb bewusst unangetastet — nicht Teil dieser Meldung. Live mit echten Bestandsdaten verifiziert
+    (Faktorenbericht, WPS-Ranglisten Jahr 2025); PDF-Exporte (`pdf/wps-ranking.blade.php`,
+    `pdf/wps-talent-report.blade.php`) übernehmen denselben `eventLabel` und damit automatisch mit.
+  - `wps/factors/index.blade.php` (Kurzbahn-Umrechnung, die Liste — nicht der Bericht) hat dasselbe
+    `distance.' m'`-Muster, war aber nicht Teil der Meldung und wurde bewusst nicht mitgeändert.
+
+**Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live-Verifikation
+im Browser (frischer Tab, `npm run build` + temporär deaktiviertes `public/hot`, danach wiederhergestellt): "50m
+Freistil" im Faktorenbericht und "100m Brust"/"50m Rücken" in der WPS-Rangliste (Jahr 2025) bestätigt.

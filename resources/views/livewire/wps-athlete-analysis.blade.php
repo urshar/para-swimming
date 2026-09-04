@@ -6,34 +6,36 @@
         use Illuminate\Support\Carbon;
     @endphp
 
+    {{-- x-model + $watch statt x-on:change direkt am flux:select: Custom Element <ui-select>
+         feuert sein internes "change"-Event mit bubbles:false, kommt darüber nicht zuverlässig
+         an (siehe resources/js/wps-livewire-filters.js). --}}
     {{-- ── Zeitraum und Bahnlänge ──────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
+    <div class="mb-4 flex flex-wrap items-end gap-3"
+         x-data="wpsLivewireFilters(@js(['fromYear' => $fromYear, 'toYear' => $toYear, 'course' => $course, 'chartMetric' => $chartMetric]), 'setInput')">
         <flux:field class="w-28">
             <flux:label>Von</flux:label>
-            <flux:select x-on:change="$wire.setInput('fromYear', $event.target.value)">
-                <option value="">Anfang</option>
+            <flux:select variant="listbox" x-model="fromYear" placeholder="Anfang" clearable>
                 @foreach($this->years() as $jahr)
-                    <option value="{{ $jahr }}" @selected($fromYear === (string) $jahr)>{{ $jahr }}</option>
+                    <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-28">
             <flux:label>Bis</flux:label>
-            <flux:select x-on:change="$wire.setInput('toYear', $event.target.value)">
-                <option value="">Ende</option>
+            <flux:select variant="listbox" x-model="toYear" placeholder="Ende" clearable>
                 @foreach($this->years() as $jahr)
-                    <option value="{{ $jahr }}" @selected($toYear === (string) $jahr)>{{ $jahr }}</option>
+                    <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Bahnlänge</flux:label>
-            <flux:select x-on:change="$wire.setInput('course', $event.target.value)">
-                <option value="MIXED" @selected($course === WpsRankingFilter::COURSE_MIXED)>beide</option>
-                <option value="SCM" @selected($course === WpsRankingFilter::COURSE_SCM)>Kurzbahn</option>
-                <option value="LCM" @selected($course === WpsRankingFilter::COURSE_LCM)>Langbahn</option>
+            <flux:select variant="listbox" x-model="course">
+                <flux:select.option value="MIXED">beide</flux:select.option>
+                <flux:select.option value="SCM">Kurzbahn</flux:select.option>
+                <flux:select.option value="LCM">Langbahn</flux:select.option>
             </flux:select>
         </flux:field>
 
@@ -54,9 +56,9 @@
         @if($showCharts)
             <flux:field class="w-36">
                 <flux:label>Grafik zeigt</flux:label>
-                <flux:select x-on:change="$wire.setInput('chartMetric', $event.target.value)">
-                    <option value="time" @selected($chartMetric === 'time')>Zeit</option>
-                    <option value="points" @selected($chartMetric === 'points')>WPS-Punkte</option>
+                <flux:select variant="listbox" x-model="chartMetric">
+                    <flux:select.option value="time">Zeit</flux:select.option>
+                    <flux:select.option value="points">WPS-Punkte</flux:select.option>
                 </flux:select>
             </flux:field>
         @endif
@@ -355,14 +357,17 @@
                     @endif
                 </h3>
 
-                <div class="flex flex-wrap items-start gap-3">
+                {{-- x-model="$wire.noteCategory" (direktes Livewire-Property-Binding) traf auf
+                     dasselbe Custom-Element-Problem wie die x-on:change-Filter oben — deshalb
+                     auch hier über wpsLivewireFilters, mit der generischen Livewire-Methode
+                     "set" statt einer eigenen Whitelist-Methode. --}}
+                <div class="flex flex-wrap items-start gap-3"
+                     x-data="wpsLivewireFilters(@js(['noteCategory' => $noteCategory]), 'set')">
                     <flux:field class="w-52">
                         <flux:label>Ursache</flux:label>
-                        <flux:select x-model="$wire.noteCategory">
+                        <flux:select variant="listbox" x-model="noteCategory">
                             @foreach(AthletePerformanceNote::categoryLabels() as $wert => $beschriftung)
-                                <option value="{{ $wert }}" @selected($noteCategory === $wert)>
-                                    {{ $beschriftung }}
-                                </option>
+                                <flux:select.option value="{{ $wert }}">{{ $beschriftung }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="noteCategory"/>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\StrokeType;
 use App\Models\WpsScmConversionFactor;
 use App\Support\WpsSportClass;
 use Illuminate\Support\Carbon;
@@ -186,8 +187,10 @@ final readonly class WpsScmFactorCalibrationService
      */
     public function report(WpsScmConversionService $conversionService): Collection
     {
+        $strokeNames = StrokeType::query()->pluck('name_de', 'id');
+
         return $this->observedRatios()
-            ->map(function (array $beobachtung) use ($conversionService): array {
+            ->map(function (array $beobachtung) use ($conversionService, $strokeNames): array {
                 $angesetzt = $conversionService->resolveFactor(
                     $beobachtung['stroke_type_id'],
                     $beobachtung['distance'],
@@ -196,6 +199,7 @@ final readonly class WpsScmFactorCalibrationService
                 );
 
                 return $beobachtung + [
+                    'stroke_name_de' => $strokeNames->get($beobachtung['stroke_type_id']),
                     'applied_factor' => $angesetzt?->factor,
                     'applied_source' => $angesetzt?->source,
                     'applied_sample_size' => $angesetzt?->sample_size,
