@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+@php use App\Models\QualifyingTimeList; @endphp
+    
+    <!DOCTYPE html>
 {{-- Dark/Light wird komplett über Flux' eigenes $flux.appearance-System gesteuert (Alpine-Magic aus dem
      Flux-JS-Bundle, das per @fluxScripts sowieso geladen wird — vendor/livewire/flux/dist/flux.min.js:
      Alpine.magic('flux', ...), persistiert unter localStorage['flux.appearance']). Vorher gab es hier
@@ -35,7 +37,7 @@
     <script>
         (function () {
             new MutationObserver(function () {
-                var appearance = window.localStorage.getItem('flux.appearance');
+                const appearance = window.localStorage.getItem('flux.appearance');
 
                 if (appearance) {
                     window.localStorage.setItem('theme', appearance);
@@ -121,7 +123,7 @@
                 <form method="POST" action="{{ route('logout') }}" class="w-full">
                     @csrf
                     <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle"
-                                     class="w-full cursor-pointer">
+                                    class="w-full cursor-pointer">
                         Abmelden
                     </flux:menu.item>
                 </form>
@@ -139,7 +141,7 @@
     <flux:navlist>
 
         <flux:navlist.group heading="Wettkämpfe" expandable
-                             :expanded="request()->routeIs('meets.*') || request()->routeIs('entries.*') || request()->routeIs('results.*')">
+                            :expanded="request()->routeIs('meets.*') || request()->routeIs('entries.*') || request()->routeIs('results.*')">
             <flux:navlist.item icon="trophy" href="{{ route('meets.index') }}"
                                :current="request()->routeIs('meets.*')">
                 Wettkämpfe
@@ -154,8 +156,12 @@
             </flux:navlist.item>
         </flux:navlist.group>
 
+        {{-- Zusammengeführt aus den früher getrennten Gruppen "Cup Wertung" (Ranglisten, für alle
+             Nutzer) und "ÖBSV Cup Wertung" (Konfiguration, nur Admin) - Erik, Phase 12
+             (04.09.2026): "Das gehört auch zu Cupwertung". Die admin-only Einträge bleiben per
+             @if innerhalb derselben Gruppe gegated, die Gruppe selbst bleibt für alle sichtbar. --}}
         <flux:navlist.group heading="Cup Wertung" expandable
-                             :expanded="request()->routeIs('cups.overall-ranking.*') || request()->routeIs('cups.club-ranking.*')">
+                            :expanded="request()->routeIs('cups.*') || request()->routeIs('kader-types.*') || request()->routeIs('age-groups.*') || request()->routeIs('sport-class-groups.*')">
             <flux:navlist.item icon="trophy" href="{{ route('cups.overall-ranking.index') }}"
                                :current="request()->routeIs('cups.overall-ranking.*')">
                 Gesamtwertung
@@ -164,6 +170,26 @@
                                :current="request()->routeIs('cups.club-ranking.*')">
                 Vereinswertung
             </flux:navlist.item>
+            @if(auth()->user()?->is_admin)
+                {{-- Eigenes Icon statt "trophy" wie Gesamtwertung - in derselben Gruppe sonst zwei
+                     identische Icons für unterschiedliche Ziele. --}}
+                <flux:navlist.item icon="adjustments-horizontal" href="{{ route('cups.index') }}"
+                                   :current="request()->routeIs('cups.index') || request()->routeIs('cups.create') || request()->routeIs('cups.edit')">
+                    Cup-Konfiguration
+                </flux:navlist.item>
+                <flux:navlist.item icon="star" href="{{ route('kader-types.index') }}"
+                                   :current="request()->routeIs('kader-types.*')">
+                    Kaderarten
+                </flux:navlist.item>
+                <flux:navlist.item icon="users" href="{{ route('age-groups.index') }}"
+                                   :current="request()->routeIs('age-groups.*')">
+                    Altersgruppen
+                </flux:navlist.item>
+                <flux:navlist.item icon="squares-2x2" href="{{ route('sport-class-groups.index') }}"
+                                   :current="request()->routeIs('sport-class-groups.*')">
+                    Sportklassengruppen
+                </flux:navlist.item>
+            @endif
         </flux:navlist.group>
 
         @if(auth()->user()?->is_admin)
@@ -178,7 +204,7 @@
         @auth
             @if(auth()->user()->club_id || auth()->user()->is_admin)
                 <flux:navlist.group heading="Vereinsmeldungen" expandable
-                                     :expanded="request()->routeIs('club-entries.*')">
+                                    :expanded="request()->routeIs('club-entries.*')">
                     <flux:navlist.item icon="pencil-square" href="{{ route('club-entries.pick-meet') }}"
                                        :current="request()->routeIs('club-entries.*') && !request()->routeIs('club-entries.relay.*')">
                         Einzelmeldungen
@@ -192,7 +218,7 @@
         @endauth
 
         <flux:navlist.group heading="Stammdaten" expandable
-                             :expanded="request()->routeIs('athletes.*') || request()->routeIs('clubs.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
+                            :expanded="request()->routeIs('athletes.*') || request()->routeIs('clubs.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
             <flux:navlist.item icon="user-group" href="{{ route('athletes.index') }}"
                                :current="request()->routeIs('athletes.*')">
                 Athleten
@@ -230,10 +256,10 @@
             // Für den direkten Sprung zu den Qualifikanten braucht es eine konkrete
             // Richtzeitenliste — es gibt keine listenübergreifende Übersicht. Genommen
             // wird die aktuellste (höchstes Jahr), siehe QualifyingTimeList::isLatest().
-            $latestQualifyingTimeList = \App\Models\QualifyingTimeList::query()->orderByDesc('year')->first();
+            $latestQualifyingTimeList = QualifyingTimeList::query()->orderByDesc('year')->first();
         @endphp
         <flux:navlist.group heading="Richtzeiten ÖSTM & ÖM" expandable
-                             :expanded="request()->routeIs('qualifying-time-lists.*') || request()->routeIs('qualifying-excluded-disciplines.*')">
+                            :expanded="request()->routeIs('qualifying-time-lists.*') || request()->routeIs('qualifying-excluded-disciplines.*')">
             <flux:navlist.item icon="flag" href="{{ route('qualifying-time-lists.index') }}"
                                :current="request()->routeIs('qualifying-time-lists.index') || request()->routeIs('qualifying-time-lists.show') || request()->routeIs('qualifying-time-lists.create') || request()->routeIs('qualifying-time-lists.edit')">
                 Richtzeitenlisten
@@ -258,7 +284,7 @@
         </flux:navlist.group>
 
         <flux:navlist.group heading="Auswertungen" expandable
-                             :expanded="request()->routeIs('wps.rankings') || request()->routeIs('wps.talent-report') || request()->routeIs('wps.clubs')">
+                            :expanded="request()->routeIs('wps.rankings') || request()->routeIs('wps.talent-report') || request()->routeIs('wps.clubs')">
             <flux:navlist.item icon="chart-bar" href="{{ route('wps.rankings') }}"
                                :current="request()->routeIs('wps.rankings')">
                 WPS-Ranglisten
@@ -282,7 +308,7 @@
 
         @if(auth()->user()?->is_admin)
             <flux:navlist.group heading="WPS Punkte" expandable
-                                 :expanded="request()->routeIs('wps.versions.*') || request()->routeIs('wps.import*') || request()->routeIs('wps.factors.*')">
+                                :expanded="request()->routeIs('wps.versions.*') || request()->routeIs('wps.import*') || request()->routeIs('wps.factors.*')">
                 <flux:navlist.item icon="calculator" href="{{ route('wps.versions.index') }}"
                                    :current="request()->routeIs('wps.versions.*')">
                     Point Scores
@@ -299,7 +325,7 @@
         @endif
 
         <flux:navlist.group heading="LENEX" expandable
-                             :expanded="request()->routeIs('lenex.import*') || request()->routeIs('lenex.export*')">
+                            :expanded="request()->routeIs('lenex.import*') || request()->routeIs('lenex.export*')">
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
                                :current="request()->routeIs('lenex.import*')">
                 Import
@@ -312,7 +338,7 @@
 
         @if(auth()->user()?->is_admin)
             <flux:navlist.group heading="Basiswerte" expandable
-                                 :expanded="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*') || request()->routeIs('base-times.import*')">
+                                :expanded="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*') || request()->routeIs('base-times.import*')">
                 <flux:navlist.item icon="calculator" href="{{ route('base-times.versions.index') }}"
                                    :current="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*')">
                     Basiswerte
@@ -323,33 +349,13 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
-            <flux:navlist.group heading="ÖBSV Cup Wertung" expandable
-                                 :expanded="request()->routeIs('cups.*') || request()->routeIs('kader-types.*') || request()->routeIs('age-groups.*') || request()->routeIs('sport-class-groups.*')">
-                <flux:navlist.item icon="trophy" href="{{ route('cups.index') }}"
-                                   :current="request()->routeIs('cups.*')">
-                    Cup-Konfiguration
-                </flux:navlist.item>
-                <flux:navlist.item icon="star" href="{{ route('kader-types.index') }}"
-                                   :current="request()->routeIs('kader-types.*')">
-                    Kaderarten
-                </flux:navlist.item>
-                <flux:navlist.item icon="users" href="{{ route('age-groups.index') }}"
-                                   :current="request()->routeIs('age-groups.*')">
-                    Altersgruppen
-                </flux:navlist.item>
-                <flux:navlist.item icon="squares-2x2" href="{{ route('sport-class-groups.index') }}"
-                                   :current="request()->routeIs('sport-class-groups.*')">
-                    Sportklassengruppen
-                </flux:navlist.item>
-            </flux:navlist.group>
-
             {{-- Regelmente & Formulare ohne Veranstaltungsbezug (Admin\DocumentController,
                  documentable = null, Spec public-frontend §6/Phase 8) — die Route existierte
                  bereits seit Phase 3, hatte aber nie einen Menüeintrag (Rückmeldung: "im Admin
                  Bereich gibt es dazu nichts"). Veranstaltungsdokumente hängen dagegen am
                  jeweiligen Meet-Formular (meets/show), brauchen keinen eigenen Menüpunkt. --}}
             <flux:navlist.group heading="Regelmente & Formulare" expandable
-                                 :expanded="request()->routeIs('admin.documents.*')">
+                                :expanded="request()->routeIs('admin.documents.*')">
                 <flux:navlist.item icon="document-text" href="{{ route('admin.documents.index') }}"
                                    :current="request()->routeIs('admin.documents.*')">
                     Dokumente

@@ -50,12 +50,13 @@
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('kader-types.edit', $kaderType) }}"
-                                                 variant="ghost" size="sm" icon="pencil"/>
+                                                 variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('kader-types.destroy', $kaderType) }}"
                                           onsubmit="return confirm('Kaderart „{{ $kaderType->name_de }}“ wirklich löschen?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"
+                                                     class="text-red-500!"/>
                                     </form>
                                 </div>
                             </flux:table.cell>

@@ -46,12 +46,13 @@
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('age-groups.edit', $ageGroup) }}"
-                                                 variant="ghost" size="sm" icon="pencil"/>
+                                                 variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('age-groups.destroy', $ageGroup) }}"
                                           onsubmit="return confirm('Altersgruppe „{{ $ageGroup->name_de }}“ wirklich löschen?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"
+                                                     class="text-red-500!"/>
                                     </form>
                                 </div>
                             </flux:table.cell>

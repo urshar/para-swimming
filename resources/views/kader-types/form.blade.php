@@ -3,12 +3,16 @@
 @section('title', $kaderType ? 'Kaderart bearbeiten' : 'Neue Kaderart')
 
 @section('content')
-    <div class="max-w-lg">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('kader-types.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+    <div class="max-w-2xl">
+        <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ $kaderType ? 'Kaderart bearbeiten' : 'Neue Kaderart' }}
             </h1>
+            <div class="mt-4">
+                <flux:button href="{{ route('kader-types.index') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         @if($errors->any())
@@ -30,14 +34,14 @@
             <div
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
                 <flux:field>
-                    <flux:label>Code *</flux:label>
+                    <flux:label>Code<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:input name="code" placeholder="z.B. WELTKLASSE"
                                 value="{{ old('code', $kaderType?->code) }}" required/>
                     <flux:error name="code"/>
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Bezeichnung *</flux:label>
+                    <flux:label>Bezeichnung<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:input name="name_de" placeholder="z.B. Weltklasse"
                                 value="{{ old('name_de', $kaderType?->name_de) }}" required/>
                     <flux:error name="name_de"/>

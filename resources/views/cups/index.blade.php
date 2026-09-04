@@ -62,24 +62,23 @@
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
-                                                 variant="ghost" size="sm" icon="trophy">
-                                        Gesamtwertung
-                                    </flux:button>
+                                                 variant="ghost" size="sm" icon="trophy"
+                                                 class="text-blue-500!" tooltip="Gesamtwertung"/>
                                     <form method="POST" action="{{ route('cups.classify-top-group', $cup) }}"
                                           x-data="{ submit() { if (confirm('Top-Gruppen-Klassifizierung berechnen? Sollte zu Saisonbeginn und vor der Tageswertung laufen.')) this.$el.submit() } }"
                                           @submit.prevent="submit()">
                                         @csrf
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="arrow-trending-up">
-                                            Top-Gruppe klassifizieren
-                                        </flux:button>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="arrow-trending-up"
+                                                      class="text-orange-500!" tooltip="Top-Gruppe klassifizieren"/>
                                     </form>
-                                    <flux:button href="{{ route('cups.edit', $cup) }}"
-                                                 variant="ghost" size="sm" icon="pencil"/>
+                                    <flux:button href="{{ route('cups.edit', $cup) }}" variant="ghost" size="sm"
+                                                 icon="pencil" class="text-amber-500!" tooltip="Bearbeiten"/>
                                     <form method="POST" action="{{ route('cups.destroy', $cup) }}"
                                           onsubmit="return confirm('Cup „{{ $cup->name }}“ wirklich löschen?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"
+                                                     class="text-red-500!" tooltip="Löschen"/>
                                     </form>
                                 </div>
                             </flux:table.cell>

@@ -2485,3 +2485,184 @@ und bat danach um drei weitere kleine Änderungen.
 **Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live-Verifikation
 im Browser (frischer Tab, `npm run build` + temporär deaktiviertes `public/hot`, danach wiederhergestellt): "50m
 Freistil" im Faktorenbericht und "100m Brust"/"50m Rücken" in der WPS-Rangliste (Jahr 2025) bestätigt.
+
+## Phase 12 — Cup Wertung — **abgeschlossen**
+
+Modul: Gesamt-, Vereins- und Tageswertung des ÖBSV Cups sowie die zugehörige Konfiguration (Cup-Konfiguration,
+Kaderarten, Altersgruppen, Sportklassengruppen) — insgesamt 14 Views über 7 Controller. Erik erweiterte den Scope
+noch vor Beginn ausdrücklich: "Bitte schau auch es gibt noch die ÖBSV Cup Wertung. Das gehört auch zu Cupwertung.
+Diese im Menü zusammenführen und auch gleich prüfen."
+
+### Menü zusammengeführt
+
+Die bis dahin getrennten Sidebar-Gruppen "Cup Wertung" (Gesamt-/Vereinswertung, für alle Nutzer sichtbar) und
+"ÖBSV Cup Wertung" (Konfiguration, nur `is_admin`) wurden zu einer Gruppe "Cup Wertung" zusammengeführt
+(`resources/views/layouts/app.blade.php`). Die admin-only Einträge (Cup-Konfiguration, Kaderarten, Altersgruppen,
+Sportklassengruppen) bleiben per `@if(auth()->user()?->is_admin)` **innerhalb** derselben Gruppe gegated, statt in
+einer eigenen Gruppe — die Gruppe selbst bleibt für alle sichtbar. Nebenbefund dabei: "Cup-Konfiguration" nutzte
+bisher dasselbe Trophy-Icon wie "Gesamtwertung" — in derselben Gruppe zwei identische Icons für unterschiedliche
+Ziele, deshalb auf `adjustments-horizontal` umgestellt. Der `:current`-Zustand von "Cup-Konfiguration" wurde von
+`request()->routeIs('cups.*')` auf `cups.index`/`cups.create`/`cups.edit` verengt — der alte Wildcard hätte in der
+gemeinsamen Gruppe fälschlich auch bei Gesamt-/Vereinswertung mit angeleuchtet (deren Routen ebenfalls mit `cups.`
+beginnen).
+
+### Bekannte Muster nachgezogen (alle 4 Module)
+
+- **Pflichtfeld-Sterne rot eingefärbt** (`ms-1`-Muster, kein Leerzeichen im Label-Text) in
+  `cups/form.blade.php`, `kader-types/form.blade.php`, `age-groups/form.blade.php`,
+  `sport-class-groups/form.blade.php`. In `age-groups/form.blade.php` beim Anfassen zusätzlich zwei
+  `(optional)`-Spans auf denselben Flexbox-Abstands-Fix (`ms-1`) umgestellt, die denselben, in CLAUDE.md
+  dokumentierten Kollaps-Bug hatten.
+- **Zeilen-Icons auf Farbkonvention**: `pencil` → `text-amber-500!`, `trash` → `text-red-500!` in
+  `cups/index.blade.php`, `kader-types/index.blade.php`, `age-groups/index.blade.php`,
+  `sport-class-groups/index.blade.php`.
+- **Titelleisten-Muster** (Titel oben, "Zurück" links/Aktionen rechts in eigener `mt-4`-Zeile) in allen vier
+  Formularen sowie in `cups/overall-ranking.blade.php` und `cups/daily-ranking.blade.php`.
+- **PDF/Drucken-Buttons lila** (`text-purple-500!`) in `overall-ranking`, `daily-ranking` und der neuen
+  Vereinswertungs-Livewire-View (3 PDF-Links insgesamt).
+- **Natives `<option>` → `flux:select variant="listbox"` + `flux:select.option :selected`** für das
+  ÖBSV-1000-Punkte-Tabelle-Dropdown in `cups/form.blade.php` (verstieß gegen CLAUDE.md's Dropdown-Regel).
+
+### Echter Bug behoben: hartkodierte Inline-Farben
+
+`cups/overall-ranking.blade.php` markierte gezählte Runden bisher über `style="color: #047857..."` /
+`style="color: #a1a1aa"` direkt im Markup — funktionslos im Dunkelmodus, weil ein Inline-Style nie auf
+`prefers-color-scheme`/die `.dark`-Klasse reagiert. Ersetzt durch `@class([...])` mit
+`text-emerald-700 dark:text-emerald-400` bzw. `text-zinc-400`. Ein Test
+(`CupOverallRankingControllerTest.php`) prüfte bisher `assertSee('#047857', ...)` als Proxy für "als gezählt
+markiert" — auf die neue Klasse (`assertSee('text-emerald-700', ...)`) umgestellt, dieselbe Prüfabsicht.
+
+### Vereinswertung → Livewire (Erik: "würde ich \[Option 2\] bevorzugen")
+
+`CupClubRankingController::show()` löste Wertungssystem, Ausland-Schalter und Kaderanzahl bisher aus
+GET-Parametern auf, jede Änderung bedeutete vollen Reload. Umgestellt auf eine Livewire-Komponente
+(`App\Livewire\CupClubRanking` + `resources/views/livewire/cup-club-ranking.blade.php`), konsistent mit den
+WPS-Auswertungen aus Phase 11:
+
+- `mount(Cup $cup, Request $request)` liest den Anfangszustand weiterhin aus der Query-String
+  (`?system=&foreign=&kader=`), fehlt sie, aus `config/cup_club_ranking.php` — eine bestehende URL (Lesezeichen,
+  geteilter Link) bleibt damit unverändert aufrufbar; **danach** laufen Änderungen rein reaktiv ohne
+  Query-String-Sync (wie alle anderen Livewire-Komponenten in diesem Projekt — keine nutzt `#[Url]`). Ohne diesen
+  Deep-Link-Erhalt hätten mehrere bestehende Tests (`system=start`, `foreign=1`, `kader=1` als initialer
+  Seitenaufruf) nicht mehr gepasst — alle 17 liefen unverändert grün, ohne Testanpassung nötig.
+- Cup-Wahl und Kaderathleten-Anzahl liefen bisher über zwei native `<select onchange="window.location.href=…">`
+  (verstieß gegen CLAUDE.md, kein `flux:select`/Auto-Submit-Muster). Umgestellt auf `flux:select` +
+  `wpsLivewireFilters`-Alpine-Helper (`x-model` auf eine lokale Variable, `$watch` ruft `$wire.setFilter(...)`) —
+  derselbe, bereits für die WPS-Views wiederverwendbare Helper aus `resources/js/wps-livewire-filters.js`.
+  Wertungssystem- und Ausland-Umschalter liefen bereits über `flux:button`; dort genügt `wire:click` direkt (kein
+  `flux:select`, also kein `bubbles:false`-Problem).
+- Die beiden Ranking-Tabellen (Start-/Leistungswertung) blieben bewusst native `<table>`-Elemente statt
+  `flux:table` — Vorbild ist die neuere `wps-club-ranking.blade.php` aus Phase 11, die für dasselbe
+  Anwendungsmuster (klickbare, aufklappbare Zeile mit Alpine `x-data="{open:false}"`) ebenfalls native Tabellen
+  verwendet. `flux:table` auf ein bestehendes, funktionierendes Schwester-Muster umzustellen, ohne dass es Erik
+  verlangt hätte, wäre unnötiges Risiko gewesen.
+- PDF-Export bleibt ein klassischer Controller-Download (`CupClubRankingController::pdf()` +
+  `resolveRankingData()` unverändert) — ein Download lässt sich nicht über eine Livewire-Aktion ausliefern; die
+  Livewire-Komponente baut nur die Ziel-URL mit dem aktuellen Filterstand (`pdfUrl(int $detail)`).
+- Live verifiziert: Wertungssystem-Umschalter, Ausland-Toggle, Kaderathleten-Select und Cup-Wahl lösen alle ohne
+  Seiten-Reload aus (PDF-Links im Kopf aktualisieren ihre Query-Parameter live mit); die aufklappbare
+  Athleten-Detailzeile per `getBoundingClientRect()`/direktem Dispatch bestätigt (`open` wechselt auf `true`) —
+  ein manueller Klick traf im Test-Environment zunächst daneben (Koordinaten-Mismatch des Tools, kein Bug in der
+  Anwendung).
+
+**Betroffene Dateien**: `resources/views/layouts/app.blade.php`; `cups/{index,form,overall-ranking,
+daily-ranking,club-ranking}.blade.php`; `kader-types/{index,form}.blade.php`; `age-groups/{index,form}.blade.php`;
+`sport-class-groups/{index,form}.blade.php`; neu: `app/Livewire/CupClubRanking.php`,
+`resources/views/livewire/cup-club-ranking.blade.php`; `app/Http/Controllers/CupClubRankingController.php`
+(`show()` vereinfacht, `resolveRankingData()` bleibt für `pdf()`); `tests/Feature/CupOverallRankingControllerTest.php`
+(eine Assertion angepasst, siehe oben).
+
+**Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün (davon 17 in
+`CupClubRankingControllerTest`, unverändert bestanden trotz Livewire-Umstellung), `vendor/bin/pint --test` grün.
+Live im Browser verifiziert (frischer Tab, `npm run build` + temporär deaktiviertes `public/hot`, danach
+wiederhergestellt): Menü-Zusammenführung, Cup-Konfigurationsformular (rote Sterne, `flux:select`), Kaderarten-Formular
+(Titelleisten-Muster), Vereinswertung (alle vier reaktiven Filter, PDF-Links, Detail-Aufklappzeile).
+
+### Design-Feedback-Nachtrag zu Phase 12 — Formularbreiten, echter Navigations-Bug gefunden, Icons statt
+
+Textbuttons in den Übersichtstabellen, Vereinswertungs-Filter korrigiert
+
+- **Formularbreiten an P10/P11 angeglichen**: `cups/form.blade.php` `max-w-2xl` → `max-w-4xl` (komplexestes
+  Formular hier, mit Sportklassengruppen- und Altersgruppen-Matrix — Größenordnung wie `records/form.blade.php`);
+  `kader-types/form.blade.php`, `age-groups/form.blade.php`, `sport-class-groups/form.blade.php` jeweils
+  `max-w-lg` → `max-w-2xl` (Größenordnung wie `clubs/form.blade.php`/`entries/form.blade.php`) — `max-w-lg` war in
+  keinem P10/P11-Formular mehr die Norm.
+- **Echter Navigations-Bug gefunden und behoben**: Der "Zurück"-Button auf `cups/overall-ranking.blade.php` zeigte
+  hart codiert auf `route('cups.index')` (Cup-Konfiguration) — unabhängig davon, ob man tatsächlich von dort oder
+  von der öffentlichen Gesamtwertungs-Übersicht (`cups.overall-ranking.index`, Route `/cup-wertung`, für **alle**
+  Nutzer offen) gekommen war. Da `cups.index` in `CupController` per `authorizeAdmin()` auf `is_admin` prüft, wäre
+  ein Nichtadmin, der über die Gesamtwertungs-Übersicht kam, beim Klick auf "Zurück" auf einen **403** gelaufen —
+  kein bloßer Komfortmangel, sondern ein echter Dead-End. Auf `route('cups.overall-ranking.index')` korrigiert und
+  live nachgestellt (Zurück führt jetzt wieder zur Gesamtwertungs-Übersicht).
+- **PDF/Drucken als echter Button**: `cups/overall-ranking.blade.php` und die Vereinswertungs-PDF-Links
+  (`livewire/cup-club-ranking.blade.php`, alle drei Varianten) von `variant="ghost"` auf `variant="filled"`
+  umgestellt (weiterhin `text-purple-500!`). `cups/daily-ranking.blade.php`s PDF-Button bewusst **nicht**
+  mitgezogen — nicht Teil der Meldung, gleiche Fleißarbeit bei Bedarf separat nachziehbar.
+- **Row-Action-Buttons in den drei Übersichtstabellen auf Icon-only + Tooltip + Farbe umgestellt**, jeweils
+  `flex justify-end`-Wrapper ergänzt/beibehalten:
+  - `cups/index.blade.php` (Cup-Konfiguration): "Gesamtwertung" (Trophy, `text-blue-500!`) und "Top-Gruppe
+    klassifizieren" (arrow-trending-up, `text-orange-500!`) — neu zur Icon-Farbkonvention hinzugekommen:
+    **blau = zu einer verknüpften Auswertung/Rangliste navigieren**, **orange = Berechnung/Klassifizierung
+    anstoßen**. Bearbeiten/Löschen bekamen zusätzlich Tooltips (`title="Bearbeiten"`/`"Löschen"`), Farben waren
+    aus dem regulären Phase-12-Durchgang schon vorhanden.
+  - `cups/overall-ranking-index.blade.php` ("ÖBSV Cup Wertung", die Gesamtwertungs-Übersicht): "Gesamtwertung"
+    auf dasselbe Icon-only-Blau umgestellt.
+  - `cups/club-ranking-index.blade.php` ("ÖBSV Cup — Vereinswertung"): "Vereinswertung" (user-group) ebenfalls
+    auf Icon-only-Blau.
+- **Vereinswertungs-Filter — "alles als Button" missverstanden, korrigiert**: Zunächst Cup/Jahr und
+  Kaderathleten-je-Verein (bisher `flux:select` + `wpsLivewireFilters`-Alpine-Umweg) ebenfalls auf Button-Reihen
+  umgestellt. Erik stellte richtig: "CupJahr und Kaderathleten je verein bleiben dropdown[,] die Buttons dazwischen
+  sollen alle als button dargestellt werden" — gemeint waren die bereits als Buttons ausgeführten
+  Wertungssystem-/Ausland-Umschalter zwischen den beiden Dropdowns, nicht die Dropdowns selbst. Zurückgebaut auf
+  `flux:select` + `wpsLivewireFilters` für Cup/Jahr und Kaderathleten (die zwischenzeitlich eingeführten,
+  direkten `selectCup(int)`/`setKaderCount(int)`-Methoden auf `App\Livewire\CupClubRanking` durch das ursprüngliche
+  `setFilter(string, string)` ersetzt, das der Alpine-Helper erwartet).
+- **"Ausländische Vereine": verwirrendes Plus-Icon entfernt** — im ausgeschlossenen Zustand zeigte der Umschalter
+  ein `plus`-Icon, das fälschlich eine Hinzufügen-Aktion suggerierte statt eines reinen An/Aus-Zustands (Erik: "Ist
+  verwirrend"). Eingeschlossen bleibt das Häkchen (`check`) als Zustands-Symbol, ausgeschlossen zeigt jetzt kein
+  Icon mehr.
+- **`sport-class-groups/form.blade.php` weiter verbreitert** (`max-w-2xl` → `max-w-4xl`, Größenordnung wie
+  `cups/form.blade.php`): Die zusätzliche "Zugeordnete Sportklassen"-Karte mit ihrer eigenen
+  Eingabefeld-plus-Button-Zeile ("Hinzufügen") brauchte mehr Platz als die schlankeren Formulare
+  `kader-types`/`age-groups` ohne diese Zusatzkarte.
+- **PhpStorm-Inspection in `layouts/app.blade.php` behoben**: `var appearance` im MutationObserver-Inline-Script
+  auf `const appearance` umgestellt (nie neu zugewiesen) — Erik stimmte der Inspection ausdrücklich zu.
+
+**Betroffene Dateien**: `cups/{form,index,overall-ranking,overall-ranking-index,club-ranking-index}.blade.php`,
+`kader-types/form.blade.php`, `age-groups/form.blade.php`, `sport-class-groups/form.blade.php`,
+`livewire/cup-club-ranking.blade.php`, `app/Livewire/CupClubRanking.php`.
+
+**Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün (inkl. aller 17 `CupClubRankingControllerTest`-
+und 7 `CupOverallRankingControllerTest`-Fälle, unverändert bestanden), `vendor/bin/pint --test` grün. Live im
+Browser verifiziert: Icon-Tooltips (Gesamtwertung/Vereinswertung/Top-Gruppe klassifizieren), der behobene
+Zurück-Bug (Gesamtwertungs-Übersicht → Gesamtwertung → Zurück → wieder Gesamtwertungs-Übersicht), Cup/Jahr- und
+Wertungssystem-Filter, Ausländische-Vereine-Umschalter.
+
+### Zweiter Design-Feedback-Nachtrag zu Phase 12 — Sportklassengruppen-Layout, Switches, Filter-Buttons sichtbar
+
+Zwei Screenshots zu `sport-class-groups/index.blade.php` (Icons nur über Scrollleiste sichtbar) und zur
+Vereinswertung (Wertungssystem-/Ausland-Buttons sahen wie reiner Text aus).
+
+- **`sport-class-groups/index.blade.php` verbreitert** (`max-w-2xl` → `max-w-4xl`): Die Tabelle hat mit
+  Code/Bezeichnung/Art/Sportklassen/Status + zwei Action-Icons mehr Spalten als `kader-types`/`age-groups` — bei
+  `max-w-2xl` waren die Icons nur über die horizontale Scrollleiste der Card erreichbar.
+- **`sport-class-groups/form.blade.php`: zweispaltiges Layout beim Bearbeiten** ("kann man die Sportklassen
+  recht[s] hinzufügen, so dass es übersichtlich bleibt?"): Formular-Card und "Zugeordnete Sportklassen"-Card stehen
+  jetzt nebeneinander (`grid grid-cols-1 lg:grid-cols-2 gap-4`, Muster wie die "Datei"/"Version"-Cards in
+  `wps/import/form.blade.php`) — nur wenn die zweite Card tatsächlich existiert (`$group` gesetzt und nicht
+  `is_virtual`), sonst bleibt es einspaltig (kein leerer zweiter Grid-Slot beim Anlegen oder bei virtuellen
+  Gruppen).
+- **Checkboxen → `flux:switch`** für "Virtuelle Gruppe" und "Aktiv" in `sport-class-groups/form.blade.php` (Erik:
+  "Statt den Checkbox hätte ich gerne switch") — Muster wie `nations/edit.blade.php`
+  (`<flux:switch name="..." value="1" :checked="..." label="..."/>`, kein Hidden-Input nötig, gleiche
+  Request-Semantik wie zuvor `flux:checkbox`). Bewusst nur in dieser Datei umgesetzt — `kader-types`/`age-groups`
+  haben denselben "Aktiv"-Checkbox, aber nicht Teil der Meldung.
+- **Vereinswertungs-Filter: `ghost` → `filled` im inaktiven Zustand** ("die Button Startwertung und ausgeschlossen
+  als Button darstellen nicht als Text"): `variant="ghost"` hatte im Dunkelmodus praktisch keinen sichtbaren
+  Rahmen/Hintergrund und wirkte wie reiner Fließtext statt eines Buttons. Betraf "Startwertung" (wenn
+  "Leistungswertung" aktiv ist) und "ausgeschlossen" (Ausländische-Vereine-Umschalter) in
+  `livewire/cup-club-ranking.blade.php`.
+
+**Tests**: volle Suite weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live verifiziert: Icons in der
+Sportklassengruppen-Liste ohne Scrollen sichtbar, zweispaltiges Bearbeiten-Layout, blaue Switches statt Checkboxen,
+Wertungssystem-/Ausland-Buttons jetzt mit sichtbarem Rahmen im inaktiven Zustand.

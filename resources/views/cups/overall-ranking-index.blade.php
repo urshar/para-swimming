@@ -32,10 +32,11 @@
                                 @endif
                             </flux:table.cell>
                             <flux:table.cell>
-                                <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
-                                             variant="ghost" size="sm" icon="trophy">
-                                    Gesamtwertung
-                                </flux:button>
+                                <div class="flex justify-end">
+                                    <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
+                                                 variant="ghost" size="sm" icon="trophy"
+                                                 class="text-blue-500!" tooltip="Gesamtwertung"/>
+                                </div>
                             </flux:table.cell>
                         </flux:table.row>
                     @empty

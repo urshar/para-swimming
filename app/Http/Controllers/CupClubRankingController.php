@@ -40,7 +40,7 @@ class CupClubRankingController extends Controller
      * GET /vereinswertung
      *
      * Cup-Übersicht als Einstieg zur Vereinswertung (für alle angemeldeten
-     * Nutzer), analog zur Gesamtwertungs-Übersicht.
+     * Nutzer), analog zur Gesamtwertungsübersicht.
      */
     public function index(): View
     {
@@ -50,20 +50,15 @@ class CupClubRankingController extends Controller
     }
 
     /**
-     * GET /cups/{cup}/club-ranking?system=start|performance&foreign=0|1&kader=N
+     * GET /cups/{cup}/club-ranking
      *
-     * Zeigt die gewählte Vereinswertung. Ausland-Schalter und Kaderanzahl
-     * überschreiben je Aufruf die Konfigurationswerte; fehlt der Parameter, gilt
-     * der Konfigurationswert. Der Staleness-Hinweis gilt nur für die
-     * Leistungswertung, da nur sie auf dem cup_daily_results-Snapshot beruht.
+     * Zeigt die Vereinswertung. Wertungssystem, Ausland-Schalter und Kaderanzahl sind seit
+     * Phase 12 reaktive Filter der Livewire-Komponente `CupClubRanking`, nicht mehr
+     * GET-Parameter dieser Route — der Controller reicht nur noch das Cup-Modell durch.
      */
-    public function show(Cup $cup, Request $request): View
+    public function show(Cup $cup): View
     {
-        return view('cups.club-ranking', [
-            ...$this->resolveRankingData($cup, $request),
-            'cup' => $cup,
-            'cups' => Cup::orderByDesc('year')->get(['id', 'year', 'name']),
-        ]);
+        return view('cups.club-ranking', compact('cup'));
     }
 
     /**

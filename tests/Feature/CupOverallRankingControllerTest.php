@@ -161,7 +161,9 @@ describe('show', function () {
             ->get(route('cups.overall-ranking.show', $cup));
 
         $response->assertOk()
-            ->assertSee('#047857', false); // grüne "gezählt"-Markierung greift trotz neuer Daily-Result-ID
+            // grüne "gezählt"-Markierung (text-emerald-700, seit Phase 12 Tailwind-Klasse statt
+            // Inline-Style) greift trotz neuer Daily-Result-ID.
+            ->assertSee('text-emerald-700', false);
     })->group('cup-wertung-p6');
 
     it('zeigt den Vereins-Kurznamen, falls hinterlegt', function () {
