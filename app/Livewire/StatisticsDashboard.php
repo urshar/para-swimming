@@ -103,7 +103,7 @@ class StatisticsDashboard extends Component
         return Meet::query()
             ->whereDate('start_date', '>=', "$this->year-01-01")
             ->whereDate('start_date', '<=', "$this->year-12-31")
-            ->orderBy('start_date')
+            ->oldest('start_date')
             ->orderBy('name')
             ->get(['id', 'name', 'start_date']);
     }
@@ -123,6 +123,28 @@ class StatisticsDashboard extends Component
     public function updatedYear(): void
     {
         $this->meetIds = [];
+    }
+
+    /**
+     * Whitelist-Methode für den Jahres-Filter im Header, wie bei den WPS-Auswertungen (siehe
+     * resources/js/wps-livewire-filters.js): `flux:select variant="listbox"` feuert sein
+     * internes "change"-Event mit `bubbles:false`, `wire:model` verlässt sich aber auf
+     * Event-Bubbling und bekommt es nicht zuverlässig mit — deshalb hier `x-model` +
+     * `$wire.call('setYear', 'year', ...)` statt eines direkten `wire:model.live="year"` auf
+     * dem Listbox-Select (Design-Feedback Erik, 15.09.2026: Jahr-Auswahl "als Fluxdropdown").
+     * Zwei Parameter, obwohl nur ein Feld: `wpsLivewireFilters` ruft grundsätzlich
+     * `methode(feld, wert)` auf, damit dieselbe Methode auch mehrere Felder bedienen könnte.
+     * `updatedYear()` feuert nur bei über wire:model synchronisierten Änderungen, nicht bei
+     * einer internen Zuweisung wie hier — deshalb explizit mit aufgerufen.
+     */
+    public function setYear(string $feld, string $wert): void
+    {
+        match ($feld) {
+            'year' => $this->year = (int) $wert,
+            default => null,
+        };
+
+        $this->updatedYear();
     }
 
     public function resetMeetSelection(): void

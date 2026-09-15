@@ -193,10 +193,15 @@
         </flux:navlist.group>
 
         @if(auth()->user()?->is_admin)
-            <flux:navlist.group heading="Statistik" expandable :expanded="request()->routeIs('statistics.*')">
+            <flux:navlist.group heading="Statistik" expandable
+                                 :expanded="request()->routeIs('statistics.*') || request()->routeIs('wps.athletes.*')">
                 <flux:navlist.item icon="chart-bar" href="{{ route('statistics.index') }}"
                                    :current="request()->routeIs('statistics.*')">
                     Statistik
+                </flux:navlist.item>
+                <flux:navlist.item icon="presentation-chart-line" href="{{ route('wps.athletes.picker') }}"
+                                   :current="request()->routeIs('wps.athletes.*')">
+                    WPS-Analyse
                 </flux:navlist.item>
             </flux:navlist.group>
         @endif

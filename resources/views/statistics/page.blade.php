@@ -3,12 +3,8 @@
 @section('title', 'Statistik')
 
 @section('content')
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Statistik</h1>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Kennzahlen und Auswertungen je Jahr und Veranstaltung
-        </p>
-    </div>
-
+    {{-- Titel + Jahr-Auswahl stehen in der Livewire-Komponente selbst (nicht mehr hier): nur sie
+         kann das gewählte Jahr reaktiv im Header rechtsbündig anzeigen (Design-Feedback Erik,
+         15.09.2026). --}}
     @livewire('statistics-dashboard')
 @endsection

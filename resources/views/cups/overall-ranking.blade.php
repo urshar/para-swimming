@@ -139,74 +139,85 @@
                 </p>
             @endif
 
-            @forelse($brackets as $bracketIndex => $bracket)
-                {{-- $bracketIndex statt $index: der Bewerbe-@foreach weiter unten iteriert
-                     ebenfalls mit "as $index => $meet" - gleicher Name würde zwar dank PHPs
-                     Neuzuweisung am Schleifenkopf bei jeder Iteration wieder korrekt
-                     funktionieren, ist aber unnötig verwirrend/fragil. --}}
-                <div x-show="matches(brackets[{{ $bracketIndex }}])"
+            @forelse($brackets as $bracket)
+                {{-- Filterwerte direkt als Objekt statt Index-Lookup in "brackets[N]": Ein Blade-Echo
+                     mitten in einer JS-Array-Index-Klammer ("brackets[{{ $i }}]") lässt PhpStorms
+                     JS-Parser über die eingebettete "{{"/"}}"-Klammerung stolpern ("Expression
+                     expected"/"'with' statement", Zeile dieses <div>s). @php($x) + @js($x) vor dem
+                     Tag vermeidet das UND umgeht CLAUDE.mds @json-Komma-Falle (siehe dort) — kein
+                     Array-Literal mit eigenen Kommas direkt im @js()-Aufruf. --}}
+                @php($bracketPayload = [
+                    'gender' => $bracket['gender'] ?? 'null',
+                    'group' => (string) $bracket['group']->id,
+                    'ageGroup' => $bracket['ageGroup']?->id !== null ? (string) $bracket['ageGroup']->id : 'null',
+                ])
+                <div x-show="matches(@js($bracketPayload))"
                      class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
-                <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
-                    <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }}
-                        — {{ $bracket['group']->name_de }}
-                        @if($bracket['ageGroup'])
-                            — {{ $bracket['ageGroup']->name_de }}
-                        @endif
-                    </h2>
-                    <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
-                </div>
+                    <div
+                        class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
+                        <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }}
+                            — {{ $bracket['group']->name_de }}
+                            @if($bracket['ageGroup'])
+                                — {{ $bracket['ageGroup']->name_de }}
+                            @endif
+                        </h2>
+                        <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
+                    </div>
 
-                <div class="overflow-x-auto">
-                    <flux:table
-                        class="table-fixed w-full min-w-[720px] [&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                        <flux:table.columns>
-                            <flux:table.column class="w-12">Rang</flux:table.column>
-                            <flux:table.column class="w-56">Athlet</flux:table.column>
-                            <flux:table.column class="w-48">Verein</flux:table.column>
-                            @foreach($meets as $index => $meet)
-                                <flux:table.column class="w-20">
+                    <div class="overflow-x-auto">
+                        <flux:table
+                            class="table-fixed w-full min-w-180 [&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                            <flux:table.columns>
+                                <flux:table.column class="w-12">Rang</flux:table.column>
+                                <flux:table.column class="w-56">Athlet</flux:table.column>
+                                <flux:table.column class="w-48">Verein</flux:table.column>
+                                @foreach($meets as $index => $meet)
+                                    <flux:table.column class="w-20">
                                     <span title="{{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})">
                                         R.{{ $index + 1 }}
                                     </span>
-                                </flux:table.column>
-                            @endforeach
-                            <flux:table.column class="w-28">Gesamtpunkte</flux:table.column>
-                        </flux:table.columns>
-                        <flux:table.rows>
-                            @foreach($bracket['results'] as $row)
-                                <flux:table.row>
-                                    <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
-                                    <flux:table.cell>
-                                        <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
-                                            {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
-                                        </a>
-                                    </flux:table.cell>
-                                    <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
-                                    @foreach($row->rounds as $round)
-                                        <flux:table.cell class="font-mono text-xs">
+                                    </flux:table.column>
+                                @endforeach
+                                <flux:table.column class="w-28">Gesamtpunkte</flux:table.column>
+                            </flux:table.columns>
+                            <flux:table.rows>
+                                @foreach($bracket['results'] as $row)
+                                    <flux:table.row>
+                                        <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
+                                        <flux:table.cell>
+                                            <a href="{{ route('athletes.show', $row->athlete) }}"
+                                               class="hover:underline">
+                                                {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
+                                            </a>
+                                        </flux:table.cell>
+                                        <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
+                                        @foreach($row->rounds as $round)
+                                            <flux:table.cell class="font-mono text-xs">
                                             <span @class([
                                                 'text-emerald-700 dark:text-emerald-400 font-semibold' => $round['counted'],
                                                 'text-zinc-400' => ! $round['counted'],
                                             ])>
                                                 {{ $round['points'] ?? '—' }}{{ $round['sport_class'] ? '/'.$round['sport_class'] : '' }}
                                             </span>
-                                        </flux:table.cell>
-                                    @endforeach
-                                    <flux:table.cell class="font-mono font-semibold">{{ $row->total_points }}</flux:table.cell>
-                                </flux:table.row>
-                            @endforeach
-                        </flux:table.rows>
-                    </flux:table>
+                                            </flux:table.cell>
+                                        @endforeach
+                                        <flux:table.cell
+                                            class="font-mono font-semibold">{{ $row->total_points }}</flux:table.cell>
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                    </div>
                 </div>
-            </div>
-        @empty
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
-                <p class="text-sm text-zinc-400">
-                    Für diesen Cup wurde noch keine Gesamtwertung berechnet.
-                </p>
-            </div>
-        @endforelse
+            @empty
+                <div
+                    class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
+                    <p class="text-sm text-zinc-400">
+                        Für diesen Cup wurde noch keine Gesamtwertung berechnet.
+                    </p>
+                </div>
+            @endforelse
 
             @if($brackets->count() > 1)
                 <div x-show="visibleCount === 0" x-cloak

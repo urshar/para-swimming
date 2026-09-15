@@ -306,6 +306,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
         Route::get('/statistics/report/xlsx', [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');
         Route::get('/statistics/report/csv', [StatisticsController::class, 'reportCsv'])->name('statistics.report.csv');
+
+        // WPS-Analyse ist selbst nicht admin-only (siehe wps.athletes.show weiter oben) - dieser
+        // zweite Einstieg mit Athleten-Auswahl liegt aber bewusst im admin-only Statistik-Bereich
+        // (Design-Feedback Erik, 15.09.2026), statt die bestehende, verbandsweite Zugriffsregel
+        // über den Athleten selbst aufzuweichen.
+        Route::get('/statistics/wps-athlete-analysis',
+            [WpsAthleteAnalysisController::class, 'picker'])->name('wps.athletes.picker');
     });
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────

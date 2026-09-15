@@ -137,6 +137,42 @@ composer lint:check   # Pint nur prüfen
   `in_array($x, ['', 'A', 'B'], true)` erkennt `null` nicht als gültig und fällt fälschlich auf den
   Default zurück — vorher explizit `$x !== null &&` prüfen. Siehe
   `RecordController::index()` (`$relayFilter`/`$course`).
+- **Ein mehrzeiliger `@php ... @endphp`-Block direkt innerhalb eines `@if(...)` im Root-Template
+  einer Livewire-Komponente kann den Compile-Vorgang mit `"syntax error, unexpected token
+  'endif', expecting end of file"` zum Absturz bringen** — obwohl `Blade::compileString()` auf
+  dieselbe Datei isoliert aufgerufen fehlerfrei durchläuft. Ursache: Livewires morph-bewusster
+  Precompiler (`Livewire\Mechanisms\ExtendBlade\SupportMorphAwareBladeCompilation`) scannt den
+  rohen Template-Text nach balancierten `@if`/`@endif`-Paaren, um Morph-Marker einzufügen, und
+  verzählt sich dabei an einem verschachtelten `@php`-Block. Betraf ausschließlich das
+  Zusammenspiel aus **Livewire-Komponenten-Root** + **`@php` als direktes Kind eines `@if`** +
+  vermutlich der Menge an zusätzlicher Verschachtelung im `@if`-Rumpf — ein einzelnes,
+  eigenständiges `@if`/`@endif` bricht es nicht. Fix: `@php(...)`-Einzeiler **vor** das `@if`
+  ziehen (Werte vorab berechnen, auch wenn sie nur im `@if`-Zweig gebraucht werden), statt sie
+  darin zu verschachteln. Trat beim Einbau von `flux:chart` in
+  `livewire/wps-athlete-analysis.blade.php` auf (Phase 13); half zusätzlich, die tief
+  verschachtelte `flux:chart.*`-Baumstruktur selbst in ein eigenes `@include`
+  (`partials/wps-athlete-chart.blade.php`) auszulagern statt sie inline im Root-Template zu
+  belassen — dasselbe Muster gilt vermutlich für jede vergleichbar tief verschachtelte
+  Component-Struktur direkt im Root eines Livewire-Views.
+- **`flux:chart.line` bringt (anders als `flux:chart.point`, `flux:chart.axis.line` usw.) keine
+  eigene Dark-Mode-Klasse mit** (`vendor/livewire/flux-pro/.../chart/line.blade.php`: nur
+  `text-zinc-800`, kein `dark:text-*`) — im Dunkelmodus dunkelgrau auf dunklem Grund, praktisch
+  unsichtbar, ohne dass ein Fehler oder eine sichtbare Lücke auf den ersten Blick auffällt (die
+  Punkte/Achsen bleiben sichtbar, nur die Linie fehlt). Beim Einsatz von `flux:chart.line` immer
+  `class="text-zinc-800 dark:text-zinc-100"` (o. ä.) selbst ergänzen und mit `getComputedStyle(...).stroke`
+  nachmessen statt nur visuell zu prüfen.
+- **PhpStorms Inspection "Method expression is not of Function type" auf einem mehrzeiligen
+  `@php ... @endphp`-Block ist nicht automatisch der oben dokumentierte Livewire-Precompiler-Bug** —
+  der tritt nur bei **Livewire-Komponenten-Root** + `@php` als **direktes Kind eines `@if`** auf. Ein
+  `@php`-Block außerhalb eines `@if` (z. B. in einer normalen Controller-View wie
+  `athletes/show.blade.php`) ist zur Laufzeit unauffällig, selbst wenn PhpStorm ihn anmeckert. Ein
+  Umbau auf einzeilige `@php(...)`-Direktiven ist hier **kein sicherer Fix, sondern kann neue,
+  echte Bugs einführen**: mit einer Ternary (`? :`) im Ausdruck kam es zu genau demselben
+  `"unexpected token 'endif'"`-Compile-Fehler wie beim Livewire-Fall (obwohl kein `@if` beteiligt
+  war), und mit einem Komma im Ausdruck (`old('feld', '')`) wurde die zweite Zeile beim Rendern
+  komplett verschluckt (`Undefined variable`) — beides per Testsuite verifiziert, nicht nur
+  vermutet. Bei so einer Inspection ohne zugehörigen `@if`-Kontext: **nicht umbauen**, sondern als
+  PhpStorm-Fehlalarm stehen lassen (ggf. mit `// @noinspection` direkt in PhpStorm, nicht im Code).
 
 ## Weitere Hinweise
 

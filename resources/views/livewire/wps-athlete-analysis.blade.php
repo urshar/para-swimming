@@ -8,7 +8,10 @@
 
     {{-- x-model + $watch statt x-on:change direkt am flux:select: Custom Element <ui-select>
          feuert sein internes "change"-Event mit bubbles:false, kommt darüber nicht zuverlässig
-         an (siehe resources/js/wps-livewire-filters.js). --}}
+         an (siehe resources/js/wps-livewire-filters.js). Buttons in dieser Zeile bewusst ohne
+         size="sm": die flux:select-Felder daneben haben selbst kein size-Attribut und rendern
+         in "default"-Höhe - ein size="sm"-Button wäre dann niedriger (dasselbe Höhen-Muster wie
+         in der Cup-Vereinswertung, Phase 12). --}}
     {{-- ── Zeitraum und Bahnlänge ──────────────────────────────────────────── --}}
     <div class="mb-4 flex flex-wrap items-end gap-3"
          x-data="wpsLivewireFilters(@js(['fromYear' => $fromYear, 'toYear' => $toYear, 'course' => $course, 'chartMetric' => $chartMetric]), 'setInput')">
@@ -40,16 +43,16 @@
         </flux:field>
 
         @php($starttext = $allStarts ? 'Nur Saisonbestleistung' : 'Alle Starts zeigen')
-        @php($startvariante = $allStarts ? 'filled' : 'ghost')
+        @php($startvariante = $allStarts ? 'primary' : 'filled')
 
-        <flux:button wire:click="toggleAllStarts" variant="{{ $startvariante }}" size="sm">
+        <flux:button wire:click="toggleAllStarts" variant="{{ $startvariante }}">
             {{ $starttext }}
         </flux:button>
 
         @php($grafiktext = $showCharts ? 'Grafik ausblenden' : 'Grafik einblenden')
-        @php($grafikvariante = $showCharts ? 'filled' : 'ghost')
+        @php($grafikvariante = $showCharts ? 'primary' : 'filled')
 
-        <flux:button wire:click="toggleCharts" variant="{{ $grafikvariante }}" size="sm">
+        <flux:button wire:click="toggleCharts" variant="{{ $grafikvariante }}">
             {{ $grafiktext }}
         </flux:button>
 
@@ -63,18 +66,18 @@
             </flux:field>
         @endif
 
-        <flux:button wire:click="resetPeriod" variant="ghost" size="sm">Gesamte Historie</flux:button>
+        <flux:button wire:click="resetPeriod" variant="filled">Gesamte Historie</flux:button>
 
-        <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
-                     icon="document-arrow-down">PDF
+        <flux:button href="{{ $this->pdfUrl() }}" variant="filled"
+                     icon="document-arrow-down" class="text-purple-500!">PDF
         </flux:button>
 
         @if($this->canViewNotes())
             {{-- Notizen nur auf ausdrücklichen Wunsch ins PDF: Ein PDF wird weitergegeben,
                  und eine Krankheitsnotiz landete sonst womöglich außerhalb des vorgesehenen
                  Kreises (§7.5). --}}
-            <flux:button href="{{ $this->pdfUrl(true) }}" variant="ghost" size="sm"
-                         icon="document-arrow-down">PDF mit Notizen
+            <flux:button href="{{ $this->pdfUrl(true) }}" variant="filled"
+                         icon="document-arrow-down" class="text-purple-500!">PDF mit Notizen
             </flux:button>
         @endif
     </div>
@@ -177,15 +180,41 @@
             </span>
         </h2>
 
+        @php($chartMetricLabel = $chartMetric === 'points' ? 'Punkte' : 'Zeit')
+        @php($chartCaption = $chartMetric === 'points'
+            ? 'Klassenwechsel und Notizen sind hier nicht markiert — die ausführliche Grafik mit diesen Markierungen steht weiterhin im PDF-Export zur Verfügung.'
+            : 'Niedriger ist schneller. Klassenwechsel und Notizen sind hier nicht markiert — die ausführliche Grafik mit diesen Markierungen steht weiterhin im PDF-Export zur Verfügung.')
+        {{-- "value" bleibt numerisch (Sekunden bzw. Punkte) - Achsen/Linie/Punkte brauchen echte
+             Zahlen für ihre Positionsberechnung. "valueLabel" ist nur für den Tooltip: bei der
+             Zeit-Metrik die übliche mm:ss,cc-Schreibweise (TimeParser::display(), dieselbe wie in
+             der Tabelle darunter) statt roher Sekunden (Erik, 15.09.2026: "Es soll die Zeit so
+             angezeigt werden"). --}}
+        @php($chartData = isset($grafiken[$bewerb]) ? $grafiken[$bewerb]->points
+            ->map(fn ($p) => [
+                'label' => Carbon::parse($p->date)->format('Y-m-d'),
+                'value' => $chartMetric === 'points' ? $p->points : round($p->swimTime / 100, 2),
+                'valueLabel' => $chartMetric === 'points' ? (string) $p->points : TimeParser::display($p->swimTime),
+            ])
+            ->values()
+            ->all() : [])
+
         @if(isset($grafiken[$bewerb]) && $grafiken[$bewerb]->isDrawable())
             <div
                 class="mb-3 p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
-                <x-wps-chart :series="$grafiken[$bewerb]"/>
-                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    Senkrechte Linien kennzeichnen Klassenwechsel und Notizen. Ein hervorgehobener
-                    Punkt steht für einen Klassenwechsel — die Kurve macht dort einen Sprung, der
-                    keine Leistungsentwicklung ist.
-                </p>
+                @include('partials.wps-athlete-chart', [
+                    'chartData' => $chartData,
+                    'chartMetricLabel' => $chartMetricLabel,
+                    'chartCaption' => $chartCaption,
+                ])
+            </div>
+        @elseif($showCharts)
+            {{-- Ohne diesen Hinweis sah ein Bewerb mit zu wenigen Werten für die gewählte
+                 Metrik aus, als wäre "Grafik zeigt" wirkungslos (Erik, 15.09.2026: "Grafik
+                 zeigt funktioniert nicht ... ich sehe hier nur eine Liste") - dabei fehlen für
+                 diesen Bewerb schlicht mindestens zwei Ergebnisse mit {{ $chartMetricLabel }}. --}}
+            <div
+                class="mb-3 p-3 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-500 dark:text-zinc-400">
+                Zu wenige Ergebnisse mit {{ $chartMetricLabel }} für eine Grafik (mindestens zwei nötig).
             </div>
         @endif
 
@@ -265,7 +294,7 @@
                             @if($this->canViewNotes() && $zeile->resultId !== null)
                                 <flux:button wire:click="startNote({{ $zeile->resultId }})"
                                              variant="ghost" size="sm" icon="pencil-square"
-                                             title="Notiz zu diesem Start"/>
+                                             class="text-amber-500!" tooltip="Notiz zu diesem Start"/>
                             @endif
                         </td>
                     </tr>
@@ -286,7 +315,8 @@
                                 @if($this->canDeleteNote($notiz))
                                     <flux:button wire:click="deleteNote({{ $notiz->id }})"
                                                  wire:confirm="Diese Notiz wirklich löschen?"
-                                                 variant="ghost" size="sm" icon="trash"/>
+                                                 variant="ghost" size="sm" icon="trash"
+                                                 class="text-red-500!" tooltip="Notiz löschen"/>
                                 @endif
                             </td>
                         </tr>
@@ -309,7 +339,7 @@
                 <h2 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                     Notizen ohne Startbezug
                 </h2>
-                <flux:button wire:click="startNote(null)" variant="filled" size="sm" icon="plus">
+                <flux:button wire:click="startNote(null)" variant="primary" size="sm" icon="plus">
                     Notiz hinzufügen
                 </flux:button>
             </div>

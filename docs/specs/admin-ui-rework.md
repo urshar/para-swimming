@@ -1139,7 +1139,7 @@ Zeilenende — wieder das aus `club-entries/index.blade.php` bekannte Muster.
 - **Sportklassen-Dropdown datengetrieben statt Freitext.** Die Anzahl und die Nummern der Optionen kommen aus
   `BaseTimeSportClass` (Tabelle der in den Basiswerten gepflegten Klassencodes, aktuell S1–S19 sowie S21 — 20 Einträge).
   Da ein `SwimRecord.sport_class` immer genau eine von S/SB/SM ist, fasst je eine Dropdown-Option alle drei zu einer
-  Klassennummer zusammen zusammen: Label zweistellig gepolstert ("S01,SB01,SM01" … "S21,SB21,SM21"), Wert ungepolstert
+  Klassennummer zusammen: Label zweistellig gepolstert ("S01,SB01,SM01" … "S21,SB21,SM21"), Wert ungepolstert
   und kommagetrennt ("S1,SB1,SM1"), damit er direkt den echten `sport_class`-Werten entspricht.
   `RecordController::buildSportClassOptions()` liefert Optionen + Default abhängig vom Einzel/Staffel-Filter; gefiltert
   wird über `whereIn('sport_class', explode(',', $sportClass))` — ein Wert reicht dabei genauso wie drei.
@@ -1721,7 +1721,7 @@ korrekten `href`s, alle Sprungziel-IDs im DOM vorhanden.
   `<ui-disclosure>`, `.value` muss dort gesetzt werden), `scroll-mt-4` mitgewandert.
 - **"Alle aufklappen"**: eigener `flux:menu.item` (mit `flux:menu.separator` davor) im selben Dropdown, ruft
   `openAll()` (setzt `.value = true` auf allen Accordion-Items).
-- **`qualifications.blade.php` identisch angeglichen** (Erik: "mit den selben Regeln wie bei show"): Header auf
+- **`qualifications.blade.php` identisch angeglichen** (Erik: "mit denselben Regeln wie bei show"): Header auf
   P9-Muster (Titel+Badge-Zeile, dann Zurück links/PDF rechts), Inhaltsverzeichnis-Card durch dasselbe Dropdown-Muster
   ersetzt (Farbe, `openOnly`/`openAll`, `id` auf `flux:accordion.item`) — 1:1 dieselbe Umsetzung wie in
   `show.blade.php`, nur ohne die Aktiv/Aktuell-Badges (die gibt es auf dieser Seite nicht) und mit einem einzelnen
@@ -2357,6 +2357,7 @@ WPS-Feature-Tests grün (insbesondere `WpsRankingsPhase1Test` mit `sportClass: '
 grün.
 
 ### Zweiter Design-Feedback-Nachtrag zu Phase 11 — Sportklassen-Sortierung, WPS-Import (Cards, Breite, Sterne,
+
 Selectable-Header), Vorschau-Tabelle, Phase 14 geplant
 
 Eriks nächste Rückmeldung, dieses Mal primär zu `wps/versions` und `wps/import`:
@@ -2368,30 +2369,31 @@ Eriks nächste Rückmeldung, dieses Mal primär zu `wps/versions` und `wps/impor
   in derselben Methode) hat denselben Makel, war aber nicht Teil der Meldung — bewusst unangetastet gelassen, um den
   Fix auf das gemeldete Dropdown zu beschränken.
 - **`wps/import/form.blade.php` überarbeitet:**
-  - Die beiden Cards "Datei" und "Version" stehen jetzt nebeneinander (`grid grid-cols-1 lg:grid-cols-2 gap-4
-    items-start`) statt untereinander; Container-Breite `max-w-xl` → `max-w-3xl` (Größenordnung wie `meets/form.blade.php`/
-    `athletes/form.blade.php`).
-  - Pflichtfeld-Sterne eingefärbt (`text-red-500 dark:text-red-400`) für die vier `*`-Labels.
-  - **Dabei ein bisher unbemerkter Bug gefunden:** Das für diesen Zweck kopierte Muster
-    `Feld <span class="text-red-500...">*</span>` (Leerzeichen vor dem Span) hat denselben
-    Flexbox-Whitespace-Kollaps wie das in CLAUDE.md dokumentierte `(optional)`-Problem — `getBoundingClientRect()`
-    zeigte `0px` Abstand zwischen Label-Text und Stern. Betraf auch die beiden bereits in Phase 10 "fertigen"
-    Basiswerte-Formulare. Gefixt in dieser Datei mit `ms-1` auf dem Span (kein Leerzeichen mehr im Label-Text), live
-    nachgemessen (`4px`). Die übrigen 13 betroffenen Dateien als eigenen Punkt in `docs/open-points.md` festgehalten
-    (nicht in dieser Session mit erledigt — Fund lag außerhalb der eigentlichen WPS-Anfrage).
-  - Beide `flux:date-picker` bekamen `selectable-header` (Flux-Pro-Prop, bereits in der vendorten Version
-    verfügbar) — Kalender-Popover zeigt jetzt Monat/Jahr als `<select>` statt reinem Text, live verifiziert
-    (`<header>` enthält jetzt ein `<select>` mit den Monaten).
-  - **"Schwarzer Rahmen beim manuellen Datum-Eintippen"** untersucht, aber nicht verändert: Die vier
-    Ziffern-Segment-`<input>`s des Datepickers tragen absichtlich `focus:outline-[revert]` — laut
-    `vendor/livewire/flux-pro/CLAUDE.md` ("Focus rings: prefer native browser outlines... Never use
-    `focus:outline-none focus:ring-2...`") bewusstes Design, kein eigener Stil. In diesem Test-Environment als
-    `1px auto`-Outline in Amber/Orange gemessen (`rgb(229, 151, 0)`), nicht Schwarz — Farbe ist
-    browser-/OS-abhängig. Nichts geändert, um nicht gegen die eigene Konvention des Pakets zu verstoßen; Details
-    und Rückfrage an Erik in `docs/open-points.md` festgehalten.
-  - Die englische Fehlermeldung im mitgeschickten Screenshot ("The valid from field is required") kommt nicht von
-    Flux, sondern von Laravels Validierung — lokale `.env` dieser Entwicklungsumgebung setzt `APP_LOCALE=en`,
-    obwohl `lang/de/` existiert. Kein Code-Fix (`.env` ist lokal/maschinenspezifisch), Hinweis an Erik weitergegeben.
+    - Die beiden Cards "Datei" und "Version" stehen jetzt nebeneinander (`grid grid-cols-1 lg:grid-cols-2 gap-4
+    items-start`) statt untereinander; Container-Breite `max-w-xl` → `max-w-3xl` (Größenordnung wie
+      `meets/form.blade.php`/
+      `athletes/form.blade.php`).
+    - Pflichtfeld-Sterne eingefärbt (`text-red-500 dark:text-red-400`) für die vier `*`-Labels.
+    - **Dabei ein bisher unbemerkter Bug gefunden:** Das für diesen Zweck kopierte Muster
+      `Feld <span class="text-red-500...">*</span>` (Leerzeichen vor dem Span) hat denselben
+      Flexbox-Whitespace-Kollaps wie das in CLAUDE.md dokumentierte `(optional)`-Problem — `getBoundingClientRect()`
+      zeigte `0px` Abstand zwischen Label-Text und Stern. Betraf auch die beiden bereits in Phase 10 "fertigen"
+      Basiswerte-Formulare. Gefixt in dieser Datei mit `ms-1` auf dem Span (kein Leerzeichen mehr im Label-Text), live
+      nachgemessen (`4px`). Die übrigen 13 betroffenen Dateien als eigenen Punkt in `docs/open-points.md` festgehalten
+      (nicht in dieser Session mit erledigt — Fund lag außerhalb der eigentlichen WPS-Anfrage).
+    - Beide `flux:date-picker` bekamen `selectable-header` (Flux-Pro-Prop, bereits in der vendorten Version
+      verfügbar) — Kalender-Popover zeigt jetzt Monat/Jahr als `<select>` statt reinem Text, live verifiziert
+      (`<header>` enthält jetzt ein `<select>` mit den Monaten).
+    - **"Schwarzer Rahmen beim manuellen Datum-Eintippen"** untersucht, aber nicht verändert: Die vier
+      Ziffern-Segment-`<input>`s des Datepickers tragen absichtlich `focus:outline-[revert]` — laut
+      `vendor/livewire/flux-pro/CLAUDE.md` ("Focus rings: prefer native browser outlines... Never use
+      `focus:outline-none focus:ring-2...`") bewusstes Design, kein eigener Stil. In diesem Test-Environment als
+      `1px auto`-Outline in Amber/Orange gemessen (`rgb(229, 151, 0)`), nicht Schwarz — Farbe ist
+      browser-/OS-abhängig. Nichts geändert, um nicht gegen die eigene Konvention des Pakets zu verstoßen; Details
+      und Rückfrage an Erik in `docs/open-points.md` festgehalten.
+    - Die englische Fehlermeldung im mitgeschickten Screenshot ("The valid from field is required") kommt nicht von
+      Flux, sondern von Laravels Validierung — lokale `.env` dieser Entwicklungsumgebung setzt `APP_LOCALE=en`,
+      obwohl `lang/de/` existiert. Kein Code-Fix (`.env` ist lokal/maschinenspezifisch), Hinweis an Erik weitergegeben.
 - **`wps/import/preview.blade.php`: Breite `max-w-4xl` → `max-w-5xl`** für mehr Platz für die sechs
   Vorschau-Spalten (Geschlecht/Strecke/Klasse/a/b/c) — konnte mangels echter `.xlsx`-Testdatei in diesem Environment
   nicht end-to-end nachgestellt werden, daher eine vorsichtige, sicher rückgängig zu machende Breitenanpassung statt
@@ -2409,7 +2411,8 @@ Eriks nächste Rückmeldung, dieses Mal primär zu `wps/versions` und `wps/impor
 **Tests**: `view:clear`/`view:cache` grün, `vendor/bin/pint --test` grün, volle Suite (`composer test`) weiterhin
 1396 Tests grün. Zusätzlich live im Browser verifiziert (frischer Tab, `npm run build` + temporär deaktiviertes
 `public/hot`, danach wiederhergestellt, keine `package.json`-Nebenwirkung diesmal): Sportklassen-Sortierung,
-Cards nebeneinander, Sternchen-Abstand (`getBoundingClientRect`), `selectable-header`-Kalenderkopf, Datepicker-Fokus-Outline-Farbe.
+Cards nebeneinander, Sternchen-Abstand (`getBoundingClientRect`), `selectable-header`-Kalenderkopf,
+Datepicker-Fokus-Outline-Farbe.
 
 ### Dritter Design-Feedback-Nachtrag zu Phase 11 — Import-Formular-Breite, echte Testdatei, Flux-Pro-Bump geprüft
 
@@ -2417,8 +2420,8 @@ Eriks Rückmeldung brachte eine echte WPS-Punkte-Datei zum Testen mit und meldet
 durchgeführten `composer.json`-Bump für `livewire/flux`/`livewire/flux-pro`.
 
 - **`wps/import/form.blade.php`: Container-Breite `max-w-3xl` → `max-w-4xl`**, damit die beiden nebeneinander
-  stehenden Cards ("Datei"/"Version") dieselbe Größenordnung wie die breiteren P10-Formulare
-  (`records/form.blade.php`, `results/form.blade.php`, `swim-events/form.blade.php`, alle `max-w-4xl`) bekommen,
+  stehenden Cards ("Datei"/"Version") dieselbe Größenordnung wie die breiteren P10-Formulare (`records/form.blade.php`,
+  `results/form.blade.php`, `swim-events/form.blade.php`, alle `max-w-4xl`) bekommen,
   statt sich an den schmaleren Einzelspalten-Formularen (`meets/form.blade.php`, `athletes/form.blade.php`,
   jeweils `max-w-3xl`) zu orientieren — bei zwei Cards nebeneinander war `max-w-3xl` beengt.
 - **`composer.json`-Bump geprüft**: Erik hat die Versions-Constraints angehoben (`livewire/flux` `^2.17.0` →
@@ -2436,8 +2439,8 @@ durchgeführten `composer.json`-Bump für `livewire/flux`/`livewire/flux-pro`.
   echten Datei ausgeführt und das Ergebnis als statisches HTML gerendert, um denselben Blade-Output wie im echten
   Request zu prüfen. Ergebnis: 384 Parametersätze, 0 Fehler, `counts` (2 Geschlechter, 18 Bewerbe,
   41 Sportklassen) und `metadata` (`version: 1`, `date: 09.02.2023`) korrekt gelesen. Tabellenbreite per
-  `getBoundingClientRect()` gemessen: `943px` Inhalt in einem `945px`-Container bei `1280px` Fensterbreite —
-  **kein horizontales Scrollen, keine abgeschnittene Spalte**, letzte Zelle (Spalte "c") endet bei `1232px`,
+  `getBoundingClientRect()` gemessen: `943px` Inhalt in einem `945px`-Container bei `1280px` Fensterbreite — **kein
+  horizontales Scrollen, keine abgeschnittene Spalte**, letzte Zelle (Spalte "c") endet bei `1232px`,
   deutlich innerhalb des Viewports. Die zuvor vorgenommene Breitenanpassung (`max-w-4xl` → `max-w-5xl`, voriger
   Nachtrag) reicht damit nachweislich aus.
 
@@ -2447,6 +2450,7 @@ wie gehabt über `npm run build` + temporär deaktiviertes `public/hot` (danach 
 gelöscht.
 
 ### Vierter Design-Feedback-Nachtrag zu Phase 11 — `bleed`-Recherche geklärt, "50m"-Schreibweise, Sternchen-Punkt in
+
 Phase 14 verschoben
 
 Erik fragte nach, warum Flux/Flux Pro die Full-Bleed-Tabelle nicht hätten, obwohl fluxui.dev sie dokumentiert —
@@ -2460,27 +2464,27 @@ und bat danach um drei weitere kleine Änderungen.
   keine Fehleinschätzung unsererseits — reines Timing. Es existiert aktuell nur als `dev-main`
   (Composer-Repo listet `dev-main` unter den verfügbaren Referenzen), kein neuer Tag. Erik entschied: auf den
   nächsten echten Tag warten statt auf `dev-main` zu pinnen — Phase 14 bleibt wie zuvor beschrieben zurückgestellt.
-- **Sternchen-Punkt in Phase 14 verschoben:** Auf Eriks Wunsch wandern die beiden offenen Sternchen-Punkte
-  (fehlende Farbe in neun Dateien; kollabierter Abstand in 13 Dateien) als neuer "Teil C" in
+- **Sternchen-Punkt in Phase 14 verschoben:** Auf Eriks Wunsch wandern die beiden offenen Sternchen-Punkte (fehlende
+  Farbe in neun Dateien; kollabierter Abstand in 13 Dateien) als neuer "Teil C" in
   `docs/open-points.md` unter Phase 14 — aber **ohne** eigenen Sweep. Statt eines eigenen Termins: nur
   mitnehmen, wenn eine der betroffenen Dateien ohnehin aus anderem Anlass geändert wird.
 - **"50m" statt "50 m" — Distanz ohne Leerzeichen vor der Einheit:**
-  - `wps/factors/report.blade.php` (Faktorenbericht), Spalte "Bewerb": zeigte bisher LENEX-Kürzel
-    (`50 m FREE`). Da `WpsScmFactorCalibrationService::report()` bereits `stroke_type_id` je Zeile führt, dort
-    eine `StrokeType::pluck('name_de', 'id')`-Lookup ergänzt (`stroke_name_de` im Row-Array) statt in der View
-    nachzuschlagen (keine N+1-Query pro Zeile). Anzeige jetzt `50m Freistil`. Live mit echten Daten verifiziert.
-  - `wps/versions/show.blade.php` (Point-Score-Parameterliste einer Version): nutzte bereits
-    `$parameter->strokeType?->name_de` — nur das Leerzeichen vor `m` entfernt.
-  - **WPS-Rangliste und Förderauswertung teilen sich denselben Aufbau-Ort:** `eventLabel` für beide entsteht in
-    `WpsResultSelectionService::toEntry()` (`sprintf('%d m %s', ...)` → `sprintf('%dm %s', ...)`); die
-    Förderauswertung übernimmt `$eintrag->eventLabel` unverändert von dort (`WpsTalentReportService.php:237`),
-    ein Fix an einer Stelle deckte also beide gemeldeten Seiten ab. Der breiter geteilte `eventLabel()`-Baustein
-    in `WpsAthleteAnalysisService`/`QualificationRow` (Meisterschaften, Qualifikationen, Athletenanalyse, diverse
-    PDFs) blieb bewusst unangetastet — nicht Teil dieser Meldung. Live mit echten Bestandsdaten verifiziert
-    (Faktorenbericht, WPS-Ranglisten Jahr 2025); PDF-Exporte (`pdf/wps-ranking.blade.php`,
-    `pdf/wps-talent-report.blade.php`) übernehmen denselben `eventLabel` und damit automatisch mit.
-  - `wps/factors/index.blade.php` (Kurzbahn-Umrechnung, die Liste — nicht der Bericht) hat dasselbe
-    `distance.' m'`-Muster, war aber nicht Teil der Meldung und wurde bewusst nicht mitgeändert.
+    - `wps/factors/report.blade.php` (Faktorenbericht), Spalte "Bewerb": zeigte bisher LENEX-Kürzel (`50 m FREE`). Da
+      `WpsScmFactorCalibrationService::report()` bereits `stroke_type_id` je Zeile führt, dort
+      eine `StrokeType::pluck('name_de', 'id')`-Lookup ergänzt (`stroke_name_de` im Row-Array) statt in der View
+      nachzuschlagen (keine N+1-Query pro Zeile). Anzeige jetzt `50m Freistil`. Live mit echten Daten verifiziert.
+    - `wps/versions/show.blade.php` (Point-Score-Parameterliste einer Version): nutzte bereits
+      `$parameter->strokeType?->name_de` — nur das Leerzeichen vor `m` entfernt.
+    - **WPS-Rangliste und Förderauswertung teilen sich denselben Aufbau-Ort:** `eventLabel` für beide entsteht in
+      `WpsResultSelectionService::toEntry()` (`sprintf('%d m %s', ...)` → `sprintf('%dm %s', ...)`); die
+      Förderauswertung übernimmt `$eintrag->eventLabel` unverändert von dort (`WpsTalentReportService.php:237`),
+      ein Fix an einer Stelle deckte also beide gemeldeten Seiten ab. Der breiter geteilte `eventLabel()`-Baustein
+      in `WpsAthleteAnalysisService`/`QualificationRow` (Meisterschaften, Qualifikationen, Athletenanalyse, diverse
+      PDFs) blieb bewusst unangetastet — nicht Teil dieser Meldung. Live mit echten Bestandsdaten verifiziert
+      (Faktorenbericht, WPS-Ranglisten Jahr 2025); PDF-Exporte (`pdf/wps-ranking.blade.php`,
+      `pdf/wps-talent-report.blade.php`) übernehmen denselben `eventLabel` und damit automatisch mit.
+    - `wps/factors/index.blade.php` (Kurzbahn-Umrechnung, die Liste — nicht der Bericht) hat dasselbe
+      `distance.' m'`-Muster, war aber nicht Teil der Meldung und wurde bewusst nicht mitgeändert.
 
 **Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live-Verifikation
 im Browser (frischer Tab, `npm run build` + temporär deaktiviertes `public/hot`, danach wiederhergestellt): "50m
@@ -2528,8 +2532,8 @@ beginnen).
 `cups/overall-ranking.blade.php` markierte gezählte Runden bisher über `style="color: #047857..."` /
 `style="color: #a1a1aa"` direkt im Markup — funktionslos im Dunkelmodus, weil ein Inline-Style nie auf
 `prefers-color-scheme`/die `.dark`-Klasse reagiert. Ersetzt durch `@class([...])` mit
-`text-emerald-700 dark:text-emerald-400` bzw. `text-zinc-400`. Ein Test
-(`CupOverallRankingControllerTest.php`) prüfte bisher `assertSee('#047857', ...)` als Proxy für "als gezählt
+`text-emerald-700 dark:text-emerald-400` bzw. `text-zinc-400`. Ein Test (`CupOverallRankingControllerTest.php`) prüfte
+bisher `assertSee('#047857', ...)` als Proxy für "als gezählt
 markiert" — auf die neue Klasse (`assertSee('text-emerald-700', ...)`) umgestellt, dieselbe Prüfabsicht.
 
 ### Vereinswertung → Livewire (Erik: "würde ich \[Option 2\] bevorzugen")
@@ -2600,15 +2604,15 @@ Textbuttons in den Übersichtstabellen, Vereinswertungs-Filter korrigiert
   mitgezogen — nicht Teil der Meldung, gleiche Fleißarbeit bei Bedarf separat nachziehbar.
 - **Row-Action-Buttons in den drei Übersichtstabellen auf Icon-only + Tooltip + Farbe umgestellt**, jeweils
   `flex justify-end`-Wrapper ergänzt/beibehalten:
-  - `cups/index.blade.php` (Cup-Konfiguration): "Gesamtwertung" (Trophy, `text-blue-500!`) und "Top-Gruppe
-    klassifizieren" (arrow-trending-up, `text-orange-500!`) — neu zur Icon-Farbkonvention hinzugekommen:
-    **blau = zu einer verknüpften Auswertung/Rangliste navigieren**, **orange = Berechnung/Klassifizierung
-    anstoßen**. Bearbeiten/Löschen bekamen zusätzlich Tooltips (`title="Bearbeiten"`/`"Löschen"`), Farben waren
-    aus dem regulären Phase-12-Durchgang schon vorhanden.
-  - `cups/overall-ranking-index.blade.php` ("ÖBSV Cup Wertung", die Gesamtwertungs-Übersicht): "Gesamtwertung"
-    auf dasselbe Icon-only-Blau umgestellt.
-  - `cups/club-ranking-index.blade.php` ("ÖBSV Cup — Vereinswertung"): "Vereinswertung" (user-group) ebenfalls
-    auf Icon-only-Blau.
+    - `cups/index.blade.php` (Cup-Konfiguration): "Gesamtwertung" (Trophy, `text-blue-500!`) und "Top-Gruppe
+      klassifizieren" (arrow-trending-up, `text-orange-500!`) — neu zur Icon-Farbkonvention hinzugekommen:
+      **blau = zu einer verknüpften Auswertung/Rangliste navigieren**, **orange = Berechnung/Klassifizierung
+      anstoßen**. Bearbeiten/Löschen bekamen zusätzlich Tooltips (`title="Bearbeiten"`/`"Löschen"`), Farben waren
+      aus dem regulären Phase-12-Durchgang schon vorhanden.
+    - `cups/overall-ranking-index.blade.php` ("ÖBSV Cup Wertung", die Gesamtwertungs-Übersicht): "Gesamtwertung"
+      auf dasselbe Icon-only-Blau umgestellt.
+    - `cups/club-ranking-index.blade.php` ("ÖBSV Cup — Vereinswertung"): "Vereinswertung" (user-group) ebenfalls
+      auf Icon-only-Blau.
 - **Vereinswertungs-Filter — "alles als Button" missverstanden, korrigiert**: Zunächst Cup/Jahr und
   Kaderathleten-je-Verein (bisher `flux:select` + `wpsLivewireFilters`-Alpine-Umweg) ebenfalls auf Button-Reihen
   umgestellt. Erik stellte richtig: "CupJahr und Kaderathleten je verein bleiben dropdown[,] die Buttons dazwischen
@@ -2647,7 +2651,7 @@ Vereinswertung (Wertungssystem-/Ausland-Buttons sahen wie reiner Text aus).
   Code/Bezeichnung/Art/Sportklassen/Status + zwei Action-Icons mehr Spalten als `kader-types`/`age-groups` — bei
   `max-w-2xl` waren die Icons nur über die horizontale Scrollleiste der Card erreichbar.
 - **`sport-class-groups/form.blade.php`: zweispaltiges Layout beim Bearbeiten** ("kann man die Sportklassen
-  recht[s] hinzufügen, so dass es übersichtlich bleibt?"): Formular-Card und "Zugeordnete Sportklassen"-Card stehen
+  recht[s] hinzufügen, sodass es übersichtlich bleibt?"): Formular-Card und "Zugeordnete Sportklassen"-Card stehen
   jetzt nebeneinander (`grid grid-cols-1 lg:grid-cols-2 gap-4`, Muster wie die "Datei"/"Version"-Cards in
   `wps/import/form.blade.php`) — nur wenn die zweite Card tatsächlich existiert (`$group` gesetzt und nicht
   `is_virtual`), sonst bleibt es einspaltig (kein leerer zweiter Grid-Slot beim Anlegen oder bei virtuellen
@@ -2670,12 +2674,12 @@ Wertungssystem-/Ausland-Buttons jetzt mit sichtbarem Rahmen im inaktiven Zustand
 ### Dritter Design-Feedback-Nachtrag zu Phase 12 — Gesamtwertung: Filter statt Tabs, Button-/Dropdown-Höhen
 
 - **Gesamtwertung: Filter statt Tabs** ("auf Tabs aufteilen, damit die Liste nicht zu lang wird, oder einen
-  Filter ... was am besten geeignet ist"): Bei bis zu einigen Dutzend Kategorien
-  (Geschlecht × Sportklassengruppe × Altersgruppe, `OverallRankingService::brackets()` — im Testdatenbestand allein
+  Filter ... was am besten geeignet ist"): Bei bis zu einigen Dutzend Kategorien (Geschlecht × Sportklassengruppe ×
+  Altersgruppe, `OverallRankingService::brackets()` — im Testdatenbestand allein
   6 Sportklassengruppen) wären Tabs unhandlich und skalieren nicht mit wachsender Anzahl an
   Sportklassengruppen/Altersgruppen; ein Filter passt außerdem zum Rest der App (WPS-Ranglisten, Vereinswertung)
-  statt eines hier sonst nirgends verwendeten Musters. Entscheidung getroffen und umgesetzt: drei Filter
-  (Geschlecht, Sportklassengruppe, Altersgruppe) in `cups/overall-ranking.blade.php`, rein client-seitig mit
+  statt eines hier sonst nirgends verwendeten Musters. Entscheidung getroffen und umgesetzt: drei Filter (Geschlecht,
+  Sportklassengruppe, Altersgruppe) in `cups/overall-ranking.blade.php`, rein client-seitig mit
   Alpine — alle Kategorien sind ohnehin bereits serverseitig gerendert, der Filter blendet nur per `x-show`
   ein/aus, kein Reload, keine zusätzliche Server-Anfrage, kein Livewire nötig. Optionen werden aus den
   tatsächlich vorhandenen Brackets abgeleitet (nicht aus der vollen Konfiguration), das Altersgruppen-Feld
@@ -2696,6 +2700,137 @@ Wertungssystem-/Ausland-Buttons jetzt mit sichtbarem Rahmen im inaktiven Zustand
 **Tests**: volle Suite weiterhin 1396 Tests grün (inkl. aller 7 `CupOverallRankingControllerTest`-Fälle,
 unverändert bestanden), `vendor/bin/pint --test` grün.
 
-**Nachtrag:** Sportklassengruppe-Filter der Gesamtwertung `w-56` → `w-72` — die längste Option
-("Körperliche Behinderung (PI)") brach sonst innerhalb der Dropdown-Liste um. Live verifiziert: alle Optionen
+**Nachtrag:** Sportklassengruppe-Filter der Gesamtwertung `w-56` → `w-72` — die längste Option ("Körperliche Behinderung
+(PI)") brach sonst innerhalb der Dropdown-Liste um. Live verifiziert: alle Optionen
 jetzt einzeilig.
+
+**Nachtrag:** PhpStorm-Fehler in `cups/overall-ranking.blade.php` behoben ("Expression expected"/"'with'
+statement" bei `x-show="matches(brackets[{{ $bracketIndex }}])"`) — ein Blade-Echo mitten in einer
+JS-Array-Index-Klammer bringt PhpStorms JS-Parser durcheinander. Umgebaut auf `x-show="matches(@js($bracketPayload))"`
+mit den Filterwerten direkt als Objekt statt Index-Lookup, `$bracketPayload` vorab per `@php` berechnet (Komma-Falle
+aus CLAUDE.md beachtet: kein Array-Literal mit eigenen Kommas direkt im `@js()`-Aufruf). Kein `$bracketIndex`/
+`brackets[N]`-Lookup
+mehr nötig, damit erledigt sich auch die vorherige Variablen-Shadowing-Anmerkung von selbst. Live erneut verifiziert:
+Filtern funktioniert weiterhin unverändert.
+
+## Phase 13 — Statistik — **abgeschlossen**
+
+Modul Statistik: Dashboard-Layout, ein neuer offener Punkt, und die WPS-Analyse auch von der Statistik aus
+erreichbar gemacht (Design-Feedback Erik, 15.09.2026).
+
+### A) Veranstaltungen-Liste: Spalten statt Zeilenumbruch-Chaos
+
+`livewire/statistics-dashboard.blade.php`: Die Checkbox-Liste der Veranstaltungen eines Jahres war `flex
+flex-wrap` — bei vielen, unterschiedlich langen Veranstaltungsnamen ("unübersichtlich", Erik) entstand eine
+ungleichmäßig umbrechende Wand. Umgestellt auf CSS-Mehrspaltenlayout (`columns-1 sm:columns-2 xl:columns-3`)
+mit `break-inside-avoid` je Checkbox+Label-Paar, damit ein Eintrag nie mitten im Namen über eine Spaltengrenze
+reißt. Live verifiziert (Jahr 2025, ~40 Veranstaltungen): deutlich lesbarer, zweispaltig bei Standardbreite.
+
+### B) 5-Jahres-Vergleichsgrafik → offener Punkt
+
+Erik selbst vorgeschlagen ("eventuell gehört das in die open points"): Starts/Teilnehmer der letzten 5 Jahre,
+getrennt Damen/Herren, Staffeln getrennt Herren/Damen/Mixed. Nicht umgesetzt — `StatisticsService` wertet aktuell
+nur ein einzelnes Jahr aus, ein Mehrjahresvergleich bräuchte eine neue Datenabfrage plus Klärung offener
+Design-Fragen (fester 5-Jahres-Zeitraum oder rückwärts ab gewähltem Jahr? Staffelstarts pro Staffel oder pro
+Athlet? eigener Dashboard-Abschnitt?). Dokumentiert in `docs/open-points.md`.
+
+### C) WPS-Analyse auch von der Statistik aus erreichbar
+
+Bisher nur über einen Button auf der Athleten-Detailseite erreichbar (`athletes/show.blade.php` →
+`wps.athletes.show`), ohne eigene Navigation — bewusst so in einer früheren Phase entschieden
+(`WpsAthleteAnalysisController`-Doc: "Kein eigener Sucheinstieg... Eine zweite Athletenliste daneben wäre
+überflüssig"). Erik revidierte das jetzt ausdrücklich für den Statistik-Bereich.
+
+- **Neuer Einstieg** `GET /statistics/wps-athlete-analysis` (Route `wps.athletes.picker`, admin-only wie der Rest
+  von `/statistics/*`, obwohl `wps.athletes.show`/`.pdf` selbst weiterhin verbandsweit offen bleiben — bewusste
+  Entscheidung, die bestehende, weitere Zugriffsregel nicht aufzuweichen, siehe Kommentar in `routes/web.php`).
+  Kein zweites Athleten-Verzeichnis (das gäbe es mit der Athletenverwaltung schon): nur ein durchsuchbares
+  `flux:select variant="listbox" searchable` (`wps/athletes/picker.blade.php`), das bei Auswahl direkt zur
+  bestehenden Analyse weiterleitet — reines Alpine (`x-init="$watch(...)"`), kein Livewire, kein
+  `wpsLivewireFilters`-Umweg nötig, da keine Livewire-Komponente beteiligt ist.
+- **Sidebar**: neuer Eintrag "WPS-Analyse" in der bestehenden, admin-only "Statistik"-Gruppe (Icon
+  `presentation-chart-line`), Gruppe klappt jetzt auch bei `wps.athletes.*`-Routen auf.
+- **Button-Konventionen aus den vorherigen Phasen nachgezogen** (Erik: "Die Buttons in diese Analyse auch nach
+  den wie in den vorherigen Phasen setzen"), in `livewire/wps-athlete-analysis.blade.php` und der Wrapper-Seite
+  `wps/athletes/show.blade.php`:
+    - Titelleisten-Muster auf der Wrapper-Seite ("Zum Athleten" jetzt als Zurück-Button, zweite Zeile).
+    - PDF-Buttons ohne die lila Farbe (`text-purple-500!`) nachgezogen (2 Stück: "PDF", "PDF mit Notizen").
+    - Filterzeile: Toggle-Buttons hatten `size="sm"`, die `flux:select`-Felder daneben keins — dasselbe
+      Höhen-Mismatch-Muster wie die Cup-Vereinswertung (Phase 12), `size="sm"` entfernt; zusätzlich `ghost` im
+      inaktiven Zustand auf `filled` umgestellt (dasselbe "sieht wie Text aus"-Problem wie dort).
+    - Notiz-Icons (Bearbeiten/Löschen) bekamen Farbe (amber/rot) und `tooltip` statt `title`; "Notiz hinzufügen"
+      von `filled` auf `primary` (Konvention: neuer Eintrag = primary).
+- **Verlaufsgrafik auf `flux:chart` umgestellt — nur am Bildschirm** (Erik: "die Grafik von Flux verwenden"; siehe
+  vorab gestellte und beantwortete Klärungsfrage: Screen auf Flux, PDF bleibt bei der bestehenden reinen
+  SVG-Grafik, da Flux' Chart-Komponente interaktiv/JS-basiert ist und dompdf kein JavaScript ausführt). Baut auf
+  denselben, bereits von `WpsChartService` gelieferten Datenpunkten auf (`WpsChartPoint->date`/`->points`/`->swimTime`),
+  aber mit rohen statt pixel-vorskalierten Werten — Flux berechnet Achsen/Skalierung selbst. Ausgelagert in
+  `partials/wps-athlete-chart.blade.php` (Grund: Livewire-Precompiler-Fallstrick, siehe CLAUDE.md-Nachtrag).
+  Zwei Fallstricke beim Einbau gefunden und behoben (siehe CLAUDE.md "Bewährte Architektur-Muster"):
+    1. `@php`-Mehrzeiler direkt im `@if` brach die Livewire-Komponente komplett (Compile-Fehler) — Werte vorab
+       berechnet, `@include` statt Inline-Verschachtelung.
+    2. `flux:chart.line` ohne eigene Dark-Mode-Klasse war im Dunkelmodus unsichtbar (dunkel auf dunkel) — Klasse
+       selbst ergänzt.
+       Klassenwechsel-/Notizen-Markierungen der ursprünglichen SVG-Grafik fehlen in der neuen Bildschirm-Grafik bewusst
+       (kein deklaratives Gegenstück in Flux' Chart-Bausteinen ohne JS-Zusatzcode) — Hinweistext verweist auf die
+       PDF-Grafik für diesen Fall. Live ausführlich verifiziert: Linie/Punkte/Achsen/Tooltip mit Cursor-Linie
+       funktionieren (Datenwerte, Farben, Hover-Tooltip alle per `getBoundingClientRect()`/direkter Attributprüfung
+       nachgemessen, nicht nur Screenshot); "Punkte"-Metrik zeigt korrekt keine Grafik, wenn zu wenige Werte vorliegen
+       (unverändertes Verhalten der bestehenden `isDrawable()`-Prüfung).
+
+**Betroffene Dateien**: `routes/web.php`, `app/Http/Controllers/WpsAthleteAnalysisController.php`,
+`resources/views/wps/athletes/{picker,show}.blade.php`, `resources/views/layouts/app.blade.php`,
+`resources/views/livewire/{statistics-dashboard,wps-athlete-analysis}.blade.php`,
+`resources/views/partials/wps-athlete-chart.blade.php` (neu).
+
+**Tests**: volle Suite (`composer test`) weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live im
+Browser verifiziert: Veranstaltungen-Spalten, WPS-Analyse-Picker (Suche + Weiterleitung), Button-/Höhen-Konventionen,
+Flux-Chart-Rendering inkl. Tooltip-Interaktion, keine Konsolenfehler.
+
+### Design-Feedback-Nachtrag zu Phase 13 — Tooltip-Zeitformat, Rückweg-Button kontextabhängig, Hinweis bei zu
+
+wenigen Datenpunkten, Jahr-Dropdown im Header
+
+- **Tooltip zeigt Zeit jetzt als mm:ss,cc statt Sekunden** (Erik: "Es soll die Zeit so angezeigt werden"):
+  `$chartData` bekam ein zweites Feld `valueLabel` neben `value` — `value` bleibt numerisch (Sekunden bzw.
+  Punkte), weil Achsen/Linie/Punkte in `flux:chart` eine echte Zahl zur Positionsberechnung brauchen;
+  `valueLabel` ist nur für den Tooltip und nutzt bei der Zeit-Metrik `TimeParser::display()` — dieselbe
+  Formatierung wie in der Tabelle darunter. `flux:chart.tooltip.value` zeigt jetzt `field="valueLabel"` statt
+  `field="value"`.
+- **"Zum Athleten" jetzt in der Titelzeile, rechtsbündig** (Erik: "Den button zum Athleten bitte in die Zeile
+  vom Header, rechtsbündig") statt der zweiten Zeile aus dem vorigen Nachtrag.
+- **Rückweg-Button kontextabhängig** (Erik: "Zum Athleten button sollte zur Athleten auswahl Liste kommen. Nur
+  wenn ich von den Athleten komme soll er zurück zum Athleten details"): `WpsAthleteAnalysisController::show()`
+  liest jetzt `?from=athlete` und reicht `$backUrl`/`$backLabel` an die View durch — Standardziel ist die
+  Athletenauswahl (`wps.athletes.picker`, "Zur Athletenauswahl"), nur mit `?from=athlete` (gesetzt von den
+  Links in `athletes/show.blade.php` und `athletes/index.blade.php`) geht's zurück zum Athleten ("Zum Athleten"). Damit
+  hat der alte Doc-Kommentar am Controller ("Kein eigener Sucheinstieg... Eine zweite
+  Athletenliste daneben wäre überflüssig") sich erledigt — Erik hat das mit dem neuen Picker aus Phase 13
+  bewusst revidiert; Kommentar entsprechend aktualisiert.
+- **Hinweis, wenn eine Metrik zu wenige Datenpunkte hat** (Erik: "Grafik zeigt funktioniert nicht, wenn ich auf
+  WPS Punkte schalte. Ich sehe hier nur eine Liste", Beispiel Ernhofer Andreas): Kein Bug — bei praktisch allen
+  Bewerben dieses Athleten liegt höchstens eine Zeile mit WPS-Punkten vor (`isDrawable()` verlangt mindestens
+  zwei, unverändert dieselbe Regel wie zuvor die SVG-Grafik), die Grafik verschwand bisher aber kommentarlos.
+  Neuer Hinweistext ("Zu wenige Ergebnisse mit … für eine Grafik (mindestens zwei nötig)") füllt die Lücke, statt
+  dass es wie ein kaputter Umschalter aussieht.
+- **Statistik: Jahr-Dropdown als `flux:select variant="listbox"` in den Header, rechtsbündig** (Erik: "den
+  Jahres Dropdown als fluxdropdown bauen und diesen in den Header geben, rechtsbündig. Damit haben wir bei den
+  Veranstaltungen mehr Platz für längere Namen"). Der Titel ("Statistik" + Beschreibung) zog dafür aus der
+  statischen Wrapper-Seite (`statistics/page.blade.php`) in die Livewire-Komponente selbst — nur sie kann
+  reaktiv auf das gewählte Jahr zugreifen, ein rein statischer Header könnte den Dropdown nicht in derselben
+  Zeile reaktiv mitführen. Neue Whitelist-Methode `StatisticsDashboard::setYear()` (x-model + `$watch` über
+  `wpsLivewireFilters`, wie überall sonst bei `flux:select variant="listbox"` — das bisherige direkte
+  `wire:model.live="year"` auf einem nicht-Listbox-Select hatte den bubbles:false-Fallstrick nicht getroffen,
+  eine Umstellung auf die Listbox-Variante riskierte ihn aber). `updatedYear()` (bisheriger Lifecycle-Hook,
+  setzt `meetIds` zurück) feuert bei einer internen Zuweisung nicht automatisch, wird deshalb aus `setYear()`
+  heraus explizit aufgerufen.
+
+**Betroffene Dateien**: `app/Http/Controllers/WpsAthleteAnalysisController.php`,
+`app/Livewire/StatisticsDashboard.php`, `resources/views/athletes/{show,index}.blade.php`,
+`resources/views/wps/athletes/show.blade.php`, `resources/views/livewire/wps-athlete-analysis.blade.php`,
+`resources/views/partials/wps-athlete-chart.blade.php`, `resources/views/livewire/statistics-dashboard.blade.php`,
+`resources/views/statistics/page.blade.php`.
+
+**Tests**: volle Suite weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live verifiziert: Tooltip zeigt
+"00:43,94" statt "43.94", Rückweg-Button beide Zustände (mit/ohne `?from=athlete`), Hinweistext bei der
+WPS-Punkte-Metrik für Ernhofer Andreas, Jahr-Dropdown im Header mit reaktivem Wechsel (2026→2025) ohne Reload.

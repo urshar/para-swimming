@@ -5,6 +5,29 @@ was fehlt, warum es zurückgestellt wurde, was zum Schließen gebraucht wird. Er
 entfernt (Historie steht im jeweiligen Phasen-Abschnitt von `specs/public-frontend-modules.md`), nicht nur abgehakt
 liegen gelassen.
 
+## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
+
+**Seit:** Phase-13-Planung, Design-Feedback Erik (15.09.2026): "Ich würde auch eine Grafik benötigen, um zu sehen,
+wieviele Starts im Vergleich der letzten 5 Jahre waren, Teilnehmer, getrennt nach Damen und Herren, Staffeln
+(Herren, Damen, Mixed) eventuell gehört das in die open points." — von Erik selbst als eigener Punkt vorgeschlagen,
+statt es in den Phase-13-Umfang zu mischen.
+
+**Was fehlt:** Eine Grafik im Statistik-Dashboard, die Starts/Teilnehmer der letzten 5 Jahre nebeneinander zeigt,
+aufgeschlüsselt nach Damen/Herren sowie Staffeln getrennt nach Herren/Damen/Mixed.
+
+**Warum zurückgestellt:** `StatisticsDashboard`/`StatisticsService` werten aktuell immer nur **ein** gewähltes Jahr
+aus (`ReportConfiguration::fromArray(['year' => $this->year, ...])`) — ein Mehrjahresvergleich bräuchte eine neue
+Datenabfrage über mehrere Jahre hinweg, nicht nur eine neue Darstellung der bestehenden Auswertung. Dazu kommen
+offene Design-Fragen: Zeigt die Grafik feste "letzte 5 Kalenderjahre" oder ab dem gewählten Jahr rückwärts? Zählen
+Staffelstarts pro Staffel oder pro Athlet? Wo im Dashboard steht die Grafik (eigener Reiter/Abschnitt)? Das sollte
+vor der Umsetzung geklärt werden, nicht nebenbei in Phase 13 entschieden.
+
+**Wer entscheidet:** Erik — insbesondere die Zeitraum- und Zählweise-Fragen oben.
+
+**Zum Schließen nötig:** Neue Methode in `StatisticsService` (oder ein eigener Service) für eine
+Mehrjahres-Zeitreihe der gewünschten Kennzahlen, dann eine Grafik dafür im Dashboard (voraussichtlich
+`flux:chart`, siehe Phase 13 — dort erstmals im Projekt eingeführt).
+
 ## Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren
 
 **Seit:** Admin-UI-Rework Phase 10, Rückfrage nach dem Vereins-/Athleten-Zuordnungs-Feature (30.08.2026).
