@@ -57,15 +57,95 @@
             </div>
         @endif
 
-        @if($meets->isNotEmpty())
-            <p class="text-xs text-zinc-400 mb-4">
-                <span class="text-emerald-700 dark:text-emerald-400 font-semibold">Grün/fett</span> = zählt zu den
-                besten {{ $cup->best_of_count }} Runden. Format je Runde: Punkte/Sportklasse.
-            </p>
-        @endif
+        {{--
+            Filter statt Tabs (Design-Feedback Erik, 15.09.2026: "auf Tabs aufteilen ... oder
+            einen Filter ... was am besten geeignet ist"): Bei bis zu einigen Dutzend Kategorien
+            (Geschlecht × Sportklassengruppe × Altersgruppe, siehe OverallRankingService::brackets())
+            wären Tabs unhandlich (breite, evtl. umbrechende Tab-Leiste) und skalieren nicht mit der
+            Anzahl der Sportklassengruppen/Altersgruppen. Ein Filter passt außerdem zum Rest der App
+            (WPS-Ranglisten, Vereinswertung) statt eines hier sonst nirgends verwendeten Musters.
+            Rein client-seitig mit Alpine, kein Livewire nötig: Alle Kategorien sind bereits
+            serverseitig gerendert, der Filter blendet nur per x-show ein/aus - kein Reload, keine
+            zusätzliche Server-Anfrage.
+        --}}
+        @php
+            $genderOptions = $brackets->pluck('gender')->unique()->values();
+            $groupOptions = $brackets->pluck('group')->unique('id')->sortBy('sort_order')->values();
+            $ageGroupOptions = $brackets->pluck('ageGroup')->filter()->unique('id')->sortBy('sort_order')->values();
+            $hasAgeGroupless = $brackets->contains(fn (array $b) => $b['ageGroup'] === null);
+            $bracketMeta = $brackets->map(fn (array $b) => [
+                'gender' => $b['gender'] ?? 'null',
+                'group' => (string) $b['group']->id,
+                'ageGroup' => $b['ageGroup']?->id !== null ? (string) $b['ageGroup']->id : 'null',
+            ])->values();
+        @endphp
 
-        @forelse($brackets as $bracket)
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
+        <div x-data="{
+                genderFilter: 'ALL', groupFilter: 'ALL', ageGroupFilter: 'ALL',
+                brackets: @js($bracketMeta),
+                matches(b) {
+                    return (this.genderFilter === 'ALL' || this.genderFilter === b.gender)
+                        && (this.groupFilter === 'ALL' || this.groupFilter === b.group)
+                        && (this.ageGroupFilter === 'ALL' || this.ageGroupFilter === b.ageGroup);
+                },
+                get visibleCount() { return this.brackets.filter(b => this.matches(b)).length; },
+             }">
+            @if($brackets->count() > 1)
+                <div class="flex flex-wrap items-end gap-4 mb-4">
+                    <flux:field class="w-48">
+                        <flux:label>Geschlecht</flux:label>
+                        <flux:select variant="listbox" x-model="genderFilter">
+                            <flux:select.option value="ALL">Alle</flux:select.option>
+                            @foreach($genderOptions as $gender)
+                                <flux:select.option value="{{ $gender ?? 'null' }}">
+                                    {{ $gender === null ? 'Damen & Herren' : ($gender === 'F' ? 'Damen' : 'Herren') }}
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+
+                    <flux:field class="w-72">
+                        <flux:label>Sportklassengruppe</flux:label>
+                        <flux:select variant="listbox" x-model="groupFilter">
+                            <flux:select.option value="ALL">Alle</flux:select.option>
+                            @foreach($groupOptions as $group)
+                                <flux:select.option value="{{ $group->id }}">{{ $group->name_de }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+
+                    @if($ageGroupOptions->isNotEmpty())
+                        <flux:field class="w-48">
+                            <flux:label>Altersgruppe</flux:label>
+                            <flux:select variant="listbox" x-model="ageGroupFilter">
+                                <flux:select.option value="ALL">Alle</flux:select.option>
+                                @foreach($ageGroupOptions as $ageGroup)
+                                    <flux:select.option
+                                        value="{{ $ageGroup->id }}">{{ $ageGroup->name_de }}</flux:select.option>
+                                @endforeach
+                                @if($hasAgeGroupless)
+                                    <flux:select.option value="null">ohne Altersgruppe</flux:select.option>
+                                @endif
+                            </flux:select>
+                        </flux:field>
+                    @endif
+                </div>
+            @endif
+
+            @if($meets->isNotEmpty())
+                <p class="text-xs text-zinc-400 mb-4">
+                    <span class="text-emerald-700 dark:text-emerald-400 font-semibold">Grün/fett</span> = zählt zu den
+                    besten {{ $cup->best_of_count }} Runden. Format je Runde: Punkte/Sportklasse.
+                </p>
+            @endif
+
+            @forelse($brackets as $bracketIndex => $bracket)
+                {{-- $bracketIndex statt $index: der Bewerbe-@foreach weiter unten iteriert
+                     ebenfalls mit "as $index => $meet" - gleicher Name würde zwar dank PHPs
+                     Neuzuweisung am Schleifenkopf bei jeder Iteration wieder korrekt
+                     funktionieren, ist aber unnötig verwirrend/fragil. --}}
+                <div x-show="matches(brackets[{{ $bracketIndex }}])"
+                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
                 <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
                     <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">
                         {{ $bracket['gender'] === null ? 'Damen & Herren' : ($bracket['gender'] === 'F' ? 'Damen' : 'Herren') }}
@@ -127,5 +207,13 @@
                 </p>
             </div>
         @endforelse
+
+            @if($brackets->count() > 1)
+                <div x-show="visibleCount === 0" x-cloak
+                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
+                    <p class="text-sm text-zinc-400">Keine Kategorien für diese Auswahl.</p>
+                </div>
+            @endif
+        </div>
     </div>
 @endsection

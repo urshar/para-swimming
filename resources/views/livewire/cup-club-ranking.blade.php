@@ -59,15 +59,18 @@
 
             {{-- variant="filled" statt "ghost" im inaktiven Zustand: ghost hatte im Dunkelmodus
                  praktisch keinen sichtbaren Rahmen/Hintergrund und sah wie reiner Text statt
-                 einem Button aus (Erik, 04.09.2026: "als Button darstellen nicht als Text"). --}}
+                 einem Button aus (Erik, 04.09.2026: "als Button darstellen nicht als Text").
+                 Kein size="sm": flux:select ohne eigenes size-Attribut rendert in "default"-Höhe
+                 - ein Geschwister-Button mit size="sm" wäre dann niedriger (Erik, 15.09.2026:
+                 "gleich hoch wie die Dropdown Felder"). --}}
             <div>
                 <span class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Wertungssystem</span>
                 <div class="flex gap-1">
-                    <flux:button wire:click="setSystem('start')" size="sm"
+                    <flux:button wire:click="setSystem('start')"
                                  :variant="$system === 'start' ? 'primary' : 'filled'">
                         Startwertung
                     </flux:button>
-                    <flux:button wire:click="setSystem('performance')" size="sm"
+                    <flux:button wire:click="setSystem('performance')"
                                  :variant="$system === 'performance' ? 'primary' : 'filled'">
                         Leistungswertung
                     </flux:button>
@@ -81,7 +84,7 @@
                 {{-- Kein Icon im ausgeschlossenen Zustand: "plus" suggerierte fälschlich eine
                      Hinzufügen-Aktion statt eines reinen An/Aus-Zustands (Erik, 04.09.2026: "Ist
                      verwirrend"). Eingeschlossen bleibt das Häkchen als klares Zustands-Symbol. --}}
-                <flux:button wire:click="toggleForeign" size="sm"
+                <flux:button wire:click="toggleForeign"
                              :variant="$includeForeign ? 'primary' : 'filled'"
                              :icon="$includeForeign ? 'check' : null">
                     {{ $includeForeign ? 'einbezogen' : 'ausgeschlossen' }}

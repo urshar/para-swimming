@@ -2666,3 +2666,36 @@ Vereinswertung (Wertungssystem-/Ausland-Buttons sahen wie reiner Text aus).
 **Tests**: volle Suite weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live verifiziert: Icons in der
 Sportklassengruppen-Liste ohne Scrollen sichtbar, zweispaltiges Bearbeiten-Layout, blaue Switches statt Checkboxen,
 Wertungssystem-/Ausland-Buttons jetzt mit sichtbarem Rahmen im inaktiven Zustand.
+
+### Dritter Design-Feedback-Nachtrag zu Phase 12 — Gesamtwertung: Filter statt Tabs, Button-/Dropdown-Höhen
+
+- **Gesamtwertung: Filter statt Tabs** ("auf Tabs aufteilen, damit die Liste nicht zu lang wird, oder einen
+  Filter ... was am besten geeignet ist"): Bei bis zu einigen Dutzend Kategorien
+  (Geschlecht × Sportklassengruppe × Altersgruppe, `OverallRankingService::brackets()` — im Testdatenbestand allein
+  6 Sportklassengruppen) wären Tabs unhandlich und skalieren nicht mit wachsender Anzahl an
+  Sportklassengruppen/Altersgruppen; ein Filter passt außerdem zum Rest der App (WPS-Ranglisten, Vereinswertung)
+  statt eines hier sonst nirgends verwendeten Musters. Entscheidung getroffen und umgesetzt: drei Filter
+  (Geschlecht, Sportklassengruppe, Altersgruppe) in `cups/overall-ranking.blade.php`, rein client-seitig mit
+  Alpine — alle Kategorien sind ohnehin bereits serverseitig gerendert, der Filter blendet nur per `x-show`
+  ein/aus, kein Reload, keine zusätzliche Server-Anfrage, kein Livewire nötig. Optionen werden aus den
+  tatsächlich vorhandenen Brackets abgeleitet (nicht aus der vollen Konfiguration), das Altersgruppen-Feld
+  erscheint nur, wenn überhaupt Altersgruppen vorkommen; "Keine Kategorien für diese Auswahl" bei einer leeren
+  Kombination. Nebenbefund beim Umbau: der `@foreach($meets as $index => $meet)` innerhalb jeder Bracket-Karte
+  überschrieb denselben Variablennamen wie die äußere `@forelse($brackets as $index => $bracket)` — PHPs
+  `foreach` weist `$index` zwar bei jeder Iteration frisch zu (kein tatsächlicher Bug), aber unnötig verwirrend;
+  äußere Variable auf `$bracketIndex` umbenannt. Live verifiziert: Filtern auf "Körperliche Behinderung (PI)"
+  zeigt nur noch die vier PI-Kategorien, alle anderen (u. a. Top-Gruppe) ausgeblendet, ohne Reload.
+- **Vereinswertungs-Filter: Buttons/Dropdowns jetzt gleich hoch** ("die Buttons gleich hoch wie die Dropdown
+  Felder machen"): Die Wertungssystem-/Ausländische-Vereine-Buttons trugen noch `size="sm"`, während die
+  `flux:select`-Felder (Cup/Jahr, Kaderathleten) ohne eigenes `size`-Attribut in "default"-Höhe rendern — exakt
+  das bereits mehrfach in dieser Spec dokumentierte Höhen-Mismatch-Muster. `size="sm"` entfernt. Live per
+  `getBoundingClientRect()` nachgemessen: alle fünf Filterelemente exakt `40px` hoch, `top` identisch.
+
+**Betroffene Dateien**: `cups/overall-ranking.blade.php`, `livewire/cup-club-ranking.blade.php`.
+
+**Tests**: volle Suite weiterhin 1396 Tests grün (inkl. aller 7 `CupOverallRankingControllerTest`-Fälle,
+unverändert bestanden), `vendor/bin/pint --test` grün.
+
+**Nachtrag:** Sportklassengruppe-Filter der Gesamtwertung `w-56` → `w-72` — die längste Option
+("Körperliche Behinderung (PI)") brach sonst innerhalb der Dropdown-Liste um. Live verifiziert: alle Optionen
+jetzt einzeilig.
