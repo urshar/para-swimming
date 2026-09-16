@@ -4,9 +4,13 @@
 
 @section('content')
     <div class="max-w-2xl" x-data="{ category: 'national' }">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('records.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+        <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekorde exportieren</h1>
+            <div class="mt-4">
+                <flux:button href="{{ route('records.index') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         @if($errors->any())

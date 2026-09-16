@@ -83,7 +83,7 @@
                         this.form.distance.value = d ?? '';
                         this.form.submit();
                     "
-                            class="block w-48 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            class="block w-48 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                         <option
                             value="" @selected(! $filter->strokeTypeId)>{{ __('public.qualifying_times.filter.discipline_all') }}</option>
                         @foreach ($events as $event)
@@ -102,7 +102,7 @@
                        class="inline-block text-sm font-medium">{{ __('public.qualifying_times.filter.gender') }}</label>
                 <div class="relative">
                     <select id="gender" name="gender"
-                            class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                         <option
                             value="" @selected($filter->gender === '')>{{ __('public.qualifying_times.filter.gender_all') }}</option>
                         @foreach ($genders as $gender)
@@ -119,7 +119,7 @@
                        class="inline-block text-sm font-medium">{{ __('public.qualifying_times.filter.sport_class') }}</label>
                 <div class="relative">
                     <select id="sport_class" name="sport_class"
-                            class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                         <option
                             value="" @selected($filter->sportClass === '')>{{ __('public.qualifying_times.filter.sport_class_all') }}</option>
                         @foreach ($sportClasses as $sportClass)
@@ -138,7 +138,7 @@
                        class="inline-block text-sm font-medium">{{ __('public.qualifying_times.filter.sport_class_group') }}</label>
                 <div class="relative">
                     <select id="sport_class_group_id" name="sport_class_group_id"
-                            class="block w-40 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            class="block w-40 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                         <option
                             value="" @selected(! $filter->sportClassGroupId)>{{ __('public.qualifying_times.filter.sport_class_group_all') }}</option>
                         @foreach ($sportClassGroups as $group)
@@ -155,7 +155,7 @@
                        class="inline-block text-sm font-medium">{{ __('public.qualifying_times.filter.club') }}</label>
                 <div class="relative">
                     <select id="club_id" name="club_id"
-                            class="block w-56 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                            class="block w-56 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                         <option
                             value="" @selected(! $filter->clubId)>{{ __('public.qualifying_times.filter.club_all') }}</option>
                         @foreach ($clubs as $club)
@@ -211,7 +211,7 @@
                                     // Sportklasse gefiltert wurde, siehe QualifyingTimeController.
                                     $referenceTimesHere = $referenceTimes->get("{$strokeGroup['stroke']?->id}-{$strokeGroup['distance']}", collect());
                                 @endphp
-                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                                <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                      tabindex="0"
                                      aria-label="{{ $heading }}">
                                     <table class="min-w-full text-sm">

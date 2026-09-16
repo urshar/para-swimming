@@ -85,4 +85,36 @@ class RelayEntry extends Model
     {
         return $this->members()->count();
     }
+
+    /**
+     * Geschlechts-Kategorie der Staffel aus den tatsächlichen Mitgliedern — nicht aus
+     * swim_events.gender, das nur die Zulassung des Bewerbs angibt (z. B. "A" = offen für
+     * alle Geschlechter), nicht die tatsächliche Team-Zusammensetzung.
+     *
+     * Regel: rein männlich → Herren ('M'), rein weiblich → Damen ('F'), jede andere
+     * Kombination bleibt Herren ('M') — außer bei exakt zwei Männern und zwei Frauen,
+     * das gilt als Mixed ('X'). Gibt null zurück, wenn noch keine Mitglieder mit bekanntem
+     * Geschlecht zugeordnet sind.
+     *
+     * Erwartet $members bereits geladen (Blade-Listen laden die Relation ohnehin).
+     */
+    public function teamGender(): ?string
+    {
+        $genders = $this->members
+            ->map(fn (RelayEntryMember $m) => $m->athlete?->gender)
+            ->filter();
+
+        if ($genders->isEmpty()) {
+            return null;
+        }
+
+        $male = $genders->filter(fn ($g) => $g === 'M')->count();
+        $female = $genders->filter(fn ($g) => $g === 'F')->count();
+
+        if ($male === 2 && $female === 2) {
+            return 'X';
+        }
+
+        return $female > 0 && $male === 0 ? 'F' : 'M';
+    }
 }

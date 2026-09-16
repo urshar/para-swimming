@@ -46,7 +46,7 @@
                 <section>
                     <h2 class="mb-4 text-lg font-semibold">{{ __('public.documents.category.'.$section['category']) }}</h2>
 
-                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" tabindex="0"
+                    <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
                          aria-label="{{ __('public.documents.category.'.$section['category']) }}">
                         <table class="min-w-full table-fixed text-sm">
                             <caption class="sr-only">{{ __('public.documents.category.'.$section['category']) }}</caption>

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Athlete;
+use App\Models\Club;
 use App\Services\RecordImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +57,18 @@ class RecordImportController extends Controller
         return view('records.import-preview', [
             'preview' => $preview,
             'fileName' => $file->getClientOriginalName(),
+            // Für die Zuordnung unbekannter (z.B. falsch geschriebener) Vereine auf einen
+            // bestehenden Verein, statt fälschlich einen neuen anzulegen. Sortiert nach dem
+            // angezeigten Namen (Kurzname, falls vorhanden), nicht nach dem vollen Namen —
+            // COALESCE ist Standard-SQL und läuft auf MySQL wie SQLite gleichermaßen.
+            'clubs' => Club::orderByRaw('COALESCE(short_name, name)')->get(['id', 'name', 'short_name']),
+            // Für die Zuordnung unbekannter Athleten auf eine bestehende Person (z.B. bei
+            // falsch geschriebenem Namen im LENEX-Export), statt fälschlich eine neue anzulegen.
+            // Alphabetisch nach Nachname sortiert; die View filtert je unbekanntem Athleten auf
+            // Nachnamen mit demselben Anfangsbuchstaben, damit die Liste nicht mit allen 500+
+            // Athleten überfrachtet wird.
+            'athletes' => Athlete::orderBy('last_name')->orderBy('first_name')
+                ->get(['id', 'first_name', 'last_name', 'birth_date']),
         ]);
     }
 

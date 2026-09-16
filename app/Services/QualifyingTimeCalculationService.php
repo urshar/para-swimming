@@ -53,9 +53,11 @@ class QualifyingTimeCalculationService
         $empty = ['calculated' => 0, 'skipped' => 0, 'skipped_manual_protected' => 0, 'skipped_reasons' => []];
 
         /** @var Meet|null $referenceMeet */
-        $referenceMeet = $list->meets()->orderBy('start_date')->first();
+        $referenceMeet = $list->meets()->oldest('start_date')->first();
         if (! $referenceMeet) {
-            return $empty + ['error' => 'Dieser Richtzeitenliste ist kein Meet zugeordnet (ÖSTM & ÖM-Veranstaltung fehlt).'];
+            return $empty + ['error' => 'Dieser Richtzeitenliste ist kein Meet zugeordnet (ÖSTM & ÖM-Veranstaltung fehlt). '
+                .'Bitte im gewünschten Wettkampf unter "Bearbeiten" das Feld "Richtzeitenliste (ÖSTM & ÖM)" '
+                ."auf $list->year setzen."];
         }
         if (! $referenceMeet->course) {
             return $empty + ['error' => "Das zugeordnete Meet \"$referenceMeet->name\" hat keinen Kurs hinterlegt."];

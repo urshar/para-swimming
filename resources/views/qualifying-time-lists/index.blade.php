@@ -3,7 +3,7 @@
 @section('title', 'Richtzeitenlisten ÖSTM & ÖM')
 
 @section('content')
-    <div class="max-w-2xl">
+    <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Richtzeitenlisten ÖSTM & ÖM</h1>
             @if(auth()->user()?->is_admin)
@@ -54,13 +54,13 @@
                                                  variant="ghost" size="sm" icon="eye"/>
                                     @if(auth()->user()?->is_admin && $list->isLatest())
                                         <flux:button href="{{ route('qualifying-time-lists.edit', $list) }}"
-                                                     variant="ghost" size="sm" icon="pencil"/>
+                                                     variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                         <form method="POST"
                                               action="{{ route('qualifying-time-lists.destroy', $list) }}"
                                               onsubmit="return confirm('Richtzeitenliste {{ $list->year }} inkl. aller Zielpunkte und Richtzeiten wirklich löschen?');">
                                             @csrf
                                             @method('DELETE')
-                                            <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                            <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"/>
                                         </form>
                                     @endif
                                 </div>

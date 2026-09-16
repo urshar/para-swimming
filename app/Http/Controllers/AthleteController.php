@@ -24,6 +24,10 @@ class AthleteController extends Controller
 {
     public function index(Request $request): View
     {
+        // Für den Zurück-Link in Detailansicht/Formular merken, welche Listen-Ansicht
+        // (Filter + Seite) zuletzt offen war — siehe athletes.show/athletes.form.
+        session(['athletes.list_url' => $request->fullUrl()]);
+
         $query = Athlete::with(['club', 'nation', 'sportClasses'])
             ->orderBy('last_name')
             ->orderBy('first_name');
@@ -35,6 +39,10 @@ class AthleteController extends Controller
                     ->orWhere('license', 'like', '%'.$search.'%')
                     ->orWhere('license_ipc', 'like', '%'.$search.'%');
             });
+        }
+
+        if ($letter = $request->query('letter')) {
+            $query->where('last_name', 'like', $letter.'%');
         }
 
         if ($sportClass = $request->query('sport_class')) {
@@ -55,13 +63,16 @@ class AthleteController extends Controller
             $query->where('club_id', $clubId);
         }
 
-        // Filter: nur aktive / alle
-        if ($request->query('active_only', '1') === '1') {
+        // Filter: nur aktive (Default) / alle / nur inaktive
+        $activeOnly = $request->query('active_only', '1');
+        if ($activeOnly === '1') {
             $query->where('is_active', true);
+        } elseif ($activeOnly === '2') {
+            $query->where('is_active', false);
         }
 
         $athletes = $query->paginate(25)->withQueryString();
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::orderBy('name')->get();
 
         return view('athletes.index', compact('athletes', 'nations', 'clubs'));
@@ -74,10 +85,8 @@ class AthleteController extends Controller
     {
         $data = $this->validateAthlete($request);
 
-        DB::transaction(function () use ($data, $request) {
-            $athlete = Athlete::create($data['athlete']);
-            $this->syncSportClasses($athlete, $data['sport_classes']);
-            $this->syncExceptions($athlete, $data['exceptions']);
+        $athlete = DB::transaction(function () use ($data, $request) {
+            $athlete = Athlete::create($data);
 
             // Initialen Vereinseintrag in der History anlegen, wenn ein Verein gesetzt ist
             if ($athlete->club_id) {
@@ -101,20 +110,24 @@ class AthleteController extends Controller
                     'notes' => 'Ersterfassung',
                 ]);
             }
+
+            return $athlete;
         });
 
+        // Sportklassen/Exceptions werden nicht mehr über dieses Formular gepflegt, sondern
+        // ausschließlich über die Klassifikations-History — siehe athletes.show. Direkt dorthin
+        // weiterleiten und das Eintragen-Panel automatisch öffnen.
         return redirect()
-            ->route('athletes.index')
-            ->with('success', 'Athlet erfolgreich angelegt.');
+            ->route('athletes.show', ['athlete' => $athlete, 'neue_klassifikation' => 1])
+            ->with('success', 'Athlet erfolgreich angelegt. Jetzt die erste Klassifikation eintragen.');
     }
 
     public function create(): View
     {
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
-        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
 
-        return view('athletes.form', compact('nations', 'clubs', 'exceptionCodes'));
+        return view('athletes.form', compact('nations', 'clubs'));
     }
 
     public function show(Athlete $athlete): View
@@ -155,13 +168,10 @@ class AthleteController extends Controller
 
     public function edit(Athlete $athlete): View
     {
-        $athlete->load(['sportClasses', 'exceptions']);
-
-        $nations = Nation::active()->orderBy('name_de')->get();
+        $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
-        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
 
-        return view('athletes.form', compact('athlete', 'nations', 'clubs', 'exceptionCodes'));
+        return view('athletes.form', compact('athlete', 'nations', 'clubs'));
     }
 
     // ── Klassifikation ────────────────────────────────────────────────────────
@@ -229,9 +239,7 @@ class AthleteController extends Controller
 
         DB::transaction(function () use ($athlete, $data) {
             $oldLevel = $athlete->level;
-            $athlete->update($data['athlete']);
-            $this->syncSportClasses($athlete, $data['sport_classes']);
-            $this->syncExceptions($athlete, $data['exceptions']);
+            $athlete->update($data);
 
             // Wenn Level geändert → History-Eintrag automatisch anlegen
             if ($oldLevel !== $athlete->level && $athlete->level) {
@@ -410,9 +418,15 @@ class AthleteController extends Controller
             ->with('success', 'Kaderzugehörigkeit gelöscht.');
     }
 
+    /**
+     * Sportklassen und Exceptions werden nicht (mehr) über dieses Formular erfasst, sondern
+     * ausschließlich über die Klassifikations-History (validateClassification() weiter unten) —
+     * siehe athletes.show. Das hält die Stammdaten und die Klassifikations-Historie konsistent,
+     * statt zwei parallele, sich gegenseitig überschreibende Wege zu pflegen.
+     */
     private function validateAthlete(Request $request): array
     {
-        $validated = $request->validate([
+        return $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'name_prefix' => 'nullable|string|max:50',
@@ -424,7 +438,6 @@ class AthleteController extends Controller
             'license_ipc' => 'nullable|string|max:50',
             'status' => 'nullable|in:EXHIBITION,FOREIGNER,ROOKIE',
             'disability_type' => 'nullable|string|max:30',
-            // Neu:
             'is_active' => 'boolean',
             'notes' => 'nullable|string|max:5000',
             'email' => 'nullable|email|max:200',
@@ -434,66 +447,7 @@ class AthleteController extends Controller
             'address_zip' => 'nullable|string|max:20',
             'address_country' => 'nullable|string|size:3',
             'level' => 'nullable|string|max:50',
-
-            // Sport-Klassen
-            'sport_classes' => 'nullable|array',
-            'sport_classes.*.category' => 'nullable|in:S,SB,SM',
-            'sport_classes.*.class_number' => 'nullable|string|max:10',
-            'sport_classes.*.classification_scope' => 'nullable|in:INTL,NAT',
-            'sport_classes.*.classification_status' => 'nullable|in:NEW,CONFIRMED,REVIEW,FRD,NE',
-            'sport_classes.*.frd_year' => 'nullable|integer|min:2000|max:2100',
-
-            // Exceptions
-            'exceptions' => 'nullable|array',
-            'exceptions.*.code_id' => 'nullable|exists:exception_codes,id',
-            'exceptions.*.category' => 'nullable|in:S,SB,SM',
-            'exceptions.*.note' => 'nullable|string|max:255',
         ]);
-
-        $sportClasses = collect($validated['sport_classes'] ?? [])
-            ->filter(fn ($c) => ! empty($c['class_number']))
-            ->values()
-            ->all();
-
-        $exceptions = collect($validated['exceptions'] ?? [])
-            ->filter(fn ($e) => ! empty($e['code_id']))
-            ->values()
-            ->all();
-
-        return [
-            'athlete' => collect($validated)->except(['sport_classes', 'exceptions'])->toArray(),
-            'sport_classes' => $sportClasses,
-            'exceptions' => $exceptions,
-        ];
-    }
-
-    private function syncSportClasses(Athlete $athlete, array $sportClasses): void
-    {
-        $athlete->sportClasses()->delete();
-
-        foreach ($sportClasses as $classData) {
-            $status = $classData['classification_status'] ?? null;
-            $athlete->sportClasses()->create([
-                'category' => $classData['category'],
-                'class_number' => $classData['class_number'],
-                'sport_class' => $classData['category'].$classData['class_number'],
-                'classification_scope' => $classData['classification_scope'] ?? 'INTL',
-                'classification_status' => $status,
-                'frd_year' => $status === 'FRD' ? ($classData['frd_year'] ?? null) : null,
-            ]);
-        }
-    }
-
-    private function syncExceptions(Athlete $athlete, array $exceptions): void
-    {
-        $syncData = [];
-        foreach ($exceptions as $exception) {
-            $syncData[$exception['code_id']] = [
-                'category' => $exception['category'] ?? null,
-                'note' => $exception['note'] ?? null,
-            ];
-        }
-        $athlete->exceptions()->sync($syncData);
     }
 
     /**

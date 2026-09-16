@@ -20,8 +20,11 @@ use Symfony\Component\HttpFoundation\Response;
  * Die Profilansicht ist eine Livewire-Komponente; der Controller reicht nur durch und liefert
  * die PDF-Ausgabe.
  *
- * Kein eigener Sucheinstieg: Der Weg führt über die Athletenverwaltung, wo ohnehin gesucht
- * und geblättert wird. Eine zweite Athletenliste daneben wäre überflüssig.
+ * Zwei Einstiege: über die Athletenverwaltung (dort wird ohnehin gesucht und geblättert) und
+ * seit Phase 13 zusätzlich über die Athletenauswahl unter Statistik (picker()) — bewusst kein
+ * eigenes, zweites Athleten-Verzeichnis, nur ein durchsuchbares Auswahlfeld. show() merkt sich
+ * per Query-Parameter, über welchen Weg die Seite erreicht wurde, damit der Rückweg-Button zum
+ * richtigen Ziel führt (Design-Feedback Erik, 15.09.2026).
  *
  * Lesend, verbandsweit — die Notizen im PDF unterliegen dagegen der Sichtbarkeitsregel
  * aus §7.5.
@@ -35,9 +38,40 @@ class WpsAthleteAnalysisController extends Controller
         private readonly PdfExportService $pdfExportService,
     ) {}
 
-    public function show(Athlete $athlete): View
+    /**
+     * GET /wps/athletes/{athlete}?from=athlete
+     *
+     * ?from=athlete kommt vom Link auf der Athleten-Detailseite (athletes/show.blade.php) — der
+     * Rückweg-Button führt dann dorthin zurück statt zur Athletenauswahl (picker()), von wo aus
+     * er sonst kommt.
+     */
+    public function show(Athlete $athlete, Request $request): View
     {
-        return view('wps.athletes.show', ['athlete' => $athlete]);
+        $fromAthlete = $request->query('from') === 'athlete';
+
+        return view('wps.athletes.show', [
+            'athlete' => $athlete,
+            'backUrl' => $fromAthlete ? route('athletes.show', $athlete) : route('wps.athletes.picker'),
+            'backLabel' => $fromAthlete ? 'Zum Athleten' : 'Zur Athletenauswahl',
+        ]);
+    }
+
+    /**
+     * GET /statistics/wps-athlete-analysis
+     *
+     * Athleten-Auswahl als zweiter Einstieg zur Analyse, neben dem Weg über die
+     * Athletenverwaltung — auf Wunsch aus der Statistik heraus erreichbar (Design-Feedback
+     * Erik, 15.09.2026), ohne dabei die ursprüngliche Athletenliste zu duplizieren: nur ein
+     * durchsuchbares Auswahlfeld, keine eigene, zweite Tabelle.
+     */
+    public function picker(): View
+    {
+        $athletes = Athlete::query()
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name']);
+
+        return view('wps.athletes.picker', compact('athletes'));
     }
 
     public function pdf(Request $request, Athlete $athlete): Response

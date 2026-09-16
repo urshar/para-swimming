@@ -6,20 +6,21 @@
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         <form method="GET" class="flex flex-wrap gap-3">
-            <flux:select name="meet_id" placeholder="Wettkampf wählen…" class="flex-1 min-w-48">
-                <option value="">Alle Wettkämpfe</option>
+            <flux:select variant="listbox" searchable name="meet_id" placeholder="Alle Wettkämpfe" clearable class="flex-1 min-w-48">
                 @foreach($meets as $meet)
-                    <option value="{{ $meet->id }}" @selected(request('meet_id') == $meet->id)>
+                    <flux:select.option value="{{ $meet->id }}" :selected="request('meet_id') == $meet->id">
                         {{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})
-                    </option>
+                    </flux:select.option>
                 @endforeach
             </flux:select>
             <flux:input name="search" placeholder="Athlet suchen…" value="{{ request('search') }}"
                         class="flex-1 min-w-48"/>
-            <flux:button type="submit" variant="filled" size="sm">Filtern</flux:button>
-            @if(request()->hasAny(['meet_id', 'search']))
-                <flux:button href="{{ route('entries.index') }}" size="sm">Zurücksetzen</flux:button>
-            @endif
+            <div class="ml-auto flex items-center gap-3">
+                @if(request()->hasAny(['meet_id', 'search']))
+                    <flux:button href="{{ route('entries.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                @endif
+                <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
+            </div>
         </form>
     </div>
 
@@ -71,10 +72,10 @@
                         </flux:table.cell>
                         <flux:table.cell class="text-right">
                             <flux:button href="{{ route('entries.edit', $entry) }}" size="xs" variant="ghost"
-                                         icon="pencil"/>
+                                         icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('entries.destroy', $entry) }}" class="inline">
                                 @csrf @method('DELETE')
-                                <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500"
+                                <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500!"
                                              onclick="return confirm('Meldung löschen?')"/>
                             </form>
                         </flux:table.cell>

@@ -3,14 +3,13 @@
 namespace App\Livewire;
 
 use App\Models\AgeGroup;
+use App\Models\BaseTimeSportClass;
 use App\Models\Club;
 use App\Models\KaderType;
 use App\Models\Meet;
-use App\Models\Result;
 use App\Models\StrokeType;
 use App\Services\AthleteKaderResolver;
 use App\Services\WpsRankingService;
-use App\Support\SportClassSorter;
 use App\Support\WpsRankingEntry;
 use App\Support\WpsRankingFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -296,28 +295,34 @@ class WpsRankings extends Component
     #[Computed]
     public function clubs(): Collection
     {
-        return Club::query()->orderBy('name')->get(['id', 'name']);
+        return Club::query()->orderBy('name')->get(['id', 'name', 'short_name']);
     }
 
     /**
-     * Sportklassen, die in den Ergebnissen tatsächlich vorkommen.
+     * Optionen für das Sportklassen-Dropdown: eine Option je in den Basiswerten gepflegter
+     * Klassennummer, über S/SB/SM zusammengefasst (Wert "S{n},SB{n},SM{n}", Label
+     * zweistellig gepolstert) — identisches Muster wie
+     * RecordController::buildSportClassOptions() (Design-Feedback Erik, 2026-09-04: "wieder so
+     * machen wie wir es in P10 gemacht haben"). Zeigt bewusst die vollständige, feste Liste,
+     * nicht nur die in WPS-Ergebnissen tatsächlich vorkommenden Klassen — Konsistenz mit dem
+     * Rekorde-Filter, siehe docs/specs/admin-ui-rework.md "Dreißigster Design-Feedback-Nachtrag
+     * zu Phase 10".
      *
-     * Nicht alle denkbaren Klassen: Ein Filter auf eine Klasse ohne einen einzigen Start
-     * wäre nur irreführend. Sortiert über SportClassSorter, damit S2 vor S10 steht.
-     *
-     * @return list<string>
+     * @return Collection<string, string>
      */
     #[Computed]
-    public function availableSportClasses(): array
+    public function sportClassOptions(): Collection
     {
-        return Result::query()
-            ->whereNotNull('sport_class')
-            ->whereNotNull('wps_points')
-            ->distinct()
-            ->pluck('sport_class')
-            ->sortBy(static fn (string $klasse): string => SportClassSorter::key($klasse))
-            ->values()
-            ->all();
+        $numbers = BaseTimeSportClass::query()
+            ->pluck('code')
+            ->map(fn ($code) => (int) preg_replace('/\D+/', '', $code))
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $numbers->mapWithKeys(fn ($n) => [
+            "S$n,SB$n,SM$n" => sprintf('S%02d,SB%02d,SM%02d', $n, $n, $n),
+        ]);
     }
 
     /**

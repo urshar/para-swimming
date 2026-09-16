@@ -3,33 +3,18 @@
 @section('title', isset($athlete) ? $athlete->display_name . ' bearbeiten' : 'Neuer Athlet')
 
 @section('content')
+    {{-- Vorbelegung Nation: AUT als häufigster Fall, damit nicht bei jeder Neuanlage manuell
+         ausgewählt werden muss (wie schon in classifiers/form.blade.php). --}}
+    @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-3xl">
 
         <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="ghost"
+                         icon="arrow-left" size="sm"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($athlete) ? 'Athlet bearbeiten' : 'Neuer Athlet' }}
             </h1>
         </div>
-
-        {{-- Hinweis-Banner: History-Aktionen nur in der Detailansicht --}}
-        @if(isset($athlete))
-            <div
-                class="mb-4 flex items-center justify-between gap-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
-                <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24"
-                         stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-                    </svg>
-                    <span>Vereinswechsel, Klassifikationen und Level-Änderungen werden in der Detailansicht verwaltet.</span>
-                </div>
-                <a href="{{ route('athletes.show', $athlete) }}"
-                   class="shrink-0 font-medium underline underline-offset-2 hover:text-blue-600 dark:hover:text-blue-100 transition-colors">
-                    Zur Detailansicht →
-                </a>
-            </div>
-        @endif
 
         <form method="POST"
               action="{{ isset($athlete) ? route('athletes.update', $athlete) : route('athletes.store') }}">
@@ -38,20 +23,43 @@
                 @method('PUT')
             @endif
 
+            {{-- Tabs statt gestapelter/nebeneinander liegender Karten: jede Karte bekommt die volle
+                 Formularbreite (ein direktes Nebeneinander drängte Kontakt&Adresse/Notizen zu schmal
+                 zusammen — Rückmeldung), und der Wechsel zwischen den Karten spart weiterhin die
+                 Scroll-Strecke bis zum Speichern-Button, ohne dass irgendetwas eng wird. --}}
+            <flux:tab.group>
+                <flux:tabs class="mb-4">
+                    <flux:tab name="stammdaten">Stammdaten</flux:tab>
+                    <flux:tab name="kontakt">Kontakt & Adresse</flux:tab>
+                </flux:tabs>
+
+                <flux:tab.panel name="stammdaten">
             {{-- Stammdaten --}}
             <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
-                <div class="flex items-center justify-between">
+                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
+                <div class="flex items-center justify-between gap-4">
                     <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Stammdaten</h2>
                     {{-- Aktiv-Schalter --}}
-                    <label class="flex items-center gap-2 cursor-pointer">
+                    <label class="flex items-center gap-2 cursor-pointer shrink-0">
                         <span class="text-sm text-zinc-600 dark:text-zinc-400">Aktiver Schwimmer</span>
                         <input type="hidden" name="is_active" value="0">
-                        <input type="checkbox" name="is_active" value="1"
-                               @checked(old('is_active', $athlete->is_active ?? true))
-                               class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
+                        <flux:switch name="is_active" value="1" :checked="old('is_active', $athlete->is_active ?? true)"/>
                     </label>
                 </div>
+
+                {{-- Eigene Zeile statt in der Überschriftenzeile mitgedrängt (Rückmeldung: wirkte zu
+                     weit rechts zusammengequetscht) — jetzt mit der vollen Kartenbreite Platz genug für
+                     Text und Button nebeneinander. --}}
+                @if(isset($athlete))
+                    <div class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                        <flux:icon.information-circle class="size-4 shrink-0 text-blue-500" variant="mini"/>
+                        <span>Vereinswechsel, Klassifikationen und Level-Änderungen werden in der Detailansicht verwaltet.</span>
+                        <flux:button href="{{ route('athletes.show', $athlete) }}" size="xs" variant="ghost"
+                                     class="ms-auto shrink-0">
+                            Detailansicht
+                        </flux:button>
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
@@ -61,13 +69,13 @@
                         <flux:error name="name_prefix"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Vorname *</flux:label>
+                        <flux:label>Vorname <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="first_name" value="{{ old('first_name', $athlete->first_name ?? '') }}"
                                     required/>
                         <flux:error name="first_name"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Nachname *</flux:label>
+                        <flux:label>Nachname <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="last_name" value="{{ old('last_name', $athlete->last_name ?? '') }}"
                                     required/>
                         <flux:error name="last_name"/>
@@ -76,47 +84,40 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
-                        <flux:label>Geschlecht *</flux:label>
-                        <flux:select name="gender" required>
-                            <option value="M" @selected(old('gender', $athlete->gender ?? 'M') === 'M')>Männlich
-                            </option>
-                            <option value="F" @selected(old('gender', $athlete->gender ?? '') === 'F')>Weiblich</option>
-                            <option value="N" @selected(old('gender', $athlete->gender ?? '') === 'N')>Nicht binär
-                            </option>
+                        <flux:label>Geschlecht <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="gender" required>
+                            <flux:select.option value="M" :selected="old('gender', $athlete->gender ?? 'M') === 'M'">Männlich</flux:select.option>
+                            <flux:select.option value="F" :selected="old('gender', $athlete->gender ?? '') === 'F'">Weiblich</flux:select.option>
+                            <flux:select.option value="N" :selected="old('gender', $athlete->gender ?? '') === 'N'">Nicht binär</flux:select.option>
                         </flux:select>
                         <flux:error name="gender"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Geburtsdatum</flux:label>
-                        <flux:input name="birth_date" type="date"
-                                    value="{{ old('birth_date', isset($athlete) && $athlete->birth_date ? $athlete->birth_date->format('Y-m-d') : '') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="birth_date"
+                                    value="{{ old('birth_date', isset($athlete) && $athlete->birth_date ? $athlete->birth_date->format('Y-m-d') : '') }}"
+                                    clearable/>
                         <flux:error name="birth_date"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Nation *</flux:label>
-                        <flux:select name="nation_id" required>
-                            <option value="">Bitte wählen…</option>
+                        <flux:label>Nation <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" searchable name="nation_id" placeholder="Bitte wählen…" required>
                             @foreach($nations as $nation)
-                                <option
-                                    value="{{ $nation->id }}" @selected(old('nation_id', $athlete->nation_id ?? '') == $nation->id)>
-                                    {{ $nation->code }} – {{ $nation->name_de }}
-                                </option>
+                                <flux:select.option value="{{ $nation->id }}" :selected="old('nation_id', $athlete->nation_id ?? $autId) == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="nation_id"/>
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                {{-- Verein/Vereinseintritt/Status in einer einheitlichen Zeile statt des vorherigen
+                     zweizeiligen Grids mit leerem Platzhalter-Feld bei Neuanlage. --}}
+                <div class="grid {{ isset($athlete) ? 'grid-cols-2' : 'grid-cols-3' }} gap-4">
                     <flux:field>
                         <flux:label>Verein</flux:label>
-                        <flux:select name="club_id">
-                            <option value="">Kein Verein</option>
+                        <flux:select variant="listbox" searchable name="club_id" placeholder="Kein Verein" clearable>
                             @foreach($clubs as $club)
-                                <option
-                                    value="{{ $club->id }}" @selected(old('club_id', $athlete->club_id ?? '') == $club->id)>
-                                    {{ $club->display_name }} ({{ $club->nation?->code }})
-                                </option>
+                                <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $athlete->club_id ?? '') == $club->id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="club_id"/>
@@ -125,48 +126,21 @@
                         {{-- Nur bei Neuanlage: Eintrittsdatum für die Club-History --}}
                         <flux:field>
                             <flux:label>Vereinseintritt</flux:label>
-                            <flux:input name="club_joined_at" type="date"
-                                        value="{{ old('club_joined_at', today()->format('Y-m-d')) }}"/>
-                            <flux:description>Datum des Vereinsbeitritts</flux:description>
+                            <flux:date-picker type="input" locale="de-AT" name="club_joined_at"
+                                        value="{{ old('club_joined_at', today()->format('Y-m-d')) }}" clearable/>
                             <flux:error name="club_joined_at"/>
                         </flux:field>
-                    @else
-                        <flux:field>
-                            <flux:label>Status</flux:label>
-                            <flux:select name="status">
-                                <option value="">Normal</option>
-                                <option
-                                    value="EXHIBITION" @selected(old('status', $athlete->status ?? '') === 'EXHIBITION')>
-                                    Exhibition
-                                </option>
-                                <option
-                                    value="FOREIGNER" @selected(old('status', $athlete->status ?? '') === 'FOREIGNER')>
-                                    Ausländer
-                                </option>
-                                <option value="ROOKIE" @selected(old('status', $athlete->status ?? '') === 'ROOKIE')>
-                                    Rookie
-                                </option>
-                            </flux:select>
-                            <flux:error name="status"/>
-                        </flux:field>
                     @endif
+                    <flux:field>
+                        <flux:label>Status</flux:label>
+                        <flux:select variant="listbox" name="status" placeholder="Normal" clearable>
+                            <flux:select.option value="EXHIBITION" :selected="old('status', $athlete->status ?? '') === 'EXHIBITION'">Exhibition</flux:select.option>
+                            <flux:select.option value="FOREIGNER" :selected="old('status', $athlete->status ?? '') === 'FOREIGNER'">Ausländer</flux:select.option>
+                            <flux:select.option value="ROOKIE" :selected="old('status', $athlete->status ?? '') === 'ROOKIE'">Rookie</flux:select.option>
+                        </flux:select>
+                        <flux:error name="status"/>
+                    </flux:field>
                 </div>
-
-                @if(!isset($athlete))
-                    <div class="grid grid-cols-2 gap-4">
-                        <div></div>
-                        <flux:field>
-                            <flux:label>Status</flux:label>
-                            <flux:select name="status">
-                                <option value="">Normal</option>
-                                <option value="EXHIBITION" @selected(old('status') === 'EXHIBITION')>Exhibition</option>
-                                <option value="FOREIGNER" @selected(old('status') === 'FOREIGNER')>Ausländer</option>
-                                <option value="ROOKIE" @selected(old('status') === 'ROOKIE')>Rookie</option>
-                            </flux:select>
-                            <flux:error name="status"/>
-                        </flux:field>
-                    </div>
-                @endif
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
@@ -182,47 +156,39 @@
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                {{-- items-start statt des Grid-Defaults (stretch): sonst zieht die Beschreibung unter
+                     "ÖBSV Level" die Zeile in die Höhe und das Behinderungsart-Select wird sichtbar mitgestreckt,
+                     wodurch die beiden Felder ungleich groß wirken. --}}
+                <div class="grid grid-cols-2 gap-4 items-start">
                     <flux:field>
                         <flux:label>Behinderungsart</flux:label>
-                        <flux:select name="disability_type">
-                            <option value="">Nicht angegeben</option>
-                            <option
-                                value="physical" @selected(old('disability_type', $athlete->disability_type ?? '') === 'physical')>
-                                Körperlich
-                            </option>
-                            <option
-                                value="visual" @selected(old('disability_type', $athlete->disability_type ?? '') === 'visual')>
-                                Sehbehinderung
-                            </option>
-                            <option
-                                value="intellectual" @selected(old('disability_type', $athlete->disability_type ?? '') === 'intellectual')>
-                                Intellektuell
-                            </option>
-                            <option
-                                value="deaf" @selected(old('disability_type', $athlete->disability_type ?? '') === 'deaf')>
-                                Hörbehinderung
-                            </option>
-                            <option
-                                value="trisomie" @selected(old('disability_type', $athlete->disability_type ?? '') === 'trisomie')>
-                                Down Syndrom
-                            </option>
+                        <flux:select variant="listbox" name="disability_type" placeholder="Nicht angegeben" clearable>
+                            <flux:select.option value="physical" :selected="old('disability_type', $athlete->disability_type ?? '') === 'physical'">Körperlich</flux:select.option>
+                            <flux:select.option value="visual" :selected="old('disability_type', $athlete->disability_type ?? '') === 'visual'">Sehbehinderung</flux:select.option>
+                            <flux:select.option value="intellectual" :selected="old('disability_type', $athlete->disability_type ?? '') === 'intellectual'">Intellektuell</flux:select.option>
+                            <flux:select.option value="deaf" :selected="old('disability_type', $athlete->disability_type ?? '') === 'deaf'">Hörbehinderung</flux:select.option>
+                            <flux:select.option value="trisomie" :selected="old('disability_type', $athlete->disability_type ?? '') === 'trisomie'">Down Syndrom</flux:select.option>
                         </flux:select>
                     </flux:field>
+                    {{-- Keine flux:description hier (wie bei keinem anderen Feld in diesem Formular) —
+                         der Hinweistext "Änderungen werden protokolliert" brach in der halben Spaltenbreite
+                         immer zweizeilig um und ließ die Zeile gegenüber "Behinderungsart" unruhig wirken.
+                         Die Historie ist ohnehin über den Level-History-Block in der Detailansicht sichtbar. --}}
                     <flux:field>
                         <flux:label>ÖBSV Level</flux:label>
                         <flux:input name="level" value="{{ old('level', $athlete->level ?? '') }}"
                                     placeholder="z.B. Elite, Talent, 1, 2 …"/>
-                        <flux:description>Einstufung durch den ÖBSV — Änderungen werden protokolliert.
-                        </flux:description>
                         <flux:error name="level"/>
                     </flux:field>
                 </div>
             </div>
+            {{-- /Stammdaten --}}
+                </flux:tab.panel>
 
+                <flux:tab.panel name="kontakt" class="space-y-4">
             {{-- Kontakt & Adresse --}}
             <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
+                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Kontakt & Adresse</h2>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -275,7 +241,7 @@
             </div>
 
             {{-- Notizen --}}
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Notizen</h2>
                 <flux:field>
                     <flux:textarea name="notes" rows="4"
@@ -283,126 +249,23 @@
                     <flux:error name="notes"/>
                 </flux:field>
             </div>
+            {{-- /Notizen --}}
+                </flux:tab.panel>
+            </flux:tab.group>
 
-            {{-- Sport-Klassen --}}
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
-                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Sport-Klassen</h2>
+            {{-- Sportklassen und WPS Exceptions werden nicht mehr hier gepflegt, sondern ausschließlich
+                 über "Klassifikation eintragen" in der Detailansicht (athletes.show) — das ist der
+                 einzige Weg, der auch die Klassifikations-History korrekt fortschreibt. Nach dem
+                 Anlegen eines neuen Athleten geht's per Redirect direkt dorthin, siehe
+                 AthleteController::store(). --}}
 
-                @foreach([['S', 'S (Freistil / Rücken / Schmetterling)'], ['SB', 'SB (Brust)'], ['SM', 'SM (Lagen)']] as [$cat, $label])
-                    @php
-                        $existing   = isset($athlete) ? $athlete->sportClasses->firstWhere('category', $cat) : null;
-                        $loop_index = $loop->index;
-                        $defaultScope = isset($athlete) && $athlete->license_ipc ? 'INTL' : 'NAT';
-                    @endphp
-                    <div class="mb-4 pb-4 border-b border-zinc-100 dark:border-zinc-700 last:border-0"
-                         x-data="{ status: @js(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '')) }">
-                        <input type="hidden" name="sport_classes[{{ $loop_index }}][category]" value="{{ $cat }}">
-                        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">{{ $label }}</p>
-                        <div class="grid grid-cols-4 gap-3">
-                            <flux:field>
-                                <flux:label>Klassen-Nr.</flux:label>
-                                <flux:input
-                                    name="sport_classes[{{ $loop_index }}][class_number]"
-                                    value="{{ old('sport_classes.' . $loop_index . '.class_number', $existing?->class_number ?? '') }}"
-                                    placeholder="z.B. 4"/>
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>Gültigkeit</flux:label>
-                                <flux:select name="sport_classes[{{ $loop_index }}][classification_scope]">
-                                    <option
-                                        value="INTL" @selected(old('sport_classes.' . $loop_index . '.classification_scope', $existing?->classification_scope ?? $defaultScope) === 'INTL')>
-                                        🌍 International
-                                    </option>
-                                    <option
-                                        value="NAT" @selected(old('sport_classes.' . $loop_index . '.classification_scope', $existing?->classification_scope ?? $defaultScope) === 'NAT')>
-                                        🇦🇹 National
-                                    </option>
-                                </flux:select>
-                            </flux:field>
-                            <flux:field>
-                                <flux:label>Status</flux:label>
-                                <flux:select name="sport_classes[{{ $loop_index }}][classification_status]"
-                                             x-model="status">
-                                    <option value="">–</option>
-                                    <option
-                                        value="NEW" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'NEW')>
-                                        New
-                                    </option>
-                                    <option
-                                        value="CONFIRMED" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'CONFIRMED')>
-                                        Confirmed
-                                    </option>
-                                    <option
-                                        value="REVIEW" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'REVIEW')>
-                                        Review
-                                    </option>
-                                    <option
-                                        value="FRD" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'FRD')>
-                                        Fixed Review Date (FRD)
-                                    </option>
-                                    <option
-                                        value="NE" @selected(old('sport_classes.' . $loop_index . '.classification_status', $existing?->classification_status ?? '') === 'NE')>
-                                        Not Eligible (NE)
-                                    </option>
-                                </flux:select>
-                            </flux:field>
-                            <flux:field x-show="status === 'FRD'" x-cloak>
-                                @php $frdDefault = (int) date('Y') + 2; @endphp
-                                <flux:label>FRD Jahr</flux:label>
-                                <flux:input name="sport_classes[{{ $loop_index }}][frd_year]"
-                                            type="number" min="2000" max="2100"
-                                            value="{{ old('sport_classes.' . $loop_index . '.frd_year', $existing?->frd_year ?? $frdDefault) }}"/>
-                            </flux:field>
-                        </div>
-                    </div>
-                @endforeach
-                <flux:description>Klassen-Nr. leer lassen wenn nicht zutreffend.</flux:description>
-            </div>
-
-            {{-- Exceptions --}}
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
-                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">WPS Exceptions</h2>
-                <div class="space-y-2">
-                    @foreach($exceptionCodes as $code)
-                        @php
-                            $existing = isset($athlete) ? $athlete->exceptions->firstWhere('id', $code->id) : null;
-                            $checked  = $existing !== null;
-                        @endphp
-                        <div
-                            class="flex items-start gap-3 py-2 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
-                            <input type="checkbox"
-                                   name="exceptions[{{ $loop->index }}][code_id]"
-                                   value="{{ $code->id }}"
-                                   id="exc_{{ $code->id }}"
-                                   @checked($checked)
-                                   class="mt-1 rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
-                            <div class="flex-1">
-                                <label for="exc_{{ $code->id }}"
-                                       class="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100 cursor-pointer">
-                                    {{ $code->code }}
-                                </label>
-                                <span class="text-sm text-zinc-600 dark:text-zinc-400 ml-2">{{ $code->name_de }}</span>
-                                @if($code->applies_to)
-                                    <flux:badge size="sm" color="zinc" class="ml-2">{{ $code->applies_to }}</flux:badge>
-                                @endif
-                            </div>
-                            <flux:select name="exceptions[{{ $loop->index }}][category]" class="w-28">
-                                <option value="">Allgemein</option>
-                                <option value="S" @selected($existing?->pivot?->category === 'S')>S</option>
-                                <option value="SB" @selected($existing?->pivot?->category === 'SB')>SB</option>
-                                <option value="SM" @selected($existing?->pivot?->category === 'SM')>SM</option>
-                            </flux:select>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="flex gap-3">
+            <div class="flex gap-3 mt-4">
                 <flux:button type="submit" variant="primary">
                     {{ isset($athlete) ? 'Speichern' : 'Athlet anlegen' }}
                 </flux:button>
-                <flux:button href="{{ isset($athlete) ? route('athletes.show', $athlete) : route('athletes.index') }}"
-                             variant="ghost">
+                <flux:button
+                    href="{{ isset($athlete) ? route('athletes.show', $athlete) : session('athletes.list_url', route('athletes.index')) }}"
+                    variant="ghost">
                     Abbrechen
                 </flux:button>
             </div>

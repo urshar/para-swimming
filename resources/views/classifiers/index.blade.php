@@ -11,31 +11,32 @@
         </flux:button>
     </div>
 
-    {{-- Filter --}}
-    <form method="GET" class="flex flex-wrap gap-3 mb-4">
-        <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder E-Mail…"
-                    icon="magnifying-glass" class="w-64"/>
-        <flux:select name="type" placeholder="Typ" class="w-48">
-            <option value="">Alle Typen</option>
-            <option value="MED"  @selected(request('type') === 'MED')>Medizinisch</option>
-            <option value="TECH" @selected(request('type') === 'TECH')>Technisch</option>
+    {{-- Filter: alle Felder in einer Zeile (schmalere Breiten als vorher), Filtern-Button per
+         ml-auto an den rechten Rand — wie im öffentlichen Bereich (siehe clubs/index.blade.php). --}}
+    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4">
+        <div class="w-44 shrink-0">
+            <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder E-Mail…"
+                        icon="magnifying-glass"/>
+        </div>
+        <flux:select variant="listbox" name="type" placeholder="Typ" clearable class="w-36">
+            <flux:select.option value="MED" :selected="request('type') === 'MED'">Medizinisch</flux:select.option>
+            <flux:select.option value="TECH" :selected="request('type') === 'TECH'">Technisch</flux:select.option>
         </flux:select>
-        <flux:select name="nation_id" placeholder="Nation" class="w-40">
-            <option value="">Alle Nationen</option>
+        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-44">
             @foreach($nations as $nation)
-                <option value="{{ $nation->id }}" @selected(request('nation_id') == $nation->id)>
-                    {{ $nation->code }} – {{ $nation->name_de }}
-                </option>
+                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:select name="active_only" class="w-40">
-            <option value="1" @selected(request('active_only', '1') === '1')>Nur aktive</option>
-            <option value="0" @selected(request('active_only') === '0')>Alle</option>
+        <flux:select variant="listbox" name="active_only" class="w-36">
+            <flux:select.option value="1" :selected="request('active_only', '1') === '1'">Nur aktive</flux:select.option>
+            <flux:select.option value="0" :selected="request('active_only') === '0'">Alle</flux:select.option>
         </flux:select>
-        <flux:button type="submit" icon="funnel">Filtern</flux:button>
-        @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
-            <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
-        @endif
+        <div class="ml-auto flex items-center gap-3">
+            @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
+                <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+            @endif
+            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
+        </div>
     </form>
 
     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
@@ -90,12 +91,12 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('classifiers.show', $classifier) }}" size="sm" variant="ghost" icon="eye"/>
-                            <flux:button href="{{ route('classifiers.edit', $classifier) }}" size="sm" variant="ghost" icon="pencil"/>
+                            <flux:button href="{{ route('classifiers.edit', $classifier) }}" size="sm" variant="ghost" icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('classifiers.destroy', $classifier) }}"
                                   x-data="{ del() { if(confirm('Klassifizierer wirklich löschen?')) this.$el.submit() } }"
                                   @submit.prevent="del()">
                                 @csrf @method('DELETE')
-                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500"/>
+                                <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
                         </div>
                     </flux:table.cell>

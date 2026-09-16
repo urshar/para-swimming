@@ -61,14 +61,14 @@ function relayBase(): array
     return compact('nation', 'club', 'meet', 'stroke', 'event');
 }
 
-function makeAthlete(Nation $nation, Club $club, string $sportClass = 'S9'): Athlete
+function makeAthlete(Nation $nation, Club $club, string $sportClass = 'S9', string $gender = 'M'): Athlete
 {
     preg_match('/^(SB|SM|S)(\d+)$/', $sportClass, $m);
 
     $athlete = Athlete::create([
         'first_name' => 'Max',
         'last_name' => 'Muster',
-        'gender' => 'M',
+        'gender' => $gender,
         'birth_date' => '2000-01-01',
         'nation_id' => $nation->id,
         'club_id' => $club->id,
@@ -417,3 +417,72 @@ describe('RelayEntryMember', function () {
         })->group('relay-entry');
 
 }); // describe RelayEntryMember
+
+// ── RelayEntry::teamGender ──────────────────────────────────────────────────
+
+describe('RelayEntry::teamGender', function () {
+
+    function makeRelayWithGenders(array $genders): RelayEntry
+    {
+        ['meet' => $meet, 'event' => $event, 'club' => $club, 'nation' => $nation] = relayBase();
+
+        $entry = RelayEntry::create([
+            'meet_id' => $meet->id,
+            'swim_event_id' => $event->id,
+            'club_id' => $club->id,
+        ]);
+
+        foreach ($genders as $i => $gender) {
+            RelayEntryMember::create([
+                'relay_entry_id' => $entry->id,
+                'athlete_id' => makeAthlete($nation, $club, gender: $gender)->id,
+                'position' => $i + 1,
+            ]);
+        }
+
+        return $entry->load('members.athlete');
+    }
+
+    it('gibt "M" zurück wenn alle Mitglieder männlich sind', function () {
+        $entry = makeRelayWithGenders(['M', 'M', 'M', 'M']);
+
+        expect($entry->teamGender())->toBe('M');
+    })->group('relay-entry');
+
+    it('gibt "F" zurück wenn alle Mitglieder weiblich sind', function () {
+        $entry = makeRelayWithGenders(['F', 'F', 'F', 'F']);
+
+        expect($entry->teamGender())->toBe('F');
+    })->group('relay-entry');
+
+    it('gibt "X" zurück bei exakt zwei Männern und zwei Frauen', function () {
+        $entry = makeRelayWithGenders(['M', 'M', 'F', 'F']);
+
+        expect($entry->teamGender())->toBe('X');
+    })->group('relay-entry');
+
+    it('bleibt "M" wenn bei überwiegend Frauen ein Mann dabei ist', function () {
+        $entry = makeRelayWithGenders(['F', 'F', 'F', 'M']);
+
+        expect($entry->teamGender())->toBe('M');
+    })->group('relay-entry');
+
+    it('bleibt "M" wenn bei überwiegend Männern eine Frau dabei ist', function () {
+        $entry = makeRelayWithGenders(['M', 'M', 'M', 'F']);
+
+        expect($entry->teamGender())->toBe('M');
+    })->group('relay-entry');
+
+    it('gibt null zurück ohne Mitglieder', function () {
+        ['meet' => $meet, 'event' => $event, 'club' => $club] = relayBase();
+
+        $entry = RelayEntry::create([
+            'meet_id' => $meet->id,
+            'swim_event_id' => $event->id,
+            'club_id' => $club->id,
+        ])->load('members.athlete');
+
+        expect($entry->teamGender())->toBeNull();
+    })->group('relay-entry');
+
+});

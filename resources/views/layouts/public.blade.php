@@ -29,10 +29,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     {{-- Vor dem ersten Rendern, damit die helle Darstellung nicht kurz aufblitzt (§3.4). Muss
-         mit resources/js/theme.js synchron bleiben. --}}
+         mit resources/js/theme.js synchron bleiben.
+
+         Fallback auf "flux.appearance": Login/Registrierung & Admin-Bereich laufen über Flux'
+         eigenes Hell/Dunkel-System (siehe @fluxAppearance dort) mit eigenem localStorage-Key.
+         Ohne diesen Fallback wirkte ein hier gewählter Modus beim Wechsel auf die Login-Seite
+         verloren (sie kennt nur "flux.appearance", nicht "theme") und sprang auf die
+         Systemeinstellung zurück. theme.js schreibt beim Setzen daher in beide Keys. --}}
     <script>
         (function () {
-            const mode = localStorage.getItem('theme') || 'system';
+            const mode = localStorage.getItem('theme') || localStorage.getItem('flux.appearance') || 'system';
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
             document.documentElement.classList.toggle('dark', isDark);
@@ -65,7 +71,7 @@
 
     @vite(['resources/css/public.css', 'resources/js/public.js'])
 </head>
-<body class="min-h-screen bg-white text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+<body class="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
 
 <a href="#content"
    class="sr-only focus:not-sr-only focus:fixed focus:inset-s-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:focus:bg-gray-900 dark:focus:text-gray-100">
@@ -77,7 +83,7 @@
 {{-- hide()/show()/trap() kommen aus resources/js/mobile-nav.js (Alpine.data), für die
      Editor-Analyse über die x-data-Grenze hinweg nicht auflösbar. --}}
 <!--suppress JSValidateTypes -->
-<header class="relative border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900" x-data="mobileNav()">
+<header class="relative border-b border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900" x-data="mobileNav()">
     <div class="container mx-auto flex items-center justify-between px-4 py-4 lg:px-8 xl:max-w-7xl">
         <a href="{{ route('public.home', ['locale' => app()->getLocale()]) }}"
            class="text-lg font-bold tracking-wide text-gray-900 hover:text-gray-600 dark:text-gray-100 dark:hover:text-gray-300">
@@ -129,7 +135,7 @@
                          x-on:click.outside="close()"
                          x-on:keydown="onPanelKeydown($event)"
                          aria-label="{{ __('public.nav.points') }}"
-                         class="absolute inset-s-0 z-10 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                         class="absolute inset-s-0 z-10 mt-2 w-56 rounded-lg border border-gray-300 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                         <a href="{{ route('public.base-times.index', ['locale' => app()->getLocale()]) }}"
                            @if (request()->routeIs('public.base-times.*')) aria-current="page" @endif
                            class="block px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 hover:text-blue-600 aria-[current]:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-700/50 dark:hover:text-blue-400 dark:aria-[current]:text-blue-400">
@@ -173,7 +179,7 @@
                          x-on:click.outside="close()"
                          x-on:keydown="onPanelKeydown($event)"
                          aria-label="{{ __('public.nav.rankings') }}"
-                         class="absolute inset-s-0 z-10 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                         class="absolute inset-s-0 z-10 mt-2 w-56 rounded-lg border border-gray-300 bg-white py-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                         <a href="{{ route('public.cup-ranking.index', ['locale' => app()->getLocale()]) }}"
                            @if (request()->routeIs('public.cup-ranking.*')) aria-current="page" @endif
                            class="block px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 hover:text-blue-600 aria-[current]:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-700/50 dark:hover:text-blue-400 dark:aria-[current]:text-blue-400">
@@ -199,25 +205,38 @@
                 </a>
             </nav>
 
-            <div role="group" aria-label="{{ __('public.theme.label') }}" class="flex gap-1" x-data="theme()">
-                <button type="button" x-on:click="set('light')" :aria-pressed="mode === 'light'"
-                        class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
-                    {{ __('public.theme.light') }}
+            {{-- Hell/Dunkel: zweigeteilter Icon-Umschalter wie im Admin-Bereich (Mond/Sonne,
+                 dort über Flux' $flux.dark-Magic) — hier bewusst weiter mit der eigenen
+                 Alpine-Komponente theme() umgesetzt statt mit Flux, siehe CLAUDE.md
+                 ("öffentlicher Bereich nutzt Tailkit, nicht Flux"). "System" bleibt intern der
+                 Startzustand vor der ersten bewussten Wahl (wie bei Flux), ist über diesen
+                 Umschalter aber wie im Backend nicht mehr eigens anwählbar. --}}
+            <div x-data="theme()">
+                <button type="button" x-show="!isDark()" x-on:click="set('dark')"
+                        aria-label="{{ __('public.theme.dark') }}" title="{{ __('public.theme.dark') }}"
+                        class="rounded-lg p-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-blue-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                    </svg>
                 </button>
-                <button type="button" x-on:click="set('dark')" :aria-pressed="mode === 'dark'"
-                        class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
-                    {{ __('public.theme.dark') }}
-                </button>
-                <button type="button" x-on:click="set('system')" :aria-pressed="mode === 'system'"
-                        class="rounded-lg px-2 py-1 text-sm font-semibold text-gray-700 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
-                    {{ __('public.theme.system') }}
+                <button type="button" x-show="isDark()" x-on:click="set('light')"
+                        aria-label="{{ __('public.theme.light') }}" title="{{ __('public.theme.light') }}"
+                        class="rounded-lg p-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-blue-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                    </svg>
                 </button>
             </div>
+
+            <a href="{{ route('login') }}"
+               class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-transparent dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
+                {{ __('public.nav.login') }}
+            </a>
 
             <div class="lg:hidden">
                 <button x-ref="toggle" x-on:click="show()" type="button"
                         x-bind:aria-expanded="open" aria-controls="tkMobileNav"
-                        class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-transparent dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
+                        class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-transparent dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
                     {{ __('public.nav.open') }}
                 </button>
             </div>
@@ -249,7 +268,7 @@
                     {{ config('app.name', 'Para Swimming') }}
                 </span>
             <button x-on:click="hide()" type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
+                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:border-gray-300 hover:text-gray-900 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-gray-200">
                 {{ __('public.nav.close') }}
             </button>
         </div>
@@ -331,7 +350,7 @@
      wie auf den meisten Websites üblich ("Impressum"/"Datenschutz"/"Barrierefreiheit"), keine
      inhaltliche Nav-Sektion. Copyright links, Links rechtsbündig (Rückmeldung) — bei schmalem
      Viewport bricht die Zeile um (flex-wrap), statt sich zu überlappen. --}}
-<footer class="border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+<footer class="border-t border-gray-300 bg-white dark:border-gray-800 dark:bg-gray-900">
     <div
         class="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-12 text-sm text-gray-500 lg:px-8 dark:text-gray-400/80 xl:max-w-7xl">
         <span><span class="font-medium">{{ config('app.name', 'Para Swimming') }}</span> &copy; {{ now()->year }}</span>

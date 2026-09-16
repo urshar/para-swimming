@@ -4,43 +4,50 @@
 
 @section('content')
 
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-3">
-            <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="ghost"
-                         icon="arrow-left" size="sm"/>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                        {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
-                        m {{ $record->strokeType?->name_de }}
-                    </h1>
-                    <flux:badge color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
-                        {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
-                    </flux:badge>
-                    <flux:badge color="zinc">{{ $record->course }}</flux:badge>
-                </div>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
-                </p>
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
+                m {{ $record->strokeType?->name_de }}
+            </h1>
+            <flux:badge color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
+                {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
+            </flux:badge>
+            <flux:badge color="zinc">{{ $record->course }}</flux:badge>
+        </div>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
+        </p>
+
+        <div class="flex items-center flex-wrap gap-2 mt-4">
+            <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="filled"
+                         icon="arrow-left" size="sm">
+                Zurück
+            </flux:button>
+
+            <div class="ml-auto flex items-center flex-wrap gap-2">
+                <flux:button href="{{ route('records.edit', $record) }}" variant="filled" icon="pencil" size="sm"
+                             class="text-amber-500!">
+                    Bearbeiten
+                </flux:button>
+                <form method="POST" action="{{ route('records.destroy', $record) }}"
+                      x-data="{
+                          submit() {
+                              const msg = this.$el.dataset.hasPredecessor === '1'
+                                  ? 'Rekord löschen? Der Vorgänger-Rekord wird automatisch wiederhergestellt.'
+                                  : 'Rekord unwiderruflich löschen? Es gibt keinen Vorgänger-Rekord.';
+                              if (confirm(msg)) this.$el.submit()
+                          }
+                      }"
+                      @submit.prevent="submit()"
+                      data-has-predecessor="{{ $record->supersedes_id ? '1' : '0' }}">
+                    @csrf @method('DELETE')
+                    <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
+                        Löschen
+                    </flux:button>
+                </form>
             </div>
         </div>
-        <flux:button href="{{ route('records.edit', $record) }}" variant="ghost" icon="pencil" size="sm">
-            Bearbeiten
-        </flux:button>
-        <form method="POST" action="{{ route('records.destroy', $record) }}"
-              x-data
-              @submit.prevent="
-                  const msg = $el.dataset.hasPredecessor === '1'
-                      ? 'Rekord löschen? Der Vorgänger-Rekord wird automatisch wiederhergestellt.'
-                      : 'Rekord unwiderruflich löschen? Es gibt keinen Vorgänger-Rekord.';
-                  if(confirm(msg)) $el.submit()
-              "
-              data-has-predecessor="{{ $record->supersedes_id ? '1' : '0' }}">
-            @csrf @method('DELETE')
-            <flux:button type="submit" variant="ghost" icon="trash" size="sm" class="text-red-500">
-                Löschen
-            </flux:button>
-        </form>
     </div>
 
     <div class="grid grid-cols-3 gap-6 mb-6">
@@ -215,15 +222,15 @@
                             @if(!$histRecord->is_current)
                                 <div class="flex items-center gap-1 justify-end">
                                     <form method="POST" action="{{ route('records.restore', $histRecord) }}"
-                                          x-data
-                                          @submit.prevent="if(confirm('Diesen Rekord als aktuellen Rekord wiederherstellen?')) $el.submit()">
+                                          x-data="{ submit() { if (confirm('Diesen Rekord als aktuellen Rekord wiederherstellen?')) this.$el.submit() } }"
+                                          @submit.prevent="submit()">
                                         @csrf
                                         <flux:button type="submit" size="sm" variant="ghost" icon="arrow-path"
                                                      class="text-emerald-500" title="Wiederherstellen"/>
                                     </form>
                                     <form method="POST" action="{{ route('records.destroy', $histRecord) }}"
-                                          x-data
-                                          @submit.prevent="if(confirm('Historischen Rekord löschen?')) $el.submit()">
+                                          x-data="{ submit() { if (confirm('Historischen Rekord löschen?')) this.$el.submit() } }"
+                                          @submit.prevent="submit()">
                                         @csrf @method('DELETE')
                                         <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                                      class="text-red-500" title="Löschen"/>

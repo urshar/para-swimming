@@ -79,9 +79,8 @@
                                             <form method="POST"
                                                   action="{{ route('wps.versions.archive', $version) }}">
                                                 @csrf
-                                                <flux:button type="submit" size="sm" variant="ghost">
-                                                    Archivieren
-                                                </flux:button>
+                                                <flux:button type="submit" size="sm" variant="ghost"
+                                                             icon="archive-box" class="text-indigo-500!"/>
                                             </form>
                                         @endif
 
@@ -91,7 +90,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <flux:button type="submit" size="sm" variant="ghost"
-                                                         icon="trash"/>
+                                                         icon="trash" class="text-red-500!"/>
                                         </form>
                                     </div>
                                 </flux:table.cell>

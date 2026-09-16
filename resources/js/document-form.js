@@ -14,11 +14,14 @@
  *   2. Hinweistext einblenden, wenn eine LENEX-Datei (.lxf/.lef/.xml) zur Kategorie
  *      INVITATION hochgeladen wird (§4.3) — unabhängig davon, ob zuerst die Datei gewählt
  *      oder zuerst die Kategorie umgeschaltet wird.
+ *   3. Namen der gewählten Datei anzeigen (flux:file-upload zeigt das anders als ein
+ *      natives <input type="file"> nicht von selbst an, siehe file-upload-field.js).
  */
 export default function documentForm(config) {
     return {
         category: config.category ?? '',
         candidates: config.candidates ?? {},
+        fileName: null,
         fileExtension: '',
 
         get currentCandidates() {
@@ -31,6 +34,7 @@ export default function documentForm(config) {
 
         onFileChange(event) {
             const fileName = event.target.files[0]?.name ?? '';
+            this.fileName = fileName || null;
             this.fileExtension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
         },
     };

@@ -3,7 +3,7 @@
 @section('title', 'Ausgeschlossene Bewerbe — Richtzeiten ÖSTM & ÖM')
 
 @section('content')
-    <div class="max-w-2xl">
+    <div class="max-w-4xl">
         <div class="flex items-center gap-3 mb-2">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Ausgeschlossene Bewerbe</h1>
         </div>

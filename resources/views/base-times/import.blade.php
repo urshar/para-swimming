@@ -47,16 +47,15 @@
                 {{-- Bestehende Version wählen --}}
                 <div x-show="mode === 'existing'" x-cloak>
                     <flux:field>
-                        <flux:label>Version *</flux:label>
-                        <flux:select name="version_id">
-                            <option value="">— wählen —</option>
+                        <flux:label>Version <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="version_id" placeholder="— wählen —" clearable>
                             @foreach($versions as $version)
-                                <option value="{{ $version->id }}"
-                                    @selected((string) $selectedVersionId === (string) $version->id)>
+                                <flux:select.option value="{{ $version->id }}"
+                                    :selected="(string) $selectedVersionId === (string) $version->id">
                                     {{ $version->label }}
                                     ({{ $version->valid_from->format('d.m.Y') }} –
                                     {{ $version->valid_until?->format('d.m.Y') ?? '∞' }})
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="version_id"/>
@@ -69,21 +68,22 @@
                 {{-- Neue Version anlegen --}}
                 <div x-show="mode === 'new'" x-cloak class="space-y-4">
                     <flux:field>
-                        <flux:label>Bezeichnung *</flux:label>
+                        <flux:label>Bezeichnung <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="label" placeholder="z.B. 2021–2026" value="{{ old('label') }}"/>
                         <flux:error name="label"/>
                     </flux:field>
 
                     <div class="grid grid-cols-2 gap-4">
                         <flux:field>
-                            <flux:label>Gültig ab *</flux:label>
-                            <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}"/>
+                            <flux:label>Gültig ab <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                            <flux:date-picker type="input" locale="de-AT" name="valid_from" value="{{ old('valid_from') }}"/>
                             <flux:error name="valid_from"/>
                         </flux:field>
                         <flux:field>
-                            <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span>
+                            {{-- ms-1 statt reinem Leerzeichen: siehe versions/form.blade.php --}}
+                            <flux:label>Gültig bis <span class="font-normal text-zinc-400 ms-1">(optional)</span>
                             </flux:label>
-                            <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
+                            <flux:date-picker type="input" locale="de-AT" name="valid_until" value="{{ old('valid_until') }}" clearable/>
                             <flux:error name="valid_until"/>
                         </flux:field>
                     </div>
@@ -93,13 +93,12 @@
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Excel-Datei</h2>
 
-                <flux:field>
-                    <flux:label>World-Aquatics-Basiswert-Datei *</flux:label>
-                    <input type="file" name="base_time_file" accept=".xlsx" required
-                           class="block w-full text-sm text-zinc-600 dark:text-zinc-400
-                                  file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
-                                  file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-950/30 dark:file:text-blue-400
-                                  file:cursor-pointer cursor-pointer"/>
+                <flux:field x-data="fileUploadField()">
+                    <flux:label>World-Aquatics-Basiswert-Datei <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:file-upload name="base_time_file" accept=".xlsx" x-on:change="onChange">
+                        <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
+                    </flux:file-upload>
+                    <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>
                     <flux:error name="base_time_file"/>
                     <flux:description>.xlsx · Max. 20 MB</flux:description>
                 </flux:field>

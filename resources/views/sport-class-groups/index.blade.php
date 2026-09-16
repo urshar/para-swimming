@@ -3,7 +3,7 @@
 @section('title', 'Sportklassengruppen')
 
 @section('content')
-    <div class="max-w-2xl">
+    <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Sportklassengruppen (Cupwertung)</h1>
             <flux:button href="{{ route('sport-class-groups.create') }}" variant="primary" icon="plus">
@@ -52,12 +52,13 @@
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('sport-class-groups.edit', $group) }}"
-                                                 variant="ghost" size="sm" icon="pencil"/>
+                                                 variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('sport-class-groups.destroy', $group) }}"
                                           onsubmit="return confirm('Gruppe „{{ $group->name_de }}“ inkl. aller Zuordnungen wirklich löschen?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash"
+                                                     class="text-red-500!"/>
                                     </form>
                                 </div>
                             </flux:table.cell>

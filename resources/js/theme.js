@@ -9,10 +9,15 @@
  * layouts/public.blade.php (verhindert das kurze Aufblitzen der hellen Darstellung, bevor
  * dieses Skript geladen ist). Diese Komponente hält danach nur den Umschalter und die
  * Systemänderung synchron.
+ *
+ * "flux.appearance" wird zusätzlich mitgeschrieben (nie gelesen als führender Wert, nur als
+ * Fallback beim Start): Login/Registrierung und der Admin-Bereich laufen über Flux' eigenes
+ * Hell/Dunkel-System mit diesem Key. Ohne den Mitschrieb wäre ein hier gewählter Modus beim
+ * Wechsel z. B. auf die Login-Seite verloren und würde auf die Systemeinstellung zurückfallen.
  */
 export default function theme() {
     return {
-        mode: localStorage.getItem('theme') ?? 'system',
+        mode: localStorage.getItem('theme') ?? localStorage.getItem('flux.appearance') ?? 'system',
         media: window.matchMedia('(prefers-color-scheme: dark)'),
 
         init() {
@@ -27,6 +32,7 @@ export default function theme() {
         set(mode) {
             this.mode = mode;
             localStorage.setItem('theme', mode);
+            localStorage.setItem('flux.appearance', mode);
             this.apply();
         },
 

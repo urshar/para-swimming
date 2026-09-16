@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\WpsPointVersion;
+use App\Support\SportClassSorter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -64,10 +65,14 @@ class WpsPointVersionController extends Controller
             'version' => $version,
             'parameters' => $parameters,
             'filters' => $filters,
+            // Nicht ->orderBy('sport_class'): reine String-Sortierung reiht "S10" vor "S2" ein.
+            // Stattdessen nach dem Pluck numerisch über SportClassSorter, wie im Basiswerte- und
+            // WPS-Rangliste-Dropdown auch (Design-Feedback Erik, 2026-09-04).
             'sportClasses' => $version->parameters()
                 ->distinct()
-                ->orderBy('sport_class')
-                ->pluck('sport_class'),
+                ->pluck('sport_class')
+                ->sortBy(static fn (string $sportClass): string => SportClassSorter::key($sportClass))
+                ->values(),
         ]);
     }
 

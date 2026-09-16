@@ -191,15 +191,14 @@
                 @unless($is_admin)
                     <flux:field>
                         <flux:label>Verein</flux:label>
-                        <flux:select wire:model="club_id">
-                            <option value="">— Kein Verein —</option>
+                        <flux:select variant="combobox" wire:model="club_id" placeholder="— Kein Verein —" clearable>
                             @foreach($this->clubs as $club)
-                                <option value="{{ $club->id }}">
+                                <flux:select.option value="{{ $club->id }}">
                                     {{ $club->name }}
                                     @if($club->short_name && $club->short_name !== $club->name)
                                         ({{ $club->short_name }})
                                     @endif
-                                </option>
+                                </flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="club_id"/>

@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\SearchesAthletes;
+use App\Models\Athlete;
 use App\Models\BaseTimeVersion;
+use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimEvent;
 use App\Services\WorldAquaticsPointsService;
+use App\Support\TimeParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,11 +96,15 @@ class ResultController extends Controller
             ->orderBy('event_number')
             ->get();
 
-        $entries = $meet->entries()
-            ->with(['athlete.sportClasses', 'club'])
+        // Bewusst ALLE Athleten/Vereine, nicht nur jene mit einer Meldung zu diesem Meet —
+        // ein Ergebnis kann auch für einen Athleten ohne (oder mit fehlender) Meldung erfasst
+        // werden müssen. Gleiches Muster wie EntryController::create().
+        $athletes = Athlete::with(['club', 'nation', 'sportClasses'])
+            ->orderBy('last_name')
             ->get();
+        $clubs = Club::with('nation')->orderBy('name')->get();
 
-        return view('results.form', compact('meet', 'swimEvents', 'entries'));
+        return view('results.form', compact('meet', 'swimEvents', 'athletes', 'clubs'));
     }
 
     /**
@@ -108,18 +115,18 @@ class ResultController extends Controller
         $data = $this->validateResult($request);
 
         // Prüfen ob SwimEvent zum Meet gehört
-        $swimEvent = SwimEvent::findOrFail($data['swim_event_id']);
+        $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
         if ($swimEvent->meet_id !== $meet->id) {
             return back()->withErrors(['swim_event_id' => 'Diese Disziplin gehört nicht zu diesem Wettkampf.']);
         }
 
-        DB::transaction(function () use ($meet, $data, $request) {
+        DB::transaction(function () use ($meet, $data) {
             $result = Result::create(array_merge(
                 $data['result'],
                 ['meet_id' => $meet->id]
             ));
 
-            $this->storeSplits($result, $request->input('splits', []));
+            $this->storeSplits($result, $data['splits']);
         });
 
         return redirect()
@@ -140,7 +147,8 @@ class ResultController extends Controller
             'meet' => $result->meet,
             'result' => $result,
             'swimEvents' => $swimEvents,
-            'entries' => collect(),
+            'athletes' => collect(),
+            'clubs' => collect(),
         ]);
     }
 
@@ -151,12 +159,12 @@ class ResultController extends Controller
     {
         $data = $this->validateResult($request);
 
-        DB::transaction(function () use ($result, $data, $request) {
+        DB::transaction(function () use ($result, $data) {
             $result->update($data['result']);
 
             // Splits komplett ersetzen
             $result->splits()->delete();
-            $this->storeSplits($result, $request->input('splits', []));
+            $this->storeSplits($result, $data['splits']);
         });
 
         return redirect()
@@ -195,14 +203,20 @@ class ResultController extends Controller
             'swim_event_id' => 'required|exists:swim_events,id',
             'athlete_id' => 'required|exists:athletes,id',
             'club_id' => 'required|exists:clubs,id',
-            'swim_time' => 'nullable|integer|min:0',
+            // Kommt aus einem maskierten MM:SS.hh-Feld, nicht mehr als Hundertstel-Integer
+            // (gleiches Muster wie EntryController::parseEntryTime() für Meldezeiten) —
+            // deshalb hier als String validiert und unten über parseTime() umgerechnet.
+            'swim_time' => 'nullable|string|max:20',
             'status' => 'nullable|in:EXH,DSQ,DNS,DNF,SICK,WDR',
             'sport_class' => 'nullable|string|max:15',
             'points' => 'nullable|integer|min:0',
             'heat' => 'nullable|integer|min:1',
             'lane' => 'nullable|integer|min:0',
             'place' => 'nullable|integer|min:1',
-            'reaction_time' => 'nullable|integer',  // kann negativ sein (Fehlstart)
+            // Kommt als Sekunden mit Komma aus dem Formular (z.B. "0,14", Fehlstart negativ
+            // möglich, z.B. "-0,03") — unten über parseReactionTime() in Hundertstelsekunden
+            // umgerechnet, wie es die Spalte speichert.
+            'reaction_time' => 'nullable|string|max:10',
             'comment' => 'nullable|string|max:255',
             'is_world_record' => 'boolean',
             'is_european_record' => 'boolean',
@@ -210,16 +224,51 @@ class ResultController extends Controller
 
             'splits' => 'nullable|array',
             'splits.*.distance' => 'nullable|integer|min:1',
-            'splits.*.split_time' => 'nullable|integer|min:0',
+            'splits.*.split_time' => 'nullable|string|max:20',
         ]);
+
+        // Checkbox-/Switch-Felder fehlen im Request komplett, wenn sie nicht angehakt
+        // sind — dann fehlen sie auch in $validated, und ein zuvor gesetztes Flag würde
+        // beim Abhaken NICHT zurückgesetzt. Explizit über boolean() normalisieren
+        // (gleiches Muster wie MeetController::store()/update()).
+        $validated['is_world_record'] = $request->boolean('is_world_record');
+        $validated['is_european_record'] = $request->boolean('is_european_record');
+        $validated['is_national_record'] = $request->boolean('is_national_record');
+        $validated['swim_time'] = $this->parseTime($validated['swim_time'] ?? null);
+        $validated['reaction_time'] = $this->parseReactionTime($validated['reaction_time'] ?? null);
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),
             'splits' => collect($validated['splits'] ?? [])
+                ->map(fn ($s) => [
+                    'distance' => $s['distance'] ?? null,
+                    'split_time' => $this->parseTime($s['split_time'] ?? null),
+                ])
                 ->filter(fn ($s) => ! empty($s['distance']) && ! empty($s['split_time']))
                 ->values()
                 ->toArray(),
         ];
+    }
+
+    /** MM:SS.hh (bzw. HH:MM:SS.hh) aus dem maskierten Zeit-Feld → Hundertstelsekunden. */
+    private function parseTime(?string $raw): ?int
+    {
+        $raw = trim((string) $raw);
+
+        return $raw === '' ? null : TimeParser::parse($raw);
+    }
+
+    /** Sekunden mit Komma (z.B. "0,14", "-0,03") → Hundertstelsekunden. */
+    private function parseReactionTime(?string $raw): ?int
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', $raw);
+
+        return is_numeric($normalized) ? (int) round(((float) $normalized) * 100) : null;
     }
 
     private function storeSplits(Result $result, array $splits): void

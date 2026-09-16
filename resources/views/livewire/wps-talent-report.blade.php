@@ -6,43 +6,44 @@
         use Illuminate\Support\Carbon;
     @endphp
 
+    {{-- x-model + $watch statt x-on:change direkt am flux:select: Custom Element <ui-select>
+         feuert sein internes "change"-Event mit bubbles:false, kommt darüber nicht zuverlässig
+         an (siehe resources/js/wps-livewire-filters.js). --}}
     {{-- ── Eingaben (§6.6.1) ───────────────────────────────────────────────── --}}
-    <div class="mb-4 flex flex-wrap items-end gap-3">
+    <div class="mb-4 flex flex-wrap items-end gap-3"
+         x-data="wpsLivewireFilters(@js(['fromYear' => $fromYear, 'toYear' => $toYear, 'referenceId' => $referenceId, 'normType' => $normType, 'course' => $course]), 'setInput')">
         <flux:field class="w-28">
             <flux:label>Von</flux:label>
-            <flux:select x-on:change="$wire.setInput('fromYear', $event.target.value)">
+            <flux:select variant="listbox" x-model="fromYear">
                 @foreach($this->availableYears() as $jahr)
-                    <option value="{{ $jahr }}" @selected($fromYear === (string) $jahr)>{{ $jahr }}</option>
+                    <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-28">
             <flux:label>Bis</flux:label>
-            <flux:select x-on:change="$wire.setInput('toYear', $event.target.value)">
+            <flux:select variant="listbox" x-model="toYear">
                 @foreach($this->availableYears() as $jahr)
-                    <option value="{{ $jahr }}" @selected($toYear === (string) $jahr)>{{ $jahr }}</option>
+                    <flux:select.option value="{{ $jahr }}">{{ $jahr }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-72">
             <flux:label>Referenznorm</flux:label>
-            <flux:select x-on:change="$wire.setInput('referenceId', $event.target.value)">
-                <option value="">Bitte wählen</option>
+            <flux:select variant="listbox" x-model="referenceId" placeholder="Bitte wählen" clearable>
                 @foreach($this->references() as $referenz)
-                    <option value="{{ $referenz->id }}" @selected($referenceId === (string) $referenz->id)>
-                        {{ $referenz->display_name }}
-                    </option>
+                    <flux:select.option value="{{ $referenz->id }}">{{ $referenz->display_name }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-32">
             <flux:label>Norm</flux:label>
-            <flux:select x-on:change="$wire.setInput('normType', $event.target.value)">
-                <option value="mqs" @selected($normType === WpsTalentReportConfiguration::NORM_MQS)>MQS</option>
-                <option value="met" @selected($normType === WpsTalentReportConfiguration::NORM_MET)>MET</option>
+            <flux:select variant="listbox" x-model="normType">
+                <flux:select.option value="mqs">MQS</flux:select.option>
+                <flux:select.option value="met">MET</flux:select.option>
             </flux:select>
         </flux:field>
 
@@ -62,15 +63,16 @@
 
         <flux:field class="w-32">
             <flux:label>Bahnlänge</flux:label>
-            <flux:select x-on:change="$wire.setInput('course', $event.target.value)">
-                <option value="SCM" @selected($course === WpsRankingFilter::COURSE_SCM)>Kurzbahn</option>
-                <option value="LCM" @selected($course === WpsRankingFilter::COURSE_LCM)>Langbahn</option>
+            <flux:select variant="listbox" x-model="course">
+                <flux:select.option value="SCM">Kurzbahn</flux:select.option>
+                <flux:select.option value="LCM">Langbahn</flux:select.option>
             </flux:select>
         </flux:field>
 
         @if($this->config() !== null)
-            <flux:button href="{{ $this->pdfUrl() }}" variant="filled" size="sm"
-                         icon="document-arrow-down">PDF
+            <flux:button href="{{ $this->pdfUrl() }}" variant="filled" icon="document-arrow-down"
+                         class="ml-auto text-purple-500!">
+                PDF
             </flux:button>
         @endif
     </div>
@@ -154,7 +156,7 @@
                             </tr>
                         @endif
 
-                        @php($abstandFarbe = $erreicht ? 'text-green-600 dark:text-green-400' : 'text-zinc-500')
+                        @php($abstandFarbe = $erreicht ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')
 
                         <tr wire:key="talent-{{ $zeile->athlete->id }}-{{ $zeile->eventLabel }}-{{ $zeile->sportClass }}">
                             <td class="px-4 py-1.5 whitespace-nowrap text-zinc-900 dark:text-zinc-100">

@@ -28,8 +28,12 @@
 
 /** Konfiguration für singleEntryForm — Einzelmeldungs-Formular. */
 interface SingleEntryFormConfig {
-    eligibleUrl: string;
-    bestTimesUrl: string;
+    // Optional statt required: club-entries/edit.blade.php verwendet singleEntryForm() nur für
+    // entryTime/entryCourse (Meldezeit + Kurs bearbeiten) — dort gibt es keine Event-/Athleten-
+    // Auswahl, die onEventChange()/onAthleteChange() (und damit eligibleUrl/bestTimesUrl)
+    // bräuchte. club-entries/create.blade.php übergibt beide weiterhin.
+    eligibleUrl?: string;
+    bestTimesUrl?: string;
     meetCourse: string;
     selectedEventId?: string;
     selectedAthleteId?: string;
@@ -41,6 +45,8 @@ interface SingleEntryFormConfig {
 interface RelayEntryFormConfig {
     relayAthletesUrl: string;
     meetCourse: string;
+    /** create-Modus: { [event_id]: relay_count } aller wählbaren Staffel-Events. */
+    events?: Record<string, number>;
     relayCount?: number;
     fixedEventId?: number;
     relayEntryId?: number;

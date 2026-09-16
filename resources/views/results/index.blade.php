@@ -13,16 +13,16 @@
                     World-Aquatics-Punkte für <strong
                         class="text-zinc-700 dark:text-zinc-300">{{ $selectedMeet->name }}</strong>:
                 </span>
-                <flux:select name="version_id" class="w-64" size="sm">
+                <flux:select variant="listbox" name="version_id" class="w-64" size="sm">
                     @forelse($baseTimeVersions as $version)
-                        <option value="{{ $version->id }}" @selected($automaticVersion?->id === $version->id)>
+                        <flux:select.option value="{{ $version->id }}" :selected="$automaticVersion?->id === $version->id">
                             {{ $version->label }}
                             @if($automaticVersion?->id === $version->id)
                                 (automatisch ermittelt)
                             @endif
-                        </option>
+                        </flux:select.option>
                     @empty
-                        <option value="">— keine Basiswert-Version vorhanden —</option>
+                        <flux:select.option value="">— keine Basiswert-Version vorhanden —</flux:select.option>
                     @endforelse
                 </flux:select>
                 <flux:button type="submit" variant="primary" size="sm" icon="calculator"
@@ -45,52 +45,52 @@
     @endif
 
     @if($skippedResults->isNotEmpty())
-        <div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4"
-             x-data="{ open: false }">
-            <button type="button" x-on:click="open = !open"
-                    class="flex items-center justify-between w-full text-sm font-medium text-amber-800 dark:text-amber-400">
-                <span>{{ $skippedResults->count() }} übersprungene(s) Ergebnis(se) bei der letzten Punkte-Neuberechnung</span>
-                <span x-text="open ? '▲' : '▼'"></span>
-            </button>
-            <div x-show="open" x-cloak class="mt-3 divide-y divide-amber-200 dark:divide-amber-800">
-                @foreach($skippedResults as $entry)
-                    <div class="py-2 text-sm flex items-center justify-between gap-3">
-                        <a href="{{ route('results.show', $entry['result']) }}"
-                           class="text-amber-900 dark:text-amber-300 hover:underline">
-                            {{ $entry['result']->athlete?->display_name }}
-                            — {{ $entry['result']->swimEvent?->display_name }}
-                        </a>
-                        <span
-                            class="text-amber-600 dark:text-amber-500 text-xs text-right">{{ $entry['reason'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </div>
+        <flux:accordion class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl mb-4">
+            <flux:accordion.item>
+                <flux:accordion.heading class="p-4 text-sm font-medium text-amber-800 dark:text-amber-400">
+                    {{ $skippedResults->count() }} übersprungene(s) Ergebnis(se) bei der letzten Punkte-Neuberechnung
+                </flux:accordion.heading>
+
+                <flux:accordion.content class="px-4 pb-4 divide-y divide-amber-200 dark:divide-amber-800">
+                    @foreach($skippedResults as $entry)
+                        <div class="py-2 text-sm flex items-center justify-between gap-3">
+                            <a href="{{ route('results.show', $entry['result']) }}"
+                               class="text-amber-900 dark:text-amber-300 hover:underline">
+                                {{ $entry['result']->athlete?->display_name }}
+                                — {{ $entry['result']->swimEvent?->display_name }}
+                            </a>
+                            <span
+                                class="text-amber-600 dark:text-amber-500 text-xs text-right">{{ $entry['reason'] }}</span>
+                        </div>
+                    @endforeach
+                </flux:accordion.content>
+            </flux:accordion.item>
+        </flux:accordion>
     @endif
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         <form method="GET" class="flex flex-wrap gap-3">
-            <flux:select name="meet_id" placeholder="Wettkampf wählen…" class="flex-1 min-w-48">
-                <option value="">Alle Wettkämpfe</option>
+            <flux:select variant="listbox" searchable name="meet_id" placeholder="Alle Wettkämpfe" clearable class="flex-1 min-w-48">
                 @foreach($meets as $meet)
-                    <option value="{{ $meet->id }}" @selected(request('meet_id') == $meet->id)>
+                    <flux:select.option value="{{ $meet->id }}" :selected="request('meet_id') == $meet->id">
                         {{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})
-                    </option>
+                    </flux:select.option>
                 @endforeach
             </flux:select>
             <flux:input name="search" placeholder="Athlet suchen…" value="{{ request('search') }}"
                         class="flex-1 min-w-48"/>
-            <flux:select name="status" class="w-40">
-                <option value="">Alle Status</option>
-                <option value="valid" @selected(request('status') === 'valid')>Nur gültige</option>
-                <option value="DSQ" @selected(request('status') === 'DSQ')>DSQ</option>
-                <option value="DNS" @selected(request('status') === 'DNS')>DNS</option>
-                <option value="DNF" @selected(request('status') === 'DNF')>DNF</option>
+            <flux:select variant="listbox" name="status" placeholder="Alle Status" clearable class="w-40">
+                <flux:select.option value="valid" :selected="request('status') === 'valid'">Nur gültige</flux:select.option>
+                <flux:select.option value="DSQ" :selected="request('status') === 'DSQ'">DSQ</flux:select.option>
+                <flux:select.option value="DNS" :selected="request('status') === 'DNS'">DNS</flux:select.option>
+                <flux:select.option value="DNF" :selected="request('status') === 'DNF'">DNF</flux:select.option>
             </flux:select>
-            <flux:button type="submit" variant="filled" size="sm">Filtern</flux:button>
-            @if(request()->hasAny(['meet_id', 'search', 'status']))
-                <flux:button href="{{ route('results.index') }}" size="sm">Zurücksetzen</flux:button>
-            @endif
+            <div class="ml-auto flex items-center gap-3">
+                @if(request()->hasAny(['meet_id', 'search', 'status']))
+                    <flux:button href="{{ route('results.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                @endif
+                <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
+            </div>
         </form>
     </div>
 
@@ -174,7 +174,7 @@
                             <flux:button href="{{ route('results.show', $result) }}" size="xs" variant="ghost"
                                          icon="eye"/>
                             <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
-                                         icon="pencil"/>
+                                         icon="pencil" class="text-amber-500!"/>
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

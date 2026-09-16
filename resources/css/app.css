@@ -12,28 +12,47 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    /*
+     * Flux' "gray of choice" von zinc auf slate umgelegt (fluxui.dev/themes?accent=blue&base=slate,
+     * Erik, 04.09.2026) - betrifft automatisch jede bestehende zinc-*-Klasse im gesamten
+     * Admin-Bereich sowie Flux' eigene Komponenten-Innenfarben, ohne dass zinc-* Vorkommen
+     * einzeln umgeschrieben werden müssen.
+     */
+    --color-zinc-50: var(--color-slate-50);
+    --color-zinc-100: var(--color-slate-100);
+    --color-zinc-200: var(--color-slate-200);
+    --color-zinc-300: var(--color-slate-300);
+    --color-zinc-400: var(--color-slate-400);
+    --color-zinc-500: var(--color-slate-500);
+    --color-zinc-600: var(--color-slate-600);
+    --color-zinc-700: var(--color-slate-700);
+    --color-zinc-800: var(--color-slate-800);
+    --color-zinc-900: var(--color-slate-900);
+    --color-zinc-950: var(--color-slate-950);
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /*
+     * Akzentfarbe an den öffentlichen Bereich angeglichen (layouts/public.blade.php + Tailkit:
+     * durchgängig Blau, dort bg-blue-600 für gefüllte Buttons in beiden Darstellungsmodi,
+     * text-blue-600/dark:text-blue-400 für Links). --color-accent (Füllfarbe) und
+     * --color-accent-foreground (Inhalt auf der Füllung, z. B. Button-Text, Checkbox-Häkchen)
+     * bleiben deshalb bewusst in beiden Modi gleich - genau wie die blauen Buttons im Frontend
+     * ihre Füllung beim Moduswechsel nicht invertieren. Nur --color-accent-content (akzentfarbener
+     * Text auf normalem Seitenhintergrund, z. B. Links, aktive Sidebar-Einträge) wechselt auf
+     * blue-400, weil blue-600 auf dunklem Grund zu wenig Kontrast hätte. Kontrast geprüft (WCAG
+     * AA, docs/accessibility.md): Weiß auf blue-600 ~5,16:1, blue-600 auf hellem Grund ~4,95:1,
+     * blue-400 auf zinc-900/950 (Dunkelmodus-Flächen) ~6,97:1 - jeweils über der 4,5:1-Grenze für
+     * Fließtext.
+     */
+    --color-accent: var(--color-blue-600);
+    --color-accent-content: var(--color-blue-600);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-blue-600);
+        --color-accent-content: var(--color-blue-400);
+        --color-accent-foreground: var(--color-white);
     }
 }
 
@@ -52,16 +71,51 @@
     @apply grid gap-2;
 }
 
+/*
+ * flux:field ist selbst grid gap-2 (Label/Control/Description als eigene Zeilen). Steht ein
+ * Feld ohne flux:description neben einem mit Description in derselben äußeren
+ * grid-cols-*-Zeile (z. B. swim-events/form.blade.php: "Schwimmstil"+"Distanz" ohne Hinweistext
+ * neben "Schwimmer/Staffel" mit "1 = Einzel"), stretcht der Grid-Default (align-items: stretch)
+ * das kürzere Feld auf die Höhe des längeren - die zusätzliche Höhe verteilt sich dabei auf
+ * SEINE eigenen auto-Zeilen (Label und Control bekommen beide etwas mehr Raum), wodurch Label
+ * und Eingabefeld nicht mehr auf gleicher Höhe wie in den Nachbarspalten sitzen. Felder sollen
+ * immer oben an ihrer Zeile ausgerichtet bleiben, unabhängig von einer Description beim Nachbarn.
+ */
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    align-self: start;
+}
+
 [data-flux-label] {
     @apply !mb-0 !leading-tight;
 }
 
+/*
+ * Der Fokusring-Versatz (ring-offset) muss die tatsächliche Fläche hinter dem fokussierten Feld
+ * treffen, nicht die Akzent-Inhaltsfarbe: Seit --color-accent-foreground (s. o.) in beiden Modi
+ * Weiß ist - passend zum Button-Text auf blauer Füllung -, wäre ein darüber abgeleiteter
+ * Ring-Versatz im Dunkelmodus falsch (weißer Rand um ein dunkles Eingabefeld). Stattdessen direkt
+ * an die Feldflächen gekoppelt: Weiß im Hellmodus, zinc-900 (Kopf-/Karten-/Formularflächen) im
+ * Dunkelmodus.
+ */
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-white dark:ring-offset-zinc-900;
 }
 
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/*
+ * Gruppenüberschriften in flux:select.group (z. B. Schwimmstil-Kategorien in
+ * swim-events/form.blade.php, Session-Gruppen in entries/form.blade.php) hatten mit
+ * text-zinc-500/dark:text-zinc-300 zu wenig Kontrast zum eigentlichen Optionstext. Die
+ * Vorlage (vendor/livewire/flux-pro/.../select/group/variants/custom.blade.php) reicht
+ * kein class-Attribut vom flux:select.group-Aufruf an das Label-Div durch - nur an den
+ * äußeren Wrapper -, daher globaler CSS-Override statt Vendor-Datei anpassen (Änderung
+ * ginge bei einem Composer-Update sonst verloren).
+ */
+[data-flux-option-group] > div[aria-hidden='true'] {
+    @apply !text-blue-600 dark:!text-blue-400;
+}

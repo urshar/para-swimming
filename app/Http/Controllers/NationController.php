@@ -9,11 +9,16 @@ use Illuminate\View\View;
 
 class NationController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $nations = Nation::orderBy('name_de')->get();
+        $sort = in_array($request->query('sort'), ['code', 'name_de', 'name_en'], true)
+            ? $request->query('sort')
+            : 'code';
+        $direction = $request->query('direction') === 'desc' ? 'desc' : 'asc';
 
-        return view('nations.index', compact('nations'));
+        $nations = Nation::orderBy($sort, $direction)->paginate(25)->withQueryString();
+
+        return view('nations.index', compact('nations', 'sort', 'direction'));
     }
 
     public function edit(Nation $nation): View

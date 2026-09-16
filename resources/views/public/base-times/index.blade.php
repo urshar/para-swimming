@@ -46,7 +46,7 @@
             <label for="course" class="inline-block text-sm font-medium">{{ __('public.base_times.course') }}</label>
             <div class="relative">
                 <select id="course" name="course" onchange="this.form.submit()"
-                        class="block w-36 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                        class="block w-36 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
                     <option value="LCM" @selected($course === 'LCM')>LCM (50m)</option>
                     <option value="SCM" @selected($course === 'SCM')>SCM (25m)</option>
                 </select>
@@ -70,7 +70,7 @@
         @php $strokeCodes = $groups->map(fn (BaseTimeStrokeGroup $g) => $g->stroke->lenex_code)->all(); @endphp
         <div class="mt-8" x-data="baseTimeTabs()" data-initial-stroke="{{ $strokeCodes[0] }}">
             <div role="tablist" aria-label="{{ __('public.base_times.heading') }}"
-                 class="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700">
+                 class="flex flex-wrap gap-1 border-b border-gray-300 dark:border-gray-700">
                 @foreach ($groups as $group)
                     @php
                         $code = $group->stroke->lenex_code;
@@ -85,7 +85,7 @@
                        x-on:keydown="onKeydown($event, {{ json_encode($strokeCodes) }})"
                        x-bind:aria-selected="isActive('{{ $code }}').toString()"
                        x-bind:tabindex="isActive('{{ $code }}') ? 0 : -1"
-                       class="rounded-t-lg border border-b-0 border-transparent px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 aria-selected:border-gray-200 aria-selected:bg-white aria-selected:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 dark:aria-selected:border-gray-700 dark:aria-selected:bg-gray-900 dark:aria-selected:text-blue-400">
+                       class="rounded-t-lg border border-b-0 border-transparent px-4 py-2 text-sm font-semibold text-gray-600 hover:text-blue-600 aria-selected:border-gray-300 aria-selected:bg-white aria-selected:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 dark:aria-selected:border-gray-700 dark:aria-selected:bg-gray-900 dark:aria-selected:text-blue-400">
                         {{ $strokeName }}
                     </a>
                 @endforeach
@@ -98,7 +98,7 @@
                 @endphp
                 <section id="panel-{{ $code }}" role="tabpanel" aria-labelledby="tab-{{ $code }}"
                          x-show="isActive('{{ $code }}')"
-                         class="border border-t-0 border-gray-200 p-4 dark:border-gray-700">
+                         class="border border-t-0 border-gray-300 p-4 dark:border-gray-700">
 
                     {{-- Matrix ab dem sm-Breakpoint; darunter Sportklassen-Auswahl + Einzelansicht (Reflow, s.o.). --}}
                     <div class="hidden overflow-x-auto rounded-lg sm:block" tabindex="0" aria-label="{{ $strokeName }}">
@@ -167,7 +167,7 @@
                         </label>
                         <div class="relative mt-1">
                             <select id="mobile-class-{{ $code }}" x-model="mobileClass"
-                                    class="block w-full appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
+                                    class="block w-full appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                                 @foreach ($group->rows as $row)
                                     <option value="{{ $row->sportClass->code }}">{{ $row->sportClass->code }}</option>
                                 @endforeach

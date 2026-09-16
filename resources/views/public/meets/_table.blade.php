@@ -9,7 +9,7 @@
     auf schmalen Bildschirmen breiter als der Viewport wird.
 --}}
 @php use App\Support\DocumentLocaleGroup; @endphp
-<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" tabindex="0"
+<div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
      aria-label="{{ __('public.meets.index.title') }}">
     <table class="min-w-full text-sm">
         <caption class="sr-only">{{ __('public.meets.index.title') }}</caption>

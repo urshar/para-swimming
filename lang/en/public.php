@@ -27,6 +27,7 @@ return [
         'accessibility_statement' => 'Accessibility',
         'open' => 'Open menu',
         'close' => 'Close menu',
+        'login' => 'Login',
     ],
 
     'draft_notice' => [
@@ -65,7 +66,7 @@ return [
             'legal_basis' => 'Legal basis for this:',
             'technical_intro' => 'We also process the following purely technical data:',
             'cookie_locale' => 'A cookie ("locale", valid for 1 year) stores your chosen language — technically necessary for the website to function, no consent required.',
-            'storage_theme' => 'In your browser\'s local storage ("localStorage", key "theme") we store your chosen appearance (light/dark/system) — never leaves your device.',
+            'storage_theme' => 'In your browser\'s local storage ("localStorage", key "theme" and, so your choice also carries over to the login page, "flux.appearance") we store your chosen appearance (light/dark/system) — never leaves your device.',
         ],
         'recipients' => [
             'heading' => 'Recipients',

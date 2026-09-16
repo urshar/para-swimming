@@ -4,23 +4,30 @@
 
 @section('content')
     <div class="max-w-4xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('base-times.versions.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div class="flex-1">
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
-                <p class="text-sm text-zinc-400">
-                    Gültig ab {{ $version->valid_from->format('d.m.Y') }}
-                    @if($version->valid_until) bis {{ $version->valid_until->format('d.m.Y') }} @endif
-                </p>
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
+            <p class="text-sm text-zinc-400">
+                Gültig ab {{ $version->valid_from->format('d.m.Y') }}
+                @if($version->valid_until) bis {{ $version->valid_until->format('d.m.Y') }} @endif
+            </p>
+
+            <div class="flex items-center flex-wrap gap-2 mt-4">
+                <flux:button href="{{ route('base-times.versions.index') }}" variant="filled" icon="arrow-left"
+                             size="sm">
+                    Zurück
+                </flux:button>
+
+                <div class="ml-auto flex items-center flex-wrap gap-2">
+                    <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
+                                 variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
+                        Importieren
+                    </flux:button>
+                    <flux:button href="{{ route('base-times.export', $version) }}"
+                                 variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
+                        Exportieren
+                    </flux:button>
+                </div>
             </div>
-            <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
-                         variant="ghost" icon="arrow-up-tray">
-                Importieren
-            </flux:button>
-            <flux:button href="{{ route('base-times.export', $version) }}"
-                         variant="ghost" icon="arrow-down-tray">
-                Exportieren
-            </flux:button>
         </div>
 
         @if(session('success'))

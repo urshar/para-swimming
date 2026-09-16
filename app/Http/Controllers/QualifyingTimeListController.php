@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BaseTimeSportClass;
 use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
@@ -325,7 +326,7 @@ class QualifyingTimeListController extends Controller
      * Gemeinsame Filterlogik für die Qualifikations-Anzeige (Phase 6) und den
      * PDF-Export (Phase 7), damit beide exakt dieselben Ergebnisse liefern.
      *
-     * @return array{qualifications: Collection, events: Collection, genders: Collection, sportClasses: Collection, clubs: Collection}
+     * @return array{qualifications: Collection, events: Collection, genders: Collection, sportClassOptions: Collection, clubs: Collection, sections: Collection}
      */
     private function filteredQualifications(Request $request, QualifyingTimeList $qualifyingTimeList): array
     {
@@ -340,10 +341,20 @@ class QualifyingTimeListController extends Controller
             'stroke_type_id' => $q->qualifyingTime->stroke_type_id,
             'distance' => $q->qualifyingTime->distance,
             'label' => "{$q->qualifyingTime->distance}m {$q->qualifyingTime->strokeType?->name_de}",
-        ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('distance')->values();
+            'sort_key' => sprintf(
+                '%d-%05d',
+                $this->strokeSortKey($q->qualifyingTime->strokeType?->lenex_code),
+                $q->qualifyingTime->distance
+            ),
+        ])->unique(fn ($e) => "{$e['stroke_type_id']}-{$e['distance']}")->sortBy('sort_key')->values();
 
         $genders = $all->pluck('qualifyingTime.gender')->unique()->sort()->values();
-        $sportClasses = $all->pluck('sport_class')->unique()->sortBy(fn ($sc) => SportClassSorter::key($sc))->values();
+
+        // Alle möglichen Sportklassen (nicht nur die für diese Liste tatsächlich
+        // vorkommenden) — identisches Muster wie RecordController::buildSportClassOptions()
+        // für den Rekorde-Filter, siehe dort.
+        $sportClassOptions = $this->buildSportClassOptions();
+
         $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
 
         $filtered = $base;
@@ -357,7 +368,7 @@ class QualifyingTimeListController extends Controller
             $filtered->whereHas('qualifyingTime', fn ($q) => $q->where('gender', $request->string('gender')));
         }
         if ($request->filled('sport_class')) {
-            $filtered->where('sport_class', strtoupper($request->string('sport_class')));
+            $filtered->whereIn('sport_class', explode(',', $request->input('sport_class')));
         }
         if ($request->filled('club_id')) {
             $filtered->where('club_id', $request->integer('club_id'));
@@ -381,7 +392,33 @@ class QualifyingTimeListController extends Controller
             fn (Qualification $q) => $q->athlete?->last_name.'|'.$q->athlete?->first_name
         );
 
-        return compact('qualifications', 'events', 'genders', 'sportClasses', 'clubs', 'sections');
+        return compact('qualifications', 'events', 'genders', 'sportClassOptions', 'clubs', 'sections');
+    }
+
+    /**
+     * Optionen für das "Sportklasse"-Dropdown im Qualifikations-Filter: eine Option je in den
+     * Basiswerten gepflegter Klassennummer, zusammengefasst über S/SB/SM — immer alle drei
+     * Präfixe, auch wenn für diese Liste z.B. keine SM-Ergebnisse existieren (Erik,
+     * 2026-09-03 bestätigt: vollständige Liste statt nur tatsächlich vorkommender Klassen).
+     * Wert "S{n},SB{n},SM{n}" (ungepolstert, passend zu den tatsächlich gespeicherten
+     * sport_class-Werten — direkt per explode(',', ...) für whereIn() nutzbar), Label
+     * zweistellig gepolstert mit Komma statt Schrägstrich getrennt. Identisches Muster wie
+     * RecordController::buildSportClassOptions() für den Rekorde-Filter.
+     *
+     * @return Collection<string, string>
+     */
+    private function buildSportClassOptions(): Collection
+    {
+        $numbers = BaseTimeSportClass::query()
+            ->pluck('code')
+            ->map(fn ($code) => (int) preg_replace('/\D+/', '', $code))
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $numbers->mapWithKeys(fn ($n) => [
+            "S$n,SB$n,SM$n" => sprintf('S%02d,SB%02d,SM%02d', $n, $n, $n),
+        ]);
     }
 
     private function authorizeAdmin(): void
@@ -397,6 +434,23 @@ class QualifyingTimeListController extends Controller
     private function sportClassSortKey(?string $sportClass): string
     {
         return SportClassSorter::key($sportClass);
+    }
+
+    /**
+     * Stil-Reihenfolge für den "Bewerb"-Filter — dieselbe Reihenfolge wie bei den Rekorden
+     * (RecordController::index(), orderByRaw case stroke_types.lenex_code): Freistil, Brust,
+     * Rücken, Schmetterling, Lagen, alles andere danach.
+     */
+    private function strokeSortKey(?string $lenexCode): int
+    {
+        return match ($lenexCode) {
+            'FREE' => 1,
+            'BREAST' => 2,
+            'BACK' => 3,
+            'FLY' => 4,
+            'MEDLEY' => 5,
+            default => 6,
+        };
     }
 
     /**

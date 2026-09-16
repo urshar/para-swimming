@@ -4,12 +4,18 @@
 
 @section('content')
     <div class="max-w-5xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('wps.versions.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
-            @if($version->isArchived())
-                <flux:badge color="zinc" size="sm">Archiviert</flux:badge>
-            @endif
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
+                @if($version->isArchived())
+                    <flux:badge color="zinc" size="sm">Archiviert</flux:badge>
+                @endif
+            </div>
+            <div class="mt-4">
+                <flux:button href="{{ route('wps.versions.index') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         @if(session('success'))
@@ -18,43 +24,56 @@
             </div>
         @endif
 
-        <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        {{-- x-model + $watch statt onchange="this.form.submit()" — dasselbe Muster wie
+             records/index.blade.php: flux:select (Custom Element <ui-select>) feuert sein
+             internes "change"-Event mit bubbles:false, ein @change/onchange kommt nicht
+             zuverlässig an. x-model übernimmt dabei auch die Vorbelegung — :selected() auf den
+             Optionen wird dadurch überflüssig. --}}
+        <form method="GET"
+              class="flex flex-wrap items-end gap-3 mb-4"
+              x-data="{
+                  gender: @js($filters['gender'] ?? ''),
+                  sportClass: @js($filters['sport_class'] ?? ''),
+                  course: @js($filters['course'] ?? ''),
+                  submitForm() { this.$el.submit(); },
+              }"
+              x-init="
+                  $watch('gender', () => submitForm());
+                  $watch('sportClass', () => submitForm());
+                  $watch('course', () => submitForm());
+              ">
             <flux:field>
                 <flux:label>Geschlecht</flux:label>
-                <select name="gender"
-                        class="rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 text-sm">
-                    <option value="">alle</option>
-                    <option value="M" @if(($filters['gender'] ?? '') === 'M') selected @endif>männlich</option>
-                    <option value="F" @if(($filters['gender'] ?? '') === 'F') selected @endif>weiblich</option>
-                </select>
+                <flux:select variant="listbox" name="gender" x-model="gender" class="w-32">
+                    <flux:select.option value="">alle</flux:select.option>
+                    <flux:select.option value="M">männlich</flux:select.option>
+                    <flux:select.option value="F">weiblich</flux:select.option>
+                </flux:select>
             </flux:field>
 
             <flux:field>
                 <flux:label>Sportklasse</flux:label>
-                <select name="sport_class"
-                        class="rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 text-sm">
-                    <option value="">alle</option>
+                <flux:select variant="listbox" name="sport_class" x-model="sportClass" class="w-32">
+                    <flux:select.option value="">alle</flux:select.option>
                     @foreach($sportClasses as $sportClass)
-                        <option value="{{ $sportClass }}"
-                                @if(($filters['sport_class'] ?? '') === $sportClass) selected @endif>
-                            {{ $sportClass }}
-                        </option>
+                        <flux:select.option value="{{ $sportClass }}">{{ $sportClass }}</flux:select.option>
                     @endforeach
-                </select>
+                </flux:select>
             </flux:field>
 
             <flux:field>
                 <flux:label>Bahnlänge</flux:label>
-                <select name="course"
-                        class="rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 text-sm">
-                    <option value="">alle</option>
-                    <option value="LCM" @if(($filters['course'] ?? '') === 'LCM') selected @endif>LCM</option>
-                    <option value="SCM" @if(($filters['course'] ?? '') === 'SCM') selected @endif>SCM</option>
-                </select>
+                <flux:select variant="listbox" name="course" x-model="course" class="w-28">
+                    <flux:select.option value="">alle</flux:select.option>
+                    <flux:select.option value="LCM">LCM</flux:select.option>
+                    <flux:select.option value="SCM">SCM</flux:select.option>
+                </flux:select>
             </flux:field>
 
-            <flux:button type="submit" variant="filled">Filtern</flux:button>
-            <flux:button href="{{ route('wps.versions.show', $version) }}" variant="ghost">Zurücksetzen</flux:button>
+            <flux:button href="{{ route('wps.versions.show', $version) }}" variant="filled" icon="x-mark"
+                         class="text-red-500!">
+                Zurücksetzen
+            </flux:button>
         </form>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -75,7 +94,7 @@
                             <flux:table.cell>{{ $parameter->course }}</flux:table.cell>
                             <flux:table.cell>{{ $parameter->gender }}</flux:table.cell>
                             <flux:table.cell>
-                                {{ $parameter->distance }} m {{ $parameter->strokeType?->name_de }}
+                                {{ $parameter->distance }}m {{ $parameter->strokeType?->name_de }}
                             </flux:table.cell>
                             <flux:table.cell>{{ $parameter->sport_class }}</flux:table.cell>
                             <flux:table.cell align="end">{{ $parameter->parameter_a }}</flux:table.cell>

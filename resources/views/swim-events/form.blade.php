@@ -3,14 +3,28 @@
 @section('title', isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen')
 
 @section('content')
-    <div class="max-w-2xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('meets.show', $meet) }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                    {{ isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen' }}
-                </h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ $meet->name }}</p>
+    @php
+        // Erlaubte Standard-Streckenlängen. Bereits gespeicherte Werte außerhalb dieser
+        // Liste (z.B. abweichende Freiwasser-Distanzen) bleiben als zusätzliche Option
+        // erhalten, statt beim Öffnen des Formulars stillschweigend verworfen zu werden.
+        $distanceOptions = [25, 50, 75, 100, 150, 200, 400, 800, 1500];
+        $currentDistance = old('distance', $event->distance ?? '');
+        if ($currentDistance !== '' && ! in_array((int) $currentDistance, $distanceOptions, true)) {
+            $distanceOptions[] = (int) $currentDistance;
+            sort($distanceOptions);
+        }
+    @endphp
+    <div class="max-w-4xl">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {{ isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen' }}
+            </h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ $meet->name }}</p>
+
+            <div class="mt-4">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
             </div>
         </div>
 
@@ -25,7 +39,7 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
-                        <flux:label>Session *</flux:label>
+                        <flux:label>Session <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="session_number" type="number" min="1"
                                     value="{{ old('session_number', $event->session_number ?? 1) }}" required/>
                         <flux:error name="session_number"/>
@@ -33,62 +47,67 @@
                     <flux:field>
                         <flux:label>Event-Nr.</flux:label>
                         <flux:input name="event_number" type="number" min="1"
-                                    value="{{ old('event_number', $event->event_number ?? '') }}"/>
+                                    value="{{ old('event_number', $event->event_number ?? $nextEventNumber ?? '') }}"/>
                         <flux:error name="event_number"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Runde *</flux:label>
-                        <flux:select name="round" required>
+                        <flux:label>Runde <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="round" required>
                             @foreach(['TIM' => 'Timed Finals', 'FIN' => 'Finale', 'SEM' => 'Halbfinale', 'PRE' => 'Vorlauf', 'TIMETRIAL' => 'Zeitlauf'] as $val => $label)
-                                <option
-                                    value="{{ $val }}" @selected(old('round', $event->round ?? 'TIM') === $val)>{{ $label }}</option>
+                                <flux:select.option
+                                    value="{{ $val }}" :selected="old('round', $event->round ?? 'TIM') === $val">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-3 gap-4">
-                    <flux:field>
-                        <flux:label>Schwimmstil *</flux:label>
-                        <flux:select name="stroke_type_id" required>
-                            <option value="">Wählen…</option>
+                <div class="grid grid-cols-4 gap-4">
+                    <flux:field class="col-span-2">
+                        <flux:label>Schwimmstil <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="stroke_type_id" required>
                             @foreach($strokeTypes->groupBy('category') as $category => $strokes)
-                                <optgroup label="{{ ucfirst($category) }}">
+                                <flux:select.group label="{{ ucfirst($category) }}">
                                     @foreach($strokes as $stroke)
-                                        <option
-                                            value="{{ $stroke->id }}" @selected(old('stroke_type_id', $event->stroke_type_id ?? '') == $stroke->id)>
+                                        <flux:select.option
+                                            value="{{ $stroke->id }}" :selected="old('stroke_type_id', $event->stroke_type_id ?? '') == $stroke->id">
                                             {{ $stroke->name_de }}
-                                        </option>
+                                        </flux:select.option>
                                     @endforeach
-                                </optgroup>
+                                </flux:select.group>
                             @endforeach
                         </flux:select>
                         <flux:error name="stroke_type_id"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Distanz (m) *</flux:label>
-                        <flux:input name="distance" type="number" min="1"
-                                    value="{{ old('distance', $event->distance ?? '') }}" required/>
+                        <flux:label>Distanz (m) <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="distance" required>
+                            @foreach($distanceOptions as $distanceOption)
+                                <flux:select.option value="{{ $distanceOption }}"
+                                    :selected="(string) $currentDistance === (string) $distanceOption">
+                                    {{ $distanceOption }} m
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
                         <flux:error name="distance"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Schwimmer/Staffel *</flux:label>
+                        <flux:label>Schwimmer/Staffel <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="relay_count" type="number" min="1"
                                     value="{{ old('relay_count', $event->relay_count ?? 1) }}" required/>
-                        <flux:description>1 = Einzel</flux:description>
+                        <flux:description class="mt-1!">1 = Einzel</flux:description>
                     </flux:field>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Geschlecht *</flux:label>
-                        <flux:select name="gender" required>
-                            <option value="A" @selected(old('gender', $event->gender ?? 'A') === 'A')>Offen (alle)
-                            </option>
-                            <option value="M" @selected(old('gender', $event->gender ?? '') === 'M')>Herren</option>
-                            <option value="F" @selected(old('gender', $event->gender ?? '') === 'F')>Damen</option>
-                            <option value="X" @selected(old('gender', $event->gender ?? '') === 'X')>Mixed (Staffel)
-                            </option>
+                        <flux:label>Geschlecht <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="gender" required>
+                            <flux:select.option value="A" :selected="old('gender', $event->gender ?? 'A') === 'A'">Offen (alle)
+                            </flux:select.option>
+                            <flux:select.option value="M" :selected="old('gender', $event->gender ?? '') === 'M'">Herren</flux:select.option>
+                            <flux:select.option value="F" :selected="old('gender', $event->gender ?? '') === 'F'">Damen</flux:select.option>
+                            <flux:select.option value="X" :selected="old('gender', $event->gender ?? '') === 'X'">Mixed (Staffel)
+                            </flux:select.option>
                         </flux:select>
                     </flux:field>
                     <flux:field>
@@ -101,11 +120,10 @@
 
                 <flux:field>
                     <flux:label>Zeitnahme</flux:label>
-                    <flux:select name="timing">
-                        <option value="">Vom Wettkampf übernehmen</option>
+                    <flux:select variant="listbox" name="timing" placeholder="Vom Wettkampf übernehmen" clearable>
                         @foreach(['AUTOMATIC' => 'Automatisch', 'SEMIAUTOMATIC' => 'Halbautomatisch', 'MANUAL3' => 'Manuell 3', 'MANUAL1' => 'Manuell 1'] as $val => $label)
-                            <option
-                                value="{{ $val }}" @selected(old('timing', $event->timing ?? '') === $val)>{{ $label }}</option>
+                            <flux:select.option
+                                value="{{ $val }}" :selected="old('timing', $event->timing ?? '') === $val">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </flux:field>

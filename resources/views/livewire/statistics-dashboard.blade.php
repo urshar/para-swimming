@@ -17,29 +17,56 @@
 @endphp
 
 <div>
+    {{-- Titel + Jahr-Auswahl in einer Zeile, Jahr rechtsbündig (Design-Feedback Erik,
+         15.09.2026) - der Titel stand bisher in der statischen Wrapper-Seite
+         (statistics/page.blade.php), zog jetzt hierher, weil nur die Livewire-Komponente
+         reaktiv auf das gewählte Jahr zugreifen kann. Damit bleibt mehr Breite für die
+         Veranstaltungen-Liste (längere Namen brechen seltener um) als vorher mit dem
+         Jahr-Feld in der Filterzeile. --}}
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Statistik</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Kennzahlen und Auswertungen je Jahr und Veranstaltung
+            </p>
+        </div>
+
+        {{-- x-model + $watch statt wire:model.live direkt am flux:select: Custom Element
+             <ui-select> feuert sein internes "change"-Event mit bubbles:false, kommt darüber
+             nicht zuverlässig an (siehe resources/js/wps-livewire-filters.js). --}}
+        <div class="w-32" x-data="wpsLivewireFilters(@js(['year' => $year]), 'setYear')">
+            <flux:label>Jahr</flux:label>
+            <flux:select variant="listbox" x-model="year">
+                @foreach($this->availableYears as $availableYear)
+                    <flux:select.option value="{{ $availableYear }}">{{ $availableYear }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+    </div>
+
     {{-- ── Filter ────────────────────────────────────────────────────────── --}}
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mb-6">
         <div class="flex flex-wrap items-end gap-4">
-            <div class="w-40">
-                <flux:select wire:model.live="year" label="Jahr">
-                    @foreach($this->availableYears as $availableYear)
-                        <flux:select.option value="{{ $availableYear }}">{{ $availableYear }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            </div>
-
             <div class="flex-1 min-w-64">
                 <flux:label>Veranstaltungen</flux:label>
                 @if($this->availableMeets->isEmpty())
                     <p class="text-sm text-zinc-400 mt-2">Für {{ $year }} sind keine Veranstaltungen erfasst.</p>
                 @else
-                    <div class="flex flex-wrap gap-x-6 gap-y-2 mt-2">
+                    {{-- Mehrspaltiges Fließlayout statt flex-wrap (Design-Feedback Erik,
+                         15.09.2026: "unübersichtlich ... eventuell in Spalten"): flex-wrap ließ
+                         die Checkboxen bei vielen, unterschiedlich langen Veranstaltungsnamen
+                         ungleichmäßig und schwer lesbar umbrechen. break-inside-avoid hält
+                         Checkbox und Label je Veranstaltung zusammen, statt mitten im Namen über
+                         eine Spaltengrenze zu reißen. --}}
+                    <div class="columns-1 sm:columns-2 xl:columns-3 gap-x-6 mt-2">
                         @foreach($this->availableMeets as $meet)
-                            <flux:checkbox
-                                wire:model.live="meetIds"
-                                value="{{ $meet->id }}"
-                                label="{{ $meet->name }} ({{ $meet->start_date?->format('d.m.Y') }})"
-                            />
+                            <div class="break-inside-avoid mb-2">
+                                <flux:checkbox
+                                    wire:model.live="meetIds"
+                                    value="{{ $meet->id }}"
+                                    label="{{ $meet->name }} ({{ $meet->start_date?->format('d.m.Y') }})"
+                                />
+                            </div>
                         @endforeach
                     </div>
                     <p class="text-xs text-zinc-400 mt-2">

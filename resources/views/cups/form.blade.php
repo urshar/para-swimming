@@ -3,12 +3,16 @@
 @section('title', $cup ? 'Cup bearbeiten' : 'Neuer Cup')
 
 @section('content')
-    <div class="max-w-2xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('cups.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+    <div class="max-w-4xl">
+        <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ $cup ? 'Cup bearbeiten' : 'Neuer Cup' }}
             </h1>
+            <div class="mt-4">
+                <flux:button href="{{ route('cups.index') }}" variant="filled" icon="arrow-left" size="sm">
+                    Zurück
+                </flux:button>
+            </div>
         </div>
 
         @if($errors->any())
@@ -30,13 +34,13 @@
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Cup-Jahr *</flux:label>
+                        <flux:label>Cup-Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="year" type="number" min="2000" max="2100"
                                     value="{{ old('year', $cup?->year) }}" required/>
                         <flux:error name="year"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Name *</flux:label>
+                        <flux:label>Name<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="name" placeholder="z.B. ÖBSV Cup 2026"
                                     value="{{ old('name', $cup?->name) }}" required/>
                         <flux:error name="name"/>
@@ -44,14 +48,15 @@
                 </div>
 
                 <flux:field>
-                    <flux:label>ÖBSV-1000-Punkte-Tabelle *</flux:label>
-                    <flux:select name="base_time_version_id" required>
-                        <option value="">– auswählen –</option>
+                    <flux:label>ÖBSV-1000-Punkte-Tabelle<span
+                            class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                    @php($selectedBaseTimeVersionId = old('base_time_version_id', $cup?->base_time_version_id))
+                    <flux:select name="base_time_version_id" variant="listbox" placeholder="– auswählen –" required>
                         @foreach($baseTimeVersions as $version)
-                            <option value="{{ $version->id }}"
-                                @selected(old('base_time_version_id', $cup?->base_time_version_id) == $version->id)>
+                            <flux:select.option value="{{ $version->id }}"
+                                                 :selected="$selectedBaseTimeVersionId == $version->id">
                                 {{ $version->label }}
-                            </option>
+                            </flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="base_time_version_id"/>
@@ -59,19 +64,21 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
-                        <flux:label>Wertungsrunden *</flux:label>
+                        <flux:label>Wertungsrunden<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="rounds_count" type="number" min="1" max="50"
                                     value="{{ old('rounds_count', $cup?->rounds_count ?? 1) }}" required/>
                         <flux:error name="rounds_count"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Beste X Ergebnisse *</flux:label>
+                        <flux:label>Beste X Ergebnisse<span
+                                class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="best_of_count" type="number" min="1" max="50"
                                     value="{{ old('best_of_count', $cup?->best_of_count ?? 1) }}" required/>
                         <flux:error name="best_of_count"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Top-Gruppe ab Punkten *</flux:label>
+                        <flux:label>Top-Gruppe ab Punkten<span
+                                class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="top_group_points_threshold" type="number" min="0" max="1200"
                                     value="{{ old('top_group_points_threshold', $cup?->top_group_points_threshold ?? 450) }}"
                                     required/>

@@ -6,7 +6,8 @@
 
     <div class="flex items-start justify-between mb-6">
         <div class="flex items-center gap-3">
-            <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="ghost"
+                         icon="arrow-left" size="sm"/>
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
@@ -27,11 +28,10 @@
             </div>
         </div>
         <div class="flex gap-2">
-            {{-- Der Weg zur WPS-Analyse führt über den Athleten selbst: Wer hier steht, hat
-                 ihn bereits ausgewählt. Eine eigene Suchseite daneben wäre eine zweite
-                 Athletenliste mit eigener Suche und eigener Blätterleiste. --}}
-            <flux:button href="{{ route('wps.athletes.show', $athlete) }}" variant="ghost"
-                         icon="chart-bar" size="sm">
+            {{-- ?from=athlete: der Rückweg-Button auf der WPS-Analyse führt dann hierher zurück
+                 statt zur Athletenauswahl unter Statistik (Design-Feedback Erik, 15.09.2026). --}}
+            <flux:button href="{{ route('wps.athletes.show', ['athlete' => $athlete, 'from' => 'athlete']) }}"
+                         variant="ghost" icon="chart-bar" size="sm">
                 WPS-Analyse
             </flux:button>
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="ghost" icon="pencil" size="sm">
@@ -181,20 +181,17 @@
                 @csrf
                 <div class="grid grid-cols-3 gap-3">
                     <flux:field class="col-span-2">
-                        <flux:label>Neuer Verein *</flux:label>
-                        <flux:select name="club_id" required>
-                            <option value="">Bitte wählen…</option>
+                        <flux:label>Neuer Verein <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" searchable name="club_id" placeholder="Bitte wählen…" required>
                             @foreach($clubs as $club)
-                                <option value="{{ $club->id }}" @selected($club->id === $athlete->club_id)>
-                                    {{ $club->display_name }} ({{ $club->nation?->code }})
-                                </option>
+                                <flux:select.option value="{{ $club->id }}" :selected="$club->id === $athlete->club_id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="club_id"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
-                        <flux:input name="joined_at" type="date"
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:date-picker type="input" locale="de-AT" name="joined_at"
                                     value="{{ old('joined_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="joined_at"/>
                     </flux:field>
@@ -248,8 +245,14 @@
     {{-- ═══════════════════════════════════════════════════════════════════════
          KLASSIFIKATIONS-HISTORY
     ════════════════════════════════════════════════════════════════════════ --}}
+    {{-- openClassification startet offen, wenn wir gerade per Redirect von der Neuanlage kommen
+         (AthleteController::store()) — siehe ?neue_klassifikation=1. --}}
+    {{-- Verschachtelte Funktionsaufrufe direkt innerhalb von @js() im x-data-Attribut vorher in eine
+         eigene Variable auflösen (statt @js((bool) request(...)) inline) — sonst zerlegt PhpStorms
+         Blade-Parser den Ausdruck fehlerhaft ("Method expression is not of Function type"). --}}
+    @php $openClassificationDefault = (bool) request('neue_klassifikation'); @endphp
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
-         x-data="{ openClassification: false }">
+         x-data="{ openClassification: @js($openClassificationDefault) }">
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
@@ -263,13 +266,16 @@
         <div x-show="openClassification" x-cloak
              class="mb-5 p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600">
             <h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Klassifikation eintragen</h3>
-            @php $defaultScope = $athlete->license_ipc ? 'INTL' : 'NAT'; @endphp
+            @php
+                $defaultScope = $athlete->license_ipc ? 'INTL' : 'NAT';
+                $classificationStatusOld = old('classification_status', '');
+            @endphp
             <form method="POST" action="{{ route('athletes.classifications.store', $athlete) }}">
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
-                        <flux:input name="classified_at" type="date"
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                     value="{{ old('classified_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="classified_at"/>
                     </flux:field>
@@ -283,39 +289,29 @@
 
                 {{-- Scope + Status + FRD-Jahr --}}
                 <div class="grid grid-cols-3 gap-3 mt-3"
-                     x-data="{ status: @js(old('classification_status', '')) }">
+                     x-data="{ status: @js($classificationStatusOld) }">
                     <flux:field>
-                        <flux:label>Gültigkeit *</flux:label>
-                        <flux:select name="classification_scope">
-                            <option value="INTL" @selected(old('classification_scope', $defaultScope) === 'INTL')>
-                                🌍 International (SDMS)
-                            </option>
-                            <option value="NAT" @selected(old('classification_scope', $defaultScope) === 'NAT')>
-                                🇦🇹 Nur national (ÖBSV)
-                            </option>
+                        <flux:label>Gültigkeit <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="classification_scope">
+                            <flux:select.option value="INTL" :selected="old('classification_scope', $defaultScope) === 'INTL'">🌍 International (SDMS)</flux:select.option>
+                            <flux:select.option value="NAT" :selected="old('classification_scope', $defaultScope) === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
                         </flux:select>
                         <flux:error name="classification_scope"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Status</flux:label>
-                        <flux:select name="classification_status" x-model="status">
-                            <option value="">–</option>
-                            <option value="NEW" @selected(old('classification_status') === 'NEW')>New</option>
-                            <option value="CONFIRMED" @selected(old('classification_status') === 'CONFIRMED')>
-                                Confirmed
-                            </option>
-                            <option value="REVIEW" @selected(old('classification_status') === 'REVIEW')>Review</option>
-                            <option value="FRD" @selected(old('classification_status') === 'FRD')>Fixed Review Date
-                                (FRD)
-                            </option>
-                            <option value="NE" @selected(old('classification_status') === 'NE')>Not Eligible (NE)
-                            </option>
+                        <flux:select variant="listbox" name="classification_status" x-model="status" placeholder="–" clearable>
+                            <flux:select.option value="NEW" :selected="old('classification_status') === 'NEW'">New</flux:select.option>
+                            <flux:select.option value="CONFIRMED" :selected="old('classification_status') === 'CONFIRMED'">Confirmed</flux:select.option>
+                            <flux:select.option value="REVIEW" :selected="old('classification_status') === 'REVIEW'">Review</flux:select.option>
+                            <flux:select.option value="FRD" :selected="old('classification_status') === 'FRD'">Fixed Review Date (FRD)</flux:select.option>
+                            <flux:select.option value="NE" :selected="old('classification_status') === 'NE'">Not Eligible (NE)</flux:select.option>
                         </flux:select>
                         <flux:error name="classification_status"/>
                     </flux:field>
                     <flux:field x-show="status === 'FRD'" x-cloak>
                         @php $frdDefault = (int) date('Y') + 2; @endphp
-                        <flux:label>FRD Jahr *</flux:label>
+                        <flux:label>FRD Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="frd_year" type="number" min="2000" max="2100"
                                     value="{{ old('frd_year', $frdDefault) }}"
                                     placeholder="{{ $frdDefault }}"/>
@@ -326,34 +322,25 @@
                 <div class="grid grid-cols-3 gap-3 mt-3">
                     <flux:field>
                         <flux:label>Med. Klassifizierer</flux:label>
-                        <flux:select name="med_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="med_classifier_id" placeholder="–" clearable>
                             @foreach($medClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('med_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('med_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Tech. Klassifizierer 1</flux:label>
-                        <flux:select name="tech1_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="tech1_classifier_id" placeholder="–" clearable>
                             @foreach($techClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('tech1_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('tech1_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
                     <flux:field>
                         <flux:label>Tech. Klassifizierer 2</flux:label>
-                        <flux:select name="tech2_classifier_id">
-                            <option value="">–</option>
+                        <flux:select variant="listbox" name="tech2_classifier_id" placeholder="–" clearable>
                             @foreach($techClassifiers as $c)
-                                <option value="{{ $c->id }}" @selected(old('tech2_classifier_id') == $c->id)>
-                                    {{ $c->full_name }}
-                                </option>
+                                <flux:select.option value="{{ $c->id }}" :selected="old('tech2_classifier_id') == $c->id">{{ $c->full_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
@@ -380,30 +367,24 @@
                     <flux:description>Leer lassen wenn der Athlet diese Kategorie nicht schwimmt.</flux:description>
                 </div>
 
-                {{-- Exceptions --}}
+                {{-- Exceptions — der Code ist bereits eindeutig einer Lage zugeordnet, eine
+                     zusätzliche Kategorie-Zuteilung (S/SB/SM) gibt es fachlich nicht. --}}
                 <div class="mt-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS Exceptions</p>
-                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    <div class="grid grid-cols-3 gap-x-4 max-h-48 overflow-y-auto pr-1">
                         @foreach($exceptionCodes as $code)
-                            <div
-                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                            <div class="flex items-center gap-2 py-1">
                                 <input type="checkbox"
                                        name="exceptions[{{ $loop->index }}][code_id]"
                                        value="{{ $code->id }}"
                                        id="new_exc_{{ $code->id }}"
                                        class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
                                 <label for="new_exc_{{ $code->id }}"
-                                       class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
+                                       class="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                     {{ $code->code }}
                                     <span
                                         class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                 </label>
-                                <flux:select name="exceptions[{{ $loop->index }}][category]" class="w-24 text-xs">
-                                    <option value="">–</option>
-                                    <option value="S">S</option>
-                                    <option value="SB">SB</option>
-                                    <option value="SM">SM</option>
-                                </flux:select>
                             </div>
                         @endforeach
                     </div>
@@ -515,10 +496,11 @@
                             <form method="POST"
                                   action="{{ route('athletes.classifications.update', [$athlete, $cl]) }}">
                                 @csrf @method('PUT')
+                                @php $clStatus = $cl->classification_status ?? ''; @endphp
                                 <div class="grid grid-cols-2 gap-3">
                                     <flux:field>
-                                        <flux:label>Datum *</flux:label>
-                                        <flux:input name="classified_at" type="date"
+                                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                                        <flux:date-picker type="input" locale="de-AT" name="classified_at"
                                                     value="{{ $cl->classified_at->format('Y-m-d') }}" required/>
                                         <flux:error name="classified_at"/>
                                     </flux:field>
@@ -531,43 +513,28 @@
 
                                 {{-- Scope + Status + FRD --}}
                                 <div class="grid grid-cols-3 gap-3 mt-3"
-                                     x-data="{ status: @js($cl->classification_status ?? '') }">
+                                     x-data="{ status: @js($clStatus) }">
                                     <flux:field>
-                                        <flux:label>Gültigkeit *</flux:label>
-                                        <flux:select name="classification_scope">
-                                            <option value="INTL" @selected($cl->classification_scope === 'INTL')>
-                                                🌍 International (SDMS)
-                                            </option>
-                                            <option value="NAT" @selected($cl->classification_scope === 'NAT')>
-                                                🇦🇹 Nur national (ÖBSV)
-                                            </option>
+                                        <flux:label>Gültigkeit <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                                        <flux:select variant="listbox" name="classification_scope">
+                                            <flux:select.option value="INTL" :selected="$cl->classification_scope === 'INTL'">🌍 International (SDMS)</flux:select.option>
+                                            <flux:select.option value="NAT" :selected="$cl->classification_scope === 'NAT'">🇦🇹 Nur national (ÖBSV)</flux:select.option>
                                         </flux:select>
                                         <flux:error name="classification_scope"/>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Status</flux:label>
-                                        <flux:select name="classification_status" x-model="status">
-                                            <option value="">–</option>
-                                            <option value="NEW" @selected($cl->classification_status === 'NEW')>New
-                                            </option>
-                                            <option
-                                                value="CONFIRMED" @selected($cl->classification_status === 'CONFIRMED')>
-                                                Confirmed
-                                            </option>
-                                            <option value="REVIEW" @selected($cl->classification_status === 'REVIEW')>
-                                                Review
-                                            </option>
-                                            <option value="FRD" @selected($cl->classification_status === 'FRD')>Fixed
-                                                Review Date (FRD)
-                                            </option>
-                                            <option value="NE" @selected($cl->classification_status === 'NE')>Not
-                                                Eligible (NE)
-                                            </option>
+                                        <flux:select variant="listbox" name="classification_status" x-model="status" placeholder="–" clearable>
+                                            <flux:select.option value="NEW" :selected="$cl->classification_status === 'NEW'">New</flux:select.option>
+                                            <flux:select.option value="CONFIRMED" :selected="$cl->classification_status === 'CONFIRMED'">Confirmed</flux:select.option>
+                                            <flux:select.option value="REVIEW" :selected="$cl->classification_status === 'REVIEW'">Review</flux:select.option>
+                                            <flux:select.option value="FRD" :selected="$cl->classification_status === 'FRD'">Fixed Review Date (FRD)</flux:select.option>
+                                            <flux:select.option value="NE" :selected="$cl->classification_status === 'NE'">Not Eligible (NE)</flux:select.option>
                                         </flux:select>
                                         <flux:error name="classification_status"/>
                                     </flux:field>
                                     <flux:field x-show="status === 'FRD'" x-cloak>
-                                        <flux:label>FRD Jahr *</flux:label>
+                                        <flux:label>FRD Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                                         <flux:input name="frd_year" type="number" min="2000" max="2100"
                                                     value="{{ $cl->frd_year }}"/>
                                         <flux:error name="frd_year"/>
@@ -577,37 +544,25 @@
                                 <div class="grid grid-cols-3 gap-3 mt-3">
                                     <flux:field>
                                         <flux:label>Med. Klassifizierer</flux:label>
-                                        <flux:select name="med_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="med_classifier_id" placeholder="–" clearable>
                                             @foreach($medClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->med_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->med_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Tech. Klassifizierer 1</flux:label>
-                                        <flux:select name="tech1_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="tech1_classifier_id" placeholder="–" clearable>
                                             @foreach($techClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->tech1_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->tech1_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
                                     <flux:field>
                                         <flux:label>Tech. Klassifizierer 2</flux:label>
-                                        <flux:select name="tech2_classifier_id">
-                                            <option value="">–</option>
+                                        <flux:select variant="listbox" name="tech2_classifier_id" placeholder="–" clearable>
                                             @foreach($techClassifiers as $c)
-                                                <option
-                                                    value="{{ $c->id }}" @selected($cl->tech2_classifier_id == $c->id)>
-                                                    {{ $c->full_name }}
-                                                </option>
+                                                <flux:select.option value="{{ $c->id }}" :selected="$cl->tech2_classifier_id == $c->id">{{ $c->full_name }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     </flux:field>
@@ -639,15 +594,15 @@
                                     </flux:description>
                                 </div>
 
-                                {{-- Exceptions --}}
+                                {{-- Exceptions — der Code ist bereits eindeutig einer Lage zugeordnet, eine
+                                     zusätzliche Kategorie-Zuteilung (S/SB/SM) gibt es fachlich nicht. --}}
                                 <div class="mt-3">
                                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">WPS
                                         Exceptions</p>
-                                    <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+                                    <div class="grid grid-cols-3 gap-x-4 max-h-48 overflow-y-auto pr-1">
                                         @foreach($exceptionCodes as $code)
                                             @php $excExisting = $cl->exceptions->firstWhere('id', $code->id); @endphp
-                                            <div
-                                                class="flex items-center gap-3 py-1.5 border-b border-zinc-100 dark:border-zinc-700 last:border-0">
+                                            <div class="flex items-center gap-2 py-1">
                                                 <input type="checkbox"
                                                        name="exceptions[{{ $loop->index }}][code_id]"
                                                        value="{{ $code->id }}"
@@ -655,26 +610,11 @@
                                                        @checked($excExisting !== null)
                                                        class="rounded border-zinc-300 dark:border-zinc-600 text-blue-600">
                                                 <label for="edit_exc_{{ $cl->id }}_{{ $code->id }}"
-                                                       class="flex-1 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
+                                                       class="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 cursor-pointer">
                                                     {{ $code->code }}
                                                     <span
                                                         class="font-sans font-normal text-zinc-500 dark:text-zinc-400 ml-1">{{ $code->name_de }}</span>
                                                 </label>
-                                                <flux:select name="exceptions[{{ $loop->index }}][category]"
-                                                             class="w-24 text-xs">
-                                                    <option value="">–</option>
-                                                    <option
-                                                        value="S" @selected($excExisting?->pivot?->category === 'S')>S
-                                                    </option>
-                                                    <option
-                                                        value="SB" @selected($excExisting?->pivot?->category === 'SB')>
-                                                        SB
-                                                    </option>
-                                                    <option
-                                                        value="SM" @selected($excExisting?->pivot?->category === 'SM')>
-                                                        SM
-                                                    </option>
-                                                </flux:select>
                                             </div>
                                         @endforeach
                                     </div>
@@ -728,14 +668,14 @@
                 @csrf
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
-                        <flux:label>Neuer Level *</flux:label>
+                        <flux:label>Neuer Level <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:input name="level" value="{{ old('level') }}"
                                     placeholder="z.B. Elite, Talent, 1, 2 …" required/>
                         <flux:error name="level"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Datum *</flux:label>
-                        <flux:input name="changed_at" type="date"
+                        <flux:label>Datum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:date-picker type="input" locale="de-AT" name="changed_at"
                                     value="{{ old('changed_at', today()->format('Y-m-d')) }}" required/>
                         <flux:error name="changed_at"/>
                     </flux:field>
@@ -803,11 +743,10 @@
             <form method="POST" action="{{ route('athletes.kader-memberships.store', $athlete) }}">
                 @csrf
                 <flux:field>
-                    <flux:label>Kaderart *</flux:label>
-                    <flux:select name="kader_type_id" required>
-                        <option value="">– auswählen –</option>
+                    <flux:label>Kaderart <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:select variant="listbox" name="kader_type_id" placeholder="– auswählen –" required>
                         @foreach($kaderTypes as $kaderType)
-                            <option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</option>
+                            <flux:select.option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="kader_type_id"/>
@@ -815,12 +754,12 @@
                 <div class="grid grid-cols-2 gap-3 mt-3">
                     <flux:field>
                         <flux:label>Gültig ab <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_from" type="date" value="{{ old('valid_from') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_from" value="{{ old('valid_from') }}" clearable/>
                         <flux:error name="valid_from"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Gültig bis <span class="font-normal text-zinc-400">(optional)</span></flux:label>
-                        <flux:input name="valid_until" type="date" value="{{ old('valid_until') }}"/>
+                        <flux:date-picker type="input" locale="de-AT" name="valid_until" value="{{ old('valid_until') }}" clearable/>
                         <flux:error name="valid_until"/>
                     </flux:field>
                 </div>

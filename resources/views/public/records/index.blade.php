@@ -26,7 +26,7 @@
             <label for="association" class="inline-block text-sm font-medium">{{ __('public.records.filter.level') }}</label>
             <div class="relative">
                 <select id="association" name="association"
-                        class="block w-56 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                        class="block w-56 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
                     <option value="" @selected($filter->association === '')>{{ __('public.records.filter.level_national') }}</option>
                     @foreach ($associations as $code => $name)
                         <option value="{{ $code }}" @selected($filter->association === $code)>{{ $code }} &ndash; {{ $name }}</option>
@@ -40,7 +40,7 @@
             <label for="sport_class" class="inline-block text-sm font-medium">{{ __('public.records.filter.sport_class') }}</label>
             <div class="relative">
                 <select id="sport_class" name="sport_class"
-                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                        class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
                     <option value="" @selected($filter->sportClass === '')>{{ __('public.records.filter.sport_class_all') }}</option>
                     @foreach ($sportClasses as $class)
                         <option value="{{ $class }}" @selected($filter->sportClass === $class)>{{ $class }}</option>
@@ -54,7 +54,7 @@
             <label for="gender" class="inline-block text-sm font-medium">{{ __('public.records.filter.gender') }}</label>
             <div class="relative">
                 <select id="gender" name="gender"
-                        class="block w-32 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                        class="block w-32 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
                     <option value="" @selected($filter->gender === '')>{{ __('public.records.filter.gender_all') }}</option>
                     <option value="M" @selected($filter->gender === 'M')>{{ __('public.records.gender.M') }}</option>
                     <option value="F" @selected($filter->gender === 'F')>{{ __('public.records.gender.F') }}</option>
@@ -67,7 +67,7 @@
             <label for="course" class="inline-block text-sm font-medium">{{ __('public.records.filter.course') }}</label>
             <div class="relative">
                 <select id="course" name="course"
-                        class="block w-36 appearance-none rounded-lg border border-gray-200 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
+                        class="block w-36 appearance-none rounded-lg border border-gray-300 py-2 pr-10 pl-3 text-sm leading-6 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/50 dark:border-gray-600 dark:bg-gray-800">
                     <option value="" @selected($filter->course === '')>{{ __('public.records.filter.course_all') }}</option>
                     <option value="LCM" @selected($filter->course === 'LCM')>LCM (50m)</option>
                     <option value="SCM" @selected($filter->course === 'SCM')>SCM (25m)</option>
@@ -116,7 +116,7 @@
                 <section>
                     <h2 class="mb-3 text-lg font-semibold">{{ $strokeName ?? '—' }}</h2>
 
-                    <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" tabindex="0"
+                    <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
                          aria-label="{{ $strokeName }}">
                         <table class="min-w-full text-sm">
                             <caption class="sr-only">{{ $strokeName }}</caption>

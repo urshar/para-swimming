@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Athlete;
+use App\Models\BaseTimeSportClass;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
@@ -51,6 +52,11 @@ function makeAthlete_qtl7(Club $club, string $firstName, string $lastName, strin
         'first_name' => $firstName, 'last_name' => $lastName, 'gender' => $gender,
         'nation_id' => makeNation_qtl7()->id, 'club_id' => $club->id,
     ]);
+}
+
+function makeSportClassNumber_qtl7(int $number): BaseTimeSportClass
+{
+    return BaseTimeSportClass::firstOrCreate(['code' => "S$number"], ['sort_order' => $number]);
 }
 
 function makeStrokeType_qtl7(string $lenexCode = 'FREE'): StrokeType
@@ -191,6 +197,28 @@ describe('QualifyingTimeListController::qualifications — Anzeige', function ()
             ->assertDontSee('Neuer Verein');
     })->group('qualifying-time-lists-p5-p6');
 
+    it('zählt bei der "Schwimmer"-Anzahl eindeutige Athleten, nicht Qualifikations-Zeilen', function () {
+        $list = makeQualifyingList_qtl7(2027, '2026-05-12', '2027-05-29');
+        $club = makeClub_qtl7('Doppel-Quali-Verein');
+        $athlete = makeAthlete_qtl7($club, 'Zwei', 'Bewerbe');
+
+        // Derselbe Athlet qualifiziert sich in zwei verschiedenen Disziplinen (FREE + BACK)
+        // → zwei Qualification-Zeilen, aber nur ein Athlet.
+        qualifyAthlete_qtl7($list, makeStrokeType_qtl7(), $club, $athlete, 5900);
+        qualifyAthlete_qtl7($list, makeStrokeType_qtl7('BACK'), $club, $athlete, 5900);
+
+        $this->actingAs(makeAdmin_qtl7())
+            ->post(route('qualifying-time-lists.qualifications.calculate', $list));
+
+        expect(Qualification::count())->toBe(2);
+
+        $this->actingAs(makeClubUser_qtl7())
+            ->get(route('qualifying-time-lists.qualifications', $list))
+            ->assertOk()
+            ->assertSee('1 Schwimmer')
+            ->assertDontSee('2 Schwimmer');
+    })->group('qualifying-time-lists-p5-p6');
+
     it('filtert nach Sportklasse', function () {
         $list = makeQualifyingList_qtl7(2027, '2026-05-12', '2027-05-29');
         $stroke = makeStrokeType_qtl7();
@@ -209,10 +237,49 @@ describe('QualifyingTimeListController::qualifications — Anzeige', function ()
 
         expect(Qualification::count())->toBe(2);
 
+        // Der Filterwert ist die kommagetrennte S/SB/SM-Kombination derselben Nummer
+        // (siehe nächster Test), passend zu den tatsächlich gespeicherten sport_class-Werten.
         $this->actingAs(makeClubUser_qtl7())
-            ->get(route('qualifying-time-lists.qualifications', $list).'?sport_class=S9')
+            ->get(route('qualifying-time-lists.qualifications', $list).'?sport_class=S9,SB9,SM9')
             ->assertSee('NeunKlasse')
             ->assertDontSee('ZweiKlasse');
+    })->group('qualifying-time-lists-p5-p6');
+
+    it('gruppiert beim Sportklassen-Filter S/SB/SM derselben Nummer gemeinsam und listet alle möglichen Klassen', function () {
+        $list = makeQualifyingList_qtl7(2027, '2026-05-12', '2027-05-29');
+        $free = makeStrokeType_qtl7();
+        $breast = makeStrokeType_qtl7('BREAST');
+        $club = makeClub_qtl7('Verein A');
+        // Bewusst KEIN SM3 in den Basiswerten-Sportklassen — die Dropdown-Option muss
+        // trotzdem "S03,SB03,SM03" zeigen (Erik, 2026-09-03: immer alle drei Präfixe).
+        makeSportClassNumber_qtl7(3);
+        makeSportClassNumber_qtl7(5);
+        makeQualifyingTime_qtl7($list, $free, 100, 'M', 'S3', 6000);
+        makeQualifyingTime_qtl7($list, $breast, 100, 'M', 'SB3', 6000);
+        makeQualifyingTime_qtl7($list, $free, 200, 'M', 'S5', 6000);
+
+        $meet = makeMeet_qtl7('2026-08-01');
+        $athleteS3 = makeAthlete_qtl7($club, 'Cara', 'DreiFrei');
+        makeResult_qtl7($meet, makeSwimEvent_qtl7($meet, $free), $athleteS3, $club, 5900, 'S3');
+        $athleteSB3 = makeAthlete_qtl7($club, 'Dana', 'DreiBrust');
+        makeResult_qtl7($meet, makeSwimEvent_qtl7($meet, $breast), $athleteSB3, $club, 5900, 'SB3');
+        $athleteS5 = makeAthlete_qtl7($club, 'Ela', 'FuenfFrei');
+        makeResult_qtl7($meet, makeSwimEvent_qtl7($meet, $free, 200), $athleteS5, $club, 5900, 'S5');
+
+        $this->actingAs(makeAdmin_qtl7())
+            ->post(route('qualifying-time-lists.qualifications.calculate', $list));
+
+        expect(Qualification::count())->toBe(3);
+
+        $response = $this->actingAs(makeClubUser_qtl7())
+            ->get(route('qualifying-time-lists.qualifications', $list).'?sport_class=S3,SB3,SM3')
+            ->assertSee('DreiFrei')
+            ->assertSee('DreiBrust')
+            ->assertDontSee('FuenfFrei');
+
+        // Dropdown-Label zeigt immer alle drei Präfixe, kommagetrennt, zweistellig — auch
+        // obwohl es hier keine SM3-Ergebnisse gibt.
+        $response->assertSee('S03,SB03,SM03');
     })->group('qualifying-time-lists-p5-p6');
 
     it('filtert nach Verein', function () {
