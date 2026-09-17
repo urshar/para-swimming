@@ -67,29 +67,30 @@
                     <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
                 </div>
 
-                <flux:table
-                    class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
-                    <flux:table.columns>
-                        <flux:table.column>Rang</flux:table.column>
-                        <flux:table.column>Athlet</flux:table.column>
-                        <flux:table.column>Verein</flux:table.column>
-                        <flux:table.column>Punkte</flux:table.column>
-                    </flux:table.columns>
-                    <flux:table.rows>
-                        @foreach($bracket['results'] as $row)
-                            <flux:table.row>
-                                <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
-                                <flux:table.cell>
-                                    <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
-                                        {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
-                                    </a>
-                                </flux:table.cell>
-                                <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
-                                <flux:table.cell class="font-mono">{{ $row->points }}</flux:table.cell>
-                            </flux:table.row>
-                        @endforeach
-                    </flux:table.rows>
-                </flux:table>
+                <div class="p-4 [--flux-bleed:1rem]">
+                    <flux:table bleed>
+                        <flux:table.columns>
+                            <flux:table.column>Rang</flux:table.column>
+                            <flux:table.column>Athlet</flux:table.column>
+                            <flux:table.column>Verein</flux:table.column>
+                            <flux:table.column>Punkte</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach($bracket['results'] as $row)
+                                <flux:table.row>
+                                    <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
+                                    <flux:table.cell>
+                                        <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
+                                            {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
+                                        </a>
+                                    </flux:table.cell>
+                                    <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
+                                    <flux:table.cell class="font-mono">{{ $row->points }}</flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                        </flux:table.rows>
+                    </flux:table>
+                </div>
             </div>
         @empty
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">

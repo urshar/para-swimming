@@ -41,8 +41,8 @@
                 Berechnung übersprungen.
             </div>
         @else
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <flux:table>
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                     <flux:table.columns>
                         <flux:table.column>Stil</flux:table.column>
                         <flux:table.column>Strecke</flux:table.column>
@@ -54,7 +54,7 @@
                         <flux:table.column>Vertrauen</flux:table.column>
                         <flux:table.column></flux:table.column>
                     </flux:table.columns>
-                    <flux:table.rows class="[&_td:first-child]:ps-4">
+                    <flux:table.rows>
                         @foreach($factors as $factor)
                             <flux:table.row>
                                 <flux:table.cell>{{ $factor->strokeType?->name_de ?? '–' }}</flux:table.cell>

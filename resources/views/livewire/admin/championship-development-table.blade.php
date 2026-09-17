@@ -88,7 +88,8 @@
                 </div>
             </div>
 
-            <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4">
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>Bewerb</flux:table.column>
                     <flux:table.column>Leistung</flux:table.column>
@@ -169,7 +170,8 @@
                         </flux:table.row>
                     @endforeach
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
 
             @php($ohneNorm = $this->eventsWithoutStandard($eintrag))
 

@@ -30,8 +30,8 @@
                 Noch keine WPS-Version importiert.
             </div>
         @else
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <flux:table>
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                     <flux:table.columns>
                         <flux:table.column>Bezeichnung</flux:table.column>
                         <flux:table.column>Jahr</flux:table.column>
@@ -41,7 +41,7 @@
                         <flux:table.column>Status</flux:table.column>
                         <flux:table.column/>
                     </flux:table.columns>
-                    <flux:table.rows class="[&_td:first-child]:ps-4">
+                    <flux:table.rows>
                         @foreach($versions as $version)
                             <flux:table.row>
                                 <flux:table.cell>

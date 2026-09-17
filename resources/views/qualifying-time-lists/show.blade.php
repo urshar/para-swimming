@@ -104,9 +104,8 @@
                                     {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
                                 </h3>
                                 <div
-                                    class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                                    <flux:table
-                                        class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                                    class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+                                    <flux:table bleed>
                                         <flux:table.columns>
                                             <flux:table.column>Geschlecht</flux:table.column>
                                             <flux:table.column>Sportklasse</flux:table.column>

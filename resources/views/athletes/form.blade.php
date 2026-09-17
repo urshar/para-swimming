@@ -69,13 +69,13 @@
                         <flux:error name="name_prefix"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Vorname <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Vorname<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="first_name" value="{{ old('first_name', $athlete->first_name ?? '') }}"
                                     required/>
                         <flux:error name="first_name"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Nachname <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Nachname<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="last_name" value="{{ old('last_name', $athlete->last_name ?? '') }}"
                                     required/>
                         <flux:error name="last_name"/>
@@ -84,7 +84,7 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
-                        <flux:label>Geschlecht <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Geschlecht<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="gender" required>
                             <flux:select.option value="M" :selected="old('gender', $athlete->gender ?? 'M') === 'M'">Männlich</flux:select.option>
                             <flux:select.option value="F" :selected="old('gender', $athlete->gender ?? '') === 'F'">Weiblich</flux:select.option>
@@ -94,13 +94,13 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Geburtsdatum</flux:label>
-                        <flux:date-picker type="input" locale="de-AT" name="birth_date"
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="birth_date"
                                     value="{{ old('birth_date', isset($athlete) && $athlete->birth_date ? $athlete->birth_date->format('Y-m-d') : '') }}"
                                     clearable/>
                         <flux:error name="birth_date"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Nation <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Nation<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" searchable name="nation_id" placeholder="Bitte wählen…" required>
                             @foreach($nations as $nation)
                                 <flux:select.option value="{{ $nation->id }}" :selected="old('nation_id', $athlete->nation_id ?? $autId) == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
@@ -126,7 +126,7 @@
                         {{-- Nur bei Neuanlage: Eintrittsdatum für die Club-History --}}
                         <flux:field>
                             <flux:label>Vereinseintritt</flux:label>
-                            <flux:date-picker type="input" locale="de-AT" name="club_joined_at"
+                            <flux:date-picker type="input" locale="de-AT" selectable-header name="club_joined_at"
                                         value="{{ old('club_joined_at', today()->format('Y-m-d')) }}" clearable/>
                             <flux:error name="club_joined_at"/>
                         </flux:field>

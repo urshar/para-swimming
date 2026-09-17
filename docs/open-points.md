@@ -420,101 +420,14 @@ bestehenden `BaseTimeImportService` für die Persistierungs-Logik: Kopfzeilen bi
 Dateityp-Umschalter/-Erkennung in `base-times/import.blade.php` (.txt zusätzlich zu .xlsx, additiv — bestehender
 Excel-Import bleibt unverändert bestehen), Tests analog `BaseTimeImportServiceTest`.
 
-## Phase 14 (Vorschlag) — Flux-Pro-Rollout: Full-Bleed-Tabellen, Datepicker mit Selectable Header & Pflichtfeld-Sterne
-
-**Seit:** WPS-Design-Feedback-Runde (04.09.2026). Erik: alle Tabellen im Adminbereich sollen auf Flux Pros
-Full-Bleed-/Custom-Gutters-Muster umgestellt werden ("was halt besser aussieht bei der Implementierung"), als eigene
-Phase, vermutlich P14. Denselben Bündelungs-Vorschlag ("auch hier") für den Rollout des Flux-Pro-Datepickers mit
-`selectable-header` auf alle übrigen Datumsfelder. Am 04.09.2026 zusätzlich in diese Phase verschoben: die
-Pflichtfeld-Sternchen-Nacharbeit (Teil C) — hier aber ausdrücklich **kein** eigener Sweep, sondern nur opportunistisch
-mitnehmen, wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
-
-### Teil A — Tabellen: Full-Bleed oder Custom Gutters
-
-**Was fehlt:** Aktuell sitzt jede Tabelle in einer eigenen Card mit `p-*`-Innenabstand ODER die Card hat
-`overflow-hidden` und die Tabelle füllt sie randlos — uneinheitlich von Datei zu Datei gewachsen. Flux Pro kennt dafür
-zwei dokumentierte Muster (fluxui.dev/components/table, Stand 04.09.2026):
-
-- **Full-Bleed** (`<flux:table bleed>` innerhalb einer `flux:card`): Die Tabellen-Trennlinien laufen bis an den
-  Card-Rand durch, erste/letzte Spalte bleiben am Card-Inhalt ausgerichtet, der Gutter wird automatisch aus der
-  Card-Größe abgeleitet.
-- **Custom Gutters** (`<flux:table bleed>` in einem eigenen Container statt einer `flux:card`): Der Innenabstand wird
-  manuell über die CSS-Variable `--flux-bleed` passend zum Container-Padding gesetzt (z. B.
-  `<div class="p-4 [--flux-bleed:1rem]"><flux:table bleed>`).
-
-**Wichtiger Befund — blockiert aktuell die Umsetzung:** Die in diesem Projekt vendorte Version von `flux`
-(`vendor/livewire/flux/stubs/resources/views/flux/table/index.blade.php`) kennt den `bleed`-Prop **noch nicht** — dort
-gibt es kein `bleed`-Attribut und keine `--flux-bleed`-Variable, nur `paginate` und `container:class`. Das Muster aus
-der aktuellen Flux-Doku setzt also eine neuere Flux-/Flux-Pro-Version voraus. Diese Phase beginnt daher realistisch
-mit einem Paket-Update (`composer update livewire/flux livewire/flux-pro` o. ä.), das selbst geprüft werden muss (alle
-anderen Flux-Komponenten regressionstesten, Changelog auf Breaking Changes durchsehen), bevor überhaupt eine einzelne
-Tabelle umgestellt werden kann.
-
-**Update 04.09.2026:** Erik hat `composer.json` bereits auf `livewire/flux: ^2.18.0` / `livewire/flux-pro: ^2.18`
-angehoben. `composer show livewire/flux` bestätigt v2.18.0 als installierte Version — die neue Constraint war schon
-erfüllt, `composer.lock` blieb unverändert, es wurde nichts Neues nachgeladen. Der `bleed`-Prop fehlt in v2.18.0
-weiterhin. Der Blocker besteht also unverändert fort; sobald Flux/Flux Pro eine Version über `^2.18` hinaus
-veröffentlichen, die `bleed` mitbringt, ist ein erneuter, bewusster `composer require livewire/flux:^X livewire/flux-pro:^X`
-nötig (nicht nur ein Constraint-Bump ohne tatsächlich neue Version).
-
-**Betroffene Dateien** (jede Datei mit `<flux:table`, Stand 04.09.2026 — Zahl vorab per `grep` ermittelt, bei
-Umsetzung neu zu verifizieren): **rund 38 Dateien**, u. a. explizit von Erik genannt:
-
-- `resources/views/wps/factors/index.blade.php` (Kurzbahn-Umrechnung)
-- `resources/views/wps/factors/report.blade.php` (Faktorenbericht)
-
-Weitere (Auszug, vollständige Liste per `grep -rl "<flux:table" resources/views/` zu Beginn der Phase neu ziehen):
-`admin/documents/index`, `admin/users/index`, `age-groups/index`, `athletes/index`, `athletes/show`,
-`base-times/versions/index`, `championships/{index,import/preview,selection}`, `classifiers/{index,show}`,
-`clubs/{index,show}`, `cups/{index,club-ranking-index,daily-ranking,overall-ranking,overall-ranking-index}`,
-`entries/index`, `kader-types/index`, `livewire/admin/championship-development-table`,
-`livewire/statistics-dashboard` (5 Tabellen in einer Datei), `meets/{index,show}`, `nations/index`,
-`qualifying-excluded-disciplines/index`, `qualifying-time-lists/{form,index,qualifications,show}`,
-`records/{index,show}`, `results/index`, `sport-class-groups/index`, `wps/import/preview`, `wps/versions/{index,show}`.
-
-**Warum zurückgestellt:** Kein einzeiliger Fix, sondern (a) ein Paket-Update mit Regressionsrisiko für alle
-Flux-Komponenten, nicht nur Tabellen, und (b) danach Fleißarbeit über ~38 Dateien. Erik selbst hat vorgeschlagen, das
-als eigene Phase zu behandeln statt es in die laufende WPS-Design-Feedback-Runde zu mischen.
-
-**Wer entscheidet:** Erik — Zeitpunkt des Paket-Updates (eigener Schritt vor P14 oder Teil davon), und ob Full-Bleed
-oder Custom-Gutters das Standardmuster wird (vermutlich Full-Bleed für alle Card-Tabellen, Custom-Gutters nur dort,
-wo keine `flux:card` verwendet wird — "was halt besser aussieht" pro Fall zu entscheiden, sobald das Update steht).
-
-**Zum Schließen nötig:** Paket-Update + Regressionstest, dann pro Tabelle `bleed` ergänzen (bzw. `--flux-bleed`
-setzen) und live prüfen, vollständige Datei-Liste zu Beginn der Phase neu ziehen (Codebase wächst weiter).
-
-### Teil B — Datepicker mit `selectable-header` auf alle Date-Inputs ausrollen
-
-**Was fehlt:** `flux:date-picker` unterstützt bereits (auch in der aktuell vendorten Version, kein Update nötig) den
-Prop `selectable-header` — ersetzt die reine Text-Kopfzeile im Kalender-Popover (z. B. "September 2026") durch zwei
-`<select>`-Dropdowns für Monat und Jahr, damit man nicht monatsweise durchklicken muss, um z. B. zu einem Geburtsjahr
-zu springen. Am 04.09.2026 in `wps/import/form.blade.php` als Pilot ergänzt und live verifiziert (Kalender-Header
-zeigt jetzt ein `<select>` statt Text). Noch **ohne** `selectable-header`:
-
-- `resources/views/athletes/form.blade.php` (2 Datumsfelder)
-- `resources/views/athletes/show.blade.php` (6 Datumsfelder)
-- `resources/views/base-times/import.blade.php` (2)
-- `resources/views/base-times/versions/form.blade.php` (2)
-- `resources/views/championships/form.blade.php` (2)
-- `resources/views/livewire/wps-athlete-analysis.blade.php` (1)
-- `resources/views/meets/_grunddaten-fields.blade.php` (3)
-- `resources/views/qualifying-time-lists/_general-fields.blade.php` (2)
-- `resources/views/records/form.blade.php` (2)
-
-**Warum zurückgestellt:** Zusammen mit Teil A zu einer Phase gebündelt (Eriks Wunsch: "auch hier" dieselbe
-Vorgehensweise — Liste erstellen, dann als eigene Phase). Für sich genommen risikoarme Fleißarbeit (ein zusätzliches
-Boolean-Attribut je Datepicker, kein Package-Update nötig), könnte bei Bedarf auch unabhängig von Teil A vorgezogen
-werden.
-
-**Wer entscheidet:** Keine offene Design-Frage — Muster ist am Pilotfall verifiziert.
-
-**Zum Schließen nötig:** Jedes `flux:date-picker type="input" ...` um `selectable-header` ergänzen, danach aus dieser
-Liste streichen.
-
-### Teil C — Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
+## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 
 **Seit:** Admin-UI-Rework Phase 10 (03.09.2026) bzw. WPS-Design-Feedback-Runde (04.09.2026, Abstands-Bug entdeckt);
-am 04.09.2026 auf Eriks Wunsch in Phase 14 verschoben statt als eigener Sweep behandelt.
+am 04.09.2026 auf Eriks Wunsch als Phase-14-Bestandteil vorgesehen, aber ausdrücklich **kein** eigener Sweep, sondern
+nur opportunistisch mitnehmen, wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird — dieser
+Grundsatz gilt unverändert fort, auch nach Abschluss von Phase 14 (siehe `docs/specs/admin-ui-rework.md`, Phase 14:
+Full-Bleed-Tabellen und Datepicker-Rollout sind dort abgeschlossen dokumentiert; nur dieser Punkt bleibt bewusst
+offen).
 
 **Was fehlt — zwei getrennte Mängel, dieselben Dateien betreffend:**
 
@@ -531,7 +444,7 @@ am 04.09.2026 auf Eriks Wunsch in Phase 14 verschoben statt als eigener Sweep be
    Label-Text, stattdessen `ms-1` auf dem `<span>` (verifiziert in `wps/import/form.blade.php`, Abstand danach
    `4px`).
 
-**Noch ohne Farbe (9 Dateien):**
+**Noch ohne Farbe (7 Dateien):**
 
 - `resources/views/admin/documents/form.blade.php`
 - `resources/views/admin/users/index.blade.php`
@@ -539,31 +452,30 @@ am 04.09.2026 auf Eriks Wunsch in Phase 14 verschoben statt als eigener Sweep be
 - `resources/views/cups/form.blade.php`
 - `resources/views/kader-types/form.blade.php`
 - `resources/views/lenex/export.blade.php`
-- `resources/views/qualifying-time-lists/_general-fields.blade.php`
-- `resources/views/records/form.blade.php`
 - `resources/views/sport-class-groups/form.blade.php`
 
-**Farbe vorhanden, Abstand kollabiert (13 Dateien):**
+**Farbe vorhanden, Abstand kollabiert (8 Dateien):**
 
-- `resources/views/base-times/import.blade.php`
-- `resources/views/base-times/versions/form.blade.php`
 - `resources/views/swim-events/form.blade.php`
 - `resources/views/results/form.blade.php`
-- `resources/views/meets/_grunddaten-fields.blade.php`
 - `resources/views/entries/form.blade.php`
 - `resources/views/entries/edit.blade.php`
 - `resources/views/clubs/form.blade.php`
 - `resources/views/club-entries/create.blade.php`
 - `resources/views/club-entries/create-relay.blade.php`
 - `resources/views/classifiers/form.blade.php`
-- `resources/views/athletes/show.blade.php`
-- `resources/views/athletes/form.blade.php`
+
+**Erledigt (Phase 14, 16.09.2026, opportunistisch mitgenommen — diese 7 Dateien wurden ohnehin für Teil B
+angefasst):** `qualifying-time-lists/_general-fields.blade.php`, `records/form.blade.php` (Farbe ergänzt),
+`base-times/import.blade.php`, `base-times/versions/form.blade.php`, `meets/_grunddaten-fields.blade.php`,
+`athletes/show.blade.php`, `athletes/form.blade.php` (Abstands-Bug behoben). Aus beiden Listen oben gestrichen.
 
 **Warum zurückgestellt UND wie umgesetzt wird — auf Eriks ausdrücklichen Wunsch (04.09.2026) anders als Teil
-A/B:** Kein eigener Sweep über alle 22 Dateien. Stattdessen: **nur mitnehmen, wenn eine dieser Dateien ohnehin
-im Rahmen einer anderen Änderung angefasst wird** (in Phase 14 oder später) — dann bei dieser Gelegenheit das
-Sternchen auf das korrekte Muster (`Feld<span class="text-red-500 dark:text-red-400 ms-1">*</span>`, kein
-Leerzeichen, `ms-1`) bringen und aus der jeweiligen Liste oben streichen. Kein gesonderter Termin nur dafür.
+A/B:** Kein eigener Sweep über alle verbliebenen 15 Dateien. Stattdessen weiterhin: **nur mitnehmen, wenn eine
+dieser Dateien ohnehin im Rahmen einer anderen Änderung angefasst wird** (in Phase 14, z. B. durch Teil A, oder
+später) — dann bei dieser Gelegenheit das Sternchen auf das korrekte Muster (`Feld<span class="text-red-500
+dark:text-red-400 ms-1">*</span>`, kein Leerzeichen, `ms-1`) bringen und aus der jeweiligen Liste oben streichen.
+Kein gesonderter Termin nur dafür.
 
 **Wer entscheidet:** Keine offene Design-Frage — Fix-Muster ist bekannt und mehrfach verifiziert. Nur die
 Reihenfolge/der Anlass ist offen (siehe oben).

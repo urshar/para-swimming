@@ -2834,3 +2834,81 @@ wenigen Datenpunkten, Jahr-Dropdown im Header
 **Tests**: volle Suite weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live verifiziert: Tooltip zeigt
 "00:43,94" statt "43.94", Rückweg-Button beide Zustände (mit/ohne `?from=athlete`), Hinweistext bei der
 WPS-Punkte-Metrik für Ernhofer Andreas, Jahr-Dropdown im Header mit reaktivem Wechsel (2026→2025) ohne Reload.
+
+## Phase 14 — Flux-Pro-Rollout: Full-Bleed-Tabellen & Datepicker-Selectable-Header — **abgeschlossen**
+
+Umsetzung des in `docs/open-points.md` am 04.09.2026 vorgeschlagenen "Phase 14"-Pakets (16.09.2026). Drei Teile,
+in der Reihenfolge B → C (opportunistisch) → A umgesetzt, jeweils mit voller Testsuite (1396 Tests) und Pint
+zwischen den Schritten abgesichert.
+
+### Teil B — Datepicker `selectable-header` auf alle verbliebenen Date-Inputs
+
+Alle 9 in den Open Points gelisteten Dateien (22 Datumsfelder) um `selectable-header` ergänzt: `athletes/form`
+(2), `athletes/show` (6), `base-times/import` (2), `base-times/versions/form` (2), `championships/form` (2),
+`livewire/wps-athlete-analysis` (1), `meets/_grunddaten-fields` (3), `qualifying-time-lists/_general-fields`
+(2), `records/form` (2). Risikoarme, mechanische Änderung — reines zusätzliches Boolean-Attribut je
+`flux:date-picker`, keine Strukturänderung.
+
+### Teil C (opportunistisch) — Pflichtfeld-Sternchen in den von Teil B berührten Dateien
+
+Auf ausdrücklichen Wunsch Eriks (04.09.2026) **kein** eigener Sweep über alle 22 betroffenen Dateien aus den
+Open Points — nur dort mitgezogen, wo eine Datei ohnehin aus anderem Anlass (hier: Teil B) angefasst wurde. 7
+Dateien betroffen: `qualifying-time-lists/_general-fields.blade.php`, `records/form.blade.php` (Pflichtfeld-`*`
+bekam die fehlende Farbe), `base-times/import.blade.php`, `base-times/versions/form.blade.php`,
+`meets/_grunddaten-fields.blade.php`, `athletes/show.blade.php`, `athletes/form.blade.php` (Abstands-Bug
+behoben: Leerzeichen vor `<span>` entfernt, `ms-1` ergänzt). Die restlichen 15 Dateien bleiben bewusst offen in
+`docs/open-points.md`, bis sie aus anderem Anlass angefasst werden.
+
+### Teil A — Full-Bleed-Tabellen
+
+**Blocker aus der ursprünglichen Planung war bereits aufgelöst:** Flux/Flux Pro liegt inzwischen in v2.20.0 vor
+(`composer.lock`), der `bleed`-Prop ist in `vendor/livewire/flux/.../table/index.blade.php` vorhanden — kein
+separates Paket-Update mehr nötig.
+
+**Wichtiger Befund beim Umsetzen, der die ursprüngliche Doku-Annahme korrigiert:** Keine einzige der 39 Dateien
+mit `<flux:table` verwendet tatsächlich die `flux:card`-Komponente. Alle nutzen ein handgebautes Card-Div
+(`<div class="bg-white dark:bg-zinc-800 rounded-xl border ... overflow-hidden">`) ohne eigenes Padding — der
+einfache "Full-Bleed-in-`flux:card`"-Fall aus der Flux-Doku traf also auf keine Datei zu. Jede Datei brauchte
+stattdessen die "Custom Gutters"-Variante:
+
+```diff
+- <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+-     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
++ <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
++     <flux:table bleed>
+```
+
+`--flux-bleed:1rem` entspricht dabei exakt dem bisherigen manuellen `ps-4`/`pe-4` (1rem in Tailwinds Skala) —
+die Zelltext-Einrückung bleibt optisch identisch, nur die Zeilen-Trennlinien/Hover-Hintergründe laufen jetzt bis
+an den Card-Rand statt an der alten `ps-4`-Grenze zu enden.
+
+**Weitere Erkenntnis — drei Datei-Kategorien statt der ursprünglich angenommenen einen:**
+
+1. **39 Dateien mit `<flux:table`**, davon **26 mit echter Card** (obiges Muster angewendet) und **13 mit
+   nackter Tabelle ohne umschließendes Div** (`admin/documents/index`, `athletes/index`, `athletes/show`,
+   `classifiers/{index,show}`, `clubs/{index,show}`, `meets/{index,show}`, `nations/index`,
+   `qualifying-time-lists/form`, `records/{index,show}`) — dort bewusst **nicht** angefasst: `bleed` hätte die
+   Tabelle per negativem Margin aus ihrem Container geschoben, ohne dass ein Padding das kompensiert. Ihr
+   `ps-4`/`pe-4`-Hack (wo vorhanden) hat einen anderen, weiterhin gültigen Zweck (Randabstand bei einer
+   randlosen Tabelle) und bleibt bestehen.
+2. Bei Karten **mit eigenem Kopfbereich** vor der Tabelle (z. B. `cups/daily-ranking.blade.php`,
+   `livewire/admin/championship-development-table.blade.php`, `livewire/statistics-dashboard.blade.php` (5×),
+   `wps/import/preview.blade.php`) wurde das Padding **nicht** auf das äußere Card-Div gelegt (das hätte den
+   bereits vorhandenen `px-4 py-3`-Kopfbereich zusätzlich eingerückt und dessen `border-b` verkürzt), sondern
+   ein neues, nur die Tabelle umschließendes `<div class="p-4 [--flux-bleed:1rem]">` eingefügt.
+3. `cups/overall-ranking.blade.php` hat bereits einen dedizierten `<div class="overflow-x-auto">`-Wrapper nur um
+   die (breite, `table-fixed`) Tabelle — dort genügte es, Padding und `--flux-bleed` direkt an diesem
+   bestehenden Wrapper zu ergänzen, ohne einen weiteren Div einzuziehen.
+
+**PhpStorm-Inspection-Fehlalarm während der Umsetzung entdeckt** (nicht behoben, siehe CLAUDE.md): In
+`records/form.blade.php` meldete PhpStorm "Method expression is not of Function type" bzw. "'with' statement"
+an zwei Stellen ohne Bezug zu einem `@if` — beide Stellen live nachgerendert (Wegwerf-Test), kein echter Fehler.
+Dokumentiert als eigener CLAUDE.md-Eintrag, damit dieselbe Inspection nicht erneut blind "repariert" wird (das
+war beim vorherigen PhpStorm-Fund in `athletes/show.blade.php` genau schiefgegangen).
+
+**Betroffene Dateien**: 26 Card-Dateien mit `bleed` umgestellt (siehe oben), keine der 13 nackten Tabellen
+angefasst, `qualifying-time-lists/form.blade.php` unangetastet (eigener `ps-0`-Sonderfall, keine Card).
+
+**Tests**: volle Suite 1396 Tests grün, `vendor/bin/pint --test` grün nach jedem der drei Teile. Live-Verifikation
+im Browser war in dieser Session technisch nicht möglich (Sandbox erreichte den lokalen Dev-Server nicht) — Erik
+prüft die visuelle Wirkung selbst.

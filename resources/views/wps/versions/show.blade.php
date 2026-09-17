@@ -76,8 +76,8 @@
             </flux:button>
         </form>
 
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <flux:table>
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+            <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>Bahn</flux:table.column>
                     <flux:table.column>Geschlecht</flux:table.column>
@@ -88,7 +88,7 @@
                     <flux:table.column align="end">c</flux:table.column>
                     <flux:table.column>Art</flux:table.column>
                 </flux:table.columns>
-                <flux:table.rows class="[&_td:first-child]:ps-4">
+                <flux:table.rows>
                     @foreach($parameters as $parameter)
                         <flux:table.row>
                             <flux:table.cell>{{ $parameter->course }}</flux:table.cell>

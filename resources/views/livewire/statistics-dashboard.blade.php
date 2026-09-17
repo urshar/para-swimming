@@ -106,7 +106,8 @@
             <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Teilnehmer und Starts pro Veranstaltung</h2>
             </div>
-            <flux:table>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>Veranstaltung</flux:table.column>
                     <flux:table.column>Datum</flux:table.column>
@@ -131,7 +132,8 @@
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
         </div>
 
         {{-- ── Top-Vereine ────────────────────────────────────────────────── --}}
@@ -140,7 +142,8 @@
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Top-Vereine</h2>
                 <span class="text-xs text-zinc-400">nach Starts</span>
             </div>
-            <flux:table>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>#</flux:table.column>
                     <flux:table.column>Verein</flux:table.column>
@@ -168,7 +171,8 @@
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
         </div>
 
         {{-- ── Top-Sportler ───────────────────────────────────────────────── --}}
@@ -177,7 +181,8 @@
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Top-Sportler</h2>
                 <span class="text-xs text-zinc-400">nach Teilnahmen</span>
             </div>
-            <flux:table>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>#</flux:table.column>
                     <flux:table.column>Sportler</flux:table.column>
@@ -205,7 +210,8 @@
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
         </div>
 
         {{-- ── Nationen ───────────────────────────────────────────────────── --}}
@@ -213,7 +219,8 @@
             <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Nationen</h2>
             </div>
-            <flux:table>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>Nation</flux:table.column>
                     <flux:table.column>Teilnehmer</flux:table.column>
@@ -237,7 +244,8 @@
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
         </div>
 
         {{-- ── Rekorde ────────────────────────────────────────────────────── --}}
@@ -261,7 +269,8 @@
                 @endforeach
             </div>
 
-            <flux:table>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                 <flux:table.columns>
                     <flux:table.column>#</flux:table.column>
                     <flux:table.column>Sportler</flux:table.column>
@@ -282,7 +291,8 @@
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
-            </flux:table>
+                </flux:table>
+            </div>
 
             @if($records['overview']['without_athlete'] > 0)
                 <div class="px-4 py-2 text-xs text-zinc-400 border-t border-zinc-100 dark:border-zinc-700">

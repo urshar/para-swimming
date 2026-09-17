@@ -35,7 +35,7 @@
             <div
                 class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
                 <flux:field>
-                    <flux:label>Bezeichnung <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Bezeichnung<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:input name="label" placeholder="z.B. 2021–2026"
                                 value="{{ old('label', $version?->label) }}" required/>
                     <flux:error name="label"/>
@@ -43,8 +43,8 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Gültig ab <span class="text-red-500 dark:text-red-400">*</span></flux:label>
-                        <flux:date-picker type="input" locale="de-AT" name="valid_from"
+                        <flux:label>Gültig ab<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_from"
                                     value="{{ old('valid_from', $version?->valid_from?->toDateString()) }}" required/>
                         <flux:error name="valid_from"/>
                     </flux:field>
@@ -55,7 +55,7 @@
                              Flex-Item-Textknoten laut CSS-Flexbox-Spezifikation entfernt, der
                              Abstand ging dadurch verloren (Erik, 2026-09-03). --}}
                         <flux:label>Gültig bis <span class="font-normal text-zinc-400 ms-1">(optional)</span></flux:label>
-                        <flux:date-picker type="input" locale="de-AT" name="valid_until"
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_until"
                                     value="{{ old('valid_until', $version?->valid_until?->toDateString()) }}" clearable/>
                         <flux:error name="valid_until"/>
                     </flux:field>

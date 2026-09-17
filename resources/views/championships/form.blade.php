@@ -92,7 +92,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Qualifikationszeitraum ab</flux:label>
-                        <flux:date-picker type="input" locale="de-AT" name="qualification_start"
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="qualification_start"
                                     value="{{ old('qualification_start', $championship?->qualification_start?->format('Y-m-d') ?? '') }}" clearable/>
                         @error('qualification_start')
                         <flux:error>{{ $message }}</flux:error>
@@ -101,7 +101,7 @@
 
                     <flux:field>
                         <flux:label>bis</flux:label>
-                        <flux:date-picker type="input" locale="de-AT" name="qualification_end"
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="qualification_end"
                                     value="{{ old('qualification_end', $championship?->qualification_end?->format('Y-m-d') ?? '') }}" clearable/>
                         @error('qualification_end')
                         <flux:error>{{ $message }}</flux:error>

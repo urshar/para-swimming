@@ -64,8 +64,8 @@
                 Kurzbahn geschwommen sind.
             </div>
         @else
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <flux:table>
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                     <flux:table.columns>
                         <flux:table.column>Bewerb</flux:table.column>
                         <flux:table.column>Klasse</flux:table.column>
@@ -76,7 +76,7 @@
                         <flux:table.column align="end">angesetzt</flux:table.column>
                         <flux:table.column align="end">Abweichung</flux:table.column>
                     </flux:table.columns>
-                    <flux:table.rows class="[&_td:first-child]:ps-4">
+                    <flux:table.rows>
                         @foreach($rows as $row)
                             <flux:table.row>
                                 <flux:table.cell>{{ $row['distance'] }}m {{ $row['stroke_name_de'] }}</flux:table.cell>

@@ -47,7 +47,7 @@
                 {{-- Bestehende Version wählen --}}
                 <div x-show="mode === 'existing'" x-cloak>
                     <flux:field>
-                        <flux:label>Version <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Version<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="version_id" placeholder="— wählen —" clearable>
                             @foreach($versions as $version)
                                 <flux:select.option value="{{ $version->id }}"
@@ -68,22 +68,22 @@
                 {{-- Neue Version anlegen --}}
                 <div x-show="mode === 'new'" x-cloak class="space-y-4">
                     <flux:field>
-                        <flux:label>Bezeichnung <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Bezeichnung<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="label" placeholder="z.B. 2021–2026" value="{{ old('label') }}"/>
                         <flux:error name="label"/>
                     </flux:field>
 
                     <div class="grid grid-cols-2 gap-4">
                         <flux:field>
-                            <flux:label>Gültig ab <span class="text-red-500 dark:text-red-400">*</span></flux:label>
-                            <flux:date-picker type="input" locale="de-AT" name="valid_from" value="{{ old('valid_from') }}"/>
+                            <flux:label>Gültig ab<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_from" value="{{ old('valid_from') }}"/>
                             <flux:error name="valid_from"/>
                         </flux:field>
                         <flux:field>
                             {{-- ms-1 statt reinem Leerzeichen: siehe versions/form.blade.php --}}
                             <flux:label>Gültig bis <span class="font-normal text-zinc-400 ms-1">(optional)</span>
                             </flux:label>
-                            <flux:date-picker type="input" locale="de-AT" name="valid_until" value="{{ old('valid_until') }}" clearable/>
+                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_until" value="{{ old('valid_until') }}" clearable/>
                             <flux:error name="valid_until"/>
                         </flux:field>
                     </div>
@@ -94,7 +94,7 @@
                 <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Excel-Datei</h2>
 
                 <flux:field x-data="fileUploadField()">
-                    <flux:label>World-Aquatics-Basiswert-Datei <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>World-Aquatics-Basiswert-Datei<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:file-upload name="base_time_file" accept=".xlsx" x-on:change="onChange">
                         <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
                     </flux:file-upload>
