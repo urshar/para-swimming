@@ -185,7 +185,8 @@
     @if($history->count() > 1)
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Rekord-Historie</h2>
 
-        <flux:table>
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+        <flux:table bleed>
             <flux:table.columns>
                 <flux:table.column>Zeit</flux:table.column>
                 <flux:table.column>Athlet</flux:table.column>
@@ -242,6 +243,7 @@
                 @endforeach
             </flux:table.rows>
         </flux:table>
+        </div>
     @endif
 
 @endsection

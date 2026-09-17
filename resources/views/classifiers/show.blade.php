@@ -104,7 +104,8 @@
     {{-- Klassifikations-History --}}
     <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Klassifikationen</h2>
 
-    <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+    <flux:table bleed>
         <flux:table.columns>
             <flux:table.column>Datum</flux:table.column>
             <flux:table.column>Athlet</flux:table.column>
@@ -142,17 +143,13 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell class="font-mono text-sm">
-                        {{ $cl->sport_class_result ?? '–' }}
+                        {{ $cl->sport_class_results_display }}
                     </flux:table.cell>
                     <flux:table.cell>
-                        @if($cl->status)
-                            <flux:badge size="sm" color="{{ match($cl->status) {
-                                'CONFIRMED'   => 'emerald',
-                                'NEW'         => 'blue',
-                                'REVIEW'      => 'amber',
-                                'OBSERVATION' => 'orange',
-                                default       => 'zinc',
-                            } }}">{{ $cl->status }}</flux:badge>
+                        @if($cl->classification_status)
+                            <flux:badge size="sm" color="{{ $cl->status_color }}">
+                                {{ $cl->status_label }}
+                            </flux:badge>
                         @else
                             <span class="text-zinc-400 text-sm">–</span>
                         @endif
@@ -167,6 +164,7 @@
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 
     <div class="mt-4">{{ $classifications->links() }}</div>
 

@@ -2887,10 +2887,11 @@ an den Card-Rand statt an der alten `ps-4`-Grenze zu enden.
 1. **39 Dateien mit `<flux:table`**, davon **26 mit echter Card** (obiges Muster angewendet) und **13 mit
    nackter Tabelle ohne umschließendes Div** (`admin/documents/index`, `athletes/index`, `athletes/show`,
    `classifiers/{index,show}`, `clubs/{index,show}`, `meets/{index,show}`, `nations/index`,
-   `qualifying-time-lists/form`, `records/{index,show}`) — dort bewusst **nicht** angefasst: `bleed` hätte die
-   Tabelle per negativem Margin aus ihrem Container geschoben, ohne dass ein Padding das kompensiert. Ihr
-   `ps-4`/`pe-4`-Hack (wo vorhanden) hat einen anderen, weiterhin gültigen Zweck (Randabstand bei einer
-   randlosen Tabelle) und bleibt bestehen.
+   `qualifying-time-lists/form`, `records/{index,show}`) — dort zunächst bewusst **nicht** angefasst: `bleed`
+   hätte die Tabelle per negativem Margin aus ihrem Container geschoben, ohne dass ein Padding das kompensiert.
+   Ihr `ps-4`/`pe-4`-Hack (wo vorhanden) hat einen anderen, weiterhin gültigen Zweck (Randabstand bei einer
+   randlosen Tabelle) und bleibt bestehen, bis die jeweilige Datei einzeln angegangen wird (Erik: "gehen wir die
+   Tabellen einzeln an").
 2. Bei Karten **mit eigenem Kopfbereich** vor der Tabelle (z. B. `cups/daily-ranking.blade.php`,
    `livewire/admin/championship-development-table.blade.php`, `livewire/statistics-dashboard.blade.php` (5×),
    `wps/import/preview.blade.php`) wurde das Padding **nicht** auf das äußere Card-Div gelegt (das hätte den
@@ -2912,3 +2913,47 @@ angefasst, `qualifying-time-lists/form.blade.php` unangetastet (eigener `ps-0`-S
 **Tests**: volle Suite 1396 Tests grün, `vendor/bin/pint --test` grün nach jedem der drei Teile. Live-Verifikation
 im Browser war in dieser Session technisch nicht möglich (Sandbox erreichte den lokalen Dev-Server nicht) — Erik
 prüft die visuelle Wirkung selbst.
+
+### Nachtrag 17.09.2026 — Nationen-Tabelle nachgezogen, Pagination vereinheitlicht auf das `wps/versions/show`-Muster
+
+Erik hat sich entschieden, die 13 nackten Tabellen einzeln statt gebündelt anzugehen. Erste umgestellt:
+`nations/index.blade.php`, nach demselben Card+Bleed-Muster wie die WPS-Tabellen (`wps/factors/index.blade.php`
+u. a.).
+
+**Zwischenschritt (kurzzeitig, dann korrigiert):** Die Pagination wurde zunächst *innerhalb* der Card als
+Footer mit `border-t` platziert (analog `admin/users/index.blade.php`, `entries/index.blade.php`,
+`results/index.blade.php` — dort schon so vorhanden). Dabei fiel ein Doppel-Padding-Bug in genau diesen drei
+Dateien auf: das `p-4 [--flux-bleed:1rem]` der Card wirkte zusätzlich zum eigenen Padding der
+Pagination-Zeile, die dadurch stärker eingerückt war als der Tabelleninhalt — reine Abstandsfrage, kein Test
+deckt das auf.
+
+**Erik-Wunsch, umgesetzt:** Pagination stattdessen wie in `wps/versions/show.blade.php` **außerhalb** der Card,
+als eigener `<div class="mt-4">{{ $x->links() }}</div>`-Block danach — kein Footer, kein `border-t`, kein
+eigener `p-4`. Das löst den Doppel-Padding-Bug gleich mit (die Pagination liegt nicht mehr im selben,
+gepolsterten Div wie die Tabelle) und bringt die Card selbst zurück auf die einfache Form
+(`p-4 [--flux-bleed:1rem]` direkt am Card-Div, keine zusätzliche innere Verschachtelung nötig, da die Card
+jetzt wieder nur die Tabelle enthält). Betrifft `admin/users/index.blade.php`, `entries/index.blade.php`,
+`results/index.blade.php`, `nations/index.blade.php` — damit ist dieses Pagination-Muster jetzt einheitlich
+mit `wps/versions/show.blade.php`.
+
+**Weitere 5 der 13 nackten Tabellen nachgezogen** (Erik: "Dokumente, athletes/index und show, classifier"),
+alle nach demselben einfachen Muster (Card+Bleed direkt am Card-Div, bestehende `<div class="mt-4">{{ … }}
+</div>`-Pagination unverändert übernommen, da sie schon dem Zielmuster entsprach): `admin/documents/index.blade.php`
+(keine Pagination), `athletes/index.blade.php`, `athletes/show.blade.php` (Ergebnisliste), `classifiers/index.blade.php`,
+`classifiers/show.blade.php`.
+
+**Letzte 6 nachgezogen** (Erik: "Club index und Show, Meets index und show, record index und show") —
+`clubs/index.blade.php`, `clubs/show.blade.php`, `records/index.blade.php` (alle drei: einfaches Muster,
+bestehende `ps-4`/`pe-4`-Hacks entfernt), `records/show.blade.php` (Rekord-Historie, keine Pagination),
+`meets/index.blade.php` (kein Hack vorhanden, nur Card ergänzt). `meets/show.blade.php` war der einzige
+Sonderfall: **mehrere Tabellen pro Seite**, eine je Session (`@foreach($swimEvents->groupBy('session_number')
+...)`), bisher ganz ohne Card. Jede Session bekam ihre eigene Card; die kursive
+"Session N"-Beschriftung bleibt bewusst **außerhalb** der Card (eigenständiger Abschnittstitel, kein
+Card-interner Kopfbereich) — passt damit zum bereits vorhandenen Leerzustand weiter oben auf derselben Seite,
+der ebenfalls eine `bg-white ... rounded-xl border`-Card verwendet.
+
+Damit sind alle 13 ursprünglich nackten Tabellen umgestellt — offen bleibt nur `qualifying-time-lists/form.blade.php`
+(bewusst unangetastet: eigener `ps-0`-Sonderfall statt `ps-4`, vermutlich absichtlich abweichende Einrückung in
+einem tief verschachtelten Formular-Vorschau-Block, siehe Analyse oben).
+
+**Tests**: volle Suite 1396 Tests grün, Pint grün.

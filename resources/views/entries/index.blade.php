@@ -88,9 +88,10 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
-        @if($entries->hasPages())
-            <div class="p-4 border-t border-zinc-200 dark:border-zinc-800">{{ $entries->links() }}</div>
-        @endif
+    </div>
+
+    <div class="mt-4">
+        {{ $entries->links() }}
     </div>
 
 @endsection

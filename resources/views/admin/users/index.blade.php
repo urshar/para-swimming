@@ -118,13 +118,10 @@
                 @endforelse
             </flux:table.rows>
         </flux:table>
+    </div>
 
-        {{-- Pagination --}}
-        @if($this->users->hasPages())
-            <div class="px-4 py-3 border-t border-zinc-100 dark:border-zinc-700">
-                {{ $this->users->links() }}
-            </div>
-        @endif
+    <div class="mt-4">
+        {{ $this->users->links() }}
     </div>
 
     {{-- ── Modal: Benutzer anlegen / bearbeiten ────────────────────────────── --}}
