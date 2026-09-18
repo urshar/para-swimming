@@ -30,16 +30,20 @@
 
     @php
         // Bei vielen Sportklassen-Spalten wird die Tabelle breiter als der Bildschirm (Erik,
-        // 2026-09-03). Ab mehr als 10 Spalten deshalb in 10er-Blöcken auf Tabs aufteilen
-        // ("1–10", "11–20", …), statt alles in eine horizontal scrollende Tabelle zu zwängen.
+        // 2026-09-03). Ab mehr als 10 Spalten deshalb in 10er-Blöcken auf Tabs aufteilen,
+        // statt alles in eine horizontal scrollende Tabelle zu zwängen.
         $sportClassChunks = $sportClasses->chunk(10)->values();
     @endphp
 
     @if($sportClassChunks->count() > 1)
         <flux:tab.group>
             <flux:tabs>
+                {{-- Label aus den tatsächlichen Sportklassen-Codes des Blocks (erster…letzter),
+                     nicht aus der Spaltenposition: bei lückenhaften Datensätzen (z.B. OeBSV 2021
+                     ohne S16–S19) wäre "11–19" irreführend. "…" statt "–" signalisiert bewusst,
+                     dass die Klassen dazwischen nicht lückenlos sind (Erik, 2026-09-18). --}}
                 @foreach($sportClassChunks as $i => $chunk)
-                    <flux:tab name="cols-{{ $i }}">{{ $i * 10 + 1 }}–{{ $i * 10 + $chunk->count() }}</flux:tab>
+                    <flux:tab name="cols-{{ $i }}">{{ $chunk->first()->code === $chunk->last()->code ? $chunk->first()->code : $chunk->first()->code.'…'.$chunk->last()->code }}</flux:tab>
                 @endforeach
             </flux:tabs>
 
