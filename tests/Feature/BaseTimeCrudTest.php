@@ -166,3 +166,32 @@ describe('BaseTimeTable Livewire-Komponente', function () {
             ->assertSet('recalcMessage', fn ($message) => str_contains($message, 'aktualisiert'));
     })->group('base-time-crud');
 });
+
+// ── BaseTimeTable: Sportklassen-Tab-Beschriftung ────────────────────────────────
+
+describe('BaseTimeTable Sportklassen-Tab-Beschriftung', function () {
+    it('beschriftet Tabs mit den echten Codes (erster…letzter), nicht mit der Spaltenposition', function () {
+        $stroke = StrokeType::create(['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'lenex_code' => 'FREE', 'code' => 'FREE']);
+        $version = BaseTimeVersion::create(['label' => 'V1', 'valid_from' => '2021-01-01', 'valid_until' => null]);
+        $category = BaseTimeCategory::create(['code' => 'SC_WOMEN', 'course' => 'SCM', 'gender' => 'F', 'label' => 'SC Women']);
+        $discipline = BaseTimeDiscipline::create(['code' => '25FR', 'distance' => 25, 'relay_count' => 1, 'stroke_type_id' => $stroke->id]);
+
+        // Lückenhafter Datensatz wie OeBSV 2021: S1–S15, S20, S21 (kein S16–S19).
+        $numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21];
+        foreach ($numbers as $i => $n) {
+            $sportClass = BaseTimeSportClass::create(['code' => "S$n", 'sort_order' => $i]);
+            BaseTime::create([
+                'base_time_version_id' => $version->id, 'base_time_category_id' => $category->id,
+                'base_time_discipline_id' => $discipline->id, 'base_time_sport_class_id' => $sportClass->id,
+                'value_centiseconds' => 2500, 'value_type' => BaseTime::TYPE_MANUAL,
+            ]);
+        }
+
+        Livewire::actingAs(makeAdmin_bt())
+            ->test(BaseTimeTable::class, ['version' => $version, 'category' => $category])
+            ->assertSee('S1…S10')      // erster Block: S1..S10
+            ->assertSee('S11…S21')     // zweiter Block: S11..S15, S20, S21 — letzter Code ist S21
+            ->assertDontSee('11–19')   // altes, positionsbasiertes Label
+            ->assertDontSee('11–21');
+    })->group('base-time-crud');
+});

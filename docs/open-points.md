@@ -22,7 +22,6 @@ möglich):
 1. `feature/club-entries-live-club-name` — „Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren"
    unten
 2. `feature/admin-ui-show-header-pattern` — „Titelleisten-Muster ... auf alle show.blade.php übertragen" unten
-3. `feature/base-time-table-tab-labels` — „Basiswert-Tabelle: Sportklassen-Tab-Beschriftung positionsbasiert" unten
 
 „Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
 mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
@@ -30,8 +29,9 @@ mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert 
 **Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
 Aufwand (kleine zuerst):
 
-4. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
-5. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
+3. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
+4. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
+5. `feature/base-time-table-relay-split` — „Basiswert-Tabelle: Einzel- und Staffelbewerbe in getrennte Tabs" unten
 6. `feature/base-time-meetmanager-export` — „MeetManager-Text-Export der Basiswerte" unten
 7. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
 8. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
@@ -400,26 +400,39 @@ Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
 **Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
 dann ggf. erneute Prüfung mit genau diesem Programm.
 
-## Basiswert-Tabelle: Sportklassen-Tab-Beschriftung positionsbasiert statt klassennummernbasiert
+## Basiswert-Tabelle: Einzel- und Staffelbewerbe in getrennte Tabs
 
-**Seit:** Live-Test nach `feature/base-times-text-import` (18.09.2026), OeBSV-2021-Textimport.
+**Seit:** Live-Test nach `feature/base-time-table-tab-labels` (18.09.2026), OeBSV-2021-Ansicht.
 
-**Was falsch ist:** Die Kategorie-Ansicht (`livewire.admin.base-time-table`) teilt die Sportklassen-Spalten ab mehr
-als 10 Spalten in 10er-Tabs auf. Die Tab-Beschriftung ist aber **positionsbasiert** (`$i * 10 + 1`–`$i * 10 + chunk`
-in `resources/views/livewire/admin/base-time-table.blade.php:42`), nicht an den echten Sportklassen-Codes orientiert.
-Bei einem Datensatz, der nicht lückenlos S1..Sn enthält (OeBSV 2021: S1–S15, S20, S21, S34, S49 — **kein S16–S19**),
-heißt der zweite Tab „11–19", enthält aber tatsächlich S11–S15 **plus S20, S21, S34, S49**. „S21" wirkt im „11–19"-Tab
-fehl am Platz, und die nicht existierenden S16–S19 suggerieren Lücken. Man verliert die Übersicht, welche Klasse in
-welchem Tab steckt.
+**Was stört:** In der Kategorie-Ansicht (`livewire.admin.base-time-table`) sind Zeilen = Bewerbe (Einzel **und**
+Staffel gemischt), Spalten = Sportklassen. Staffelbewerbe (z. B. `4x25FR`) haben nur für Staffel-Sportklassen (S14,
+S15, S20, S21, S34, S49) Basiswerte — für S1–S13 existiert die Kombination gar nicht. Im Tab „S1…S10" sind die
+Staffelzeilen daher komplett leer und wirken schmäler als die Einzelzeilen (in leeren Zeilen fehlt das
+`<flux:input>`, das sonst die Zeilenhöhe trägt — `resources/views/livewire/admin/_base-time-table-grid.blade.php:34`).
+Erik: Staffeln sollen in einem eigenen Tab stehen und aus den Einzel-Tabs herausgenommen werden.
 
-**Warum eigener Punkt:** Betrifft die Kategorie-*Anzeige*, nicht den Import-Parser — nur durch den Teildatensatz des
-Textimports sichtbar geworden, existiert aber unabhängig davon.
+**Vorschlag (18.09.2026):** Bewerbe nach `relay_count` trennen:
 
-**Wer entscheidet:** Erik — bevorzugte Label-Form: die im jeweiligen Tab tatsächlich enthaltenen Sportklassen
-abbilden, z. B. erster–letzter echter Code im Chunk („S11–S49") statt der Spaltenposition („11–19").
+- Einzel-Tabs: nur `relay_count = 1`, nur Sportklassen mit Einzel-Basiswerten als Spalten, weiter in 10er-Blöcken.
+- Ein „Staffeln"-Tab: nur `relay_count > 1`, nur Staffel-Sportklassen als Spalten (~6, kein Chunking nötig).
 
-**Zum Schließen nötig:** In `base-time-table.blade.php` das Tab-Label aus den echten Sportklassen-Codes des jeweiligen
-Chunks ableiten (erster/letzter Code) statt aus der Spaltenposition; live gegen den OeBSV-2021-Import prüfen.
+Konkret: `loadDisciplines()`/`loadSportClasses()` in `BaseTimeTable.php` je einmal für Einzel/Staffel; in
+`base-time-table.blade.php` Tab-Set = Einzel-Chunks **+** ein „Staffeln"-Panel (nur wenn Staffeln existieren), jeweils
+das bestehende Grid-Partial unverändert; eigener `wire:key`-Namespace fürs Staffel-Panel (z. B. `chunkIndex = 'relay'`),
+damit Livewire-Morph die Zeilen nicht verwechselt.
+
+**Warum eigener Punkt / Gruppe 2:** Struktur-Änderung an der Anzeige mit offenen Design-Fragen, kein Copy-Paste.
+
+**Wer entscheidet:** Erik —
+
+1. Flache Tabs `[S1…S10][S11…S21][Staffeln]` (Vorschlag, einfach) oder eine zweistufige Einzel/Staffel-Umschaltung
+   darüber?
+2. Staffel-Tab-Beschriftung „Staffeln" oder code-basiert (`S14…S49`)?
+3. Staffel-Spalten auch chunk-en, falls es je >10 Staffelklassen gäbe (aktuell 6 — vermutlich nie nötig)?
+
+**Zum Schließen nötig:** Entscheidung zu obigem, dann Split in `BaseTimeTable.php` + Tab-Aufbau in
+`base-time-table.blade.php` (Grid-Partial unverändert wiederverwenden), Livewire-Test analog `BaseTimeCrudTest`
+(Einzel-Tab enthält keine Staffelzeilen, „Staffeln"-Tab zeigt nur Staffelbewerbe/-klassen), live prüfen.
 
 ## MeetManager-Text-Export der Basiswerte (zusätzlich zum Excel-Export)
 
