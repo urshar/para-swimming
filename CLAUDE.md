@@ -187,6 +187,20 @@ composer lint:check   # Pint nur prüfen
   entsprechenden Stelle bereits richtig macht. **Lehre:** Bei dieser Inspection zuerst prüfen, ob die
   Eigenschaft auf dem tatsächlichen Model überhaupt existiert (Model-Datei/Migration nachschauen), bevor man
   sie wie die anderen zwei PhpStorm-Fallstricke oben als Fehlalarm abtut.
+- **PhpStorms Inspection "Method 'X' not found in \Closure" auf dem Ergebnis von
+  `Collection::get($key)` (ohne zweites `$default`-Argument) ist ein Fehlalarm** — kein echter Bug wie im
+  Klassifizierer-Fall oben. Ursache liegt im generischen Docblock von Laravels `Collection::get()`
+  (`vendor/laravel/framework/.../Collection.php`): `@param TGetDefault|(\Closure(): TGetDefault) $default`,
+  `@return TValue|TGetDefault`. Wird `$default` weggelassen (fällt auf `null` zurück), kann PhpStorms
+  Generics-Resolver `TGetDefault` nicht auflösen und kollabiert die Union sichtbar auf `\Closure` statt auf
+  `null` — der Rückgabewert wird dann fälschlich komplett als `\Closure` angezeigt, obwohl er zur Laufzeit
+  `TValue|null` ist (`value(null)` in `Collection::get()` liefert schlicht `null` zurück, da `value()` einen
+  Nicht-Closure-Wert unverändert durchreicht). Betraf
+  `DisabilityGroupGrouper::byNumberThenStroke()`: `$unassigned = $byNumber->get('');` gefolgt von
+  `$unassigned->isNotEmpty()`/`->sortBy(...)` hinter einem `if ($unassigned && ...)`-Guard — durch den
+  bestehenden Regressionstest ("zeigt Sportklassen mit unerwartetem Format unter „Sonstige Sportklassen"",
+  `tests/Feature/QualifyingTimeGroupingTest.php`) bereits als korrekt verifiziert. Kein Code-Fix nötig;
+  einfach als PhpStorm-Fehlalarm stehen lassen.
 
 ## Weitere Hinweise
 
