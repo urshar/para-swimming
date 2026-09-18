@@ -57,6 +57,54 @@ class DisabilityGroupGrouper
     }
 
     /**
+     * Gliedert nach Sportklassen-Nummer (unabhängig vom S/SB/SM-Präfix) statt nach
+     * Behinderungsgruppe — für eine Sportklassen-Nummer-zentrierte Anzeige, bei der jede Zeile
+     * unabhängig von der Lage (und damit dem Präfix) auffindbar ist, ohne vorher wissen zu
+     * müssen, zu welcher Behinderungsgruppe die Nummer gehört (Erik, 17.09.2026). Anders als
+     * {@see byGroupThenStroke()} liefert jede Sektion eine flache, bereits fertig sortierte
+     * Zeilenliste statt einer weiteren Verschachtelung nach Lage — die Lage steht stattdessen als
+     * Spalte in derselben Tabelle.
+     *
+     * @param  Collection  $items  z. B. QualifyingTime[]
+     * @param  Closure  $sortWithin  Sortierschlüssel für Zeilen mit demselben Lage+Distanz (i.d.R. Geschlecht+Sportklasse)
+     * @return Collection<int, array{number: ?int, items: Collection}>
+     */
+    public static function byNumberThenStroke(Collection $items, Closure $sortWithin): Collection
+    {
+        $strokeOrder = ['FREE' => 1, 'BACK' => 2, 'BREAST' => 3, 'FLY' => 4, 'MEDLEY' => 5, 'IMRELAY' => 6];
+
+        $rowSortKey = fn ($item) => sprintf(
+            '%02d-%06d|%s',
+            $strokeOrder[$item->strokeType?->lenex_code] ?? 99,
+            $item->distance,
+            $sortWithin($item)
+        );
+
+        // collect(): groupBy() auf einer Eloquent\Collection liefert wieder eine Eloquent\Collection,
+        // deren "Elemente" hier aber Gruppen (Collections), keine Models sind — except() ruft darauf
+        // intern getDictionary()/getKey() auf und bricht mit "Method ... getKey does not exist". Eine
+        // echte Support\Collection ist dagegen unproblematisch.
+        $byNumber = collect($items)->groupBy(fn ($item) => SportClassSorter::number($item->sport_class) ?? '');
+
+        $sections = $byNumber->except([''])
+            ->sortBy(fn ($group, $number) => (int) $number, SORT_NUMERIC)
+            ->map(fn ($group, $number) => [
+                'number' => (int) $number,
+                'items' => $group->sortBy($rowSortKey)->values(),
+            ])
+            ->values();
+
+        // Sportklassen ohne erkennbare Nummer (unerwartetes Format) landen gesammelt am Ende.
+        $unassigned = $byNumber->get('');
+
+        if ($unassigned && $unassigned->isNotEmpty()) {
+            $sections->push(['number' => null, 'items' => $unassigned->sortBy($rowSortKey)->values()]);
+        }
+
+        return $sections;
+    }
+
+    /**
      * Gliedert eine Teilmenge nach Bewerb (Lage + Distanz), in der üblichen
      * Wettkampf-Reihenfolge (Freistil, Rücken, Brust, Schmetterling, Lagen) und aufsteigend
      * nach Distanz.

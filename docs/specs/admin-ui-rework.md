@@ -2957,3 +2957,188 @@ Damit sind alle 13 ursprünglich nackten Tabellen umgestellt — offen bleibt nu
 einem tief verschachtelten Formular-Vorschau-Block, siehe Analyse oben).
 
 **Tests**: volle Suite 1396 Tests grün, Pint grün.
+
+### Nachtrag 17.09.2026 — `qualifying-time-lists/form.blade.php` (Tab "Richtzeiten") umstrukturiert statt nur nachgezogen
+
+Erik auf Nachfrage: statt den `ps-0`-Sonderfall nur unangetastet zu lassen, lieber eine grundsätzlich bessere
+Darstellung — "dann haben wir alles einheitlich. Falls später etwas geändert werden muss hätten wir dann das
+Problem wieder."
+
+**Ursprüngliches Problem:** Pro Sportklassengruppe gab es eine `@foreach($section['strokes'] ...)`-Schleife mit
+einer **eigenen `<flux:table>` je Stil/Distanz-Kombination** — bei z. B. 20 Kombinationen also 20 vollständig
+wiederholte Spaltenköpfe für im Schnitt nur 2–4 Datenzeilen darunter. Der `ps-0`-Hack existierte nur, weil jede
+dieser Mini-Tabellen direkt im `p-6`-Innenabstand der äußeren Card saß und `ps-4` dort zu doppeltem Abstand
+geführt hätte.
+
+**Neue Struktur:** Eine einzige `<flux:table bleed>` **je Sportklassengruppe** (nicht mehr je Stil/Distanz);
+die Stil/Distanz-Gruppierung steht jetzt als schmale `colspan="5"`-Trennzeile zwischen den Datenzeilen statt als
+eigene Tabelle. Die äußere Card bekam `[--flux-bleed:1.5rem]` (passend zu ihrem bestehenden `p-6`, nicht dem
+sonst üblichen `p-4`); die CSS-Variable vererbt sich an die per-Sektion-Tabellen, sodass jede von ihnen einfach
+`bleed` bekommt, ohne einen eigenen Padding-Wrapper zu brauchen (kein neuer Div nötig — anders als bei
+Kopfbereich-Karten in Teil A, wo `--flux-bleed` lokal neu gesetzt werden musste).
+
+**JS-Filter angepasst (`resources/js/qualifying-times-filter.js`):** Die Stil/Distanz-Gruppierung war zuvor ein
+`data-rzt-group`-Container-Div, das versteckt wurde, wenn keine seiner Kind-Zeilen mehr sichtbar war. Ohne
+Container (Trennzeile und Datenzeilen sind jetzt Geschwister in derselben `flux:table.rows`) musste das auf
+Wert-Abgleich umgestellt werden: Trennzeile und ihre Datenzeilen tragen denselben `data-rzt-group`-Wert, die
+Trennzeile wird ausgeblendet, wenn keine Zeile mit demselben Wert mehr sichtbar ist. Ein reiner
+Stil/Distanz-Laufindex als Wert hätte sich aber zwischen Sportklassengruppen wiederholt (Sektion A und Sektion B
+haben beide eine "erste" Stil/Distanz-Kombination mit Index 0) und über `this.$root.querySelectorAll(...)` (das
+über alle Sektionen hinweg sucht) Zeilen aus verschiedenen Sektionen fälschlich verknüpft — deshalb
+`{{ $loop->parent->index }}-{{ $loop->index }}` (Sektionsindex kombiniert mit Stil/Distanz-Index), über die ganze
+Seite hinweg eindeutig.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/form.blade.php`,
+`resources/js/qualifying-times-filter.js`. `qualifying-time-lists/show.blade.php` (die parallele, read-only
+Anzeige-Seite mit Accordion) hat denselben Mini-Tabellen-Aufbau, war aber nicht Teil dieser Anfrage und wurde
+bewusst nicht angefasst.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (12 Tests, inkl. Anzeige/Bearbeiten/Inhaltsverzeichnis) sowie
+volle Suite (1397 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 — Geschlecht/Sportklasse-Filter auf `qualifying-time-lists/show.blade.php`
+
+Erik: Suche nach einer einzelnen Kombination (Beispiel: "S14 100m Brust") dauerte auf der Anzeige-Seite zu
+lange — durch alle Behinderungsgruppen-Akkordeons und Stil/Distanz-Mini-Tabellen scrollen, um eine Zeile zu
+finden. Gewünscht: Buttons für alle vorkommenden Sportklassen (wie die Anfangsbuchstaben-Buttons bei
+`athletes/index.blade.php`) plus ein Umschalter für Geschlecht/alle Geschlechter.
+
+**Umsetzung:** Neue Filterleiste über dem Akkordeon — je eine Button-Reihe für Geschlecht und Sportklasse
+("Alle" + ein Button je tatsächlich vorkommendem Wert, analog `$usedGenders`/`$usedSportClasses` aus
+`qualifying-time-lists/form.blade.php`). Anders als bei `athletes/index.blade.php` (serverseitiger
+Reload über `href`/Query-Parameter) läuft das hier rein im DOM: Die komplette Liste steht ohnehin
+unpaginiert im Markup, ein Redirect wäre unnötig. Aktiver Filter zusätzlich mit einem automatischen Effekt:
+Behinderungsgruppen ohne Treffer klappen zu, Gruppen mit Treffern bleiben/klappen auf — man landet direkt bei
+der gesuchten Kombination, statt manuell zu blättern.
+
+**Neue Komponente `resources/js/qualifying-times-show-filter.js`** (eigene Datei statt Erweiterung der
+bisherigen `qualifying-times-filter.js`, da andere Filterkriterien — kein Stil/Distanz — und zusätzliches
+Akkordeon-Zu-/Aufklappen): übernimmt auch die bisherigen `openOnly()`/`openAll()`-Methoden, die vorher inline
+im `x-data` des Wrapper-Divs standen (jetzt eine registrierte `Alpine.data()`-Komponente statt eines
+Inline-Objekts — reduziert laut CLAUDE.md ohnehin IDE-Warnungen). Markup bekam `data-rzt-section` je
+Behinderungsgruppe, `data-rzt-group` je Stil/Distanz-Mini-Tabelle, `data-rzt-row`
++ `data-rzt-gender`/`data-rzt-sport-class` je Zeile.
+
+**Toggle-Optik ohne Server-Reload:** Da `flux:button`s `variant`-Prop serverseitig zu festen Tailwind-Klassen
+kompiliert wird, kann ein Alpine-State sie nicht direkt umschalten. Stattdessen `variant="ghost"` als Basis
+plus `x-bind:class` mit genau den Klassen, die Flux selbst für `variant="filled"` verwendet
+(`bg-zinc-800/5! hover:bg-zinc-800/10! dark:bg-white/10! dark:hover:bg-white/20!`, per `!`-Wichtig-Modifikator
+durchgesetzt — dieselbe Technik wie an anderen Stellen in CLAUDE.md dokumentiert, hier erstmals für einen
+reaktiven Toggle-Zustand statt eines statischen Overrides verwendet).
+
+**Verifikation:** Die Browser-Sandbox blockierte in dieser Session die Vite-Assets (`ERR_BLOCKED_BY_CLIENT`),
+daher kein echter interaktiver Klick-Test möglich. Stattdessen die kritische Logik (global eindeutige
+Trennzeilen-Zuordnung) bereits beim vorherigen `form.blade.php`-Umbau per Wegwerf-Test am gerenderten HTML
+verifiziert (dasselbe Muster, hier nicht erneut nötig, da unverändert übernommen); für diese Änderung zusätzlich
+zwei permanente Tests ergänzt (`QualifyingTimeGroupingTest.php`), die Filterbutton-Vorhandensein
+(nur tatsächlich vorkommende Werte) und die `data-rzt-*`-Attribute auf den Zeilen prüfen.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js` (neu), `resources/js/app.js` (Registrierung),
+`tests/Feature/QualifyingTimeGroupingTest.php` (2 neue Tests).
+
+**Tests**: `--group=qualifying-time-lists-grouping` (14 Tests) sowie volle Suite (1399 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 (2) — Gliederung nach Sportklassen-Nummer statt Behinderungsgruppe
+
+Erik direkt im Anschluss: Auch der Geschlecht/Sportklasse-Filter von oben löste das eigentliche Problem noch
+nicht richtig — bei "S14 100m Brust" musste man weiterhin wissen, in welcher Behinderungsgruppe S14 steckt, und
+durch die zugehörigen Stil/Distanz-Mini-Tabellen suchen. Neue Anforderung: Sportklassen-Buttons nur für die
+Nummer (S1 bis Sxx, ohne SB/SM als eigene Buttons), ein Klick zeigt S/SB/SM derselben Nummer gemeinsam, gefiltert
+nach der **Nummer**, nicht dem exakten Sportklassen-Code. Bei ausgewählter Nummer eine einzige Tabelle mit Lage,
+Geschlecht, Richtzeit, Quelle; bei "Alle" zusätzlich die Sportklasse-Spalte (oder alle Sportklassen-Tabellen
+zeigen — Erik hat sich für Letzteres entschieden, siehe unten).
+
+**Serverseitige Neugliederung:**
+- `SportClassSorter::number(?string $sportClass): ?int` (neu) — liefert die reine Nummer ohne Präfix
+  (`SB14` → `14`), nutzt denselben Regex wie die bestehende `key()`-Methode.
+- `DisabilityGroupGrouper::byNumberThenStroke()` (neu, neben der bestehenden `byGroupThenStroke()`) — gliedert
+  nach Nummer statt Behinderungsgruppe, liefert pro Nummer eine **flache**, fertig sortierte Zeilenliste (Lage
+  steht als Spalte in der Tabelle, keine weitere Verschachtelung mehr). Nummern ohne erkennbares Format (kein
+  `S`/`SB`/`SM`-Präfix) landen gesammelt unter "Sonstige Sportklassen" am Ende.
+  - **Bug dabei gefunden und behoben:** `Collection::except()` auf einer nach Nummer gruppierten
+    **Eloquent**-Collection warf `"Method Illuminate\Database\Eloquent\Collection::getKey does not exist"` — der
+    Grund: `groupBy()` auf einer Eloquent-Collection liefert wieder eine Eloquent-Collection, deren "Elemente"
+    aber jetzt Gruppen (Collections von Models) statt einzelner Models sind. `except()`/`getDictionary()` gehen
+    intern von Models aus und rufen `getKey()` auf jedem Element auf — bricht, sobald das Element selbst eine
+    Collection ist. Fix: `$items` zu Beginn explizit mit `collect()` in eine echte `Support\Collection` wandeln,
+    bevor gruppiert wird. Per Testsuite gefunden (nicht vermutet) — betrifft nur die neue Methode, die bestehende
+    `byGroupThenStroke()` war davon nicht betroffen, da sie nie `except()` auf einer Eloquent-Collection aufruft.
+- `QualifyingTimeListController::show()` nutzt jetzt `byNumberThenStroke()`. Bewusst **nur** `show()` — `pdfTimes()`
+  und die übrigen Verwendungen von `byGroupThenStroke()` (u. a. `Public\QualifyingTimeController`) bleiben bei der
+  Behinderungsgruppen-Gliederung, das war nicht Teil dieser Anfrage.
+
+**`qualifying-time-lists/show.blade.php` umgebaut:**
+- Sportklasse-Filterzeile zeigt jetzt nur Nummern-Buttons ("S1", "S9", … — ein Button pro tatsächlich
+  vorkommender Nummer, S/SB/SM zusammengefasst).
+- Ein Klick löst **kein Zeilen-Filtering** aus (anders als der Geschlecht-Filter), sondern klappt gezielt nur den
+  passenden Akkordeon-Abschnitt auf (`openOnly()`, wiederverwendet aus der bisherigen Inhaltsverzeichnis-Logik)
+  und scrollt dorthin (`href="#number-{{ $number }}"`, natives Anker-Scrollen) — jeder Abschnitt enthält ohnehin
+  schon nur eine Nummer, ein zusätzliches Zeilen-Filtering wäre wirkungslos.
+- Sportklasse-Spalte selbst per `x-show="selectedNumber === ''"` ein-/ausgeblendet — bei "Alle" sichtbar (Erik
+  hat sich für "alle Sportklassentabellen anzeigen" statt der Alternative "eine große Tabelle mit
+  Sportklassen-Spalte" entschieden: die bestehende Akkordeon-Struktur bleibt, nur nach Nummer statt
+  Behinderungsgruppe gegliedert), bei ausgewählter Nummer ausgeblendet (dort durch die Lage ohnehin eindeutig:
+  BREAST-Zeilen sind implizit SB, MEDLEY-Zeilen implizit SM, alles andere S).
+- Akkordeon-Anker/Ids von `group-{id}` auf `number-{nummer}` umgestellt, Inhaltsverzeichnis-Dropdown entsprechend
+  mitgezogen (bewusst nicht entfernt, obwohl die Nummern-Buttons denselben Zweck erfüllen — war nicht Teil der
+  Anfrage).
+- `data-rzt-group` (Stil/Distanz-Mini-Tabellen) entfällt ersatzlos — es gibt keine solche Verschachtelung mehr.
+  `data-rzt-section`/`data-rzt-row`/`data-rzt-gender` bleiben für den weiterhin zeilenbasierten
+  Geschlecht-Filter bestehen.
+
+**`qualifying-times-show-filter.js` neu geschrieben** statt nur angepasst: zwei unabhängige Mechanismen im
+selben `x-data` — `gender` filtert Zeilen (wie zuvor), `selectedNumber`/`selectNumber()` steuert stattdessen
+Akkordeon-Fokus + Sportklasse-Spalten-Sichtbarkeit (kein Zeilen-Filtering mehr für Sportklasse).
+
+**Bestehende Tests umgeschrieben statt nur ergänzt**, da die alten Erwartungen (Behinderungsgruppen-Gliederung,
+`sportClass`-Zeilenfilter) für `show()` nicht mehr zutreffen — u. a. auch ein Fall, der vorher zufällig als
+"Sonstige Sportklassen"-Beispiel diente (`S99`), jetzt aber selbst eine gültige Nummer ist und daher durch einen
+tatsächlich unparsbaren Wert (`T9`) ersetzt werden musste. Die Bearbeiten-Ansicht (`edit`) ist unverändert und
+ihre Tests entsprechend unangetastet geblieben.
+
+**Betroffene Dateien**: `app/Support/SportClassSorter.php`, `app/Support/DisabilityGroupGrouper.php`,
+`app/Http/Controllers/QualifyingTimeListController.php`, `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js`, `tests/Unit/SportClassSorterTest.php`,
+`tests/Feature/QualifyingTimeGroupingTest.php`.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (17 Tests) sowie volle Suite (1402 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 (3) — Dropdown statt Buttons, Akkordeon entfernt
+
+Design-Feedback direkt nach dem vorigen Nachtrag: Bei vielen Sportklassen (S1–S21+) brach die Button-Reihe
+für die Sportklassen-Auswahl über mehrere Zeilen um. Zusätzlich war das Akkordeon inzwischen überflüssig — jeder
+Abschnitt stand ohnehin von Anfang an per `expanded` offen, das Akkordeon lieferte also keinen Mehrwert mehr,
+nur zusätzlichen, mit der Auswahl redundanten Zustand (auf/zu).
+
+**Entscheidung**: Sportklassen-Auswahl als `<flux:select variant="listbox" x-model="selectedNumber">` (ein
+Dropdown wie z. B. in `cups/overall-ranking.blade.php`) statt der umbrechenden Button-Reihe; Akkordeon komplett
+entfernt, jeder Abschnitt ist jetzt ein einfacher Kartenblock, dessen Sichtbarkeit rein deklarativ per
+`x-show="selectedNumber === 'ALL' || selectedNumber === '<Nummer>'"` gesteuert wird — bei "Alle" bleiben alle
+Abschnitte sichtbar (wie bisher), bei einer gewählten Nummer nur der eine passende. Geschlecht bleibt bei
+den bisherigen Buttons (nur 2–3 Optionen, Dropdown wäre dort Overhead).
+
+Als Sentinel-Wert für "Alle" wurde `'ALL'` statt `''` verwendet — `<flux:select.option value="">` funktioniert
+laut CLAUDE.md ("`<flux:select.option value="">` für eine echte, bedeutungsvolle Option") nicht zuverlässig.
+
+`qualifying-times-show-filter.js` wurde dadurch auf zwei reine Zustandswerte (`gender`, `selectedNumber`)
+reduziert — keine Akkordeon-Methoden (`openOnly`/`openAll`), kein DOM-Querying mehr nötig, da sowohl die
+Zeilen- (`gender`) als auch die Abschnitts-Filterung (`selectedNumber`) jetzt komplett deklarativ per `x-show`
+im Template erfolgen, statt wie zuvor per `data-rzt-*`-Attributen + imperativer Alpine-Logik. Die
+`data-rzt-row`/`data-rzt-gender`/`data-rzt-section`-Attribute sind damit entfallen.
+
+Da `variant="listbox"` bei Flux serverseitig identisch zur Default-Variante kompiliert (eigene
+Listbox-Optik kommt rein clientseitig durch JS-Progressive-Enhancement eines `<ui-select>`-Custom-Elements,
+siehe `vendor/livewire/flux/stubs/resources/views/flux/select/index.blade.php` — keine eigene
+`select.variants.listbox`-Datei vorhanden), wurde die exakte kompilierte Markup-Struktur (`<ui-option value="…"
+wire:key="…">`) vorab per Wegwerf-Test ermittelt, um die Testassertions auf tatsächlich vorhandene Strings zu
+stützen statt zu raten.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js`, `tests/Feature/QualifyingTimeGroupingTest.php`.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (17 Tests) grün, volle Suite (1402 Tests) grün, Pint grün.
+Ein einzelner, nicht reproduzierbarer Fehlschlag in `PublicFrontendPhase9Test.php` (`assertDontSee('S7')`) trat
+bei einem Lauf der Gesamt-Suite auf, ließ sich bei erneutem Lauf nicht reproduzieren und bestand nachweislich
+bereits auf dem Stand vor diesem Nachtrag nicht — ein vorbestehendes, ordnungsabhängiges Flackern ohne
+Zusammenhang zu dieser Änderung, hier nicht behoben.

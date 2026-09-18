@@ -4,9 +4,20 @@
  *
  * Filtert rein im DOM (kein Request/Reload) über data-rzt-*-Attribute an den
  * einzelnen Tabellenzeilen — die komplette Liste steht dort ohnehin
- * unpaginiert im Markup. Zeilen ohne Treffer werden ausgeblendet; Stroke-
- * Gruppen bzw. Sportklassen-Sektionen, deren Zeilen dadurch alle unsichtbar
- * werden, werden ebenfalls ausgeblendet (data-rzt-group/data-rzt-section).
+ * unpaginiert im Markup. Zeilen ohne Treffer werden ausgeblendet.
+ *
+ * Stil/Distanz-Gruppen sind seit der Umstellung auf eine durchgehende Tabelle
+ * je Sportklassengruppe (statt einer eigenen Mini-Tabelle je Gruppe) keine
+ * umschließenden Container mehr, sondern eine Trennzeile
+ * ([data-rzt-group-row]) und ihre Datenzeilen als Geschwister in derselben
+ * flux:table.rows — verknüpft über einen gemeinsamen data-rzt-group-Wert
+ * ("Sektionsindex-Stilindex", über beide Schleifenebenen hinweg eindeutig,
+ * siehe Blade — ein bloßer Stil/Distanz-Laufindex würde sich zwischen
+ * Sektionen wiederholen und Zeilen aus verschiedenen Sektionen verknüpfen).
+ * Eine Trennzeile wird ausgeblendet, wenn keine ihrer Datenzeilen mehr
+ * sichtbar ist. Sektionen
+ * (data-rzt-section, eine je Sportklassengruppe) bleiben Container wie
+ * bisher.
  *
  * Registrierung in resources/js/app.js:
  *   import qualifyingTimesFilter from './qualifying-times-filter'
@@ -38,10 +49,13 @@ export default function qualifyingTimesFilter() {
                 row.style.display = visible ? '' : 'none';
             });
 
-            this.$root.querySelectorAll('[data-rzt-group]').forEach((group) => {
-                const anyVisible = [...group.querySelectorAll('[data-rzt-row]')]
-                    .some((row) => row.style.display !== 'none');
-                group.style.display = anyVisible ? '' : 'none';
+            this.$root.querySelectorAll('[data-rzt-group-row]').forEach((groupRow) => {
+                const groupValue = groupRow.dataset.rztGroup;
+                const rows = this.$root.querySelectorAll(
+                    `[data-rzt-row][data-rzt-group="${groupValue}"]`
+                );
+                const anyVisible = [...rows].some((row) => row.style.display !== 'none');
+                groupRow.style.display = anyVisible ? '' : 'none';
             });
 
             this.$root.querySelectorAll('[data-rzt-section]').forEach((section) => {

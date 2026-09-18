@@ -22,4 +22,23 @@ class SportClassSorter
         // Unerwartetes Format — unverändert zurückgeben, damit nichts verloren geht.
         return strtoupper(trim($sportClass));
     }
+
+    /**
+     * Liefert nur die Sportklassen-Nummer ohne Präfix (z.B. "SB12" → 12), unabhängig davon, ob
+     * es sich um S/SB/SM handelt — für eine Sportklassen-Nummer-zentrierte statt
+     * Behinderungsgruppen-zentrierte Anzeige (Erik, 17.09.2026). Liefert null bei unerwartetem
+     * Format oder null-Eingabe, damit der Aufrufer diese Fälle gesammelt behandeln kann.
+     */
+    public static function number(?string $sportClass): ?int
+    {
+        if ($sportClass === null) {
+            return null;
+        }
+
+        if (preg_match('/^(S|SB|SM)(\d+)$/', strtoupper(trim($sportClass)), $matches)) {
+            return (int) $matches[2];
+        }
+
+        return null;
+    }
 }
