@@ -5,6 +5,53 @@ was fehlt, warum es zurückgestellt wurde, was zum Schließen gebraucht wird. Er
 entfernt (Historie steht im jeweiligen Phasen-Abschnitt von `specs/public-frontend-modules.md`), nicht nur abgehakt
 liegen gelassen.
 
+## Umsetzungsreihenfolge (Erik, 18.09.2026)
+
+Das Admin-UI-Rework (`feature/admin-ui`) ist mit [PR #5](https://github.com/urshar/para-swimming/pull/5)
+abgeschlossen und in `main` gemergt. Für die verbleibenden offenen Punkte unten **kein einzelner Folge-Mega-Branch**
+mehr — die Punkte sind fachlich zu unterschiedlich (UI-Konsistenz, Import-Parser, neues Datenmodell-Feature), um sich
+wie zusammenhängende Phasen eines Themas zu verhalten. Stattdessen ein eigener, kurzlebiger Branch je Punkt (oder je
+eng zusammengehöriger Punktgruppe), jeweils mit eigener PR. Innerhalb jedes Branches gilt weiterhin die normale
+phasenweise Arbeitsweise aus `CLAUDE.md` (Plan → Freigabe → Umsetzung → Tests → Sign-off).
+
+Drei Gruppen, in dieser Reihenfolge abzuarbeiten:
+
+**Gruppe 1 — sofort umsetzbar, keine offene Design-Frage** (Reihenfolge untereinander beliebig, auch parallel
+möglich):
+
+1. `feature/club-entries-live-club-name` — „Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren"
+   unten
+2. `feature/admin-ui-show-header-pattern` — „Titelleisten-Muster ... auf alle show.blade.php übertragen" unten
+3. `feature/base-time-table-tab-labels` — „Basiswert-Tabelle: Sportklassen-Tab-Beschriftung positionsbasiert" unten
+
+„Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
+mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
+
+**Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
+Aufwand (kleine zuerst):
+
+4. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
+5. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
+6. `feature/base-time-meetmanager-export` — „MeetManager-Text-Export der Basiswerte" unten
+7. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
+8. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
+9. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
+10. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
+11. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+12. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
+
+Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter „Wer entscheidet" genannten Fragen mit
+Erik klären, erst danach Branch anlegen/implementieren.
+
+**Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
+
+13. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
+    wie geöffnet)
+14. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
+15. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+    Vorstand noch offen ist
+
 ## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
 
 **Seit:** Phase-13-Planung, Design-Feedback Erik (15.09.2026): "Ich würde auch eine Grafik benötigen, um zu sehen,
@@ -353,72 +400,49 @@ Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
 **Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
 dann ggf. erneute Prüfung mit genau diesem Programm.
 
-## Zweites Basiswerte-Import-Format: MeetManager/Hy-Tek-"Points"-Textdatei
+## Basiswert-Tabelle: Sportklassen-Tab-Beschriftung positionsbasiert statt klassennummernbasiert
 
-**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach dem Basiswerte-Umbau (03.09.2026), Beispieldatei
-`502-para-2021.txt`
-mitgeschickt.
+**Seit:** Live-Test nach `feature/base-times-text-import` (18.09.2026), OeBSV-2021-Textimport.
 
-**Was fehlt:** `base-times/import` akzeptiert bisher nur die World-Aquatics-Excel-Datei (`BaseTimeImportService`).
-Erik benötigt zusätzlich den Import eines zweiten, in der Praxis genutzten Formats: Einer von
-MeetManager/Hy-Tek exportierten "Points"-Tabelle als Textdatei. Aufbau der Beispieldatei:
+**Was falsch ist:** Die Kategorie-Ansicht (`livewire.admin.base-time-table`) teilt die Sportklassen-Spalten ab mehr
+als 10 Spalten in 10er-Tabs auf. Die Tab-Beschriftung ist aber **positionsbasiert** (`$i * 10 + 1`–`$i * 10 + chunk`
+in `resources/views/livewire/admin/base-time-table.blade.php:42`), nicht an den echten Sportklassen-Codes orientiert.
+Bei einem Datensatz, der nicht lückenlos S1..Sn enthält (OeBSV 2021: S1–S15, S20, S21, S34, S49 — **kein S16–S19**),
+heißt der zweite Tab „11–19", enthält aber tatsächlich S11–S15 **plus S20, S21, S34, S49**. „S21" wirkt im „11–19"-Tab
+fehl am Platz, und die nicht existierenden S16–S19 suggerieren Lücken. Man verliert die Übersicht, welche Klasse in
+welchem Tab steckt.
 
-```
-Formula=CUBED
-Id=502
-Name=OeBSV Table
-Options=HANDICAP
-ShortNameVersion=OeBSV 2021
-Version=2021
-<BASETIMES>
+**Warum eigener Punkt:** Betrifft die Kategorie-*Anzeige*, nicht den Import-Parser — nur durch den Teildatensatz des
+Textimports sichtbar geworden, existiert aber unabhängig davon.
 
-COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME;MAXTIME
-SCM;F;1;25;FREE;1;00:25.78
-SCM;F;4;25;FREE;S14;01:01.42
-SCM;F;1;25;FREE;X;00:10.91
-...
-```
+**Wer entscheidet:** Erik — bevorzugte Label-Form: die im jeweiligen Tab tatsächlich enthaltenen Sportklassen
+abbilden, z. B. erster–letzter echter Code im Chunk („S11–S49") statt der Spaltenposition („11–19").
 
-Ein erster Abgleich mit dem bestehenden Datenmodell/`BaseTimeImportService`:
+**Zum Schließen nötig:** In `base-time-table.blade.php` das Tab-Label aus den echten Sportklassen-Codes des jeweiligen
+Chunks ableiten (erster/letzter Code) statt aus der Spaltenposition; live gegen den OeBSV-2021-Import prüfen.
 
-- `COURSE` (SCM/LCM) und `GENDER` (F/M/X) entsprechen bereits den intern genutzten Werten.
-- `STROKE` (FREE/BACK/FLY/BREAST/MEDLEY) ist bereits exakt dasselbe Vokabular wie die Werte in
-  `BaseTimeImportService::STROKE_SUFFIX_MAP` — keine neue Übersetzungstabelle nötig.
-- `RELAYCOUNT` (1 oder 4) entspricht `base_time_disciplines.relay_count`.
-- `HANDICAP` (Sportklassen-Code) ist uneinheitlich befüllt: bei Einzelbewerben (`RELAYCOUNT=1`) ein reiner
-  Zahlenwert ("1"…"21") ohne "S"-Präfix — müsste beim Import synthetisch zu "S1"..."S21" ergänzt werden (kein
-  Alias-Lookup wie `SPORT_CLASS_ALIASES`, nur ein Präfix). Bei Staffeln (`RELAYCOUNT=4`) steht dagegen bereits das
-  "S"-Präfix wie in der DB gespeichert ("S14", "S15", "S20", "S21", "S34", "S49") — dort keine Umwandlung nötig.
-  Zusätzlich der Sonderwert "X" (Einzel) bzw. "SX" (Staffel): **von Erik geklärt (03.09.2026)** — das sind die
-  WA-1000-Punkte-Basiswerte für Menschen ohne Behinderung, keine Para-Sportklasse. Diese Zeilen werden beim Import
-  einfach übersprungen, keine neue `base_time_sport_classes`-Zeile nötig.
-- `MINTIME` ist der eigentliche Basiswert (Format `MM:SS.cs`), inkl. Sentinel `99:99.99` für "nicht anwendbar" —
-  der Excel-Import erkennt "nicht anwendbar" über den Literalwert 0 in der Zelle, nicht über einen Zeit-Sentinel;
-  hier bräuchte es eine eigene Erkennung dieses Werts.
-- `MAXTIME` ist in der Beispieldatei durchgängig leer (jede Datenzeile hat nur 7 statt der im Header genannten 8
-  `;`-getrennten Felder): **von Erik geklärt (03.09.2026)** — wird hier nicht verwendet und kann beim Import
-  ignoriert werden. Gehört zur Rudolph-Tabelle (DSV, Deutscher Schwimm-Verband); so eine Tabelle gibt es im
-  Behindertensport nicht.
+## MeetManager-Text-Export der Basiswerte (zusätzlich zum Excel-Export)
 
-**Warum zurückgestellt:** Neues Datei-Format mit eigenem Parser, kein reiner UI-Fix — Erik hat selbst vorgeschlagen,
-das zunächst als offenen Punkt festzuhalten statt sofort umzusetzen.
+**Seit:** Live-Test nach `feature/base-times-text-import` (18.09.2026) — Erik möchte Basiswerte auch ins
+MeetManager-Format exportieren können.
 
-**Referenz:** Format-Beschreibung des Herstellers (Splash Meet Manager):
-<https://wiki.swimrankings.net/index.php/Meet_Manager:Custom_Points>
+**Was fehlt:** `base-times/{version}/export` (`BaseTimeExportController`/`BaseTimeExportService`) liefert bislang nur
+die World-Aquatics-**Excel**-Datei zurück. Gewünscht ist zusätzlich der Export einer Version in das
+MeetManager/Hy-Tek-„Points"-**Textformat** — dasselbe `COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME`-
+Format, das `BaseTimeTextImportService` seit `feature/base-times-text-import` liest (also ein Round-Trip).
 
-**Wer entscheidet:** Keine offene Design-Frage mehr — von Erik geklärt: Das Textformat kommt **zusätzlich** zum
-bestehenden Excel-Import hinzu (keine Ablöse), "X"/"SX" (WA-1000-Punkte-Basiswerte ohne Behinderung) werden beim
-Import ignoriert, `MAXTIME` (gehört zur Rudolph-Tabelle/DSV, gibt es im Behindertensport nicht) wird ignoriert, die
-Kopf-Metadaten (`Formula`, `Id`, `Name`, `Options`, `ShortNameVersion`, `Version`) werden nicht benötigt — sie
-gehören zum Splash-Meet-Manager-eigenen Datenformat (siehe Referenz) und müssen nicht ausgewertet/gespeichert werden,
-weitere `Options`-Werte außer `HANDICAP` sind Erik nicht bekannt, der Parser muss also vorerst nur diesen einen Fall
-abdecken. Es fehlt nur noch die Umsetzung.
+**Warum eigener Punkt:** Spiegelbild-Feature zum Import — eigener Export-Service + Format-Umschalter in der UI, kein
+Teil des Import-Branches.
 
-**Zum Schließen nötig:** Neuer Parser (z. B. `BaseTimeTextImportService`, ggf. mit gemeinsamer Basis/Interface zum
-bestehenden `BaseTimeImportService` für die Persistierungs-Logik: Kopfzeilen bis `<BASETIMES>` überspringen,
-`;`-Tabelle ab der Kopfzeile lesen, Zeilen mit `HANDICAP` "X"/"SX" überspringen, `MAXTIME`-Feld ignorieren),
-Dateityp-Umschalter/-Erkennung in `base-times/import.blade.php` (.txt zusätzlich zu .xlsx, additiv — bestehender
-Excel-Import bleibt unverändert bestehen), Tests analog `BaseTimeImportServiceTest`.
+**Wer entscheidet:** Erik — wie das Export-Zielformat gewählt wird (zweiter Button „Als MeetManager-Text" neben
+„Exportieren", oder Format-Dropdown), und ob die Kopf-Metadaten (`Formula`/`Id`/`Name`/…) mit sinnvollen Werten
+geschrieben oder weggelassen werden.
+
+**Zum Schließen nötig:** Neuer `BaseTimeTextExportService` (Umkehrung von `BaseTimeTextImportService`:
+Kategorie→COURSE/GENDER, Bewerbs-Code→RELAYCOUNT/DISTANCE/STROKE inkl. IM/ME→MEDLEY, Sportklasse→HANDICAP mit
+S-Präfix-Rückbau bei Einzel, NOT_APPLICABLE→`99:99.99`), Route/Controller um einen Format-Parameter erweitern,
+UI-Umschalter in `livewire/admin/base-time-table.blade.php`, Tests analog `BaseTimeTextImportServiceTest` (idealerweise
+Round-Trip: Import der Fixture → Export → erneuter Import ergibt dieselben Zellen).
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

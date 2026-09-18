@@ -91,16 +91,19 @@
             </div>
 
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-4">
-                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Excel-Datei</h2>
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Basiswert-Datei</h2>
 
                 <flux:field x-data="fileUploadField()">
-                    <flux:label>World-Aquatics-Basiswert-Datei<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                    <flux:file-upload name="base_time_file" accept=".xlsx" x-on:change="onChange">
+                    <flux:label>Basiswert-Datei<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                    <flux:file-upload name="base_time_file" accept=".xlsx,.txt" x-on:change="onChange">
                         <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
                     </flux:file-upload>
                     <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>
                     <flux:error name="base_time_file"/>
-                    <flux:description>.xlsx · Max. 20 MB</flux:description>
+                    <flux:description>
+                        .xlsx (World-Aquatics-Tabelle) oder .txt (MeetManager-Punktetabelle) · Max. 20 MB.
+                        Das Format wird automatisch anhand der Dateiendung erkannt.
+                    </flux:description>
                 </flux:field>
             </div>
 

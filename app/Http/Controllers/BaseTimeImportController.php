@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\BaseTimeVersion;
+use App\Services\AbstractBaseTimeImportService;
 use App\Services\BaseTimeImportService;
+use App\Services\BaseTimeTextImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -14,10 +16,13 @@ use Throwable;
 /**
  * BaseTimeImportController
  *
- * Import-Flow für die World-Aquatics-Basiswert-Excel-Datei:
+ * Import-Flow für die Basiswert-Dateien (World-Aquatics-Excel ODER MeetManager-Textdatei):
  *   GET  /base-times/import          → showForm()  — Upload-Formular (Datei + Ziel-Version)
  *   POST /base-times/import/preview  → preview()   — Vorschau (erkannte Kategorien/Bewerbe/Hinweise)
  *   POST /base-times/import/run      → run()       — Import durchführen
+ *
+ * Das Dateiformat wird anhand der Endung erkannt (.xlsx → Excel, .txt → MeetManager-Text) und
+ * der passende Parser gewählt; beide münden über die gemeinsame Basisklasse in dieselbe Persistenz.
  *
  * Ziel-Version: entweder eine bestehende Version auswählen (kein erneutes Label/Zeitraum nötig,
  * z.B. wenn die Version zuvor separat angelegt wurde) oder "Neue Version anlegen".
@@ -25,7 +30,8 @@ use Throwable;
 class BaseTimeImportController extends Controller
 {
     public function __construct(
-        private readonly BaseTimeImportService $importService
+        private readonly BaseTimeImportService $excelImportService,
+        private readonly BaseTimeTextImportService $textImportService,
     ) {}
 
     public function showForm(Request $request): View
@@ -39,7 +45,7 @@ class BaseTimeImportController extends Controller
     public function preview(Request $request): View|RedirectResponse
     {
         $validated = $request->validate([
-            'base_time_file' => 'required|file|extensions:xlsx|max:20480',
+            'base_time_file' => 'required|file|extensions:xlsx,txt|max:20480',
             'version_id' => 'nullable|integer|exists:base_time_versions,id',
             'label' => 'required_without:version_id|nullable|string|max:100',
             'valid_from' => 'required_without:version_id|nullable|date',
@@ -47,6 +53,7 @@ class BaseTimeImportController extends Controller
         ]);
 
         $file = $request->file('base_time_file');
+        $format = strtolower($file->getClientOriginalExtension()) === 'txt' ? 'txt' : 'xlsx';
         $path = $file->storeAs(
             'base-time-imports',
             uniqid('bt_').'.'.$file->getClientOriginalExtension(),
@@ -54,7 +61,7 @@ class BaseTimeImportController extends Controller
         );
 
         try {
-            $parsed = $this->importService->parse(Storage::disk('local')->path($path));
+            $parsed = $this->importServiceForFormat($format)->parse(Storage::disk('local')->path($path));
         } catch (Throwable $e) {
             Storage::disk('local')->delete($path);
 
@@ -62,7 +69,7 @@ class BaseTimeImportController extends Controller
                 ->withErrors(['base_time_file' => 'Datei konnte nicht gelesen werden: '.$e->getMessage()]);
         }
 
-        $sessionData = ['path' => $path];
+        $sessionData = ['path' => $path, 'format' => $format];
         if (! empty($validated['version_id'])) {
             $sessionData['version_id'] = (int) $validated['version_id'];
         } else {
@@ -94,13 +101,14 @@ class BaseTimeImportController extends Controller
         }
 
         $fullPath = Storage::disk('local')->path($importData['path']);
+        $service = $this->importServiceForFormat($importData['format'] ?? 'xlsx');
 
         try {
             if (isset($importData['version_id'])) {
                 $version = BaseTimeVersion::findOrFail($importData['version_id']);
-                $result = $this->importService->importIntoExistingVersion($fullPath, $version);
+                $result = $service->importIntoExistingVersion($fullPath, $version);
             } else {
-                $result = $this->importService->import($fullPath, $importData['version']);
+                $result = $service->import($fullPath, $importData['version']);
             }
         } catch (Throwable $e) {
             return redirect()->route('base-times.import')
@@ -117,5 +125,11 @@ class BaseTimeImportController extends Controller
         return redirect()
             ->route('base-times.categories.index', $result['version_id'])
             ->with('success', $message);
+    }
+
+    /** Wählt den Parser anhand des erkannten Dateiformats (.txt → MeetManager-Text, sonst Excel). */
+    private function importServiceForFormat(string $format): AbstractBaseTimeImportService
+    {
+        return $format === 'txt' ? $this->textImportService : $this->excelImportService;
     }
 }
