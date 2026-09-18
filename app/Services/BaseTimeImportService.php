@@ -3,25 +3,18 @@
 namespace App\Services;
 
 use App\Models\BaseTime;
-use App\Models\BaseTimeCategory;
-use App\Models\BaseTimeDerivationRule;
-use App\Models\BaseTimeDiscipline;
-use App\Models\BaseTimeSportClass;
-use App\Models\BaseTimeVersion;
-use App\Models\StrokeType;
-use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Exception;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use RuntimeException;
-use Throwable;
 
 /**
  * BaseTimeImportService
  *
  * Importiert die World-Aquatics-Basiswert-Excel-Datei (LC/SC Men/Women, SC/LC Mixed).
+ * Die Persistierung erbt diese Klasse von AbstractBaseTimeImportService; hier liegt nur
+ * das Excel-spezifische Parsen.
  *
  * Aufbau je Arbeitsblatt:
  *   - Zeile 1 (ab Spalte B): Sportklassen-Spalten
@@ -38,7 +31,7 @@ use Throwable;
  * Die Formel-Referenz (welches Bewerbs-Paar, welcher Ratio-Wert) wird automatisch erkannt
  * und als base_time_derivation_rules-Zeile gespeichert — nichts ist hartkodiert.
  */
-class BaseTimeImportService
+class BaseTimeImportService extends AbstractBaseTimeImportService
 {
     /** Bewerbs-Suffix → stroke_types.lenex_code. "IM" (Einzel-Lagen) und "ME" (Staffel-Lagen) teilen sich denselben Stroke-Type. */
     private const array STROKE_SUFFIX_MAP = [
@@ -65,32 +58,6 @@ class BaseTimeImportService
      * ratiosheet/ratiorow: Zelle mit dem Durchschnitts-Wachstumsfaktor (ggf. anderes Arbeitsblatt).
      */
     private const string FORMULA_PATTERN = '/^=(?:\'(?<refsheet>[^\']+)\'!)?(?<refcol>[A-Z]+)(?<refrow>\d+)(?<op>[*\/])\(1\+(?:\'(?<ratiosheet>[^\']+)\'!)?\$B\$(?<ratiorow>\d+)\)$/';
-
-    /** @var array<string, StrokeType|null> */
-    private array $strokeTypeCache = [];
-
-    // ── Öffentliche API ───────────────────────────────────────────────────────
-
-    /**
-     * Importiert die Datei als neue Basiswert-Version.
-     *
-     * @param  array{label: string, valid_from: string, valid_until: ?string}  $versionData
-     *
-     * @throws Exception wenn die Datei nicht gelesen werden kann
-     * @throws RuntimeException|Throwable wenn sich der Gültigkeitszeitraum mit einer bestehenden Version überschneidet
-     */
-    public function import(string $filePath, array $versionData): array
-    {
-        $parsed = $this->parse($filePath);
-
-        return DB::transaction(function () use ($parsed, $versionData) {
-            $this->assertNoOverlap($versionData);
-
-            $version = BaseTimeVersion::create($versionData);
-
-            return $this->importParsedData($parsed, $version);
-        });
-    }
 
     /**
      * Liest die Excel-Datei und liefert eine strukturierte Vorschau, ohne die Datenbank zu ändern.
@@ -187,21 +154,6 @@ class BaseTimeImportService
         }
 
         return compact('categories', 'disciplines', 'sportClasses', 'cells', 'warnings');
-    }
-
-    /**
-     * Importiert die Datei in eine bereits bestehende Basiswert-Version — z.B. wenn die Version
-     * zuvor separat angelegt wurde und nun (erstmalig) mit Daten befüllt werden soll. Es wird
-     * keine Überlappungsprüfung durchgeführt, da die Version bereits existiert.
-     *
-     * @throws Exception wenn die Datei nicht gelesen werden kann
-     * @throws Throwable
-     */
-    public function importIntoExistingVersion(string $filePath, BaseTimeVersion $version): array
-    {
-        $parsed = $this->parse($filePath);
-
-        return DB::transaction(fn () => $this->importParsedData($parsed, $version));
     }
 
     private function categoryCode(string $sheetName): string
@@ -467,8 +419,6 @@ class BaseTimeImportService
         return $disciplines[$code]['distance'] * $disciplines[$code]['relay_count'];
     }
 
-    // ── Zellen parsen ─────────────────────────────────────────────────────────
-
     /**
      * Löst einen Bewerbs-Code auf, inkl. Fallback für die IM/ME-Verwechslung
      * in der Quelldatei (z.B. Referenz-Label "4x50IM", tatsächlicher Code "4x50ME").
@@ -494,190 +444,5 @@ class BaseTimeImportService
         }
 
         return null;
-    }
-
-    private function assertNoOverlap(array $versionData): void
-    {
-        if (BaseTimeVersion::overlapsExisting($versionData['valid_from'], $versionData['valid_until'] ?? null)) {
-            throw new RuntimeException(
-                'Der Gültigkeitszeitraum überschneidet sich mit einer bestehenden Basiswert-Version.'
-            );
-        }
-    }
-
-    /** Gemeinsamer Kern von import() und importIntoExistingVersion() — Version existiert bereits. */
-    private function importParsedData(array $parsed, BaseTimeVersion $version): array
-    {
-        $categoryIds = $this->importCategories($parsed['categories']);
-        $disciplineIds = $this->importDisciplines($parsed['disciplines'], $parsed['warnings']);
-        $sportClassIds = $this->importSportClasses($parsed['sportClasses']);
-        $rulesImported = $this->importDerivationRules($parsed['cells'], $categoryIds, $disciplineIds);
-        $baseTimesImported = $this->importBaseTimes(
-            $parsed['cells'], $version->id, $categoryIds, $disciplineIds, $sportClassIds
-        );
-
-        return [
-            'version_id' => $version->id,
-            'categories' => count($categoryIds),
-            'disciplines' => count($disciplineIds),
-            'sport_classes' => count($sportClassIds),
-            'derivation_rules' => $rulesImported,
-            'base_times' => $baseTimesImported,
-            'warnings' => $parsed['warnings'],
-        ];
-    }
-
-    // ── Datenbank-Import ──────────────────────────────────────────────────────
-
-    private function importCategories(array $categories): array
-    {
-        $ids = [];
-
-        foreach ($categories as $code => $attrs) {
-            $category = BaseTimeCategory::firstOrCreate(
-                ['code' => $code],
-                [
-                    'course' => $attrs['course'],
-                    'gender' => $attrs['gender'],
-                    'label' => $attrs['label'],
-                ]
-            );
-            $ids[$code] = $category->id;
-        }
-
-        return $ids;
-    }
-
-    private function importDisciplines(array $disciplines, array &$warnings): array
-    {
-        $ids = [];
-
-        foreach ($disciplines as $code => $attrs) {
-            $strokeType = $this->resolveStrokeType($attrs['stroke_lenex_code']);
-            if (! $strokeType) {
-                $warnings[] = "Kein StrokeType mit lenex_code \"{$attrs['stroke_lenex_code']}\" gefunden ".
-                    "(Bewerb \"$code\") — übersprungen.";
-
-                continue;
-            }
-
-            $discipline = BaseTimeDiscipline::firstOrCreate(
-                ['code' => $code],
-                [
-                    'stroke_type_id' => $strokeType->id,
-                    'distance' => $attrs['distance'],
-                    'relay_count' => $attrs['relay_count'],
-                ]
-            );
-            $ids[$code] = $discipline->id;
-        }
-
-        return $ids;
-    }
-
-    private function resolveStrokeType(string $lenexCode): ?StrokeType
-    {
-        if (! array_key_exists($lenexCode, $this->strokeTypeCache)) {
-            $this->strokeTypeCache[$lenexCode] = StrokeType::where('lenex_code', $lenexCode)->first();
-        }
-
-        return $this->strokeTypeCache[$lenexCode];
-    }
-
-    private function importSportClasses(array $sportClasses): array
-    {
-        $ids = [];
-
-        foreach ($sportClasses as $code => $attrs) {
-            $sportClass = BaseTimeSportClass::firstOrCreate(
-                ['code' => $code],
-                ['sort_order' => $attrs['sort_order']]
-            );
-            $ids[$code] = $sportClass->id;
-        }
-
-        return $ids;
-    }
-
-    private function importDerivationRules(array $cells, array $categoryIds, array $disciplineIds): int
-    {
-        $seen = [];
-        $count = 0;
-
-        foreach ($cells as $cell) {
-            if ($cell['value_type'] !== BaseTime::TYPE_CALCULATED || $cell['shorter_code'] === null) {
-                continue;
-            }
-
-            $key = implode('|', [
-                $cell['category_code'], $cell['shorter_code'], $cell['longer_code'],
-                $cell['ratio_category_code'], $cell['ratio_shorter_code'], $cell['ratio_longer_code'],
-            ]);
-
-            if (isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
-
-            BaseTimeDerivationRule::firstOrCreate(
-                [
-                    'base_time_category_id' => $categoryIds[$cell['category_code']],
-                    'shorter_discipline_id' => $disciplineIds[$cell['shorter_code']],
-                    'longer_discipline_id' => $disciplineIds[$cell['longer_code']],
-                ],
-                [
-                    'ratio_reference_category_id' => $cell['ratio_category_code']
-                        ? ($categoryIds[$cell['ratio_category_code']] ?? null) : null,
-                    'ratio_shorter_discipline_id' => $cell['ratio_shorter_code']
-                        ? ($disciplineIds[$cell['ratio_shorter_code']] ?? null) : null,
-                    'ratio_longer_discipline_id' => $cell['ratio_longer_code']
-                        ? ($disciplineIds[$cell['ratio_longer_code']] ?? null) : null,
-                ]
-            );
-            $count++;
-        }
-
-        return $count;
-    }
-
-    private function importBaseTimes(
-        array $cells,
-        int $versionId,
-        array $categoryIds,
-        array $disciplineIds,
-        array $sportClassIds,
-    ): int {
-        $rows = [];
-        $now = now();
-
-        foreach ($cells as $cell) {
-            if (! isset($categoryIds[$cell['category_code']], $disciplineIds[$cell['discipline_code']], $sportClassIds[$cell['sport_class_code']])) {
-                continue;
-            }
-
-            $rows[] = [
-                'base_time_version_id' => $versionId,
-                'base_time_category_id' => $categoryIds[$cell['category_code']],
-                'base_time_discipline_id' => $disciplineIds[$cell['discipline_code']],
-                'base_time_sport_class_id' => $sportClassIds[$cell['sport_class_code']],
-                'value_centiseconds' => $cell['value_centiseconds'],
-                'value_type' => $cell['value_type'],
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        // Ersetzt statt zu duplizieren: falls für diese Version/Kategorien bereits Basiswerte
-        // existieren (z.B. bei einem versehentlichen zweiten Import derselben Datei), werden sie
-        // vorher entfernt, statt an der Unique-Constraint zu scheitern.
-        BaseTime::where('base_time_version_id', $versionId)
-            ->whereIn('base_time_category_id', array_values($categoryIds))
-            ->delete();
-
-        foreach (array_chunk($rows, 500) as $chunk) {
-            BaseTime::insert($chunk);
-        }
-
-        return count($rows);
     }
 }
