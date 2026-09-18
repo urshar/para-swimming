@@ -68,7 +68,8 @@
     </form>
 
     {{-- Table --}}
-    <flux:table>
+    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
+    <flux:table bleed>
         <flux:table.columns>
             <flux:table.column>Wettkampf</flux:table.column>
             <flux:table.column>Datum</flux:table.column>
@@ -136,6 +137,7 @@
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 
     <div class="mt-4">
         {{ $meets->links() }}

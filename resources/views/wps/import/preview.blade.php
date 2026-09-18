@@ -63,7 +63,8 @@
                 <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Erste Zeilen zur Kontrolle
                 </div>
-                <flux:table>
+                <div class="p-4 [--flux-bleed:1rem]">
+                    <flux:table bleed>
                     <flux:table.columns>
                         <flux:table.column>Geschlecht</flux:table.column>
                         <flux:table.column>Strecke</flux:table.column>
@@ -72,7 +73,7 @@
                         <flux:table.column align="end">b</flux:table.column>
                         <flux:table.column align="end">c</flux:table.column>
                     </flux:table.columns>
-                    <flux:table.rows class="[&_td:first-child]:ps-4">
+                    <flux:table.rows>
                         @foreach(array_slice($preview->rows, 0, 10) as $row)
                             <flux:table.row>
                                 <flux:table.cell>{{ $row['gender'] }}</flux:table.cell>
@@ -84,7 +85,8 @@
                             </flux:table.row>
                         @endforeach
                     </flux:table.rows>
-                </flux:table>
+                    </flux:table>
+                </div>
             </div>
         @endif
 

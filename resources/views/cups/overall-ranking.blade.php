@@ -165,9 +165,8 @@
                         <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <flux:table
-                            class="table-fixed w-full min-w-180 [&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
+                    <div class="overflow-x-auto p-4 [--flux-bleed:1rem]">
+                        <flux:table bleed class="table-fixed w-full min-w-180">
                             <flux:table.columns>
                                 <flux:table.column class="w-12">Rang</flux:table.column>
                                 <flux:table.column class="w-56">Athlet</flux:table.column>

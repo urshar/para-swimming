@@ -2834,3 +2834,311 @@ wenigen Datenpunkten, Jahr-Dropdown im Header
 **Tests**: volle Suite weiterhin 1396 Tests grün, `vendor/bin/pint --test` grün. Live verifiziert: Tooltip zeigt
 "00:43,94" statt "43.94", Rückweg-Button beide Zustände (mit/ohne `?from=athlete`), Hinweistext bei der
 WPS-Punkte-Metrik für Ernhofer Andreas, Jahr-Dropdown im Header mit reaktivem Wechsel (2026→2025) ohne Reload.
+
+## Phase 14 — Flux-Pro-Rollout: Full-Bleed-Tabellen & Datepicker-Selectable-Header — **abgeschlossen**
+
+Umsetzung des in `docs/open-points.md` am 04.09.2026 vorgeschlagenen "Phase 14"-Pakets (16.09.2026). Drei Teile,
+in der Reihenfolge B → C (opportunistisch) → A umgesetzt, jeweils mit voller Testsuite (1396 Tests) und Pint
+zwischen den Schritten abgesichert.
+
+### Teil B — Datepicker `selectable-header` auf alle verbliebenen Date-Inputs
+
+Alle 9 in den Open Points gelisteten Dateien (22 Datumsfelder) um `selectable-header` ergänzt: `athletes/form`
+(2), `athletes/show` (6), `base-times/import` (2), `base-times/versions/form` (2), `championships/form` (2),
+`livewire/wps-athlete-analysis` (1), `meets/_grunddaten-fields` (3), `qualifying-time-lists/_general-fields`
+(2), `records/form` (2). Risikoarme, mechanische Änderung — reines zusätzliches Boolean-Attribut je
+`flux:date-picker`, keine Strukturänderung.
+
+### Teil C (opportunistisch) — Pflichtfeld-Sternchen in den von Teil B berührten Dateien
+
+Auf ausdrücklichen Wunsch Eriks (04.09.2026) **kein** eigener Sweep über alle 22 betroffenen Dateien aus den
+Open Points — nur dort mitgezogen, wo eine Datei ohnehin aus anderem Anlass (hier: Teil B) angefasst wurde. 7
+Dateien betroffen: `qualifying-time-lists/_general-fields.blade.php`, `records/form.blade.php` (Pflichtfeld-`*`
+bekam die fehlende Farbe), `base-times/import.blade.php`, `base-times/versions/form.blade.php`,
+`meets/_grunddaten-fields.blade.php`, `athletes/show.blade.php`, `athletes/form.blade.php` (Abstands-Bug
+behoben: Leerzeichen vor `<span>` entfernt, `ms-1` ergänzt). Die restlichen 15 Dateien bleiben bewusst offen in
+`docs/open-points.md`, bis sie aus anderem Anlass angefasst werden.
+
+### Teil A — Full-Bleed-Tabellen
+
+**Blocker aus der ursprünglichen Planung war bereits aufgelöst:** Flux/Flux Pro liegt inzwischen in v2.20.0 vor
+(`composer.lock`), der `bleed`-Prop ist in `vendor/livewire/flux/.../table/index.blade.php` vorhanden — kein
+separates Paket-Update mehr nötig.
+
+**Wichtiger Befund beim Umsetzen, der die ursprüngliche Doku-Annahme korrigiert:** Keine einzige der 39 Dateien
+mit `<flux:table` verwendet tatsächlich die `flux:card`-Komponente. Alle nutzen ein handgebautes Card-Div
+(`<div class="bg-white dark:bg-zinc-800 rounded-xl border ... overflow-hidden">`) ohne eigenes Padding — der
+einfache "Full-Bleed-in-`flux:card`"-Fall aus der Flux-Doku traf also auf keine Datei zu. Jede Datei brauchte
+stattdessen die "Custom Gutters"-Variante:
+
+```diff
+- <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+-     <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4 [&_td:last-child]:pe-4 [&_th:last-child]:pe-4">
++ <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
++     <flux:table bleed>
+```
+
+`--flux-bleed:1rem` entspricht dabei exakt dem bisherigen manuellen `ps-4`/`pe-4` (1rem in Tailwinds Skala) —
+die Zelltext-Einrückung bleibt optisch identisch, nur die Zeilen-Trennlinien/Hover-Hintergründe laufen jetzt bis
+an den Card-Rand statt an der alten `ps-4`-Grenze zu enden.
+
+**Weitere Erkenntnis — drei Datei-Kategorien statt der ursprünglich angenommenen einen:**
+
+1. **39 Dateien mit `<flux:table`**, davon **26 mit echter Card** (obiges Muster angewendet) und **13 mit
+   nackter Tabelle ohne umschließendes Div** (`admin/documents/index`, `athletes/index`, `athletes/show`,
+   `classifiers/{index,show}`, `clubs/{index,show}`, `meets/{index,show}`, `nations/index`,
+   `qualifying-time-lists/form`, `records/{index,show}`) — dort zunächst bewusst **nicht** angefasst: `bleed`
+   hätte die Tabelle per negativem Margin aus ihrem Container geschoben, ohne dass ein Padding das kompensiert.
+   Ihr `ps-4`/`pe-4`-Hack (wo vorhanden) hat einen anderen, weiterhin gültigen Zweck (Randabstand bei einer
+   randlosen Tabelle) und bleibt bestehen, bis die jeweilige Datei einzeln angegangen wird (Erik: "gehen wir die
+   Tabellen einzeln an").
+2. Bei Karten **mit eigenem Kopfbereich** vor der Tabelle (z. B. `cups/daily-ranking.blade.php`,
+   `livewire/admin/championship-development-table.blade.php`, `livewire/statistics-dashboard.blade.php` (5×),
+   `wps/import/preview.blade.php`) wurde das Padding **nicht** auf das äußere Card-Div gelegt (das hätte den
+   bereits vorhandenen `px-4 py-3`-Kopfbereich zusätzlich eingerückt und dessen `border-b` verkürzt), sondern
+   ein neues, nur die Tabelle umschließendes `<div class="p-4 [--flux-bleed:1rem]">` eingefügt.
+3. `cups/overall-ranking.blade.php` hat bereits einen dedizierten `<div class="overflow-x-auto">`-Wrapper nur um
+   die (breite, `table-fixed`) Tabelle — dort genügte es, Padding und `--flux-bleed` direkt an diesem
+   bestehenden Wrapper zu ergänzen, ohne einen weiteren Div einzuziehen.
+
+**PhpStorm-Inspection-Fehlalarm während der Umsetzung entdeckt** (nicht behoben, siehe CLAUDE.md): In
+`records/form.blade.php` meldete PhpStorm "Method expression is not of Function type" bzw. "'with' statement"
+an zwei Stellen ohne Bezug zu einem `@if` — beide Stellen live nachgerendert (Wegwerf-Test), kein echter Fehler.
+Dokumentiert als eigener CLAUDE.md-Eintrag, damit dieselbe Inspection nicht erneut blind "repariert" wird (das
+war beim vorherigen PhpStorm-Fund in `athletes/show.blade.php` genau schiefgegangen).
+
+**Betroffene Dateien**: 26 Card-Dateien mit `bleed` umgestellt (siehe oben), keine der 13 nackten Tabellen
+angefasst, `qualifying-time-lists/form.blade.php` unangetastet (eigener `ps-0`-Sonderfall, keine Card).
+
+**Tests**: volle Suite 1396 Tests grün, `vendor/bin/pint --test` grün nach jedem der drei Teile. Live-Verifikation
+im Browser war in dieser Session technisch nicht möglich (Sandbox erreichte den lokalen Dev-Server nicht) — Erik
+prüft die visuelle Wirkung selbst.
+
+### Nachtrag 17.09.2026 — Nationen-Tabelle nachgezogen, Pagination vereinheitlicht auf das `wps/versions/show`-Muster
+
+Erik hat sich entschieden, die 13 nackten Tabellen einzeln statt gebündelt anzugehen. Erste umgestellt:
+`nations/index.blade.php`, nach demselben Card+Bleed-Muster wie die WPS-Tabellen (`wps/factors/index.blade.php`
+u. a.).
+
+**Zwischenschritt (kurzzeitig, dann korrigiert):** Die Pagination wurde zunächst *innerhalb* der Card als
+Footer mit `border-t` platziert (analog `admin/users/index.blade.php`, `entries/index.blade.php`,
+`results/index.blade.php` — dort schon so vorhanden). Dabei fiel ein Doppel-Padding-Bug in genau diesen drei
+Dateien auf: das `p-4 [--flux-bleed:1rem]` der Card wirkte zusätzlich zum eigenen Padding der
+Pagination-Zeile, die dadurch stärker eingerückt war als der Tabelleninhalt — reine Abstandsfrage, kein Test
+deckt das auf.
+
+**Erik-Wunsch, umgesetzt:** Pagination stattdessen wie in `wps/versions/show.blade.php` **außerhalb** der Card,
+als eigener `<div class="mt-4">{{ $x->links() }}</div>`-Block danach — kein Footer, kein `border-t`, kein
+eigener `p-4`. Das löst den Doppel-Padding-Bug gleich mit (die Pagination liegt nicht mehr im selben,
+gepolsterten Div wie die Tabelle) und bringt die Card selbst zurück auf die einfache Form
+(`p-4 [--flux-bleed:1rem]` direkt am Card-Div, keine zusätzliche innere Verschachtelung nötig, da die Card
+jetzt wieder nur die Tabelle enthält). Betrifft `admin/users/index.blade.php`, `entries/index.blade.php`,
+`results/index.blade.php`, `nations/index.blade.php` — damit ist dieses Pagination-Muster jetzt einheitlich
+mit `wps/versions/show.blade.php`.
+
+**Weitere 5 der 13 nackten Tabellen nachgezogen** (Erik: "Dokumente, athletes/index und show, classifier"),
+alle nach demselben einfachen Muster (Card+Bleed direkt am Card-Div, bestehende `<div class="mt-4">{{ … }}
+</div>`-Pagination unverändert übernommen, da sie schon dem Zielmuster entsprach): `admin/documents/index.blade.php`
+(keine Pagination), `athletes/index.blade.php`, `athletes/show.blade.php` (Ergebnisliste), `classifiers/index.blade.php`,
+`classifiers/show.blade.php`.
+
+**Letzte 6 nachgezogen** (Erik: "Club index und Show, Meets index und show, record index und show") —
+`clubs/index.blade.php`, `clubs/show.blade.php`, `records/index.blade.php` (alle drei: einfaches Muster,
+bestehende `ps-4`/`pe-4`-Hacks entfernt), `records/show.blade.php` (Rekord-Historie, keine Pagination),
+`meets/index.blade.php` (kein Hack vorhanden, nur Card ergänzt). `meets/show.blade.php` war der einzige
+Sonderfall: **mehrere Tabellen pro Seite**, eine je Session (`@foreach($swimEvents->groupBy('session_number')
+...)`), bisher ganz ohne Card. Jede Session bekam ihre eigene Card; die kursive
+"Session N"-Beschriftung bleibt bewusst **außerhalb** der Card (eigenständiger Abschnittstitel, kein
+Card-interner Kopfbereich) — passt damit zum bereits vorhandenen Leerzustand weiter oben auf derselben Seite,
+der ebenfalls eine `bg-white ... rounded-xl border`-Card verwendet.
+
+Damit sind alle 13 ursprünglich nackten Tabellen umgestellt — offen bleibt nur `qualifying-time-lists/form.blade.php`
+(bewusst unangetastet: eigener `ps-0`-Sonderfall statt `ps-4`, vermutlich absichtlich abweichende Einrückung in
+einem tief verschachtelten Formular-Vorschau-Block, siehe Analyse oben).
+
+**Tests**: volle Suite 1396 Tests grün, Pint grün.
+
+### Nachtrag 17.09.2026 — `qualifying-time-lists/form.blade.php` (Tab "Richtzeiten") umstrukturiert statt nur nachgezogen
+
+Erik auf Nachfrage: statt den `ps-0`-Sonderfall nur unangetastet zu lassen, lieber eine grundsätzlich bessere
+Darstellung — "dann haben wir alles einheitlich. Falls später etwas geändert werden muss hätten wir dann das
+Problem wieder."
+
+**Ursprüngliches Problem:** Pro Sportklassengruppe gab es eine `@foreach($section['strokes'] ...)`-Schleife mit
+einer **eigenen `<flux:table>` je Stil/Distanz-Kombination** — bei z. B. 20 Kombinationen also 20 vollständig
+wiederholte Spaltenköpfe für im Schnitt nur 2–4 Datenzeilen darunter. Der `ps-0`-Hack existierte nur, weil jede
+dieser Mini-Tabellen direkt im `p-6`-Innenabstand der äußeren Card saß und `ps-4` dort zu doppeltem Abstand
+geführt hätte.
+
+**Neue Struktur:** Eine einzige `<flux:table bleed>` **je Sportklassengruppe** (nicht mehr je Stil/Distanz);
+die Stil/Distanz-Gruppierung steht jetzt als schmale `colspan="5"`-Trennzeile zwischen den Datenzeilen statt als
+eigene Tabelle. Die äußere Card bekam `[--flux-bleed:1.5rem]` (passend zu ihrem bestehenden `p-6`, nicht dem
+sonst üblichen `p-4`); die CSS-Variable vererbt sich an die per-Sektion-Tabellen, sodass jede von ihnen einfach
+`bleed` bekommt, ohne einen eigenen Padding-Wrapper zu brauchen (kein neuer Div nötig — anders als bei
+Kopfbereich-Karten in Teil A, wo `--flux-bleed` lokal neu gesetzt werden musste).
+
+**JS-Filter angepasst (`resources/js/qualifying-times-filter.js`):** Die Stil/Distanz-Gruppierung war zuvor ein
+`data-rzt-group`-Container-Div, das versteckt wurde, wenn keine seiner Kind-Zeilen mehr sichtbar war. Ohne
+Container (Trennzeile und Datenzeilen sind jetzt Geschwister in derselben `flux:table.rows`) musste das auf
+Wert-Abgleich umgestellt werden: Trennzeile und ihre Datenzeilen tragen denselben `data-rzt-group`-Wert, die
+Trennzeile wird ausgeblendet, wenn keine Zeile mit demselben Wert mehr sichtbar ist. Ein reiner
+Stil/Distanz-Laufindex als Wert hätte sich aber zwischen Sportklassengruppen wiederholt (Sektion A und Sektion B
+haben beide eine "erste" Stil/Distanz-Kombination mit Index 0) und über `this.$root.querySelectorAll(...)` (das
+über alle Sektionen hinweg sucht) Zeilen aus verschiedenen Sektionen fälschlich verknüpft — deshalb
+`{{ $loop->parent->index }}-{{ $loop->index }}` (Sektionsindex kombiniert mit Stil/Distanz-Index), über die ganze
+Seite hinweg eindeutig.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/form.blade.php`,
+`resources/js/qualifying-times-filter.js`. `qualifying-time-lists/show.blade.php` (die parallele, read-only
+Anzeige-Seite mit Accordion) hat denselben Mini-Tabellen-Aufbau, war aber nicht Teil dieser Anfrage und wurde
+bewusst nicht angefasst.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (12 Tests, inkl. Anzeige/Bearbeiten/Inhaltsverzeichnis) sowie
+volle Suite (1397 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 — Geschlecht/Sportklasse-Filter auf `qualifying-time-lists/show.blade.php`
+
+Erik: Suche nach einer einzelnen Kombination (Beispiel: "S14 100m Brust") dauerte auf der Anzeige-Seite zu
+lange — durch alle Behinderungsgruppen-Akkordeons und Stil/Distanz-Mini-Tabellen scrollen, um eine Zeile zu
+finden. Gewünscht: Buttons für alle vorkommenden Sportklassen (wie die Anfangsbuchstaben-Buttons bei
+`athletes/index.blade.php`) plus ein Umschalter für Geschlecht/alle Geschlechter.
+
+**Umsetzung:** Neue Filterleiste über dem Akkordeon — je eine Button-Reihe für Geschlecht und Sportklasse
+("Alle" + ein Button je tatsächlich vorkommendem Wert, analog `$usedGenders`/`$usedSportClasses` aus
+`qualifying-time-lists/form.blade.php`). Anders als bei `athletes/index.blade.php` (serverseitiger
+Reload über `href`/Query-Parameter) läuft das hier rein im DOM: Die komplette Liste steht ohnehin
+unpaginiert im Markup, ein Redirect wäre unnötig. Aktiver Filter zusätzlich mit einem automatischen Effekt:
+Behinderungsgruppen ohne Treffer klappen zu, Gruppen mit Treffern bleiben/klappen auf — man landet direkt bei
+der gesuchten Kombination, statt manuell zu blättern.
+
+**Neue Komponente `resources/js/qualifying-times-show-filter.js`** (eigene Datei statt Erweiterung der
+bisherigen `qualifying-times-filter.js`, da andere Filterkriterien — kein Stil/Distanz — und zusätzliches
+Akkordeon-Zu-/Aufklappen): übernimmt auch die bisherigen `openOnly()`/`openAll()`-Methoden, die vorher inline
+im `x-data` des Wrapper-Divs standen (jetzt eine registrierte `Alpine.data()`-Komponente statt eines
+Inline-Objekts — reduziert laut CLAUDE.md ohnehin IDE-Warnungen). Markup bekam `data-rzt-section` je
+Behinderungsgruppe, `data-rzt-group` je Stil/Distanz-Mini-Tabelle, `data-rzt-row`
++ `data-rzt-gender`/`data-rzt-sport-class` je Zeile.
+
+**Toggle-Optik ohne Server-Reload:** Da `flux:button`s `variant`-Prop serverseitig zu festen Tailwind-Klassen
+kompiliert wird, kann ein Alpine-State sie nicht direkt umschalten. Stattdessen `variant="ghost"` als Basis
+plus `x-bind:class` mit genau den Klassen, die Flux selbst für `variant="filled"` verwendet
+(`bg-zinc-800/5! hover:bg-zinc-800/10! dark:bg-white/10! dark:hover:bg-white/20!`, per `!`-Wichtig-Modifikator
+durchgesetzt — dieselbe Technik wie an anderen Stellen in CLAUDE.md dokumentiert, hier erstmals für einen
+reaktiven Toggle-Zustand statt eines statischen Overrides verwendet).
+
+**Verifikation:** Die Browser-Sandbox blockierte in dieser Session die Vite-Assets (`ERR_BLOCKED_BY_CLIENT`),
+daher kein echter interaktiver Klick-Test möglich. Stattdessen die kritische Logik (global eindeutige
+Trennzeilen-Zuordnung) bereits beim vorherigen `form.blade.php`-Umbau per Wegwerf-Test am gerenderten HTML
+verifiziert (dasselbe Muster, hier nicht erneut nötig, da unverändert übernommen); für diese Änderung zusätzlich
+zwei permanente Tests ergänzt (`QualifyingTimeGroupingTest.php`), die Filterbutton-Vorhandensein
+(nur tatsächlich vorkommende Werte) und die `data-rzt-*`-Attribute auf den Zeilen prüfen.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js` (neu), `resources/js/app.js` (Registrierung),
+`tests/Feature/QualifyingTimeGroupingTest.php` (2 neue Tests).
+
+**Tests**: `--group=qualifying-time-lists-grouping` (14 Tests) sowie volle Suite (1399 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 (2) — Gliederung nach Sportklassen-Nummer statt Behinderungsgruppe
+
+Erik direkt im Anschluss: Auch der Geschlecht/Sportklasse-Filter von oben löste das eigentliche Problem noch
+nicht richtig — bei "S14 100m Brust" musste man weiterhin wissen, in welcher Behinderungsgruppe S14 steckt, und
+durch die zugehörigen Stil/Distanz-Mini-Tabellen suchen. Neue Anforderung: Sportklassen-Buttons nur für die
+Nummer (S1 bis Sxx, ohne SB/SM als eigene Buttons), ein Klick zeigt S/SB/SM derselben Nummer gemeinsam, gefiltert
+nach der **Nummer**, nicht dem exakten Sportklassen-Code. Bei ausgewählter Nummer eine einzige Tabelle mit Lage,
+Geschlecht, Richtzeit, Quelle; bei "Alle" zusätzlich die Sportklasse-Spalte (oder alle Sportklassen-Tabellen
+zeigen — Erik hat sich für Letzteres entschieden, siehe unten).
+
+**Serverseitige Neugliederung:**
+- `SportClassSorter::number(?string $sportClass): ?int` (neu) — liefert die reine Nummer ohne Präfix
+  (`SB14` → `14`), nutzt denselben Regex wie die bestehende `key()`-Methode.
+- `DisabilityGroupGrouper::byNumberThenStroke()` (neu, neben der bestehenden `byGroupThenStroke()`) — gliedert
+  nach Nummer statt Behinderungsgruppe, liefert pro Nummer eine **flache**, fertig sortierte Zeilenliste (Lage
+  steht als Spalte in der Tabelle, keine weitere Verschachtelung mehr). Nummern ohne erkennbares Format (kein
+  `S`/`SB`/`SM`-Präfix) landen gesammelt unter "Sonstige Sportklassen" am Ende.
+  - **Bug dabei gefunden und behoben:** `Collection::except()` auf einer nach Nummer gruppierten
+    **Eloquent**-Collection warf `"Method Illuminate\Database\Eloquent\Collection::getKey does not exist"` — der
+    Grund: `groupBy()` auf einer Eloquent-Collection liefert wieder eine Eloquent-Collection, deren "Elemente"
+    aber jetzt Gruppen (Collections von Models) statt einzelner Models sind. `except()`/`getDictionary()` gehen
+    intern von Models aus und rufen `getKey()` auf jedem Element auf — bricht, sobald das Element selbst eine
+    Collection ist. Fix: `$items` zu Beginn explizit mit `collect()` in eine echte `Support\Collection` wandeln,
+    bevor gruppiert wird. Per Testsuite gefunden (nicht vermutet) — betrifft nur die neue Methode, die bestehende
+    `byGroupThenStroke()` war davon nicht betroffen, da sie nie `except()` auf einer Eloquent-Collection aufruft.
+- `QualifyingTimeListController::show()` nutzt jetzt `byNumberThenStroke()`. Bewusst **nur** `show()` — `pdfTimes()`
+  und die übrigen Verwendungen von `byGroupThenStroke()` (u. a. `Public\QualifyingTimeController`) bleiben bei der
+  Behinderungsgruppen-Gliederung, das war nicht Teil dieser Anfrage.
+
+**`qualifying-time-lists/show.blade.php` umgebaut:**
+- Sportklasse-Filterzeile zeigt jetzt nur Nummern-Buttons ("S1", "S9", … — ein Button pro tatsächlich
+  vorkommender Nummer, S/SB/SM zusammengefasst).
+- Ein Klick löst **kein Zeilen-Filtering** aus (anders als der Geschlecht-Filter), sondern klappt gezielt nur den
+  passenden Akkordeon-Abschnitt auf (`openOnly()`, wiederverwendet aus der bisherigen Inhaltsverzeichnis-Logik)
+  und scrollt dorthin (`href="#number-{{ $number }}"`, natives Anker-Scrollen) — jeder Abschnitt enthält ohnehin
+  schon nur eine Nummer, ein zusätzliches Zeilen-Filtering wäre wirkungslos.
+- Sportklasse-Spalte selbst per `x-show="selectedNumber === ''"` ein-/ausgeblendet — bei "Alle" sichtbar (Erik
+  hat sich für "alle Sportklassentabellen anzeigen" statt der Alternative "eine große Tabelle mit
+  Sportklassen-Spalte" entschieden: die bestehende Akkordeon-Struktur bleibt, nur nach Nummer statt
+  Behinderungsgruppe gegliedert), bei ausgewählter Nummer ausgeblendet (dort durch die Lage ohnehin eindeutig:
+  BREAST-Zeilen sind implizit SB, MEDLEY-Zeilen implizit SM, alles andere S).
+- Akkordeon-Anker/Ids von `group-{id}` auf `number-{nummer}` umgestellt, Inhaltsverzeichnis-Dropdown entsprechend
+  mitgezogen (bewusst nicht entfernt, obwohl die Nummern-Buttons denselben Zweck erfüllen — war nicht Teil der
+  Anfrage).
+- `data-rzt-group` (Stil/Distanz-Mini-Tabellen) entfällt ersatzlos — es gibt keine solche Verschachtelung mehr.
+  `data-rzt-section`/`data-rzt-row`/`data-rzt-gender` bleiben für den weiterhin zeilenbasierten
+  Geschlecht-Filter bestehen.
+
+**`qualifying-times-show-filter.js` neu geschrieben** statt nur angepasst: zwei unabhängige Mechanismen im
+selben `x-data` — `gender` filtert Zeilen (wie zuvor), `selectedNumber`/`selectNumber()` steuert stattdessen
+Akkordeon-Fokus + Sportklasse-Spalten-Sichtbarkeit (kein Zeilen-Filtering mehr für Sportklasse).
+
+**Bestehende Tests umgeschrieben statt nur ergänzt**, da die alten Erwartungen (Behinderungsgruppen-Gliederung,
+`sportClass`-Zeilenfilter) für `show()` nicht mehr zutreffen — u. a. auch ein Fall, der vorher zufällig als
+"Sonstige Sportklassen"-Beispiel diente (`S99`), jetzt aber selbst eine gültige Nummer ist und daher durch einen
+tatsächlich unparsbaren Wert (`T9`) ersetzt werden musste. Die Bearbeiten-Ansicht (`edit`) ist unverändert und
+ihre Tests entsprechend unangetastet geblieben.
+
+**Betroffene Dateien**: `app/Support/SportClassSorter.php`, `app/Support/DisabilityGroupGrouper.php`,
+`app/Http/Controllers/QualifyingTimeListController.php`, `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js`, `tests/Unit/SportClassSorterTest.php`,
+`tests/Feature/QualifyingTimeGroupingTest.php`.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (17 Tests) sowie volle Suite (1402 Tests) grün, Pint grün.
+
+### Nachtrag 17.09.2026 (3) — Dropdown statt Buttons, Akkordeon entfernt
+
+Design-Feedback direkt nach dem vorigen Nachtrag: Bei vielen Sportklassen (S1–S21+) brach die Button-Reihe
+für die Sportklassen-Auswahl über mehrere Zeilen um. Zusätzlich war das Akkordeon inzwischen überflüssig — jeder
+Abschnitt stand ohnehin von Anfang an per `expanded` offen, das Akkordeon lieferte also keinen Mehrwert mehr,
+nur zusätzlichen, mit der Auswahl redundanten Zustand (auf/zu).
+
+**Entscheidung**: Sportklassen-Auswahl als `<flux:select variant="listbox" x-model="selectedNumber">` (ein
+Dropdown wie z. B. in `cups/overall-ranking.blade.php`) statt der umbrechenden Button-Reihe; Akkordeon komplett
+entfernt, jeder Abschnitt ist jetzt ein einfacher Kartenblock, dessen Sichtbarkeit rein deklarativ per
+`x-show="selectedNumber === 'ALL' || selectedNumber === '<Nummer>'"` gesteuert wird — bei "Alle" bleiben alle
+Abschnitte sichtbar (wie bisher), bei einer gewählten Nummer nur der eine passende. Geschlecht bleibt bei
+den bisherigen Buttons (nur 2–3 Optionen, Dropdown wäre dort Overhead).
+
+Als Sentinel-Wert für "Alle" wurde `'ALL'` statt `''` verwendet — `<flux:select.option value="">` funktioniert
+laut CLAUDE.md ("`<flux:select.option value="">` für eine echte, bedeutungsvolle Option") nicht zuverlässig.
+
+`qualifying-times-show-filter.js` wurde dadurch auf zwei reine Zustandswerte (`gender`, `selectedNumber`)
+reduziert — keine Akkordeon-Methoden (`openOnly`/`openAll`), kein DOM-Querying mehr nötig, da sowohl die
+Zeilen- (`gender`) als auch die Abschnitts-Filterung (`selectedNumber`) jetzt komplett deklarativ per `x-show`
+im Template erfolgen, statt wie zuvor per `data-rzt-*`-Attributen + imperativer Alpine-Logik. Die
+`data-rzt-row`/`data-rzt-gender`/`data-rzt-section`-Attribute sind damit entfallen.
+
+Da `variant="listbox"` bei Flux serverseitig identisch zur Default-Variante kompiliert (eigene
+Listbox-Optik kommt rein clientseitig durch JS-Progressive-Enhancement eines `<ui-select>`-Custom-Elements,
+siehe `vendor/livewire/flux/stubs/resources/views/flux/select/index.blade.php` — keine eigene
+`select.variants.listbox`-Datei vorhanden), wurde die exakte kompilierte Markup-Struktur (`<ui-option value="…"
+wire:key="…">`) vorab per Wegwerf-Test ermittelt, um die Testassertions auf tatsächlich vorhandene Strings zu
+stützen statt zu raten.
+
+**Betroffene Dateien**: `resources/views/qualifying-time-lists/show.blade.php`,
+`resources/js/qualifying-times-show-filter.js`, `tests/Feature/QualifyingTimeGroupingTest.php`.
+
+**Tests**: `--group=qualifying-time-lists-grouping` (17 Tests) grün, volle Suite (1402 Tests) grün, Pint grün.
+Ein einzelner, nicht reproduzierbarer Fehlschlag in `PublicFrontendPhase9Test.php` (`assertDontSee('S7')`) trat
+bei einem Lauf der Gesamt-Suite auf, ließ sich bei erneutem Lauf nicht reproduzieren und bestand nachweislich
+bereits auf dem Stand vor diesem Nachtrag nicht — ein vorbestehendes, ordnungsabhängiges Flackern ohne
+Zusammenhang zu dieser Änderung, hier nicht behoben.

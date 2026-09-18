@@ -118,7 +118,7 @@
                     <flux:tab.panel name="klassifizierung" class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
-                                <flux:label>Rekord-Typ *</flux:label>
+                                <flux:label>Rekord-Typ<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="record_type" required>
                                     @foreach($recordTypeGroups as $groupLabel => $types)
                                         <flux:select.group label="{{ $groupLabel }}">
@@ -134,7 +134,7 @@
                                 <flux:error name="record_type"/>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Status *</flux:label>
+                                <flux:label>Status<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="record_status" required>
                                     @foreach(['APPROVED' => 'Bestätigt', 'PENDING' => 'Ausstehend', 'TARGETTIME' => 'Zielzeit'] as $val => $label)
                                         <flux:select.option value="{{ $val }}"
@@ -148,7 +148,7 @@
 
                         <div class="grid grid-cols-3 gap-4">
                             <flux:field>
-                                <flux:label>Sport-Klasse *</flux:label>
+                                <flux:label>Sport-Klasse<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:input name="sport_class" x-model="sportClassFilter"
                                             placeholder="S4, SB3, SM14 …" required/>
                                 <flux:description class="mt-1!">Schränkt unten die Athletenauswahl auf diese Klasse
@@ -157,7 +157,7 @@
                                 <flux:error name="sport_class"/>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Geschlecht *</flux:label>
+                                <flux:label>Geschlecht<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="gender" x-model="genderFilter" required>
                                     @foreach(['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'] as $val => $label)
                                         <flux:select.option value="{{ $val }}">{{ $label }}</flux:select.option>
@@ -165,7 +165,7 @@
                                 </flux:select>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Bahn *</flux:label>
+                                <flux:label>Bahn<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="course" required>
                                     @foreach(['LCM' => 'LCM (50m)', 'SCM' => 'SCM (25m)', 'SCY' => 'SCY (Yards)'] as $val => $label)
                                         <flux:select.option value="{{ $val }}"
@@ -179,7 +179,7 @@
 
                         <div class="grid grid-cols-4 gap-4">
                             <flux:field class="col-span-2">
-                                <flux:label>Disziplin *</flux:label>
+                                <flux:label>Disziplin<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="stroke_type_id" placeholder="Wählen…" required>
                                     @foreach($strokeTypes as $stroke)
                                         <flux:select.option value="{{ $stroke->id }}"
@@ -191,7 +191,7 @@
                                 <flux:error name="stroke_type_id"/>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Distanz (m) *</flux:label>
+                                <flux:label>Distanz (m)<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="distance" x-model="distanceValue" required>
                                     @foreach($distanceOptions as $distanceOption)
                                         <flux:select.option value="{{ $distanceOption }}">
@@ -337,6 +337,7 @@
                                         />
                                         <flux:date-picker
                                             type="input" locale="de-AT"
+                                            selectable-header
                                             size="sm"
                                             name="relay_members[{{ $i }}][birth_date]"
                                             value="{{ old('relay_members.' . $i . '.birth_date', $member?->birth_date?->format('Y-m-d') ?? '') }}"
@@ -370,7 +371,7 @@
                              für dieselbe Erkenntnis — deshalb ein eigener, schrumpfbarer Wrapper-Div). --}}
                         <div class="grid grid-cols-3 gap-4 items-start">
                             <flux:field>
-                                <flux:label>Schwimmzeit *</flux:label>
+                                <flux:label>Schwimmzeit<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <div class="w-full max-w-40">
                                     <flux:input
                                         name="swim_time"
@@ -387,7 +388,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Rekorddatum</flux:label>
-                                <flux:date-picker type="input" locale="de-AT" name="set_date"
+                                <flux:date-picker type="input" locale="de-AT" selectable-header name="set_date"
                                                   value="{{ old('set_date', $rec?->set_date?->format('Y-m-d') ?? '') }}"
                                                   clearable/>
                             </flux:field>

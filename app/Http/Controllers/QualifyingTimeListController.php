@@ -69,14 +69,21 @@ class QualifyingTimeListController extends Controller
             ->with('success', "Richtzeitenliste $list->year angelegt. Jetzt Zielpunkte und Richtzeiten pflegen.");
     }
 
-    /** Read-only Ansicht — für alle authentifizierten User. */
+    /**
+     * Read-only Ansicht — für alle authentifizierten User.
+     *
+     * Sportklassen-Nummer-zentrierte Gliederung statt Behinderungsgruppe (Erik, 17.09.2026):
+     * schnelleres Finden einer einzelnen Sportklasse über alle Lagen hinweg, unabhängig vom
+     * S/SB/SM-Präfix. Der PDF-Export (pdfTimes()) behält bewusst die Behinderungsgruppen-Gliederung
+     * bei — das war nicht Teil dieser Anfrage.
+     */
     public function show(QualifyingTimeList $qualifyingTimeList): View
     {
         $qualifyingTimeList->load(['targetPoints', 'times.strokeType']);
 
         return view('qualifying-time-lists.show', [
             'list' => $qualifyingTimeList,
-            'sections' => DisabilityGroupGrouper::byGroupThenStroke(
+            'sections' => DisabilityGroupGrouper::byNumberThenStroke(
                 $qualifyingTimeList->times,
                 fn (QualifyingTime $t) => $t->gender.'|'.$this->sportClassSortKey($t->sport_class)
             ),

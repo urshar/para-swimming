@@ -173,6 +173,20 @@ composer lint:check   # Pint nur prüfen
   komplett verschluckt (`Undefined variable`) — beides per Testsuite verifiziert, nicht nur
   vermutet. Bei so einer Inspection ohne zugehörigen `@if`-Kontext: **nicht umbauen**, sondern als
   PhpStorm-Fehlalarm stehen lassen (ggf. mit `// @noinspection` direkt in PhpStorm, nicht im Code).
+- **PhpStorms Inspection "Potentially polymorphic call" kann auf einen echten Bug hinweisen, nicht nur auf
+  Typ-Mehrdeutigkeit** — anders als die beiden Fälle oben. In `classifiers/show.blade.php` bezog sich
+  `$cl->status` auf ein Feld, das auf `AthleteClassification` gar nicht existiert (die Spalte heißt
+  `classification_status`; `status` gab es nie). PhpStorm konnte den Zugriff deshalb keiner konkreten Klasse
+  zuordnen und durchsuchte das ganze Projekt nach irgendeiner Klasse mit `status` — daher "polymorph". Der
+  Status-Badge war dadurch seit jeher leer (`@if($cl->status)` immer `false`), ohne Fehlermeldung, weil
+  Eloquents `__get()` für unbekannte Attribute still `null` liefert statt zu werfen. Ebenso betroffen:
+  `$cl->sport_class_result` (Singular, existiert nicht) statt des echten Accessors
+  `sport_class_results_display`. Fix: die bereits vorhandenen, korrekten Model-Accessor verwenden
+  (`classification_status`, `status_color`, `status_label`, `sport_class_results_display` — siehe
+  `AthleteClassification::getStatusColorAttribute()` etc.), wie es `athletes/show.blade.php` an der
+  entsprechenden Stelle bereits richtig macht. **Lehre:** Bei dieser Inspection zuerst prüfen, ob die
+  Eigenschaft auf dem tatsächlichen Model überhaupt existiert (Model-Datei/Migration nachschauen), bevor man
+  sie wie die anderen zwei PhpStorm-Fallstricke oben als Fehlalarm abtut.
 
 ## Weitere Hinweise
 

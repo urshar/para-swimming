@@ -5,19 +5,19 @@
     Erwartet: $meet (optional), $nations, $autId.
 --}}
 <flux:field>
-    <flux:label>Name <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+    <flux:label>Name<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
     <flux:input name="name" value="{{ old('name', $meet->name ?? '') }}" required/>
     <flux:error name="name"/>
 </flux:field>
 
 <div class="grid grid-cols-2 gap-4">
     <flux:field>
-        <flux:label>Stadt <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+        <flux:label>Stadt<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
         <flux:input name="city" value="{{ old('city', $meet->city ?? '') }}" required/>
         <flux:error name="city"/>
     </flux:field>
     <flux:field>
-        <flux:label>Nation <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+        <flux:label>Nation<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
         <flux:select variant="listbox" searchable name="nation_id" required>
             @foreach($nations as $nation)
                 <flux:select.option value="{{ $nation->id }}"
@@ -32,15 +32,15 @@
 
 <div class="grid grid-cols-2 gap-4">
     <flux:field>
-        <flux:label>Startdatum <span class="text-red-500 dark:text-red-400">*</span></flux:label>
-        <flux:date-picker type="input" locale="de-AT" name="start_date"
+        <flux:label>Startdatum<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+        <flux:date-picker type="input" locale="de-AT" selectable-header name="start_date"
                     value="{{ old('start_date', isset($meet) ? $meet->start_date->format('Y-m-d') : '') }}"
                     required/>
         <flux:error name="start_date"/>
     </flux:field>
     <flux:field>
         <flux:label>Enddatum</flux:label>
-        <flux:date-picker type="input" locale="de-AT" name="end_date"
+        <flux:date-picker type="input" locale="de-AT" selectable-header name="end_date"
                     value="{{ old('end_date', isset($meet) && $meet->end_date ? $meet->end_date->format('Y-m-d') : '') }}" clearable/>
         <flux:error name="end_date"/>
     </flux:field>
@@ -48,7 +48,7 @@
 
 <div class="grid grid-cols-2 gap-4">
     <flux:field>
-        <flux:label>Bahnlänge <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+        <flux:label>Bahnlänge<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
         <flux:select variant="listbox" name="course" required>
             {{-- SCM zuerst: häufigste Bahnlänge bei österreichischen Wettkämpfen. --}}
             @foreach(['SCM' => 'SCM (25m)', 'LCM' => 'LCM (50m)', 'SCY' => 'SCY (Yards)', 'OPEN' => 'Freiwasser'] as $val => $label)
@@ -101,7 +101,7 @@
 
 <flux:field>
     <flux:label>Meldeschluss</flux:label>
-    <flux:date-picker type="input" locale="de-AT" name="entries_deadline"
+    <flux:date-picker type="input" locale="de-AT" selectable-header name="entries_deadline"
                 value="{{ old('entries_deadline', isset($meet) && $meet->entries_deadline ? $meet->entries_deadline->format('Y-m-d') : '') }}" clearable/>
     <flux:description class="mt-1!">Datum bis zu dem Vereine Meldungen einreichen können.</flux:description>
     <flux:error name="entries_deadline"/>

@@ -96,8 +96,8 @@
 
         @if($preview->rowCount() > 0)
             <div
-                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4">
-                <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4">
+                class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden mb-4 p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
                     <flux:table.columns>
                         <flux:table.column>Bewerb</flux:table.column>
                         <flux:table.column>Klasse</flux:table.column>

@@ -405,7 +405,7 @@
 
                     <flux:field class="w-40">
                         <flux:label>Datum</flux:label>
-                        <flux:date-picker type="input" locale="de-AT" wire:model="noteDate"/>
+                        <flux:date-picker type="input" locale="de-AT" selectable-header wire:model="noteDate"/>
                         <flux:error name="noteDate"/>
                     </flux:field>
 

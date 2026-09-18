@@ -18,3 +18,11 @@ it('behandelt ein unerwartetes Format ohne Fehler', function () {
     expect(SportClassSorter::key('unbekannt'))->toBe('UNBEKANNT')
         ->and(SportClassSorter::key(null))->toBe('');
 })->group('qualifying-time-lists-grouping');
+
+it('liefert die Sportklassen-Nummer unabhängig vom S/SB/SM-Präfix', function () {
+    expect(SportClassSorter::number('S14'))->toBe(14)
+        ->and(SportClassSorter::number('SB14'))->toBe(14)
+        ->and(SportClassSorter::number('SM14'))->toBe(14)
+        ->and(SportClassSorter::number('unbekannt'))->toBeNull()
+        ->and(SportClassSorter::number(null))->toBeNull();
+})->group('qualifying-time-lists-grouping');

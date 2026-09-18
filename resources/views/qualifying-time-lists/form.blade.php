@@ -136,7 +136,7 @@
                         </form>
                     </div>
 
-                    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6"
+                    <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 [--flux-bleed:1.5rem]"
                          x-data="qualifyingTimesFilter()">
                         <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Richtzeiten</h2>
                         <p class="text-xs text-zinc-400 mb-4">
@@ -183,53 +183,59 @@
                                         {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
                                     </h3>
 
-                                    @foreach($section['strokes'] as $strokeGroup)
-                                        <div class="mb-3" data-rzt-group>
-                                            <h4 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1 px-1">
-                                                {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
-                                            </h4>
-                                            <flux:table
-                                                class="[&_td:first-child]:ps-0 [&_th:first-child]:ps-0">
-                                                <flux:table.columns>
-                                                    <flux:table.column>Geschlecht</flux:table.column>
-                                                    <flux:table.column>Sportklasse</flux:table.column>
-                                                    <flux:table.column>Richtzeit</flux:table.column>
-                                                    <flux:table.column>Quelle</flux:table.column>
-                                                    <flux:table.column></flux:table.column>
-                                                </flux:table.columns>
-                                                <flux:table.rows>
-                                                    @foreach($strokeGroup['items'] as $time)
-                                                        <flux:table.row data-rzt-row
-                                                            data-rzt-gender="{{ $time->gender }}"
-                                                            data-rzt-sport-class="{{ $time->sport_class }}"
-                                                            data-rzt-stroke-id="{{ $time->stroke_type_id }}"
-                                                            data-rzt-distance="{{ $time->distance }}">
-                                                            <flux:table.cell>{{ $time->gender }}</flux:table.cell>
-                                                            <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
-                                                            <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
-                                                            <flux:table.cell>
-                                                                @if($time->isManual())
-                                                                    <flux:badge color="amber">Manuell</flux:badge>
-                                                                @else
-                                                                    <flux:badge color="blue">Berechnet</flux:badge>
-                                                                @endif
-                                                            </flux:table.cell>
-                                                            <flux:table.cell>
-                                                                <form method="POST"
-                                                                      action="{{ route('qualifying-time-lists.times.destroy', [$list, $time]) }}"
-                                                                      onsubmit="return confirm('Richtzeit wirklich löschen?');">
-                                                                    @csrf
-                                                                    @method('DELETE')
-                                                                    <flux:button type="submit" variant="ghost" size="sm"
-                                                                                 icon="trash" class="text-red-500!"/>
-                                                                </form>
-                                                            </flux:table.cell>
-                                                        </flux:table.row>
-                                                    @endforeach
-                                                </flux:table.rows>
-                                            </flux:table>
-                                        </div>
-                                    @endforeach
+                                    <flux:table bleed>
+                                        <flux:table.columns>
+                                            <flux:table.column>Geschlecht</flux:table.column>
+                                            <flux:table.column>Sportklasse</flux:table.column>
+                                            <flux:table.column>Richtzeit</flux:table.column>
+                                            <flux:table.column>Quelle</flux:table.column>
+                                            <flux:table.column></flux:table.column>
+                                        </flux:table.columns>
+                                        <flux:table.rows>
+                                            @foreach($section['strokes'] as $strokeGroup)
+                                                {{-- Trennzeile statt eigener Mini-Tabelle je Stil/Distanz — data-rzt-group
+                                                     verknüpft diese Zeile mit ihren Datenzeilen darunter (gleicher Wert),
+                                                     da beide jetzt Geschwister in derselben flux:table.rows sind, nicht
+                                                     mehr in einem gemeinsamen Container verschachtelt. --}}
+                                                <flux:table.row data-rzt-group-row
+                                                    data-rzt-group="{{ $loop->parent->index }}-{{ $loop->index }}">
+                                                    <flux:table.cell colspan="5"
+                                                        class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-900/40">
+                                                        {{ $strokeGroup['distance'].'m '.($strokeGroup['stroke']?->name_de ?? 'Unbekannte Lage') }}
+                                                    </flux:table.cell>
+                                                </flux:table.row>
+                                                @foreach($strokeGroup['items'] as $time)
+                                                    <flux:table.row data-rzt-row
+                                                        data-rzt-group="{{ $loop->parent->parent->index }}-{{ $loop->parent->index }}"
+                                                        data-rzt-gender="{{ $time->gender }}"
+                                                        data-rzt-sport-class="{{ $time->sport_class }}"
+                                                        data-rzt-stroke-id="{{ $time->stroke_type_id }}"
+                                                        data-rzt-distance="{{ $time->distance }}">
+                                                        <flux:table.cell>{{ $time->gender }}</flux:table.cell>
+                                                        <flux:table.cell class="font-mono">{{ $time->sport_class }}</flux:table.cell>
+                                                        <flux:table.cell class="font-mono">{{ $time->formatted_value ?? '–' }}</flux:table.cell>
+                                                        <flux:table.cell>
+                                                            @if($time->isManual())
+                                                                <flux:badge color="amber">Manuell</flux:badge>
+                                                            @else
+                                                                <flux:badge color="blue">Berechnet</flux:badge>
+                                                            @endif
+                                                        </flux:table.cell>
+                                                        <flux:table.cell>
+                                                            <form method="POST"
+                                                                  action="{{ route('qualifying-time-lists.times.destroy', [$list, $time]) }}"
+                                                                  onsubmit="return confirm('Richtzeit wirklich löschen?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <flux:button type="submit" variant="ghost" size="sm"
+                                                                             icon="trash" class="text-red-500!"/>
+                                                            </form>
+                                                        </flux:table.cell>
+                                                    </flux:table.row>
+                                                @endforeach
+                                            @endforeach
+                                        </flux:table.rows>
+                                    </flux:table>
                                 </div>
                             @endforeach
                         @endif
