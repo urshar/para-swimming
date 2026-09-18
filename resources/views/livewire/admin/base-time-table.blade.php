@@ -29,31 +29,44 @@
     @endif
 
     @php
-        // Bei vielen Sportklassen-Spalten wird die Tabelle breiter als der Bildschirm (Erik,
-        // 2026-09-03). Ab mehr als 10 Spalten deshalb in 10er-Blöcken auf Tabs aufteilen,
-        // statt alles in eine horizontal scrollende Tabelle zu zwängen.
-        $sportClassChunks = $sportClasses->chunk(10)->values();
+        // Einzelbewerbe und Staffeln getrennt: Staffeln haben nur für Staffel-Sportklassen (S14, S15,
+        // S20, S21, S34, S49) Werte und erschienen in den Einzel-Tabs sonst als leere, schmälere
+        // Zeilen (Erik, 2026-09-18). Einzel-Spalten weiter in 10er-Blöcken (Bildschirmbreite),
+        // Staffeln in einem eigenen Tab (nur ~6 Spalten, kein Chunking).
+        $individualChunks = $individualSportClasses->chunk(10)->values();
+        $hasRelay = $relayDisciplines->isNotEmpty() && $relaySportClasses->isNotEmpty();
+        $panelCount = $individualChunks->count() + ($hasRelay ? 1 : 0);
     @endphp
 
-    @if($sportClassChunks->count() > 1)
+    @if($panelCount > 1)
         <flux:tab.group>
             <flux:tabs>
-                {{-- Label aus den tatsächlichen Sportklassen-Codes des Blocks (erster…letzter),
-                     nicht aus der Spaltenposition: bei lückenhaften Datensätzen (z.B. OeBSV 2021
-                     ohne S16–S19) wäre "11–19" irreführend. "…" statt "–" signalisiert bewusst,
-                     dass die Klassen dazwischen nicht lückenlos sind (Erik, 2026-09-18). --}}
-                @foreach($sportClassChunks as $i => $chunk)
+                {{-- Einzel-Tabs: Label aus den echten Sportklassen-Codes (erster…letzter), "…" statt
+                     "–", da nicht lückenlos (z.B. OeBSV 2021 ohne S16–S19). --}}
+                @foreach($individualChunks as $i => $chunk)
                     <flux:tab name="cols-{{ $i }}">{{ $chunk->first()->code === $chunk->last()->code ? $chunk->first()->code : $chunk->first()->code.'…'.$chunk->last()->code }}</flux:tab>
                 @endforeach
+                @if($hasRelay)
+                    <flux:tab name="relay">Staffeln</flux:tab>
+                @endif
             </flux:tabs>
 
-            @foreach($sportClassChunks as $i => $chunk)
+            @foreach($individualChunks as $i => $chunk)
                 <flux:tab.panel name="cols-{{ $i }}">
-                    @include('livewire.admin._base-time-table-grid', ['sportClasses' => $chunk, 'chunkIndex' => $i])
+                    @include('livewire.admin._base-time-table-grid', ['disciplines' => $individualDisciplines, 'sportClasses' => $chunk, 'chunkIndex' => $i])
                 </flux:tab.panel>
             @endforeach
+            @if($hasRelay)
+                <flux:tab.panel name="relay">
+                    @include('livewire.admin._base-time-table-grid', ['disciplines' => $relayDisciplines, 'sportClasses' => $relaySportClasses, 'chunkIndex' => 'relay'])
+                </flux:tab.panel>
+            @endif
         </flux:tab.group>
+    @elseif($hasRelay && $individualChunks->isEmpty())
+        {{-- Nur Staffeln vorhanden --}}
+        @include('livewire.admin._base-time-table-grid', ['disciplines' => $relayDisciplines, 'sportClasses' => $relaySportClasses, 'chunkIndex' => 'relay'])
     @else
-        @include('livewire.admin._base-time-table-grid', ['sportClasses' => $sportClasses, 'chunkIndex' => 0])
+        {{-- Nur Einzelbewerbe (≤10 Klassen): eine Tabelle ohne Tabs --}}
+        @include('livewire.admin._base-time-table-grid', ['disciplines' => $individualDisciplines, 'sportClasses' => $individualChunks->first() ?? collect(), 'chunkIndex' => 0])
     @endif
 </div>
