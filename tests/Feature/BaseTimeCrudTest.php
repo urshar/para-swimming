@@ -192,6 +192,50 @@ describe('BaseTimeTable Sportklassen-Tab-Beschriftung', function () {
             ->assertSee('S1…S10')      // erster Block: S1..S10
             ->assertSee('S11…S21')     // zweiter Block: S11..S15, S20, S21 — letzter Code ist S21
             ->assertDontSee('11–19')   // altes, positionsbasiertes Label
-            ->assertDontSee('11–21');
+            ->assertDontSee('11–21')
+            ->assertDontSee('Staffeln'); // reiner Einzeldatensatz → kein Staffel-Tab
+    })->group('base-time-crud');
+});
+
+// ── BaseTimeTable: Einzel/Staffel-Trennung ──────────────────────────────────────
+
+describe('BaseTimeTable Einzel/Staffel-Trennung', function () {
+    it('zeigt Staffeln in einem eigenen Tab und hält sie aus den Einzel-Tabs heraus', function () {
+        $free = StrokeType::create(['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'lenex_code' => 'FREE', 'code' => 'FREE']);
+        $version = BaseTimeVersion::create(['label' => 'V1', 'valid_from' => '2021-01-01', 'valid_until' => null]);
+        $category = BaseTimeCategory::create(['code' => 'SC_MIXED', 'course' => 'SCM', 'gender' => 'X', 'label' => 'SC Mixed']);
+
+        $einzel = BaseTimeDiscipline::create(['code' => '50FR', 'distance' => 50, 'relay_count' => 1, 'stroke_type_id' => $free->id]);
+        $staffel = BaseTimeDiscipline::create(['code' => '4x25FR', 'distance' => 25, 'relay_count' => 4, 'stroke_type_id' => $free->id]);
+
+        // 12 Einzelklassen (→ 2 Einzel-Chunks), 2 reine Staffelklassen (S14, S34).
+        foreach (range(1, 12) as $n) {
+            $sc = BaseTimeSportClass::create(['code' => "S$n", 'sort_order' => $n]);
+            BaseTime::create([
+                'base_time_version_id' => $version->id, 'base_time_category_id' => $category->id,
+                'base_time_discipline_id' => $einzel->id, 'base_time_sport_class_id' => $sc->id,
+                'value_centiseconds' => 3000, 'value_type' => BaseTime::TYPE_MANUAL,
+            ]);
+        }
+        foreach (['S14', 'S34'] as $i => $code) {
+            $sc = BaseTimeSportClass::create(['code' => $code, 'sort_order' => 20 + $i]);
+            BaseTime::create([
+                'base_time_version_id' => $version->id, 'base_time_category_id' => $category->id,
+                'base_time_discipline_id' => $staffel->id, 'base_time_sport_class_id' => $sc->id,
+                'value_centiseconds' => 6000, 'value_type' => BaseTime::TYPE_MANUAL,
+            ]);
+        }
+
+        $html = Livewire::actingAs(makeAdmin_bt())
+            ->test(BaseTimeTable::class, ['version' => $version, 'category' => $category])
+            ->html();
+
+        // Eigener Staffel-Tab; Staffelbewerb NUR im Staffel-Panel (1x), Einzelbewerb in beiden
+        // Einzel-Chunk-Panels (2x) und nicht im Staffel-Panel; reine Staffelklasse S34 taucht nicht
+        // als leere Spalte in den Einzel-Tabs auf (1x als Header im Staffel-Panel).
+        expect($html)->toContain('Staffeln')
+            ->and(substr_count($html, '4x25FR'))->toBe(1)
+            ->and(substr_count($html, '50FR'))->toBe(2)
+            ->and(substr_count($html, 'S34'))->toBe(1);
     })->group('base-time-crud');
 });

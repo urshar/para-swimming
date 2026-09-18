@@ -31,25 +31,24 @@ Aufwand (kleine zuerst):
 
 3. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
 4. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
-5. `feature/base-time-table-relay-split` — „Basiswert-Tabelle: Einzel- und Staffelbewerbe in getrennte Tabs" unten
-6. `feature/base-time-meetmanager-export` — „MeetManager-Text-Export der Basiswerte" unten
-7. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-8. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
-9. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
-10. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
-11. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-12. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
+5. `feature/base-time-meetmanager-export` — „MeetManager-Text-Export der Basiswerte" unten
+6. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
+7. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
+8. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
+9. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
+10. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+11. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter „Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-13. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
+12. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
     wie geöffnet)
-14. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+13. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
     echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-15. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+14. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
     Vorstand noch offen ist
 
 ## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
@@ -399,40 +398,6 @@ Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
 
 **Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
 dann ggf. erneute Prüfung mit genau diesem Programm.
-
-## Basiswert-Tabelle: Einzel- und Staffelbewerbe in getrennte Tabs
-
-**Seit:** Live-Test nach `feature/base-time-table-tab-labels` (18.09.2026), OeBSV-2021-Ansicht.
-
-**Was stört:** In der Kategorie-Ansicht (`livewire.admin.base-time-table`) sind Zeilen = Bewerbe (Einzel **und**
-Staffel gemischt), Spalten = Sportklassen. Staffelbewerbe (z. B. `4x25FR`) haben nur für Staffel-Sportklassen (S14,
-S15, S20, S21, S34, S49) Basiswerte — für S1–S13 existiert die Kombination gar nicht. Im Tab „S1…S10" sind die
-Staffelzeilen daher komplett leer und wirken schmäler als die Einzelzeilen (in leeren Zeilen fehlt das
-`<flux:input>`, das sonst die Zeilenhöhe trägt — `resources/views/livewire/admin/_base-time-table-grid.blade.php:34`).
-Erik: Staffeln sollen in einem eigenen Tab stehen und aus den Einzel-Tabs herausgenommen werden.
-
-**Vorschlag (18.09.2026):** Bewerbe nach `relay_count` trennen:
-
-- Einzel-Tabs: nur `relay_count = 1`, nur Sportklassen mit Einzel-Basiswerten als Spalten, weiter in 10er-Blöcken.
-- Ein „Staffeln"-Tab: nur `relay_count > 1`, nur Staffel-Sportklassen als Spalten (~6, kein Chunking nötig).
-
-Konkret: `loadDisciplines()`/`loadSportClasses()` in `BaseTimeTable.php` je einmal für Einzel/Staffel; in
-`base-time-table.blade.php` Tab-Set = Einzel-Chunks **+** ein „Staffeln"-Panel (nur wenn Staffeln existieren), jeweils
-das bestehende Grid-Partial unverändert; eigener `wire:key`-Namespace fürs Staffel-Panel (z. B. `chunkIndex = 'relay'`),
-damit Livewire-Morph die Zeilen nicht verwechselt.
-
-**Warum eigener Punkt / Gruppe 2:** Struktur-Änderung an der Anzeige mit offenen Design-Fragen, kein Copy-Paste.
-
-**Wer entscheidet:** Erik —
-
-1. Flache Tabs `[S1…S10][S11…S21][Staffeln]` (Vorschlag, einfach) oder eine zweistufige Einzel/Staffel-Umschaltung
-   darüber?
-2. Staffel-Tab-Beschriftung „Staffeln" oder code-basiert (`S14…S49`)?
-3. Staffel-Spalten auch chunk-en, falls es je >10 Staffelklassen gäbe (aktuell 6 — vermutlich nie nötig)?
-
-**Zum Schließen nötig:** Entscheidung zu obigem, dann Split in `BaseTimeTable.php` + Tab-Aufbau in
-`base-time-table.blade.php` (Grid-Partial unverändert wiederverwenden), Livewire-Test analog `BaseTimeCrudTest`
-(Einzel-Tab enthält keine Staffelzeilen, „Staffeln"-Tab zeigt nur Staffelbewerbe/-klassen), live prüfen.
 
 ## MeetManager-Text-Export der Basiswerte (zusätzlich zum Excel-Export)
 

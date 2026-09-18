@@ -68,9 +68,19 @@ class BaseTimeTable extends Component
 
     public function render(): View
     {
+        $disciplines = $this->loadDisciplines();
+        $sportClasses = $this->loadSportClasses();
+
+        // Einzelbewerbe und Staffeln getrennt darstellen: Staffeln haben nur für Staffel-Sportklassen
+        // Basiswerte und erschienen in den Einzel-Tabs sonst als leere Zeilen (Erik, 2026-09-18).
+        $individualDisciplines = $disciplines->where('relay_count', 1)->values();
+        $relayDisciplines = $disciplines->where('relay_count', '>', 1)->values();
+
         return view('livewire.admin.base-time-table', [
-            'disciplines' => $this->loadDisciplines(),
-            'sportClasses' => $this->loadSportClasses(),
+            'individualDisciplines' => $individualDisciplines,
+            'relayDisciplines' => $relayDisciplines,
+            'individualSportClasses' => $this->sportClassesFor($individualDisciplines, $sportClasses),
+            'relaySportClasses' => $this->sportClassesFor($relayDisciplines, $sportClasses),
         ]);
     }
 
@@ -104,6 +114,30 @@ class BaseTimeTable extends Component
             ->get()
             ->sortBy(fn (BaseTimeSportClass $sportClass) => SportClassSorter::key($sportClass->code))
             ->values();
+    }
+
+    /**
+     * Filtert aus $allSportClasses jene heraus, die für die übergebenen Bewerbe in dieser
+     * Version/Kategorie tatsächlich Basiswerte haben — behält deren (bereits sortierte) Reihenfolge.
+     *
+     * @param  Collection<int, BaseTimeDiscipline>  $disciplines
+     * @param  Collection<int, BaseTimeSportClass>  $allSportClasses
+     * @return Collection<int, BaseTimeSportClass>
+     */
+    private function sportClassesFor(Collection $disciplines, Collection $allSportClasses): Collection
+    {
+        if ($disciplines->isEmpty()) {
+            return collect();
+        }
+
+        $classIds = BaseTime::query()
+            ->where('base_time_version_id', $this->version->id)
+            ->where('base_time_category_id', $this->category->id)
+            ->whereIn('base_time_discipline_id', $disciplines->pluck('id'))
+            ->distinct()
+            ->pluck('base_time_sport_class_id');
+
+        return $allSportClasses->whereIn('id', $classIds)->values();
     }
 
     private function loadCells(): void
