@@ -106,6 +106,38 @@ Dateien nach Priorität mit Erik abstimmen, falls nicht alle auf einmal gewünsc
 **Zum Schließen nötig:** Jede der neun Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen, live
 verifizieren, danach aus dieser Liste streichen.
 
+## „Zurück"-Buttons kontextsensitiv statt fest auf den Index
+
+**Seit:** `feature/admin-ui-header-pattern` (19.09.2026), Rückmeldung Erik beim Header-Rework Gruppe 1 (records).
+
+**Was fehlt:** Viele „Zurück"-Buttons führen fest auf die jeweilige Index-/Listenseite (`records.index`,
+`meets.index` …), nicht auf die tatsächlich vorher aufgerufene Ansicht. Beispiel: gefilterte Rekordliste → Detail →
+„Bearbeiten"; der „Zurück"-Button auf dem Formular springt auf `records.index` statt zurück auf die Detailseite bzw.
+die vorher gewählte (gefilterte) Liste. `athletes/show` macht es bereits richtig — es merkt sich die zuletzt
+aufgerufene Listen-URL in der Session (`athletes.list_url`, siehe `AdminUiAthletesTest`); records/meets/… tun das
+nicht. `records/import-preview` zeigt korrekt auf den vorherigen Schritt (`records.import`) — der Rest zeigt stumpf
+auf den Index.
+
+Konkret bei `records/show`: Der Back-Link übergibt **nur** `type` (`records.index?type=…`), aber keinen der übrigen
+Filter (`sportClass`, `ageGroup`, `gender`, `course`, `category`, `relay`, `status`). Die `records.index` fällt ohne
+`sportClass`-Parameter auf ihren Default zurück und zeigt dann **immer S01/SB01/SM01**, unabhängig davon, aus welcher
+Sportklasse/Ansicht der Nutzer kam. Das „Zurück" landet also gerade nicht in der Darstellung, aus der man kam — es
+reicht nicht, nur `type` mitzugeben, es muss der komplette Filter-Zustand (bzw. die vollständige vorherige URL)
+wiederhergestellt werden.
+
+**Warum zurückgestellt:** Der Header-Rework (`feature/admin-ui-header-pattern`) ist bewusst rein kosmetisch
+(Anordnung/Farbe/Höhe der Buttons) und fasst die Back-**Ziele** nicht an. Kontextsensitive Rücknavigation ist ein
+eigenes Verhalten: Referrer/letzte-Liste je Bereich in der Session merken (wie bei Athleten) oder gezielt
+`url()->previous()` mit sinnvollem Fallback — plus die Entscheidung, wie weit „zurück" gehen soll (unmittelbar
+vorherige Seite vs. gemerkte Listenansicht inkl. Filter).
+
+**Wer entscheidet:** Erik — pro Bereich das gewünschte Verhalten (immer zur letzten Liste inkl. Filter? zur
+unmittelbar vorherigen Seite? nur bestimmte Flows?).
+
+**Zum Schließen nötig:** Das Muster von `athletes.list_url` (Session-gespeicherte Rücksprung-URL) auf die übrigen
+Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
+-Back-Links auf das gemerkte Ziel umstellen.
+
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
 **Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).
