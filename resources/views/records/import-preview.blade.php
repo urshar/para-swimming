@@ -42,7 +42,8 @@
             // unbekannten Athleten — siehe resources/js/record-import-preview.js.
             $clubsById = $clubs->mapWithKeys(fn ($c) => [(string) $c->id => $c->display_name])->all();
             $initialClubSelections = collect($preview['unknown_clubs'])
-                ->mapWithKeys(fn ($c) => [$c['key'] => 'new'])->all();
+                ->mapWithKeys(fn ($c) => [$c['key'] => $c['preselect'] !== null ? (string) $c['preselect'] : 'new'])
+                ->all();
             $previewConfig = ['clubsById' => $clubsById, 'initialSelections' => $initialClubSelections];
         @endphp
 
@@ -71,14 +72,29 @@
                                         <span class="font-mono text-xs text-zinc-400 ml-1">{{ $club['code'] }}</span>
                                         <flux:badge size="sm" color="zinc"
                                                     class="ml-1">{{ $club['nation'] }}</flux:badge>
+                                        @if($club['preselect'] !== null)
+                                            <flux:badge size="sm" color="green" class="ml-1">Vorschlag vorbelegt</flux:badge>
+                                        @endif
                                     </span>
+                                    @php $clubSuggestedIds = array_map(fn ($s) => $s['id'], $club['suggestions']); @endphp
                                     <flux:select variant="listbox" name="clubs[{{ $club['key'] }}]" size="sm" class="w-96"
                                                  data-club-key="{{ $club['key'] }}"
                                                  x-model="clubSelections[$el.dataset.clubKey]">
-                                        <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
+                                        <flux:select.option value="new" :selected="is_null($club['preselect'])">Neu anlegen</flux:select.option>
                                         <flux:select.option value="skip">Überspringen</flux:select.option>
+                                        @if(!empty($club['suggestions']))
+                                            <flux:select.group label="Vorschlag — gleicher/ähnlicher Name">
+                                                @foreach($club['suggestions'] as $sug)
+                                                    <flux:select.option value="{{ $sug['id'] }}"
+                                                        :selected="$club['preselect'] === $sug['id']">
+                                                        {{ $sug['label'] }}@if($sug['code']) ({{ $sug['code'] }})@endif
+                                                    </flux:select.option>
+                                                @endforeach
+                                            </flux:select.group>
+                                        @endif
                                         <flux:select.group label="Bestehendem Verein zuordnen (falsch geschrieben?)">
                                             @foreach($clubs as $existingClub)
+                                                @continue(in_array($existingClub->id, $clubSuggestedIds, true))
                                                 <flux:select.option
                                                     value="{{ $existingClub->id }}">{{ $existingClub->display_name }}</flux:select.option>
                                             @endforeach
@@ -130,27 +146,46 @@
                                         @endif
                                         <flux:badge size="sm" color="blue"
                                                     class="ml-1">{{ $ath['sport_class'] }}</flux:badge>
+                                        @if($ath['preselect'] !== null)
+                                            <flux:badge size="sm" color="green" class="ml-1">Jahrgang-Treffer vorbelegt</flux:badge>
+                                        @elseif(!empty($ath['suggestions']))
+                                            <flux:badge size="sm" color="amber" class="ml-1">Vorschlag</flux:badge>
+                                        @endif
                                     </span>
                                     @php
+                                        // Athleten, die bereits als Vorschlag (Jahres-Fallback) gelistet sind, nicht
+                                        // noch einmal in der Anfangsbuchstaben-Gruppe zeigen.
+                                        $suggestedIds = array_map(fn ($s) => $s['id'], $ath['suggestions']);
                                         // Bestehende Athleten auf denselben Anfangsbuchstaben des Nachnamens
                                         // eingegrenzt — sonst müsste man sich durch 500+ Namen scrollen.
                                         $firstLetter = mb_strtoupper(mb_substr($ath['last_name'], 0, 1));
                                         $matchingAthletes = $athletes->filter(
                                             fn ($a) => mb_strtoupper(mb_substr($a->last_name, 0, 1)) === $firstLetter
+                                                && ! in_array($a->id, $suggestedIds, true)
                                         );
+                                        $suggestGroupLabel = $ath['birth_date'] === ''
+                                            ? 'Vorschlag — gleicher Name (Geburtsdatum im File fehlt)'
+                                            : 'Vorschlag — gleicher Name & Geburtsjahr';
                                     @endphp
                                     <flux:select variant="listbox" name="athletes[{{ $ath['key'] }}]" size="sm" class="w-96">
-                                        <flux:select.option value="new" :selected="true">Neu anlegen</flux:select.option>
+                                        <flux:select.option value="new" :selected="is_null($ath['preselect'])">Neu anlegen</flux:select.option>
                                         <flux:select.option value="skip">Überspringen</flux:select.option>
+                                        @if(!empty($ath['suggestions']))
+                                            <flux:select.group label="{{ $suggestGroupLabel }}">
+                                                @foreach($ath['suggestions'] as $sug)
+                                                    <flux:select.option value="{{ $sug['id'] }}"
+                                                        :selected="$ath['preselect'] === $sug['id']">
+                                                        {{ $sug['label'] }}@if($sug['birth_date']) (*{{ $sug['birth_date'] }})@endif
+                                                    </flux:select.option>
+                                                @endforeach
+                                            </flux:select.group>
+                                        @endif
                                         @if($matchingAthletes->isNotEmpty())
                                             <flux:select.group
                                                 label="Bestehendem Athlet zuordnen (Nachname {{ $firstLetter }}…)">
                                                 @foreach($matchingAthletes as $existingAthlete)
                                                     <flux:select.option value="{{ $existingAthlete->id }}">
-                                                        {{ $existingAthlete->display_name }}
-                                                        @if($existingAthlete->birth_date)
-                                                            (*{{ $existingAthlete->birth_date->format('Y') }})
-                                                        @endif
+                                                        {{ $existingAthlete->display_name }}@if($existingAthlete->birth_date) (*{{ $existingAthlete->birth_date->format('d.m.Y') }})@endif
                                                     </flux:select.option>
                                                 @endforeach
                                             </flux:select.group>

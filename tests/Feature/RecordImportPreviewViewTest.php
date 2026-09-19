@@ -1,8 +1,9 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\View as FacadesView;
 use Illuminate\Support\ViewErrorBag;
 
 uses(RefreshDatabase::class)->group('record-import-preview');
@@ -19,7 +20,8 @@ function makePreview_rip(): array
         'pending_records' => [],
         'skipped' => 0,
         'unknown_clubs' => [
-            ['key' => 'FFST', 'code' => 'FFST', 'name' => 'Flying Flippers Schwimmteam', 'nation' => 'AUT'],
+            ['key' => 'FFST', 'code' => 'FFST', 'name' => 'Flying Flippers Schwimmteam', 'nation' => 'AUT',
+                'suggestions' => [], 'preselect' => null],
         ],
         'unknown_athletes' => [
             [
@@ -28,23 +30,24 @@ function makePreview_rip(): array
                 'birth_date' => '2000-01-01', 'gender' => 'F', 'license' => '',
                 'club_key' => 'FFST', 'club_name' => 'Flying Flippers Schwimmteam',
                 'club_db_id' => null, 'sport_class' => 'S10', 'db_id' => null,
+                'suggestions' => [], 'preselect' => null,
             ],
         ],
     ];
 }
 
-function renderPreview_rip(): string
+function previewView_rip(): View
 {
     // $errors wird sonst von der Web-Middleware (ShareErrorsFromSession) geteilt; beim direkten
     // Rendern ist es nicht gesetzt und Flux' select-Variante bricht darauf ab.
-    View::share('errors', new ViewErrorBag);
+    FacadesView::share('errors', new ViewErrorBag);
 
     return view('records.import-preview', [
         'preview' => makePreview_rip(),
         'clubs' => collect([(object) ['id' => 5, 'display_name' => 'Flying Flippers']]),
         'athletes' => collect(),
         'fileName' => 'oebsv.lxf',
-    ])->render();
+    ]);
 }
 
 it('verdrahtet die Import-Vorschau für die Live-Vereinsnamen-Aktualisierung', function () {
@@ -53,7 +56,10 @@ it('verdrahtet die Import-Vorschau für die Live-Vereinsnamen-Aktualisierung', f
     ]);
 
     $this->actingAs($admin);
-    $html = renderPreview_rip();
+    // Über $this->view rendern (render() @throws Throwable → Inspection greift über die
+    // untypisierte Property nicht).
+    $this->view = previewView_rip();
+    $html = $this->view->render();
 
     expect($html)
         // Seitenweite Alpine-Komponente + Konfiguration (bestehende Vereine + Vorbelegung)
