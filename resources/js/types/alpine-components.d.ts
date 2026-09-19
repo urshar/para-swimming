@@ -107,6 +107,21 @@ declare function standardCell(): Record<string, unknown>;
 declare function documentForm(config: DocumentFormConfig): Record<string, unknown>;
 
 /**
+ * Inhalt des data-config-Attributs der Rekord-Import-Vorschau.
+ *
+ * Kein Argument von recordImportPreview(): stammt aus PHP und kommt über ein data-Attribut,
+ * damit x-data reines JavaScript bleibt.
+ */
+interface RecordImportPreviewConfig {
+    /** Vereins-ID (String) → Anzeigename der bestehenden Vereine. */
+    clubsById: Record<string, string>;
+    /** club_key → Vorbelegung des Vereins-Selects ('new'/'skip'/Vereins-ID). */
+    initialSelections: Record<string, string>;
+}
+
+declare function recordImportPreview(): Record<string, unknown>;
+
+/**
  * Kein `export` in dieser Datei: nur eine globale Skriptdatei — also eine ohne import oder
  * export — stellt ihre Deklarationen global bereit. Mit einem export würde sie zum Modul,
  * und genau die Auflösung, um die es hier geht, wäre wieder weg.

@@ -8,6 +8,7 @@ import meetPointSystems from './meet-point-systems';
 import qualificationFilters from './qualification-filters';
 import qualifyingTimesFilter from './qualifying-times-filter';
 import qualifyingTimesShowFilter from './qualifying-times-show-filter';
+import recordImportPreview from './record-import-preview';
 import relayEntryForm from './relay-entry-form';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
@@ -33,6 +34,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('qualificationFilters', qualificationFilters);
     window.Alpine.data('qualifyingTimesFilter', qualifyingTimesFilter);
     window.Alpine.data('qualifyingTimesShowFilter', qualifyingTimesShowFilter);
+    window.Alpine.data('recordImportPreview', recordImportPreview);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);
