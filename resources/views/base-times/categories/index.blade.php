@@ -22,9 +22,14 @@
                                  variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
                         Importieren
                     </flux:button>
+                    {{-- Gesamte Version (alle Kategorien); je Kategorie: Buttons in der Detailansicht. --}}
                     <flux:button href="{{ route('base-times.export', $version) }}"
                                  variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
-                        Exportieren
+                        Excel
+                    </flux:button>
+                    <flux:button href="{{ route('base-times.export.text', $version) }}"
+                                 variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
+                        MeetManager-Text
                     </flux:button>
                 </div>
             </div>

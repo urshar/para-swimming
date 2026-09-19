@@ -19,8 +19,11 @@ Tabellen (`base_time_versions`, `_categories`, `_disciplines`, `_sport_classes`,
 |----------------------------------|--------------------------------------------------------|
 | Punkteberechnung                 | `App\Services\WorldAquaticsPointsService`              |
 | Basiswert-Berechnung (Ableitung) | `App\Services\BaseTimeCalculationService`              |
-| Excel-Import                     | `App\Services\BaseTimeImportService`                   |
-| Excel-Export                     | `App\Services\BaseTimeExportService`                   |
+| Import-Basis (Persistenz)        | `App\Services\AbstractBaseTimeImportService`          |
+| Excel-Import (World Aquatics)    | `App\Services\BaseTimeImportService`                   |
+| Text-Import (MeetManager)        | `App\Services\BaseTimeTextImportService`               |
+| Excel-Export (World Aquatics)    | `App\Services\BaseTimeExportService`                   |
+| Text-Export (MeetManager)        | `App\Services\BaseTimeTextExportService`               |
 | Versionen (CRUD)                 | `App\Http\Controllers\BaseTimeVersionController`       |
 | Kategorien (Ansicht)             | `App\Http\Controllers\BaseTimeCategoryController`      |
 | Import / Export (HTTP)           | `BaseTimeImportController`, `BaseTimeExportController` |
@@ -58,8 +61,33 @@ Ablauf: `parse(filePath)` liest die Datei und liefert eine **Vorschau** ohne DB-
 `importIntoExistingVersion(filePath, version)` importiert in eine bestehende Version (in einer Transaktion).
 Sportklassen-Codes, die in der Excel-Datei abweichend heißen, werden über eine Mapping-Tabelle normalisiert.
 
+Die dateiformat-**unabhängige** Persistenz (`import`/`importIntoExistingVersion`, Überlappungsprüfung,
+Schreiben von Kategorien/Bewerben/Sportklassen/Regeln/Basiswerten) liegt in der abstrakten Basisklasse
+`AbstractBaseTimeImportService`; die konkreten Import-Services liefern nur ein formatspezifisches `parse()`, das
+dieselbe Struktur (`categories`/`disciplines`/`sportClasses`/`cells`/`warnings`) zurückgibt.
+
 Der HTTP-Ablauf (`BaseTimeImportController`): `showForm()` → `preview(Request)`
-→ `run()`.
+→ `run()`. Das Format wird an der Datei-Endung erkannt (`.xlsx` → Excel, `.txt` → MeetManager-Text) und der
+passende Parser gewählt.
+
+## MeetManager-Text-Import — `BaseTimeTextImportService`
+
+Importiert **zusätzlich** zum Excel-Format die von Splash MeetManager/Hy-Tek exportierte „Points"-Textdatei
+(`COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME`, siehe Fixture
+`tests/Fixtures/base-times/502-para-2021.txt`). Erbt die Persistenz von `AbstractBaseTimeImportService`.
+
+Abbildung (bewusst code-kompatibel zum Excel-Import, damit dieselben Kategorie-/Bewerbs-/Sportklassen-Zeilen
+genutzt werden):
+
+- `COURSE`+`GENDER` → dieselben Kategorie-Codes (`SC_WOMEN`, `SC_MEN`, `SC_MIXED`, `LC_*`).
+- `RELAYCOUNT`/`DISTANCE`/`STROKE` → Excel-kompatibler Bewerbs-Code (`25FR`, `4x25ME`, `150IM`); Einzel-Lagen → `IM`,
+  Staffel-Lagen → `ME`.
+- `HANDICAP`: Einzel als reine Zahl → `S`-Präfix ergänzt (`1` → `S1`), Staffeln bereits mit `S`-Präfix (`S14`).
+  Sonderwert `X` (Einzel) bzw. `SX` (Staffel) = WA-1000-Punkte-Basiswerte ohne Behinderung → **übersprungen**
+  (`GENDER=X` ist davon unberührt und bezeichnet eine gültige Mixed-Staffel).
+- `MINTIME` (`MM:SS.cs`) → Basiswert; Sentinel `99:99.99` → `NOT_APPLICABLE`. `MAXTIME` wird ignoriert.
+
+Das Textformat kennt keine Formeln — alle Werte sind `MANUAL`/`NOT_APPLICABLE`, es entstehen keine Ableitungsregeln.
 
 ## Basiswert-Berechnung — `BaseTimeCalculationService`
 
@@ -119,11 +147,31 @@ Die Matrix wird über die Livewire-Komponente
 `recalculate()` stößt die Neuberechnung der `CALCULATED`-Werte über
 `BaseTimeCalculationService` an.
 
+Darstellung der Matrix:
+
+- **Einzel- und Staffelbewerbe** stehen in **getrennten Tabs**: Einzel (`relay_count = 1`) je 10er-Block der
+  Sportklassen, Staffeln (`relay_count > 1`) in einem eigenen „Staffeln"-Tab (nur die Staffel-Sportklassen). So
+  erscheinen leere Staffelzeilen nicht in den Einzel-Tabs.
+- Die Einzel-Tab-Beschriftung leitet sich aus den **tatsächlichen** Sportklassen-Codes des Blocks ab
+  (erster…letzter, z. B. `S11…S49`), nicht aus der Spaltenposition.
+- **Export-Buttons je Kontext:** in der Kategorie-Detailansicht exportieren sie nur **diese** Kategorie, in der
+  Kategorien-Übersicht und der Versionsliste die **gesamte** Version — jeweils als Excel oder MeetManager-Text.
+
 ## Excel-Export — `BaseTimeExportService`
 
-`export(BaseTimeVersion)` schreibt die Version als `.xlsx` und gibt den Dateipfad zurück; `downloadFilename(version)`
-liefert den Download-Namen (z. B. `OeBSV-Base-Times_2021-2026.xlsx`). Auslieferung über
-`BaseTimeExportController::export`.
+`export(BaseTimeVersion, ?BaseTimeCategory)` schreibt die Version als `.xlsx` und gibt den Dateipfad zurück; ist eine
+Kategorie übergeben, wird nur deren Arbeitsblatt geschrieben, sonst alle. `downloadFilename(version, ?category)`
+liefert den Download-Namen (z. B. `OeBSV-Base-Times_2021-2026.xlsx` bzw. `…_LC-Men.xlsx`). Auslieferung über
+`BaseTimeExportController::export` (gesamte Version) bzw. `::categoryExport` (eine Kategorie).
+
+## MeetManager-Text-Export — `BaseTimeTextExportService`
+
+Umkehrung des Text-Imports (Round-Trip): `export(BaseTimeVersion, ?BaseTimeCategory)` schreibt die Version — oder nur
+eine Kategorie — als `.txt` im MeetManager-„Points"-Format (voller Kopf inkl. `Formula=CUBED`/`Options=HANDICAP`,
+`<BASETIMES>`, Spaltenkopf, je Basiswert eine `;`-Zeile). Rückabbildung: Kategorie → COURSE/GENDER, Bewerb →
+RELAYCOUNT/DISTANCE/STROKE (MEDLEY für IM und ME), Sportklasse → HANDICAP (Einzel ohne, Staffel mit `S`-Präfix),
+`NOT_APPLICABLE` → `99:99.99`. `buildContent()` liefert den reinen Text (ohne Datei), `downloadFilename(version,
+?category)` den `.txt`-Namen. Auslieferung über `BaseTimeExportController::exportText` bzw. `::categoryExportText`.
 
 ## Routen
 
@@ -135,7 +183,8 @@ Alle unter `auth`. Prefix `base-times`:
 | `resource versions` (ohne `show`)                                        | `base-times.versions.*`            |
 | `GET /base-times/{version}/categories`                                   | `base-times.categories.index`      |
 | `GET /base-times/{version}/categories/{category}`                        | `base-times.categories.show`       |
-| `GET /base-times/{version}/export`                                       | `base-times.export`                |
+| `GET /base-times/{version}/export` · `…/export-text`                     | `base-times.export[.text]`         |
+| `GET /base-times/{version}/categories/{category}/export[-text]`          | `base-times.categories.export[.text]` |
 
 Zusätzlich (außerhalb des Prefix): `POST /meets/{meet}/recalculate-points`
 → `meets.recalculate-points`.
@@ -146,5 +195,7 @@ Zusätzlich (außerhalb des Prefix): `POST /meets/{meet}/recalculate-points`
 - `tests/Feature/BaseTimeCalculationServiceTest.php` — Ableitung der
   `CALCULATED`-Werte.
 - `tests/Feature/BaseTimeImportServiceTest.php` — Excel-Import und Zell-Typen.
-- `tests/Feature/BaseTimeExportServiceTest.php` — Excel-Export.
-- `tests/Feature/BaseTimeCrudTest.php` — Versionen/Kategorien-CRUD.
+- `tests/Feature/BaseTimeTextImportServiceTest.php` — MeetManager-Text-Import (inkl. Fixture-Regression).
+- `tests/Feature/BaseTimeExportServiceTest.php` — Excel-Export (inkl. Kategorie-Scoping).
+- `tests/Feature/BaseTimeTextExportServiceTest.php` — MeetManager-Text-Export inkl. Round-Trip gegen die Fixture.
+- `tests/Feature/BaseTimeCrudTest.php` — Versionen/Kategorien-CRUD und `BaseTimeTable`-Tabs (Einzel/Staffel, Labels).

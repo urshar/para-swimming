@@ -93,4 +93,28 @@ describe('BaseTimeExportService', function () {
             ->and($sheet->getStyle('B3')->getFont()->getColor()->getRGB())->toBe('ED7D31')
             ->and($sheet->getStyle('B2')->getFont()->getColor()->getRGB())->not->toBe('ED7D31');
     })->group('base-time-export');
+
+    it('exportiert ohne Kategorie alle Arbeitsblätter, mit Kategorie nur deren eines', function () {
+        $stroke = StrokeType::create(['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'lenex_code' => 'FREE', 'code' => 'FREE']);
+        $version = BaseTimeVersion::create(['label' => 'V1', 'valid_from' => '2021-01-01', 'valid_until' => null]);
+        $men = BaseTimeCategory::create(['code' => 'LC_MEN', 'course' => 'LCM', 'gender' => 'M', 'label' => 'LC Men']);
+        $women = BaseTimeCategory::create(['code' => 'LC_WOMEN', 'course' => 'LCM', 'gender' => 'F', 'label' => 'LC Women']);
+        $disc = BaseTimeDiscipline::create(['code' => '100FR', 'distance' => 100, 'relay_count' => 1, 'stroke_type_id' => $stroke->id]);
+        $s1 = BaseTimeSportClass::create(['code' => 'S1', 'sort_order' => 1]);
+        foreach ([$men, $women] as $cat) {
+            BaseTime::create(['base_time_version_id' => $version->id, 'base_time_category_id' => $cat->id,
+                'base_time_discipline_id' => $disc->id, 'base_time_sport_class_id' => $s1->id,
+                'value_centiseconds' => 6000, 'value_type' => BaseTime::TYPE_MANUAL]);
+        }
+
+        $service = new BaseTimeExportService;
+
+        $this->exportedPath = $service->export($version);
+        expect(IOFactory::load($this->exportedPath)->getSheetNames())->toBe(['LC Men', 'LC Women']);
+        unlink($this->exportedPath);
+
+        $this->exportedPath = $service->export($version, $women);
+        expect(IOFactory::load($this->exportedPath)->getSheetNames())->toBe(['LC Women'])
+            ->and($service->downloadFilename($version, $women))->toBe('OeBSV-Base-Times_V1_LC-Women.xlsx');
+    })->group('base-time-export');
 });

@@ -37,22 +37,18 @@ class BaseTimeExportService
     ];
 
     /**
-     * Exportiert die Version als .xlsx und gibt den absoluten Dateipfad zurück.
+     * Exportiert die Version als .xlsx und gibt den absoluten Dateipfad zurück. Ist $category
+     * gesetzt, wird nur diese eine Kategorie geschrieben, sonst alle Kategorien der Version.
      *
      * @throws Exception
      */
-    public function export(BaseTimeVersion $version): string
+    public function export(BaseTimeVersion $version, ?BaseTimeCategory $category = null): string
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->removeSheetByIndex(0);
 
-        $categories = BaseTimeCategory::query()
-            ->whereHas('baseTimes', fn ($q) => $q->where('base_time_version_id', $version->id))
-            ->orderBy('code')
-            ->get();
-
-        foreach ($categories as $category) {
-            $this->writeCategorySheet($spreadsheet, $version, $category);
+        foreach ($this->categoriesFor($version, $category) as $cat) {
+            $this->writeCategorySheet($spreadsheet, $version, $cat);
         }
 
         $filename = 'base-time-export_'.$version->id.'_'.uniqid().'.xlsx';
@@ -67,12 +63,30 @@ class BaseTimeExportService
         return $path;
     }
 
-    /** Dateiname zum Download, z.B. "OeBSV-Base-Times_2021-2026.xlsx". */
-    public function downloadFilename(BaseTimeVersion $version): string
+    /** Dateiname zum Download, z.B. "OeBSV-Base-Times_2021-2026.xlsx" bzw. "..._LC-Men.xlsx" je Kategorie. */
+    public function downloadFilename(BaseTimeVersion $version, ?BaseTimeCategory $category = null): string
     {
         $slug = preg_replace('/[^A-Za-z0-9_-]+/', '-', $version->label);
+        $suffix = $category !== null ? '_'.preg_replace('/[^A-Za-z0-9_-]+/', '-', $category->label) : '';
 
-        return "OeBSV-Base-Times_$slug.xlsx";
+        return "OeBSV-Base-Times_$slug$suffix.xlsx";
+    }
+
+    /**
+     * Die zu exportierenden Kategorien: nur die übergebene, sonst alle mit Basiswerten in der Version.
+     *
+     * @return Collection<int, BaseTimeCategory>
+     */
+    private function categoriesFor(BaseTimeVersion $version, ?BaseTimeCategory $category): Collection
+    {
+        if ($category !== null) {
+            return collect([$category]);
+        }
+
+        return BaseTimeCategory::query()
+            ->whereHas('baseTimes', fn ($q) => $q->where('base_time_version_id', $version->id))
+            ->orderBy('code')
+            ->get();
     }
 
     private function writeCategorySheet(

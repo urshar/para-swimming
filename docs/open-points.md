@@ -31,24 +31,23 @@ Aufwand (kleine zuerst):
 
 3. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
 4. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
-5. `feature/base-time-meetmanager-export` — „MeetManager-Text-Export der Basiswerte" unten
-6. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-7. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
-8. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
-9. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
-10. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-11. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
+5. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
+6. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
+7. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
+8. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
+9. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+10. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter „Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-12. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
+11. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
     wie geöffnet)
-13. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+12. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
     echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-14. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+13. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
     Vorstand noch offen ist
 
 ## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
@@ -398,29 +397,6 @@ Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
 
 **Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
 dann ggf. erneute Prüfung mit genau diesem Programm.
-
-## MeetManager-Text-Export der Basiswerte (zusätzlich zum Excel-Export)
-
-**Seit:** Live-Test nach `feature/base-times-text-import` (18.09.2026) — Erik möchte Basiswerte auch ins
-MeetManager-Format exportieren können.
-
-**Was fehlt:** `base-times/{version}/export` (`BaseTimeExportController`/`BaseTimeExportService`) liefert bislang nur
-die World-Aquatics-**Excel**-Datei zurück. Gewünscht ist zusätzlich der Export einer Version in das
-MeetManager/Hy-Tek-„Points"-**Textformat** — dasselbe `COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME`-
-Format, das `BaseTimeTextImportService` seit `feature/base-times-text-import` liest (also ein Round-Trip).
-
-**Warum eigener Punkt:** Spiegelbild-Feature zum Import — eigener Export-Service + Format-Umschalter in der UI, kein
-Teil des Import-Branches.
-
-**Wer entscheidet:** Erik — wie das Export-Zielformat gewählt wird (zweiter Button „Als MeetManager-Text" neben
-„Exportieren", oder Format-Dropdown), und ob die Kopf-Metadaten (`Formula`/`Id`/`Name`/…) mit sinnvollen Werten
-geschrieben oder weggelassen werden.
-
-**Zum Schließen nötig:** Neuer `BaseTimeTextExportService` (Umkehrung von `BaseTimeTextImportService`:
-Kategorie→COURSE/GENDER, Bewerbs-Code→RELAYCOUNT/DISTANCE/STROKE inkl. IM/ME→MEDLEY, Sportklasse→HANDICAP mit
-S-Präfix-Rückbau bei Einzel, NOT_APPLICABLE→`99:99.99`), Route/Controller um einen Format-Parameter erweitern,
-UI-Umschalter in `livewire/admin/base-time-table.blade.php`, Tests analog `BaseTimeTextImportServiceTest` (idealerweise
-Round-Trip: Import der Fixture → Export → erneuter Import ergibt dieselben Zellen).
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 
