@@ -277,6 +277,17 @@ SCM, wie schon bei der Jahresbestzeit), `single-entry-form.js` um das zusätzlic
 
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
 
+**Teil B (Matching-Vorschläge) erledigt (19.09.2026, `feature/record-import-match-suggestions`):** Der
+Jahres-Fallback für Athleten ist umgesetzt (Name + Geschlecht + Geburtsjahr bei `JJJJ-01-01`-Platzhalter/
+Datums-Abweichung; Name + Geschlecht bei leerem Datum), zusätzlich **Vereins-Vorschläge** (exakter
+normalisierter Name/Code oder Wortgrenzen-Präfix) und eine **Namens-Normalisierung** (Leerraum um
+Bindestriche, „Weber-Treiber" ↔ „Weber - Treiber"). Nicht exakt gefundene Athleten/Vereine bekommen in der
+Import-Vorschau **vorbelegte Zuordnungs-Vorschläge** (nur bei genau einem eindeutigen Treffer), das volle
+Geburtsdatum wird angezeigt — siehe `RecordImportService::suggestAthletes()`/`suggestClubs()` und
+`docs/specs/records.md`. **Offen bleibt dieser Punkt für:** Teil A (Club-Konflikt-Erkennung nach dem Import,
+also `Athlete.club_id` ≠ LENEX-Verein) **und** die persistierte, jederzeit abarbeitbare Review-Liste (eigene
+Tabelle/Report statt nur Flash/Vorschau).
+
 **Seit:** Admin-UI-Rework Phase 10, Rückfragen zu Saram Stephan / Hochenberger Philip / Rottmann Kilian in
 `oebsv.lxf` (31.08.2026). Ursprünglich zwei getrennte Punkte, auf Wunsch von Erik zusammengelegt ("so dass wir das in
 einem machen können") — beide brauchen dieselbe Grundlage: Eine persistierte, abarbeitbare Review-Liste nach dem

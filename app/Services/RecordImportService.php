@@ -12,6 +12,7 @@ use App\Models\StrokeType;
 use App\Models\SwimRecord;
 use App\Support\TimeParser;
 use Exception;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use SimpleXMLElement;
@@ -66,6 +67,9 @@ class RecordImportService
 
     /** Nation Cache: code → id */
     private array $nationCache = [];
+
+    /** Vereins-Cache für die Vorschlagssuche (suggestClubs) */
+    private ?Collection $clubsCache = null;
 
     // ── Öffentliche API ───────────────────────────────────────────────────────
 
@@ -343,6 +347,7 @@ class RecordImportService
 
                         if (! $athlete && ! isset($seenAthleteKeys[$athKey])) {
                             $seenAthleteKeys[$athKey] = true;
+                            $suggestions = $this->suggestAthletes($lastName, $firstName, $birthDate, $athGender);
                             $unknownAthletes[$athKey] = [
                                 'key' => $athKey,
                                 'last_name' => $lastName,
@@ -355,6 +360,17 @@ class RecordImportService
                                 'club_db_id' => $clubData['db_id'] ?? null,  // bereits bekannte DB-ID
                                 'sport_class' => $sportClass,
                                 'db_id' => null,
+                                // Vorschläge für den nicht exakt gefundenen Athleten (Jahres-Fallback).
+                                // Vorbelegung nur bei genau einem Jahr-Treffer mit vorhandenem Geburtsdatum;
+                                // bei leerem Geburtsdatum nie vorbelegen (nur anbieten).
+                                'suggestions' => $suggestions->map(fn (Athlete $a) => [
+                                    'id' => $a->id,
+                                    'label' => $a->display_name,
+                                    'birth_date' => $a->birth_date?->format('d.m.Y'),
+                                ])->all(),
+                                'preselect' => ($birthDate !== '' && $suggestions->count() === 1)
+                                    ? $suggestions->first()->id
+                                    : null,
                             ];
                         }
 
@@ -563,11 +579,19 @@ class RecordImportService
 
         if (! $club && ! isset($seenClubKeys[$clubKey])) {
             $seenClubKeys[$clubKey] = true;
+            $suggestions = $this->suggestClubs($clubCode, $clubName);
             $unknownClubs[$clubKey] = [
                 'key' => $clubKey,
                 'code' => $clubCode,
                 'name' => $clubName,
                 'nation' => $clubNation,
+                // Vorschläge für den nicht gefundenen Verein; Vorbelegung nur bei genau einem Treffer.
+                'suggestions' => $suggestions->map(fn (Club $c) => [
+                    'id' => $c->id,
+                    'label' => $c->display_name,
+                    'code' => $c->code,
+                ])->all(),
+                'preselect' => $suggestions->count() === 1 ? $suggestions->first()->id : null,
             ];
         }
 
@@ -642,15 +666,132 @@ class RecordImportService
         }
 
         if ($lastName && $firstName && $birthDate) {
-            return Athlete::where(DB::raw('LOWER(last_name)'), mb_strtolower($lastName))
-                ->where(DB::raw('LOWER(first_name)'), mb_strtolower($firstName))
-                ->where('birth_date', $birthDate)
+            $normLast = $this->normalizeName($lastName);
+            $normFirst = $this->normalizeName($firstName);
+
+            // Nach Geburtsdatum + Geschlecht vorfiltern (schmal), dann den Namen normalisiert in PHP
+            // vergleichen: toleriert Leerraum um Bindestriche ("Weber-Treiber" ↔ "Weber - Treiber")
+            // und ist bei der Kleinschreibung Unicode-fest (SQLites LOWER kann nur ASCII).
+            // whereDate statt ->where(): portabel (MySQL wie SQLite), robust bei Uhrzeit-Anteil.
+            return Athlete::whereDate('birth_date', $birthDate)
                 ->where('gender', $gender)
                 ->whereNull('deleted_at')
-                ->first();
+                ->get()
+                ->first(fn (Athlete $a) => $this->normalizeName($a->last_name) === $normLast
+                    && $this->normalizeName($a->first_name) === $normFirst);
         }
 
         return null;
+    }
+
+    /**
+     * Vereins-Kandidaten für einen NICHT gefundenen Verein — nur als Vorschlag in der
+     * Import-Vorschau, nie automatisch übernommen. Nation wird bewusst ignoriert (bei
+     * Rekordfiles praktisch immer AUT). Zwei Stufen:
+     *   - stark: normalisierter Name/Kurzname exakt, oder Code exakt (case-insensitiv)
+     *   - schwach: mehrwortiges Wortgrenzen-Präfix ("Flying Flippers Schwimmteam" ↔ "Flying Flippers")
+     *
+     * @return Collection<int, Club>
+     */
+    private function suggestClubs(string $code, string $name): Collection
+    {
+        $normName = $this->normalizeName($name);
+        $normCode = mb_strtolower(trim($code));
+
+        if ($normName === '' && $normCode === '') {
+            return collect();
+        }
+
+        return $this->allClubs()->filter(function (Club $c) use ($normName, $normCode) {
+            $cName = $this->normalizeName((string) $c->name);
+            $cShort = $this->normalizeName((string) $c->short_name);
+            $cCode = mb_strtolower(trim((string) $c->code));
+
+            // stark: exakter Name/Kurzname oder exakter Code
+            if ($normName !== '' && ($cName === $normName || ($cShort !== '' && $cShort === $normName))) {
+                return true;
+            }
+            if ($normCode !== '' && $cCode !== '' && $cCode === $normCode) {
+                return true;
+            }
+
+            // schwach: mehrwortiges Wortgrenzen-Präfix (Name oder Kurzname)
+            foreach ([$cName, $cShort] as $candidate) {
+                if ($candidate !== '' && $this->isWordBoundaryPrefixMatch($normName, $candidate)) {
+                    return true;
+                }
+            }
+
+            return false;
+        })->values();
+    }
+
+    /** true, wenn der kürzere der beiden Namen ein mehrwortiges Wort-Präfix des längeren ist. */
+    private function isWordBoundaryPrefixMatch(string $a, string $b): bool
+    {
+        if ($a === '' || $b === '' || $a === $b) {
+            return false;
+        }
+        [$shorter, $longer] = strlen($a) <= strlen($b) ? [$a, $b] : [$b, $a];
+
+        return str_contains($shorter, ' ') && str_starts_with($longer, $shorter.' ');
+    }
+
+    /** Alle Vereine (memoisiert) für die Vorschlagssuche. */
+    private function allClubs(): Collection
+    {
+        return $this->clubsCache ??= Club::query()->get(['id', 'name', 'short_name', 'code']);
+    }
+
+    /**
+     * Normalisiert einen Namen für den Vergleich: Unicode-Kleinschreibung, Leerraum um
+     * Bindestriche entfernt ("Weber - Treiber" → "weber-treiber"), sonstiger Leerraum kollabiert.
+     */
+    private function normalizeName(string $name): string
+    {
+        $lower = mb_strtolower(trim($name));
+        $lower = preg_replace('/\s*-\s*/u', '-', $lower);
+
+        return preg_replace('/\s+/u', ' ', $lower);
+    }
+
+    /**
+     * Kandidaten für einen NICHT exakt gefundenen Athleten — nur als Vorschlag in der
+     * Import-Vorschau, nie automatisch übernommen. LENEX-Rekordfiles (z.B. ÖBSV) tragen bei
+     * unbekanntem Tag/Monat oft `JJJJ-01-01` oder ein leeres Geburtsdatum, wodurch der exakte
+     * Match in findAthlete() fehlschlägt, obwohl der Athlet in der DB steht.
+     *
+     * - leeres Geburtsdatum: Match über Name + Geschlecht (alle Jahrgänge)
+     * - sonst: Match über Name + Geschlecht + Geburtsjahr, portabel via SUBSTR(birth_date,1,4)
+     *   (kein YEAR() — läuft auf MySQL wie auf SQLite)
+     *
+     * @return Collection<int, Athlete>
+     */
+    private function suggestAthletes(
+        string $lastName,
+        string $firstName,
+        string $birthDate,
+        string $gender
+    ): Collection {
+        if (! $lastName || ! $firstName) {
+            return collect();
+        }
+
+        $normLast = $this->normalizeName($lastName);
+        $normFirst = $this->normalizeName($firstName);
+
+        // Nach Geschlecht (+ Geburtsjahr, wenn vorhanden) vorfiltern, dann den Namen normalisiert
+        // in PHP vergleichen — toleriert Leerraum um Bindestriche und ist Unicode-fest.
+        $query = Athlete::where('gender', $gender)->whereNull('deleted_at');
+
+        if ($birthDate !== '') {
+            $query->where(DB::raw('SUBSTR(birth_date, 1, 4)'), substr($birthDate, 0, 4));
+        }
+
+        return $query->oldest('birth_date')->get()
+            ->filter(fn (Athlete $a) => $this->normalizeName($a->last_name) === $normLast
+                && $this->normalizeName($a->first_name) === $normFirst)
+            ->values();
     }
 
     /**
