@@ -51,7 +51,11 @@
                                                  variant="ghost" size="sm" icon="arrow-up-tray" class="text-blue-500!"
                                                  title="In diese Version importieren (ersetzt vorhandene Basiswerte betroffener Kategorien)"/>
                                     <flux:button href="{{ route('base-times.export', $version) }}"
-                                                 variant="ghost" size="sm" icon="arrow-down-tray" class="text-emerald-500!"/>
+                                                 variant="ghost" size="sm" icon="arrow-down-tray" class="text-emerald-500!"
+                                                 title="Als Excel exportieren (gesamte Version)"/>
+                                    <flux:button href="{{ route('base-times.export.text', $version) }}"
+                                                 variant="ghost" size="sm" icon="document-text" class="text-emerald-500!"
+                                                 title="Als MeetManager-Text exportieren (gesamte Version)"/>
                                     <flux:button href="{{ route('base-times.versions.edit', $version) }}"
                                                  variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('base-times.versions.destroy', $version) }}"

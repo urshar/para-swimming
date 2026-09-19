@@ -9,9 +9,14 @@
             <flux:badge color="orange">orange = automatisch berechnet</flux:badge>
         </div>
         <div class="flex items-center gap-2">
-            <flux:button href="{{ route('base-times.export', $version) }}" variant="filled"
+            {{-- Nur diese Kategorie exportieren (gesamte Version: Buttons in der Kategorien-Übersicht). --}}
+            <flux:button href="{{ route('base-times.categories.export', [$version, $category]) }}" variant="filled"
                          icon="arrow-down-tray" size="sm" class="text-emerald-500!">
-                Exportieren
+                Excel
+            </flux:button>
+            <flux:button href="{{ route('base-times.categories.export.text', [$version, $category]) }}" variant="filled"
+                         icon="arrow-down-tray" size="sm" class="text-emerald-500!">
+                MeetManager-Text
             </flux:button>
             <flux:button wire:click="recalculate" variant="primary" icon="arrow-path" size="sm"
                          wire:loading.attr="disabled">

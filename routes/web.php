@@ -81,7 +81,15 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{version}/categories/{category}',
             [BaseTimeCategoryController::class, 'show'])->name('categories.show');
 
+        // Gesamte Version (aus der Kategorien-Übersicht)
         Route::get('{version}/export', [BaseTimeExportController::class, 'export'])->name('export');
+        Route::get('{version}/export-text', [BaseTimeExportController::class, 'exportText'])->name('export.text');
+
+        // Nur die angezeigte Kategorie (aus der Detailansicht)
+        Route::get('{version}/categories/{category}/export',
+            [BaseTimeExportController::class, 'categoryExport'])->name('categories.export');
+        Route::get('{version}/categories/{category}/export-text',
+            [BaseTimeExportController::class, 'categoryExportText'])->name('categories.export.text');
     });
 
     // ── Club-Einzelmeldungen ──────────────────────────────────────────────────
