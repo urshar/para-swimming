@@ -34,8 +34,11 @@ Das ist die bessere Variante: dort ist sie sinnvoll, in Alpine-Attributen nicht.
 Schritt 3 wird leicht vergessen — die Folge ist lediglich eine IDE-Meldung, kein Fehler zur
 Laufzeit.
 
-## jsconfig.json
+## tsconfig.json
 
-Die Datei im Projektwurzelverzeichnis sagt der IDE, welche Dateien zum JavaScript-Projekt
-gehören, und bindet dieses Verzeichnis ein. Nach dem Einspielen einmal
-*File → Invalidate Caches → Invalidate and Restart*, sonst greift sie nicht sofort.
+Die Datei im Projektwurzelverzeichnis (`allowJs: true`, `checkJs: false`) sagt der IDE, welche
+Dateien zum JavaScript-Projekt gehören, und bindet dieses Verzeichnis ein. Eine `tsconfig.json`
+statt einer `jsconfig.json`, weil PhpStorms TypeScript-Service für die Meldung
+„File is not included in any tsconfig.json" ausschließlich `tsconfig.json` berücksichtigt.
+Nach dem Einspielen einmal *File → Invalidate Caches → Invalidate and Restart*, sonst greift sie
+nicht sofort.

@@ -19,9 +19,7 @@ Drei Gruppen, in dieser Reihenfolge abzuarbeiten:
 **Gruppe 1 — sofort umsetzbar, keine offene Design-Frage** (Reihenfolge untereinander beliebig, auch parallel
 möglich):
 
-1. `feature/club-entries-live-club-name` — „Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren"
-   unten
-2. `feature/admin-ui-show-header-pattern` — „Titelleisten-Muster ... auf alle show.blade.php übertragen" unten
+1. `feature/admin-ui-show-header-pattern` — „Titelleisten-Muster ... auf alle show.blade.php übertragen" unten
 
 „Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
 mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
@@ -29,25 +27,25 @@ mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert 
 **Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
 Aufwand (kleine zuerst):
 
-3. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
-4. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
-5. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-6. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
-7. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
-8. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
-9. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-10. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
+2. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
+3. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
+4. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
+5. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
+6. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
+7. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
+8. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+9. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter „Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-11. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
+10. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
     wie geöffnet)
-12. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+11. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
     echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-13. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+12. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
     Vorstand noch offen ist
 
 ## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
@@ -72,32 +70,6 @@ vor der Umsetzung geklärt werden, nicht nebenbei in Phase 13 entschieden.
 **Zum Schließen nötig:** Neue Methode in `StatisticsService` (oder ein eigener Service) für eine
 Mehrjahres-Zeitreihe der gewünschten Kennzahlen, dann eine Grafik dafür im Dashboard (voraussichtlich
 `flux:chart`, siehe Phase 13 — dort erstmals im Projekt eingeführt).
-
-## Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren
-
-**Seit:** Admin-UI-Rework Phase 10, Rückfrage nach dem Vereins-/Athleten-Zuordnungs-Feature (30.08.2026).
-
-**Was fehlt:** Wird bei "Unbekannte Vereine" ein Verein einem bestehenden zugeordnet (z. B. "Flying Flippers
-Schwimmteam" → bestehender Verein "Flying Flippers"), bleibt der bei "Unbekannte Athleten" angezeigte Vereinsname (z. B.
-bei "Zimmermann, Elfriede") weiterhin der alte, unveränderte Text aus dem LENEX-File ("Flying Flippers Schwimmteam").
-Das sieht so aus, als würde die Zuordnung nicht greifen — **greift aber tatsächlich korrekt**: geprüft mit einem echten,
-in einer Transaktion zurückgerollten Importlauf gegen das beigefügte `oebsv.lxf` (Verein `FFST` → bestehende ID
-zugeordnet, `Zimmermann, Elfriede` neu angelegt) — die neu angelegte Athletin bekam korrekt `club_id` des zugeordneten
-bestehenden Vereins, nicht den unbekannten. Der Vereinsname-Text bei "Unbekannte Athleten" ist rein optisch veraltet,
-keine Datenkorrektheits-Lücke.
-
-**Warum zurückgestellt:** Für eine Live-Aktualisierung müsste der Vereins-Auswahlzustand aus dem Abschnitt
-"Unbekannte Vereine" mit der Textanzeige im (weiter unten liegenden, separaten) Abschnitt "Unbekannte Athleten"
-verknüpft werden — eine seitenweite Alpine-`x-data` mit einer geteilten `club_key → gewählter Wert`-Map, aus der sich
-der angezeigte Name bei jedem unbekannten Athleten reaktiv ableitet. Umfang ist größer als eine Ein-Zeilen-Korrektur;
-keine reine Bugfix-Zeile.
-
-**Wer entscheidet:** Keine offene Design-Frage — reine Umsetzungsarbeit, kein Entscheidungsbedarf.
-
-**Zum Schließen nötig:** Seitenweite `x-data` einführen (oder bestehende erweitern), `club_key`-Auswahl der
-Vereins-Selects per `x-model` in eine gemeinsame Map schreiben, Textanzeige bei "Unbekannte Athleten" durch einen
-reaktiven Ausdruck ersetzen, der bei `'new'`/`'skip'` den LENEX-Namen zeigt und bei einer zugeordneten bestehenden ID
-den Namen/Kurznamen dieses Vereins nachschlägt (Vereinsliste ist als `$clubs` bereits im DOM verfügbar).
 
 ## Titelleisten-Muster (Titel oben, "Zurück" links / Aktionen rechts in eigener Zeile) auf alle
 
