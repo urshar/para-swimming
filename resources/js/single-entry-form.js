@@ -76,13 +76,14 @@ export default function singleEntryForm(config) {
             }
         },
 
-        // ── Bestzeit übernehmen ───────────────────────────────────────────────
+        // ── Bestzeit per Klick übernehmen ─────────────────────────────────────
 
-        applyBestTime() {
-            const bt = this.bestTimes[this.meetCourse];
-            if (bt && bt.formatted && bt.formatted !== 'NT') {
-                this.entryTime = bt.formatted;
-                this.entryCourse = this.meetCourse;
+        // Klick auf eine angezeigte Zeit (Jahres- oder absolute Bestzeit, LCM/SCM) setzt sie als
+        // Meldezeit + zugehörige Bahnlänge. 'NT'/leere Zeiten werden ignoriert.
+        applyTime(course, formatted) {
+            if (formatted && formatted !== 'NT') {
+                this.entryTime = formatted;
+                this.entryCourse = course;
             }
         },
 

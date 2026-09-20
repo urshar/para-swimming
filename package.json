@@ -27,5 +27,8 @@
     },
     "allowScripts": {
         "core-js-pure@3.49.0": true
+    },
+    "devDependencies": {
+        "@types/alpinejs": "^3.13.11"
     }
 }

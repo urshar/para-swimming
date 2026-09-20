@@ -162,17 +162,11 @@ class ClubEntryController extends Controller
         $event = SwimEvent::where('id', $request->event_id)->where('meet_id', $meet->id)->firstOrFail();
         $athlete = $this->userClub()->athletes()->findOrFail($request->athlete_id);
 
-        $times = $this->entryService->bestTimes($athlete, $event, $meet);
+        $year = $this->entryService->bestTimes($athlete, $event, $meet);
 
         return response()->json([
-            'LCM' => [
-                'raw' => $times['LCM'],
-                'formatted' => $this->entryService->formatTime($times['LCM']) ?? 'NT',
-            ],
-            'SCM' => [
-                'raw' => $times['SCM'],
-                'formatted' => $this->entryService->formatTime($times['SCM']) ?? 'NT',
-            ],
+            'LCM' => $this->bestTimePayload($athlete, $event, $year['LCM'], 'LCM'),
+            'SCM' => $this->bestTimePayload($athlete, $event, $year['SCM'], 'SCM'),
         ]);
     }
 
@@ -576,6 +570,26 @@ class ClubEntryController extends Controller
             'clubs' => $clubs,
             'mode' => 'relay',
         ]);
+    }
+
+    /**
+     * Ein Kurs-Eintrag fürs Bestzeiten-Panel: Jahresbestzeit (bereits berechnet) + absolute
+     * Bestzeit (ohne Datumsfilter). Beide als klickbare Meldezeit-Vorschläge.
+     */
+    private function bestTimePayload(Athlete $athlete, SwimEvent $event, ?int $yearRaw, string $course): array
+    {
+        $absoluteRaw = $this->entryService->absoluteBestTime($athlete, $event, $course);
+
+        return [
+            'year' => [
+                'raw' => $yearRaw,
+                'formatted' => $this->entryService->formatTime($yearRaw) ?? 'NT',
+            ],
+            'absolute' => [
+                'raw' => $absoluteRaw,
+                'formatted' => $this->entryService->formatTime($absoluteRaw) ?? 'NT',
+            ],
+        ];
     }
 
     /**
