@@ -17,7 +17,8 @@
                         class="flex-1 min-w-48"/>
             <div class="ml-auto flex items-center gap-3">
                 @if(request()->hasAny(['meet_id', 'search']))
-                    <flux:button href="{{ route('entries.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                    <flux:button href="{{ route('entries.index') }}" variant="filled" icon="x-mark"
+                                 class="text-red-500!">Zurücksetzen</flux:button>
                 @endif
                 <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
             </div>
