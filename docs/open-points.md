@@ -635,3 +635,35 @@ Vereins-User-Satz reichen; Umgang mit Meldeschluss-Sperre; ob mehrere User je Ve
 **Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
 Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in
 `UserManagementTest`/`WpsQualification*`).
+
+## Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)
+
+**Seit:** `feature/meets-status-column` (20.09.2026), Wunsch Erik (Screenshot `meets/182`).
+
+**Was fehlt:** Auf der Wettkampf-Detailseite (`meets/show`) gibt es ein Kachel-Raster mit sechs Zählern
+(`meets/show.blade.php` ~Zeile 142): **Disziplinen**, **Einzelmeldungen**, **Staffelmeldungen**, **Ergebnisse**,
+**Teilnehmer**, **Clubs**. Diese Kacheln sollen **anklickbar** werden und jeweils die dahinterliegenden Daten
+**detailliert, auf diese Veranstaltung gefiltert** anzeigen. Beispiel: Klick auf „Ergebnisse" → Liste **aller**
+Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll dann wieder **auf diese
+`meets/show`-Seite** zurückführen (nicht auf den Index).
+
+**Warum zurückgestellt / Überschneidungen:** Teilweise existieren Zielansichten schon, teils nicht:
+- **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
+  kontextsensitive Rücksprung. Überschneidet sich mit „Ergebnisse einer Veranstaltung manuell erfassen & löschen".
+- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es noch nicht — das ist
+  genau der bestehende Punkt „Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
+  Einstieg dorthin.
+- **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen
+  (Anker) statt eine eigene Seite zu öffnen.
+- **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.
+
+Der geforderte **Rücksprung auf `meets/show`** hängt zudem am allgemeinen Punkt „‚Zurück'-Buttons kontextsensitiv"
+(oben) — hier konkret: die Detailseite muss sich merken, dass sie von `meets/show` kam.
+
+**Wer entscheidet:** Erik — welche der sechs Kacheln wirklich eine eigene Detailansicht bekommen (vs. Anker/kein
+Link), und ob das zusammen mit den bestehenden Punkten (meet-weite Meldeliste / Ergebnisse je Meet) in **einer**
+Meet-Detail-Arbeitsfläche gelöst wird.
+
+**Zum Schließen nötig:** Je Kachel entscheiden (eigene gefilterte Detailseite vs. Anker), Kacheln als Links
+gestalten, Zielansichten (soweit fehlend) bauen bzw. bestehende meet-filtern, und den Zurück-Button der
+Zielansichten auf `meets/show` zurückführen (Session-Rücksprung-URL wie bei `athletes.list_url`).

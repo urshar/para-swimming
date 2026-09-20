@@ -19,7 +19,18 @@ class MeetController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Meet::with('nation')->latest('start_date');
+        $query = Meet::with('nation')
+            ->withCount([
+                'swimEvents',
+                // Disziplinen OHNE Wertungsgruppen: sport_classes null oder leer (identische Definition
+                // wie LenexExportService). Die OR-Bedingung MUSS in eine eigene Closure, sonst bricht sie
+                // aus der korrelierten meet_id-Bedingung der withCount-Subquery aus und zählt meet-übergreifend.
+                'swimEvents as unconfigured_events_count' => fn ($q) => $q->where(
+                    fn ($q2) => $q2->whereNull('sport_classes')->orWhere('sport_classes', '')
+                ),
+            ])
+            ->withExists(['entries', 'relayEntries', 'results'])
+            ->latest('start_date');
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
