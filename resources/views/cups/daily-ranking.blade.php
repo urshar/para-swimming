@@ -5,7 +5,11 @@
 @section('content')
     <div class="max-w-4xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Cup-Tageswertung</h1>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Cup-Tageswertung</h1>
+            </div>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {{ $meet->name }} · {{ $meet->cup?->name }}
                 @if($calculatedAt)
@@ -13,27 +17,21 @@
                 @endif
             </p>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <flux:button href="{{ route('meets.cup-daily-ranking.pdf', $meet) }}" variant="filled"
+                             icon="printer" size="sm" class="text-purple-500!" target="_blank">
+                    PDF / Drucken
                 </flux:button>
-
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <flux:button href="{{ route('meets.cup-daily-ranking.pdf', $meet) }}" variant="ghost"
-                                 icon="printer" size="sm" class="text-purple-500!" target="_blank">
-                        PDF / Drucken
-                    </flux:button>
-                    @if(auth()->user()?->is_admin)
-                        <form method="POST" action="{{ route('meets.cup-daily-ranking.calculate', $meet) }}"
-                              x-data="{ submit() { if (confirm('Tageswertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
-                              @submit.prevent="submit()">
-                            @csrf
-                            <flux:button type="submit" variant="primary" icon="arrow-path" size="sm">
-                                Neu berechnen
-                            </flux:button>
-                        </form>
-                    @endif
-                </div>
+                @if(auth()->user()?->is_admin)
+                    <form method="POST" action="{{ route('meets.cup-daily-ranking.calculate', $meet) }}"
+                          x-data="{ submit() { if (confirm('Tageswertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
+                          @submit.prevent="submit()">
+                        @csrf
+                        <flux:button type="submit" variant="primary" icon="arrow-path" size="sm">
+                            Neu berechnen
+                        </flux:button>
+                    </form>
+                @endif
             </div>
         </div>
 

@@ -34,15 +34,14 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ isset($result) ? 'Ergebnis bearbeiten' : 'Ergebnis anlegen' }}
-            </h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
-            <div class="mt-4">
-                <flux:button href="{{ url()->previous() }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ url()->previous() }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {{ isset($result) ? 'Ergebnis bearbeiten' : 'Ergebnis anlegen' }}
+                </h1>
             </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">

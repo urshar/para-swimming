@@ -26,19 +26,17 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ $document ? 'Dokument bearbeiten' : 'Dokument hochladen' }}
-            </h1>
+            <div class="flex items-center gap-2">
+                <flux:button
+                    href="{{ $meet ? route('admin.meets.documents.index', $meet) : route('admin.documents.index') }}"
+                    variant="primary" icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {{ $document ? 'Dokument bearbeiten' : 'Dokument hochladen' }}
+                </h1>
+            </div>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {{ $meet ? $meet->name : 'Regelmente & Formulare — kein Veranstaltungsbezug' }}
             </p>
-            <div class="mt-4">
-                <flux:button
-                    href="{{ $meet ? route('admin.meets.documents.index', $meet) : route('admin.documents.index') }}"
-                    variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-            </div>
         </div>
 
         <form method="POST"
