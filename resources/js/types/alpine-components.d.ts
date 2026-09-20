@@ -41,6 +41,18 @@ interface SingleEntryFormConfig {
     entryCourse?: string;
 }
 
+/** Konfiguration für entryBestTimes — admin-seitige Einzelmeldungserfassung (entries/form). */
+interface EntryBestTimesConfig {
+    bestTimesUrl: string;
+    /** athlete_id -> club_id für die automatische Club-Vorbelegung. */
+    athleteClubMap?: Record<string, number>;
+    athleteId?: string;
+    clubId?: string;
+    eventId?: string;
+    entryTime?: string;
+    entryCourse?: string;
+}
+
 /** Konfiguration für relayEntryForm — Staffelmeldungs-Formular. */
 interface RelayEntryFormConfig {
     relayAthletesUrl: string;
@@ -97,6 +109,8 @@ interface StandardCellConfig {
 }
 
 declare function singleEntryForm(config: SingleEntryFormConfig): Record<string, unknown>;
+
+declare function entryBestTimes(config: EntryBestTimesConfig): Record<string, unknown>;
 
 declare function relayEntryForm(config: RelayEntryFormConfig): Record<string, unknown>;
 

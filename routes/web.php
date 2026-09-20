@@ -339,6 +339,9 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['events' => 'event']);
 
     // Meldungen
+    // Bestzeiten-AJAX fürs Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
+    Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])
+        ->name('meets.entries.best-times');
     Route::resource('entries', EntryController::class)->only(['index']);
     Route::resource('meets.entries', EntryController::class)
         ->shallow()

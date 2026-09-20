@@ -25,16 +25,15 @@ wurde entfernt.
 mitgenommen, nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
 
 **Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
-Aufwand (kleine zuerst). **Erledigt:** `feature/meets-status-column` ("Status-Spalte in meets/index", PR #13) und
-`feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip) — die zugehörigen Open Points
-unten wurden entfernt.
+Aufwand (kleine zuerst). **Erledigt:** `feature/meets-status-column` ("Status-Spalte in meets/index", PR #13),
+`feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip) und
+`feature/entries-best-times` ("Jahresbestzeiten im Admin-Formular" + "Absolute Bestzeit + Klick-Übernahme", PR #15 —
+beide Punkte zusammen in einem Branch) — die zugehörigen Open Points unten wurden entfernt.
 
-1. `feature/entries-year-best-times` — "Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-2. `feature/entries-absolute-best-time` — "Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick" unten
-3. `feature/relay-entry-time-suggestion` — "Meldezeit bei Staffelmeldungen ... herleiten" unten
-4. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
-5. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-6. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+1. `feature/relay-entry-time-suggestion` — "Meldezeit bei Staffelmeldungen ... herleiten" unten
+2. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
+3. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+4. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -132,7 +131,7 @@ ist unbrauchbar (Submit pro Zeichen, Fokusverlust). Braucht eine Entscheidung: D
 Suchfeld, oder Text erst bei "Enter"/Blur, Selects sofort. Außerdem: "Filtern"-Button ganz entfernen (wie
 `records/index`) oder als No-JS-Fallback behalten? Der "Zurücksetzen"-Button bleibt in jedem Fall.
 
-**Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der „Filtern"-Button verschwindet.
+**Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der "Filtern"-Button verschwindet.
 
 **Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
 Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
@@ -171,26 +170,6 @@ ob Staffeln von Anfang an mit reinsollen oder eine eigene Folge-Iteration werden
 **Zum Schließen nötig:** Entscheidung zu obigen Punkten, dann neue Route + Controller-Methode (liest `Entry` und
 `RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder ergänzt
 den bestehenden "Meldungen"-Button).
-
-## Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung
-
-**Seit:** Design-Feedback nach Admin-UI-Rework Phase 9 (29.08.2026).
-
-**Was fehlt:** `resources/views/club-entries/create.blade.php` (Vereinsmeldungen) zeigt nach Auswahl von Athlet und
-Disziplin ein Live-Panel "Jahresbestzeit (Vorjahr bis Meetbeginn)" mit LCM-/SCM-Zeit und einem
-"Bestzeit übernehmen"-Button (Alpine-Komponente `singleEntryForm`, gespeist über
-`club-entries.eligible-athletes` / `club-entries.best-times`). Die admin-seitige Meldungserfassung
-(`resources/views/entries/form.blade.php`, `EntryController`) hat dieses Feature nicht — Athlet/Disziplin werden dort
-über einfache `flux:select`-Dropdowns statt der Such-Alpine-Komponente gewählt, es gibt keinen Best-Times-Abruf.
-
-**Warum zurückgestellt:** Kein einzeiliger Fix — würde bedeuten, entweder die komplette Alpine-Suchkomponente aus
-club-entries in die admin-Meldungserfassung zu portieren (inkl. eigenem Best-Times-Endpoint-Aufruf für die
-admin-Variante, da `club-entries.best-times` an eine Club-Auswahl gebunden ist), oder ein eigenständiges, schlankeres
-Äquivalent zu bauen. Beides ist eine Design-Entscheidung, keine Bugfix-Zeile.
-
-**Zum Schließen nötig:** Entscheidung, ob die admin-Meldungserfassung dieselbe Such-UI wie club-entries bekommen soll
-(Konsistenz) oder eine eigene, einfachere Variante nur für den Best-Times-Hinweis; danach Umsetzung in
-`entries/form.blade.php` + ggf. neuer Controller-Endpoint (analog `ClubEntryController::bestTimes()`).
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 
@@ -255,36 +234,13 @@ Mitglieder, Kurzbahn/Langbahn-Umrechnung wie bei Einzelmeldungen).
 `relay-entry-form.js` liefern, dort als Vorschlag mit "Bestzeit übernehmen"-Button anzeigen (gleiches UI-Muster wie bei
 Einzelmeldungen).
 
-## Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick
-
-**Seit:** Admin-UI-Rework Phase 9, Design-Feedback nach Live-Test der Athleten-Auswahl; Übernahme-Verhalten
-entschieden am 20.09.2026.
-
-**Was fehlt:** In `club-entries/create.blade.php` wird bei Athlet+Event-Auswahl aktuell nur die *Jahresbestzeit*
-angezeigt (`ClubEntryService::bestTimes()` — Zeitraum Vorjahr bis Meetbeginn). Gewünscht: zusätzlich die *absolute
-Bestzeit* (ohne Datumsfilter) anzeigen. Die Backend-Methode dafür existiert bereits (`ClubEntryService::absoluteBestTime(Athlete $athlete, SwimEvent $event,
-string $course): ?int`), wird aber aktuell nirgends aufgerufen/ausgeliefert.
-
-**Entschieden (Erik, 20.09.2026):** Ein **Einfachklick** auf eine der beiden angezeigten Zeiten (Jahres- oder absolute
-Bestzeit) übernimmt sie direkt als Meldezeit. Der separate „Bestzeit übernehmen"- **Button entfällt** dadurch (wird
-durch das Klick-auf-Zeit-Verhalten ersetzt).
-
-**Wer entscheidet:** Keine offene Frage mehr — nur noch Umsetzung.
-
-**Zum Schließen nötig:** `ClubEntryController::bestTimes()` (AJAX-Endpunkt) um die absolute Bestzeit ergänzen (LCM +
-SCM, wie schon bei der Jahresbestzeit); `single-entry-form.js` um das zusätzliche Datenfeld und einen `@click`
--Handler auf **beide** Zeit-Anzeigen erweitern, der `entryTime`/`entryCourse` setzt (gleiche Methode wie das
-bestehende `applyBestTime()`); den bisherigen „Bestzeit übernehmen"-Button entfernen; `create.blade.php`-Anzeige um
-die zweite Zeile (absolute Bestzeit) ergänzen, beide Zeiten als klickbar kenntlich machen (Cursor/Hover). Live
-verifizieren, dass ein Klick die Meldezeit + Bahnlänge korrekt setzt.
-
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
 
 **Teil B (Matching-Vorschläge) erledigt (19.09.2026, `feature/record-import-match-suggestions`):** Der
 Jahres-Fallback für Athleten ist umgesetzt (Name + Geschlecht + Geburtsjahr bei `JJJJ-01-01`-Platzhalter/
 Datums-Abweichung; Name + Geschlecht bei leerem Datum), zusätzlich **Vereins-Vorschläge** (exakter
 normalisierter Name/Code oder Wortgrenzen-Präfix) und eine **Namens-Normalisierung** (Leerraum um
-Bindestriche, „Weber-Treiber" ↔ „Weber - Treiber"). Nicht exakt gefundene Athleten/Vereine bekommen in der
+Bindestriche, "Weber-Treiber" ↔ "Weber - Treiber"). Nicht exakt gefundene Athleten/Vereine bekommen in der
 Import-Vorschau **vorbelegte Zuordnungs-Vorschläge** (nur bei genau einem eindeutigen Treffer), das volle
 Geburtsdatum wird angezeigt — siehe `RecordImportService::suggestAthletes()`/`suggestClubs()` und
 `docs/specs/records.md`. **Offen bleibt dieser Punkt für:** Teil A (Club-Konflikt-Erkennung nach dem Import,
@@ -292,7 +248,7 @@ also `Athlete.club_id` ≠ LENEX-Verein) **und** die persistierte, jederzeit aba
 Tabelle/Report statt nur Flash/Vorschau).
 
 **Seit:** Admin-UI-Rework Phase 10, Rückfragen zu Saram Stephan / Hochenberger Philip / Rottmann Kilian in
-`oebsv.lxf` (31.08.2026). Ursprünglich zwei getrennte Punkte, auf Wunsch von Erik zusammengelegt ("so dass wir das in
+`oebsv.lxf` (31.08.2026). Ursprünglich zwei getrennte Punkte, auf Wunsch von Erik zusammengelegt ("sodass wir das in
 einem machen können") — beide brauchen dieselbe Grundlage: Eine persistierte, abarbeitbare Review-Liste nach dem
 Rekord-Import.
 
@@ -469,14 +425,14 @@ Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `AP
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework.
 
 **Was fehlt:** Die Nationenliste (`nations/index`) bietet aktuell nur **Bearbeiten** je Zeile. Es gibt keinen
-„Neu"-Button und kein „Löschen". Die Route ist bewusst beschränkt: `Route::resource('nations', …)->only(['index',
+"Neu"-Button und kein "Löschen". Die Route ist bewusst beschränkt: `Route::resource('nations', …)->only(['index',
 'edit', 'update'])` (`routes/web.php`) — **kein** `create`/`store`/`destroy`. Gewünscht: Nationen anlegen und löschen
 können.
 
 **Warum zurückgestellt — kein Header-/Cosmetic-Fix, sondern Feature mit Datenintegritäts-Frage:** Nationen sind
 IOC-Referenzdaten (geseedet) und werden von `athletes`, `clubs`, `swim_records`, `meets` u. a. per FK referenziert.
 Ein Löschen einer *verwendeten* Nation würde die FK-Constraint verletzen (DB-Fehler) — es braucht einen Guard (Löschen
-nur, wenn nichts darauf verweist; sonst Hinweis „N Athleten/Vereine hängen daran"). Zusätzlich offene
+nur, wenn nichts darauf verweist; sonst Hinweis "N Athleten/Vereine hängen daran"). Zusätzlich offene
 Fragen: Sollen Nationen überhaupt frei anlegbar sein (Kollision mit dem IOC-Seed / der `<x-flag>`-Code-Zuordnung),
 oder nur solche außerhalb des Seeds? Welche Felder beim Anlegen (Code, name_de, name_en, is_active)?
 
@@ -484,14 +440,14 @@ oder nur solche außerhalb des Seeds? Welche Felder beim Anlegen (Code, name_de,
 mit referenzierten Nationen beim Löschversuch umgegangen wird (blockieren mit Hinweis vs. gar nicht anbieten).
 
 **Zum Schließen nötig:** Routen (`create`/`store`/`destroy`) + Controller-Methoden mit Validierung (eindeutiger
-Code) ergänzen, Anlege-Formular-View, FK-sicherer Delete-Guard, „Neu"-Button im Header (Regel: Einzelbutton inline)
+Code) ergänzen, Anlege-Formular-View, FK-sicherer Delete-Guard, "Neu"-Button im Header (Regel: Einzelbutton inline)
 und Delete-Button je Zeile (rot, mit Confirm) in `nations/index`.
 
-## „Außer Konkurrenz" (AK) bei Meldungen setzbar machen
+## "Außer Konkurrenz" (AK) bei Meldungen setzbar machen
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
 
-**Was fehlt:** Bei Meldungen (Einzel **und** Staffel) soll ein Kennzeichen „außer Konkurrenz" (AK) setzbar sein.
+**Was fehlt:** Bei Meldungen (Einzel **und** Staffel) soll ein Kennzeichen "außer Konkurrenz" (AK) setzbar sein.
 
 **Entschieden (Erik, 20.09.2026):**
 
@@ -514,13 +470,13 @@ Ausschluss in der Cup-Wertungsberechnung, sichtbare AK-Markierung in Meldungs-/E
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
 
-**Was fehlt / zu klären:** Einzeln existiert schon einiges — `meets/show` hat „Ergebnis erfassen"
+**Was fehlt / zu klären:** Einzeln existiert schon einiges — `meets/show` hat "Ergebnis erfassen"
 (`meets.results.create`), `results/show` hat jetzt Bearbeiten/Löschen, und es gibt `results/index` (global,
 nach Meet filterbar). Gewünscht ist aber eine **auf eine ausgewählte Veranstaltung fokussierte** Möglichkeit,
 Ergebnisse **manuell zu erfassen und zu löschen** — vermutlich eine meet-gebundene Ergebnis-Sammelansicht (alle
 Ergebnisse des Meets auf einen Blick, mit Anlegen/Löschen), statt des globalen `results/index` mit Filter.
 
-**Warum zurückgestellt:** Überschneidet sich teils mit dem bestehenden Punkt „Gesamte, editierbare Meldeliste einer
+**Warum zurückgestellt:** Überschneidet sich teils mit dem bestehenden Punkt "Gesamte, editierbare Meldeliste einer
 Veranstaltung" (der betrifft aber **Meldungen**, nicht **Ergebnisse**) — zu klären, ob das eine gemeinsame
 Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll oder zwei getrennte Ansichten.
 
@@ -528,7 +484,7 @@ Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll oder zwei getren
 oder eine echte neue Sammelansicht pro Meet?) und ob Ergebnis- und Meldungsverwaltung zusammengelegt werden.
 
 **Zum Schließen nötig:** Nach Klärung: ggf. neue meet-gebundene Ergebnis-Übersicht (Liste aller `Result` eines Meets
-mit Inline-Löschen + „Ergebnis erfassen"), verlinkt von `meets/show`.
+mit Inline-Löschen + "Ergebnis erfassen"), verlinkt von `meets/show`.
 
 ## Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus
 
@@ -581,7 +537,7 @@ Vorschau/Bestätigung analog Rekord-Import.
 unterscheidet die App im Wesentlichen `is_admin` vs. Vereins-User mit `club_id`; die genauen Rechte sind über
 einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle definiert.
 
-**Entschieden — Vereins-User sollen dürfen (Erik, 20.09.2026):**
+**Entschieden — Vereins-User sollen, dürfen (Erik, 20.09.2026):**
 
 - **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss).
 - **Eigene Athleten pflegen** (Athleten des eigenen Vereins anlegen/bearbeiten).
@@ -589,8 +545,8 @@ einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle defini
 - **Vereinsstammdaten bearbeiten** (eigene Vereinsdaten wie Name/Kontakt pflegen).
 
 **Warum zurückgestellt:** Querschnitts-Feature über viele Controller/Policies/Views. Offene Detailfragen: Reicht die
-bestehende `club_id`-Bindung als „Rolle", oder braucht es echte Rollen (mehrere Rollentypen, evtl. mehrere User pro
-Verein mit unterschiedlichen Rechten)? Wie strikt ist „nur eigene" überall durchzusetzen (Policies für `Athlete`,
+bestehende `club_id`-Bindung als "Rolle", oder braucht es echte Rollen (mehrere Rollentypen, evtl. mehrere User pro
+Verein mit unterschiedlichen Rechten)? Wie strikt ist "nur eigene" überall durchzusetzen (Policies für `Athlete`,
 `Entry`, `RelayEntry`, `Result`, `Club`)? Sichtbarkeit im Menü je Rolle (viele Admin-Menüpunkte ausblenden).
 
 **Wer entscheidet:** Erik — ob ein echtes Mehr-Rollen-Modell nötig ist oder die vier Fähigkeiten oben als fester
@@ -607,23 +563,23 @@ Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zug
 **Was fehlt:** Auf der Wettkampf-Detailseite (`meets/show`) gibt es ein Kachel-Raster mit sechs Zählern
 (`meets/show.blade.php` ~Zeile 142): **Disziplinen**, **Einzelmeldungen**, **Staffelmeldungen**, **Ergebnisse**,
 **Teilnehmer**, **Clubs**. Diese Kacheln sollen **anklickbar** werden und jeweils die dahinterliegenden Daten
-**detailliert, auf diese Veranstaltung gefiltert** anzeigen. Beispiel: Klick auf „Ergebnisse" → Liste **aller**
+**detailliert, auf diese Veranstaltung gefiltert** anzeigen. Beispiel: Klick auf "Ergebnisse" → Liste **aller**
 Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll dann wieder **auf diese
 `meets/show`-Seite** zurückführen (nicht auf den Index).
 
 **Warum zurückgestellt / Überschneidungen:** Teilweise existieren Zielansichten schon, teils nicht:
 
 - **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
-  kontextsensitive Rücksprung. Überschneidet sich mit „Ergebnisse einer Veranstaltung manuell erfassen & löschen".
+  kontextsensitive Rücksprung. Überschneidet sich mit "Ergebnisse einer Veranstaltung manuell erfassen & löschen".
 - **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es noch nicht — das ist
-  genau der bestehende Punkt „Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
+  genau der bestehende Punkt "Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
   Einstieg dorthin.
 - **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
   statt eine eigene Seite zu öffnen.
 - **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.
 
-Der geforderte **Rücksprung auf `meets/show`** hängt zudem am allgemeinen Punkt „‚Zurück'-Buttons kontextsensitiv"
-(oben) — hier konkret: die Detailseite muss sich merken, dass sie von `meets/show` kam.
+Der geforderte **Rücksprung auf `meets/show`** hängt zudem am allgemeinen Punkt "'Zurück'-Buttons kontextsensitiv"
+(oben) — hier konkret: Die Detailseite muss sich merken, dass sie von `meets/show` kam.
 
 **Wer entscheidet:** Erik — welche der sechs Kacheln wirklich eine eigene Detailansicht bekommen (vs. Anker/kein
 Link), und ob das zusammen mit den bestehenden Punkten (meet-weite Meldeliste / Ergebnisse je Meet) in **einer**

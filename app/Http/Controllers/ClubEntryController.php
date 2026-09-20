@@ -137,14 +137,11 @@ class ClubEntryController extends Controller
 
         $athletes = $club->athletes()->with('sportClasses')->orderBy('last_name')->get();
 
-        // Bestzeiten für das aktuelle Event laden
-        $bestTimes = $this->entryService->bestTimes(
-            $entry->athlete,
-            $entry->swimEvent,
-            $meet
-        );
+        // Bestzeiten-Panel (Jahres- + absolute Bestzeit je Kurs, mit Datum) für Athlet + Disziplin
+        // dieser Meldung — server-seitig gerendert (Athlet/Disziplin sind hier fix).
+        $bestTimesPanel = $this->entryService->bestTimesForPanel($entry->athlete, $entry->swimEvent, $meet);
 
-        return view('club-entries.edit', compact('meet', 'club', 'entry', 'events', 'athletes', 'bestTimes'));
+        return view('club-entries.edit', compact('meet', 'club', 'entry', 'events', 'athletes', 'bestTimesPanel'));
     }
 
     /**
@@ -162,18 +159,7 @@ class ClubEntryController extends Controller
         $event = SwimEvent::where('id', $request->event_id)->where('meet_id', $meet->id)->firstOrFail();
         $athlete = $this->userClub()->athletes()->findOrFail($request->athlete_id);
 
-        $times = $this->entryService->bestTimes($athlete, $event, $meet);
-
-        return response()->json([
-            'LCM' => [
-                'raw' => $times['LCM'],
-                'formatted' => $this->entryService->formatTime($times['LCM']) ?? 'NT',
-            ],
-            'SCM' => [
-                'raw' => $times['SCM'],
-                'formatted' => $this->entryService->formatTime($times['SCM']) ?? 'NT',
-            ],
-        ]);
+        return response()->json($this->entryService->bestTimesForPanel($athlete, $event, $meet));
     }
 
     // ── Edit / Update ─────────────────────────────────────────────────────────

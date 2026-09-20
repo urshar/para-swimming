@@ -8,7 +8,9 @@ use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\SwimEvent;
+use App\Services\ClubEntryService;
 use App\Support\TimeParser;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -56,6 +58,26 @@ class EntryController extends Controller
             ->get();
 
         return view('entries.form', compact('meet', 'swimEvents', 'clubs', 'athletes'));
+    }
+
+    /**
+     * AJAX: Bestzeiten (Jahres- + absolute) eines beliebigen Athleten für ein Event dieses
+     * Meets — für die admin-seitige Meldungserfassung (entries/form). Anders als
+     * ClubEntryController::bestTimes() NICHT club-scoped: Admins dürfen jeden Athleten melden.
+     *
+     * GET /meets/{meet}/entries/best-times?event_id=X&athlete_id=Y
+     */
+    public function bestTimes(Request $request, Meet $meet, ClubEntryService $service): JsonResponse
+    {
+        $request->validate([
+            'event_id' => ['required', 'integer', 'exists:swim_events,id'],
+            'athlete_id' => ['required', 'integer', 'exists:athletes,id'],
+        ]);
+
+        $event = SwimEvent::where('id', $request->event_id)->where('meet_id', $meet->id)->firstOrFail();
+        $athlete = Athlete::findOrFail($request->athlete_id);
+
+        return response()->json($service->bestTimesForPanel($athlete, $event, $meet));
     }
 
     public function store(Request $request, Meet $meet): RedirectResponse
