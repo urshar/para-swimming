@@ -104,18 +104,20 @@
                         <flux:badge size="sm" color="zinc">{{ $meet->course }}</flux:badge>
                     </flux:table.cell>
                     <flux:table.cell>
-                        @if($meet->lenex_status)
-                            <flux:badge size="sm" color="{{ match($meet->lenex_status) {
-                            'OFFICIAL'  => 'emerald',
-                            'RUNNING'   => 'blue',
-                            'SEEDED'    => 'amber',
-                            default     => 'zinc',
-                        } }}">
-                                {{ $meet->lenex_status }}
-                            </flux:badge>
-                        @else
-                            <span class="text-zinc-400 text-sm">–</span>
-                        @endif
+                        @php
+                            // I = alle angelegten Disziplinen haben Wertungsgruppen (und es gibt überhaupt welche)
+                            $ierDisciplines = $meet->swim_events_count > 0 && ! $meet->unconfigured_events_count;
+                            $ierEntries = $meet->entries_exists || $meet->relay_entries_exists;
+                            $ierResults = $meet->results_exists;
+                        @endphp
+                        <div class="flex items-center gap-1">
+                            <flux:badge size="sm" color="{{ $ierDisciplines ? 'emerald' : 'zinc' }}"
+                                        title="I — alle Disziplinen mit Wertungsgruppen angelegt">I</flux:badge>
+                            <flux:badge size="sm" color="{{ $ierEntries ? 'emerald' : 'zinc' }}"
+                                        title="E — Meldungen liegen vor">E</flux:badge>
+                            <flux:badge size="sm" color="{{ $ierResults ? 'emerald' : 'zinc' }}"
+                                        title="R — Ergebnisse liegen vor">R</flux:badge>
+                        </div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-2 justify-end">
