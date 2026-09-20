@@ -6,6 +6,8 @@
     <div class="max-w-4xl">
         <div class="mb-6">
             <div class="flex items-center gap-2">
+                <flux:button href="{{ route('base-times.import') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
                 <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
             </div>
@@ -17,11 +19,6 @@
                     Ziel-Version: <span class="font-medium text-zinc-700 dark:text-zinc-300">neu anzulegen</span>
                 @endif
             </p>
-            <div class="mt-4">
-                <flux:button href="{{ route('base-times.import') }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-            </div>
         </div>
 
         {{-- ── Zusammenfassung ──────────────────────────────────────────────── --}}

@@ -31,6 +31,8 @@
          }">
         <div class="mb-6">
             <div class="flex items-center gap-2">
+                <flux:button href="{{ route('qualifying-time-lists.show', $list) }}" variant="primary"
+                             icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Qualifikation {{ $list->year }}</h1>
                 {{-- Eindeutige Athleten zählen, nicht Qualifikations-Zeilen — ein Athlet kann in mehreren
                      Bewerben qualifiziert sein, $qualifications->count() zählte bisher jede Zeile einzeln
@@ -38,12 +40,7 @@
                 <flux:badge color="emerald">{{ $qualifications->pluck('athlete_id')->unique()->count() }} Schwimmer</flux:badge>
             </div>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('qualifying-time-lists.show', $list) }}" variant="filled"
-                             icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 @unless($qualifications->isEmpty())
                     <flux:dropdown>
                         <flux:button variant="filled" size="sm" icon:trailing="chevron-down" class="text-blue-500!">
@@ -64,13 +61,11 @@
                     </flux:dropdown>
                 @endunless
 
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <flux:button
-                        href="{{ route('qualifying-time-lists.qualifications.pdf', $list) }}?{{ http_build_query(request()->query()) }}"
-                        variant="filled" icon="printer" size="sm" target="_blank" class="text-purple-500!">
-                        PDF
-                    </flux:button>
-                </div>
+                <flux:button
+                    href="{{ route('qualifying-time-lists.qualifications.pdf', $list) }}?{{ http_build_query(request()->query()) }}"
+                    variant="filled" icon="printer" size="sm" target="_blank" class="text-purple-500!">
+                    PDF
+                </flux:button>
             </div>
         </div>
 
