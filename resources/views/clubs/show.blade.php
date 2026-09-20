@@ -4,21 +4,23 @@
 
 @section('content')
 
-    <div class="flex items-start justify-between mb-6">
-        <div class="flex items-center gap-3">
-            <flux:button href="{{ route('clubs.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $club->name }}</h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $club->code ? $club->code . ' · ' : '' }}{{ $club->nation?->name_de }}
-                    @if($club->type !== 'CLUB')
-                        · {{ $club->type }}
-                    @endif
-                </p>
-            </div>
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('clubs.index') }}" variant="primary" icon="arrow-left" size="sm"
+                         title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $club->name }}</h1>
         </div>
-        <div class="flex gap-2">
-            <flux:button href="{{ route('clubs.edit', $club) }}" variant="ghost" icon="pencil" size="sm">Bearbeiten
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {{ $club->code ? $club->code . ' · ' : '' }}{{ $club->nation?->name_de }}
+            @if($club->type !== 'CLUB')
+                · {{ $club->type }}
+            @endif
+        </p>
+
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            <flux:button href="{{ route('clubs.edit', $club) }}" variant="filled" icon="pencil" size="sm"
+                         class="text-amber-500!">
+                Bearbeiten
             </flux:button>
         </div>
     </div>

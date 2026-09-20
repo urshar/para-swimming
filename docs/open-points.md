@@ -138,6 +138,33 @@ unmittelbar vorherigen Seite? nur bestimmte Flows?).
 Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
 -Back-Links auf das gemerkte Ziel umstellen.
 
+## Index-Filter einheitlich: sofort filtern bei Feldänderung statt „Filtern"-Button
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework
+(Athleten/Vereine/Klassifizierer).
+
+**Was fehlt:** Die Index-Filter verhalten sich uneinheitlich. `records/index` filtert bereits automatisch bei jeder
+Feldänderung (Alpine `x-model` + `x-init="$watch(...)"` → Auto-Submit, kein „Filtern"-Button — siehe die ausführliche
+Begründung im Kommentar dort). Die übrigen Index-Filter verlangen dagegen einen Klick auf „Filtern"
+(`type="submit"`, `icon="funnel"`): **athletes, clubs, classifiers, results, meets, entries** (6 Seiten).
+Zusätzlich wirken einzelne Elemente auf derselben Seite sofort (z. B. der A–Z-Buchstabenfilter auf `athletes/index`
+sind Links, die sofort navigieren), während die Text-/Select-Felder daneben erst auf „Filtern" reagieren — genau
+diese Mischung fällt als inkonsistent auf. Gewünscht: In allen Index-Filtern soll die Liste sofort aktualisiert
+werden, sobald ein Feld ausgewählt/eingetragen wird (mindestens athletes, clubs, classifiers; sinngemäß auch
+results, meets, entries).
+
+**Warum zurückgestellt / offene Entscheidung:** Kein reines Copy-Paste vom records-Muster, weil dort **nur Selects**
+gefiltert werden. athletes/clubs/… haben zusätzlich ein **Text-Suchfeld** — ein Auto-Submit bei jedem Tastendruck
+ist unbrauchbar (Submit pro Zeichen, Fokusverlust). Braucht eine Entscheidung: Debounce (z. B. 300–400 ms) auf dem
+Suchfeld, oder Text erst bei „Enter"/Blur, Selects sofort. Außerdem: „Filtern"-Button ganz entfernen (wie
+`records/index`) oder als No-JS-Fallback behalten? Der „Zurücksetzen"-Button bleibt in jedem Fall.
+
+**Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der „Filtern"-Button verschwindet.
+
+**Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
+Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
+sofort, Suchfeld entprellt —, danach je Seite live verifizieren.
+
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
 **Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).

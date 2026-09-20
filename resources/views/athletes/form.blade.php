@@ -8,9 +8,9 @@
     @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-3xl">
 
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="ghost"
-                         icon="arrow-left" size="sm"/>
+        <div class="flex items-center gap-2 mb-6">
+            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="primary"
+                         icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($athlete) ? 'Athlet bearbeiten' : 'Neuer Athlet' }}
             </h1>

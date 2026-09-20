@@ -9,14 +9,12 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ isset($meet) ? 'Wettkampf bearbeiten' : 'Neuer Wettkampf' }}
-            </h1>
-            <div class="mt-4">
+            <div class="flex items-center gap-2">
                 <flux:button href="{{ isset($meet) ? route('meets.show', $meet) : route('meets.index') }}"
-                             variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
+                             variant="primary" icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {{ isset($meet) ? 'Wettkampf bearbeiten' : 'Neuer Wettkampf' }}
+                </h1>
             </div>
         </div>
 

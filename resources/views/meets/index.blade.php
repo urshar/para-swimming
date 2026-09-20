@@ -61,7 +61,8 @@
         </div>
         <div class="ml-auto flex items-center gap-3">
             @if(request()->hasAny(['search', 'course', 'year']))
-                <flux:button href="{{ route('meets.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                <flux:button href="{{ route('meets.index') }}" variant="filled" icon="x-mark"
+                             class="text-red-500!">Zurücksetzen</flux:button>
             @endif
             <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
         </div>
@@ -94,7 +95,10 @@
                         {{ $meet->date_range }}
                     </flux:table.cell>
                     <flux:table.cell class="text-zinc-500 dark:text-zinc-400 text-sm">
-                        {{ $meet->city }}, {{ $meet->nation?->code }}
+                        <span class="inline-flex items-center gap-2">
+                            <x-flag code="{{ $meet->nation?->code }}" label="{{ $meet->nation?->name_de }}"/>
+                            {{ $meet->city }}
+                        </span>
                     </flux:table.cell>
                     <flux:table.cell>
                         <flux:badge size="sm" color="zinc">{{ $meet->course }}</flux:badge>
