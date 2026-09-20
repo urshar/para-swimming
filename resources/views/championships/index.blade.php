@@ -67,13 +67,15 @@
                                                  variant="ghost" size="sm" icon="eye"/>
                                     @if(auth()->user()?->is_admin)
                                         <flux:button href="{{ route('championships.edit', $championship) }}"
-                                                     variant="ghost" size="sm" icon="pencil"/>
+                                                     variant="ghost" size="sm" icon="pencil"
+                                                     class="text-amber-500!"/>
                                         <form method="POST"
                                               action="{{ route('championships.destroy', $championship) }}"
                                               onsubmit="return confirm('{{ $championship->display_name }} inklusive aller Normen wirklich löschen?');">
                                             @csrf
                                             @method('DELETE')
-                                            <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
+                                            <flux:button type="submit" variant="ghost" size="sm" icon="trash"
+                                                         class="text-red-500!"/>
                                         </form>
                                     @endif
                                 </div>

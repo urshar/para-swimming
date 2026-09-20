@@ -5,23 +5,21 @@
 @section('content')
     <div class="max-w-5xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Faktorenbericht</h1>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('wps.factors.index') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Faktorenbericht</h1>
+            </div>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('wps.factors.index') }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <form method="POST" action="{{ route('wps.factors.calibrate') }}"
-                          x-data="{ submit() { if (confirm('Faktoren aus den eigenen Ergebnissen neu ermitteln?')) this.$el.submit() } }"
-                          @submit.prevent="submit()">
-                        @csrf
-                        <flux:button type="submit" variant="filled" icon="arrow-path" size="sm">
-                            Aus eigenen Daten ermitteln
-                        </flux:button>
-                    </form>
-                </div>
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <form method="POST" action="{{ route('wps.factors.calibrate') }}"
+                      x-data="{ submit() { if (confirm('Faktoren aus den eigenen Ergebnissen neu ermitteln?')) this.$el.submit() } }"
+                      @submit.prevent="submit()">
+                    @csrf
+                    <flux:button type="submit" variant="filled" icon="arrow-path" size="sm" class="text-blue-500!">
+                        Aus eigenen Daten ermitteln
+                    </flux:button>
+                </form>
             </div>
         </div>
 

@@ -6,7 +6,11 @@
     @endphp
 
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vereinswertung</h1>
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('cups.club-ranking.index') }}" variant="primary" icon="arrow-left"
+                         size="sm" title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vereinswertung</h1>
+        </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ $cup->name }} · {{ $systemLabel }}
             @if($this->system === 'performance' && $this->calculatedAt())
@@ -14,31 +18,25 @@
             @endif
         </p>
 
-        <div class="flex items-center flex-wrap gap-2 mt-4">
-            <flux:button href="{{ route('cups.club-ranking.index') }}" variant="filled" icon="arrow-left" size="sm">
-                Zurück
-            </flux:button>
-
-            @unless($this->ranking()->isEmpty())
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    @if($this->system === 'performance')
-                        <flux:button href="{{ $this->pdfUrl(0) }}" variant="filled" size="sm"
-                                     icon="arrow-down-tray" class="text-purple-500!">
-                            PDF Übersicht
-                        </flux:button>
-                        <flux:button href="{{ $this->pdfUrl(1) }}" variant="filled" size="sm"
-                                     icon="arrow-down-tray" class="text-purple-500!">
-                            PDF mit Athleten
-                        </flux:button>
-                    @else
-                        <flux:button href="{{ $this->pdfUrl(0) }}" variant="filled" size="sm"
-                                     icon="arrow-down-tray" class="text-purple-500!">
-                            PDF
-                        </flux:button>
-                    @endif
-                </div>
-            @endunless
-        </div>
+        @unless($this->ranking()->isEmpty())
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                @if($this->system === 'performance')
+                    <flux:button href="{{ $this->pdfUrl(0) }}" variant="filled" size="sm"
+                                 icon="arrow-down-tray" class="text-purple-500!">
+                        PDF Übersicht
+                    </flux:button>
+                    <flux:button href="{{ $this->pdfUrl(1) }}" variant="filled" size="sm"
+                                 icon="arrow-down-tray" class="text-purple-500!">
+                        PDF mit Athleten
+                    </flux:button>
+                @else
+                    <flux:button href="{{ $this->pdfUrl(0) }}" variant="filled" size="sm"
+                                 icon="arrow-down-tray" class="text-purple-500!">
+                        PDF
+                    </flux:button>
+                @endif
+            </div>
+        @endunless
     </div>
 
     {{-- Cup/Jahr und Kaderathleten je Verein bleiben Dropdowns (Erik, 04.09.2026: "bleiben

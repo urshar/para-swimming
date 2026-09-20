@@ -4,8 +4,9 @@
 
 @section('content')
     <div class="max-w-xl" x-data="{ mode: @js($selectedVersionId ? 'existing' : 'new') }">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('base-times.versions.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
+        <div class="flex items-center gap-2 mb-6">
+            <flux:button href="{{ route('base-times.versions.index') }}" variant="primary" icon="arrow-left"
+                         size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Basiswerte importieren</h1>
         </div>
 

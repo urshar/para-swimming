@@ -13,6 +13,8 @@
     <div class="max-w-4xl" x-data="qualifyingTimesShowFilter()">
         <div class="mb-6">
             <div class="flex items-center gap-2">
+                <flux:button href="{{ route('qualifying-time-lists.index') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Richtzeiten {{ $list->year }}</h1>
                 @if($list->is_active)
                     <flux:badge color="emerald">Aktiv</flux:badge>
@@ -26,12 +28,7 @@
                 @endif
             </div>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('qualifying-time-lists.index') }}" variant="filled" icon="arrow-left"
-                             size="sm">
-                    Zurück
-                </flux:button>
-
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 @unless($list->times->isEmpty())
                     <flux:dropdown>
                         <flux:button variant="filled" size="sm" icon:trailing="chevron-down" class="text-blue-500!">
@@ -53,16 +50,14 @@
                     </flux:dropdown>
                 @endunless
 
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="filled"
-                                 icon="check-badge" size="sm">
-                        Qualifizierte Schwimmer anzeigen
-                    </flux:button>
-                    <flux:button href="{{ route('qualifying-time-lists.pdf', $list) }}" variant="filled"
-                                 icon="printer" size="sm" target="_blank" class="text-purple-500!">
-                        PDF
-                    </flux:button>
-                </div>
+                <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="filled"
+                             icon="check-badge" size="sm" class="text-blue-500!">
+                    Qualifizierte Schwimmer anzeigen
+                </flux:button>
+                <flux:button href="{{ route('qualifying-time-lists.pdf', $list) }}" variant="filled"
+                             icon="printer" size="sm" target="_blank" class="text-purple-500!">
+                    PDF
+                </flux:button>
             </div>
         </div>
 

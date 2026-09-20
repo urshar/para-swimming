@@ -16,10 +16,10 @@ phasenweise Arbeitsweise aus `CLAUDE.md` (Plan → Freigabe → Umsetzung → Te
 
 Drei Gruppen, in dieser Reihenfolge abzuarbeiten:
 
-**Gruppe 1 — sofort umsetzbar, keine offene Design-Frage** (Reihenfolge untereinander beliebig, auch parallel
-möglich):
-
-1. `feature/admin-ui-show-header-pattern` — „Titelleisten-Muster ... auf alle show.blade.php übertragen" unten
+**Gruppe 1 — erledigt.** Das Titelleisten-/Header-Muster wurde als `feature/admin-ui-header-pattern` umgesetzt —
+deutlich über den ursprünglichen „nur show.blade.php"-Umfang hinaus, auf **alle** Admin-Header. Dokumentiert in
+`specs/admin-ui-rework.md` (Abschnitt „Header-/Titelleisten-Muster vereinheitlicht"); der zugehörige Open Point unten
+wurde entfernt.
 
 „Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
 mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
@@ -30,7 +30,7 @@ Aufwand (kleine zuerst):
 2. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
 3. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
 4. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-5. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick" unten
+5. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick" unten
 6. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
 7. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
 8. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
@@ -71,40 +71,72 @@ vor der Umsetzung geklärt werden, nicht nebenbei in Phase 13 entschieden.
 Mehrjahres-Zeitreihe der gewünschten Kennzahlen, dann eine Grafik dafür im Dashboard (voraussichtlich
 `flux:chart`, siehe Phase 13 — dort erstmals im Projekt eingeführt).
 
-## Titelleisten-Muster (Titel oben, "Zurück" links / Aktionen rechts in eigener Zeile) auf alle
+## „Zurück"-Buttons kontextsensitiv statt fest auf den Index
 
-`show.blade.php` übertragen
+**Seit:** `feature/admin-ui-header-pattern` (19.09.2026), Rückmeldung Erik beim Header-Rework Gruppe 1 (records).
 
-**Seit:** Admin-UI-Rework Phase 10, Design-Feedback nach `records/show.blade.php`-Umbau (30.08.2026).
+**Was fehlt:** Viele „Zurück"-Buttons führen fest auf die jeweilige Index-/Listenseite (`records.index`,
+`meets.index` …), nicht auf die tatsächlich vorher aufgerufene Ansicht. Beispiel: gefilterte Rekordliste → Detail →
+„Bearbeiten"; der „Zurück"-Button auf dem Formular springt auf `records.index` statt zurück auf die Detailseite bzw.
+die vorher gewählte (gefilterte) Liste. `athletes/show` macht es bereits richtig — es merkt sich die zuletzt
+aufgerufene Listen-URL in der Session (`athletes.list_url`, siehe `AdminUiAthletesTest`); records/meets/… tun das
+nicht. `records/import-preview` zeigt korrekt auf den vorherigen Schritt (`records.import`) — der Rest zeigt stumpf
+auf den Index.
 
-**Was fehlt:** Das in Phase 9 etablierte Titelleisten-Muster (Titel/Badges in einer Zeile, darunter eine
-`mt-4`-Zeile mit "Zurück" links und den übrigen Aktions-Buttons rechtsbündig via `ml-auto`) wurde ausdrücklich gelobt (
-"Das mit dem Button in rekorde.show gefällt mir sehr gut") und soll konsequent auf **alle** `show`-Seiten angewendet
-werden. Aktuell nur in `records/show.blade.php` und den Formularen (`records/form.blade.php` u. a.)
-umgesetzt. Noch zu migrieren:
+Konkret bei `records/show`: Der Back-Link übergibt **nur** `type` (`records.index?type=…`), aber keinen der übrigen
+Filter (`sportClass`, `ageGroup`, `gender`, `course`, `category`, `relay`, `status`). Die `records.index` fällt ohne
+`sportClass`-Parameter auf ihren Default zurück und zeigt dann **immer S01/SB01/SM01**, unabhängig davon, aus welcher
+Sportklasse/Ansicht der Nutzer kam. Das „Zurück" landet also gerade nicht in der Darstellung, aus der man kam — es
+reicht nicht, nur `type` mitzugeben, es muss der komplette Filter-Zustand (bzw. die vollständige vorherige URL)
+wiederhergestellt werden.
 
-- `resources/views/athletes/show.blade.php`
-- `resources/views/championships/show.blade.php`
-- `resources/views/classifiers/show.blade.php`
-- `resources/views/clubs/show.blade.php`
-- `resources/views/meets/show.blade.php`
-- `resources/views/qualifying-time-lists/show.blade.php`
-- `resources/views/results/show.blade.php`
-- `resources/views/wps/athletes/show.blade.php`
-- `resources/views/wps/versions/show.blade.php`
+**Warum zurückgestellt:** Der Header-Rework (`feature/admin-ui-header-pattern`) ist bewusst rein kosmetisch
+(Anordnung/Farbe/Höhe der Buttons) und fasst die Back-**Ziele** nicht an. Kontextsensitive Rücknavigation ist ein
+eigenes Verhalten: Referrer/letzte-Liste je Bereich in der Session merken (wie bei Athleten) oder gezielt
+`url()->previous()` mit sinnvollem Fallback — plus die Entscheidung, wie weit „zurück" gehen soll (unmittelbar
+vorherige Seite vs. gemerkte Listenansicht inkl. Filter).
 
-(`resources/views/public/meets/show.blade.php` nicht enthalten — öffentlicher Bereich nutzt Tailkit statt Flux, siehe
-`docs/specs/public-frontend.md` §3.1, kein Admin-Muster übertragbar.)
+**Wer entscheidet:** Erik — pro Bereich das gewünschte Verhalten (immer zur letzten Liste inkl. Filter? zur
+unmittelbar vorherigen Seite? nur bestimmte Flows?).
 
-**Warum zurückgestellt:** Reine Layout-Fleißarbeit über neun Dateien mit unterschiedlichen bestehenden
-Kopfzeilen/Aktions-Buttons — pro Datei muss geprüft werden, welche Aktionen aktuell im Header stehen und wie sie sich
-auf "Zurück links / Rest rechts" abbilden, kein Copy-Paste-Batch ohne Sichtprüfung jeder einzelnen Seite.
+**Zum Schließen nötig:** Das Muster von `athletes.list_url` (Session-gespeicherte Rücksprung-URL) auf die übrigen
+Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
+-Back-Links auf das gemerkte Ziel umstellen.
 
-**Wer entscheidet:** Keine offene Design-Frage — Muster ist bestätigt, es fehlt nur die Umsetzung. Reihenfolge der
-Dateien nach Priorität mit Erik abstimmen, falls nicht alle auf einmal gewünscht sind.
+## Index-Filter einheitlich: sofort filtern bei Feldänderung statt „Filtern"-Button
 
-**Zum Schließen nötig:** Jede der neun Dateien einzeln auf das Muster aus `records/show.blade.php` umstellen, live
-verifizieren, danach aus dieser Liste streichen.
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework
+(Athleten/Vereine/Klassifizierer).
+
+**Was fehlt:** Die Index-Filter verhalten sich uneinheitlich. `records/index` filtert bereits automatisch bei jeder
+Feldänderung (Alpine `x-model` + `x-init="$watch(...)"` → Auto-Submit, kein „Filtern"-Button — siehe die ausführliche
+Begründung im Kommentar dort). Die übrigen Index-Filter verlangen dagegen einen Klick auf „Filtern"
+(`type="submit"`, `icon="funnel"`): **athletes, clubs, classifiers, results, meets, entries** (6 Seiten).
+Zusätzlich wirken einzelne Elemente auf derselben Seite sofort (z. B. der A–Z-Buchstabenfilter auf `athletes/index`
+sind Links, die sofort navigieren), während die Text-/Select-Felder daneben erst auf „Filtern" reagieren — genau
+diese Mischung fällt als inkonsistent auf. Gewünscht: In allen Index-Filtern soll die Liste sofort aktualisiert
+werden, sobald ein Feld ausgewählt/eingetragen wird (mindestens athletes, clubs, classifiers; sinngemäß auch
+results, meets, entries).
+
+**Ergänzung (Erik, 20.09.2026):** Dasselbe gilt für die Filter der Meisterschafts-Unterseiten
+(**Qualifikanten**, **Förderansicht**, **Auswahl-Rangliste** — die drei Ansichten zu einer Meisterschaft, plus
+„Normen"/`championships.show`). Dort sollen die bestehenden Filter angepasst und die **Dropdown-Boxen ausgetauscht**
+werden — auf dasselbe Muster (`flux:select variant="listbox"` + Auto-Submit statt nativer/alter Dropdowns). Diese
+Ansichten sind Livewire-Tabellen (`championship-qualification-table`, `championship-development-table`), die Filter
+laufen dort ggf. über `wire:model` statt der GET-Form — beim Umbau zu prüfen, ob das Alpine-Auto-Submit-Muster
+greift oder die Livewire-Variante (`wire:model.live`) die passendere ist.
+
+**Warum zurückgestellt / offene Entscheidung:** Kein reines Copy-Paste vom records-Muster, weil dort **nur Selects**
+gefiltert werden. athletes/clubs/… haben zusätzlich ein **Text-Suchfeld** — ein Auto-Submit bei jedem Tastendruck
+ist unbrauchbar (Submit pro Zeichen, Fokusverlust). Braucht eine Entscheidung: Debounce (z. B. 300–400 ms) auf dem
+Suchfeld, oder Text erst bei „Enter"/Blur, Selects sofort. Außerdem: „Filtern"-Button ganz entfernen (wie
+`records/index`) oder als No-JS-Fallback behalten? Der „Zurücksetzen"-Button bleibt in jedem Fall.
+
+**Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der „Filtern"-Button verschwindet.
+
+**Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
+Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
+sofort, Suchfeld entprellt —, danach je Seite live verifizieren.
 
 ## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
 
@@ -255,25 +287,28 @@ Mitglieder, Kurzbahn/Langbahn-Umrechnung wie bei Einzelmeldungen).
 `relay-entry-form.js` liefern, dort als Vorschlag mit "Bestzeit übernehmen"-Button anzeigen (gleiches UI-Muster wie bei
 Einzelmeldungen).
 
-## Absolute Bestzeit bei Einzelmeldungen + Übernahme per Doppelklick
+## Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick
 
-**Seit:** Admin-UI-Rework Phase 9, Design-Feedback nach Live-Test der Athleten-Auswahl.
+**Seit:** Admin-UI-Rework Phase 9, Design-Feedback nach Live-Test der Athleten-Auswahl; Übernahme-Verhalten
+entschieden am 20.09.2026.
 
 **Was fehlt:** In `club-entries/create.blade.php` wird bei Athlet+Event-Auswahl aktuell nur die *Jahresbestzeit*
 angezeigt (`ClubEntryService::bestTimes()` — Zeitraum Vorjahr bis Meetbeginn). Gewünscht: zusätzlich die *absolute
 Bestzeit* (ohne Datumsfilter) anzeigen. Die Backend-Methode dafür existiert bereits (`ClubEntryService::absoluteBestTime(Athlete $athlete, SwimEvent $event,
-string $course): ?int`), wird aber aktuell nirgends aufgerufen/ausgeliefert. Zusätzlich:
-Doppelklick auf eine der beiden angezeigten Zeiten soll sie automatisch als Meldezeit übernehmen (bisheriges "Bestzeit
-übernehmen"-Button-Muster bleibt vermutlich zusätzlich bestehen, oder wird dadurch ersetzt — zu klären).
+string $course): ?int`), wird aber aktuell nirgends aufgerufen/ausgeliefert.
 
-**Wer entscheidet:** Erik — ob beide Zeiten permanent nebeneinander stehen oder z. B. als Tabs/ Toggle, und ob der
-bestehende "Bestzeit übernehmen"-Button neben dem neuen Doppelklick-Verhalten bestehen bleibt.
+**Entschieden (Erik, 20.09.2026):** Ein **Einfachklick** auf eine der beiden angezeigten Zeiten (Jahres- oder absolute
+Bestzeit) übernimmt sie direkt als Meldezeit. Der separate „Bestzeit übernehmen"-**Button entfällt** dadurch (wird
+durch das Klick-auf-Zeit-Verhalten ersetzt).
+
+**Wer entscheidet:** Keine offene Frage mehr — nur noch Umsetzung.
 
 **Zum Schließen nötig:** `ClubEntryController::bestTimes()` (AJAX-Endpunkt) um die absolute Bestzeit ergänzen (LCM +
-SCM, wie schon bei der Jahresbestzeit), `single-entry-form.js` um das zusätzliche Datenfeld und einen `@dblclick`
--Handler auf die Zeit-Anzeige erweitern, der
-`entryTime`/`entryCourse` setzt (gleiche Methode wie das bestehende `applyBestTime()`),
-`create.blade.php`-Anzeige um die zweite Zeile ergänzen.
+SCM, wie schon bei der Jahresbestzeit); `single-entry-form.js` um das zusätzliche Datenfeld und einen `@click`
+-Handler auf **beide** Zeit-Anzeigen erweitern, der `entryTime`/`entryCourse` setzt (gleiche Methode wie das
+bestehende `applyBestTime()`); den bisherigen „Bestzeit übernehmen"-Button entfernen; `create.blade.php`-Anzeige um
+die zweite Zeile (absolute Bestzeit) ergänzen, beide Zeiten als klickbar kenntlich machen (Cursor/Hover). Live
+verifizieren, dass ein Klick die Meldezeit + Bahnlänge korrekt setzt.
 
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
 
@@ -466,3 +501,137 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `APP_LOCALE=en`/`APP_FALLBACK_LOCALE=en` (`config/app.php` fällt sonst auf `env('APP_LOCALE', 'en')` zurück), obwohl
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
+
+## Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework.
+
+**Was fehlt:** Die Nationenliste (`nations/index`) bietet aktuell nur **Bearbeiten** je Zeile. Es gibt keinen
+„Neu"-Button und kein „Löschen". Die Route ist bewusst beschränkt: `Route::resource('nations', …)->only(['index',
+'edit', 'update'])` (`routes/web.php`) — **kein** `create`/`store`/`destroy`. Gewünscht: Nationen anlegen und löschen
+können.
+
+**Warum zurückgestellt — kein Header-/Cosmetic-Fix, sondern Feature mit Datenintegritäts-Frage:** Nationen sind
+IOC-Referenzdaten (geseedet) und werden von `athletes`, `clubs`, `swim_records`, `meets` u. a. per FK referenziert.
+Ein Löschen einer *verwendeten* Nation würde die FK-Constraint verletzen (DB-Fehler) — es braucht einen Guard
+(Löschen nur, wenn nichts darauf verweist; sonst Hinweis „N Athleten/Vereine hängen daran"). Zusätzlich offene
+Fragen: Sollen Nationen überhaupt frei anlegbar sein (Kollision mit dem IOC-Seed / der `<x-flag>`-Code-Zuordnung),
+oder nur solche außerhalb des Seeds? Welche Felder beim Anlegen (Code, name_de, name_en, is_active)?
+
+**Wer entscheidet:** Erik — ob anlegen/löschen überhaupt gewünscht ist (angesichts IOC-Referenzcharakter) und wie
+mit referenzierten Nationen beim Löschversuch umgegangen wird (blockieren mit Hinweis vs. gar nicht anbieten).
+
+**Zum Schließen nötig:** Routen (`create`/`store`/`destroy`) + Controller-Methoden mit Validierung (eindeutiger
+Code) ergänzen, Anlege-Formular-View, FK-sicherer Delete-Guard, „Neu"-Button im Header (Regel: Einzelbutton inline)
+und Delete-Button je Zeile (rot, mit Confirm) in `nations/index`.
+
+## „Außer Konkurrenz" (AK) bei Meldungen setzbar machen
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
+
+**Was fehlt:** Bei Meldungen (Einzel **und** Staffel) soll ein Kennzeichen „außer Konkurrenz" (AK) setzbar sein.
+
+**Entschieden (Erik, 20.09.2026):**
+- **Umfang:** AK ist sowohl bei Einzel- (`Entry`) als auch bei Staffelmeldungen (`RelayEntry`) setzbar.
+- **Wirkung:** AK-Starts werden **nur aus der Cup-/Punktewertung** ausgeschlossen. Rekorde und Ranglisten (WPS)
+  zählen weiterhin normal, und der Start erscheint ganz normal in Ergebnissen und im LENEX-Export.
+
+**Warum zurückgestellt:** Neues Feld + Auswirkung auf die Cup-Wertungslogik, kein Bugfix. Offene Detailfragen:
+Wandert AK von der Meldung automatisch auf das zugehörige Ergebnis (`Result`), oder wird es dort separat gepflegt?
+Wo genau greift der Cup-Ausschluss (in `CupRankingService`/Tageswertungs-Aggregation — die Zeilen mit AK
+überspringen)? Wird AK im LENEX gekennzeichnet (LENEX kennt `ENTRY`-Attribute wie `status`) oder nur intern?
+
+**Wer entscheidet:** Erik — Vererbung Meldung→Ergebnis und ob AK im LENEX-Export mitgegeben werden soll.
+
+**Zum Schließen nötig:** Migration (Boolean-Spalte `out_of_competition`/`ak` auf `entries` und `relay_entries`,
+ggf. auch `results`), Checkbox in den Melde-Formularen (`club-entries/create*.blade.php`, `entries/form.blade.php`),
+Ausschluss in der Cup-Wertungsberechnung, sichtbare AK-Markierung in Meldungs-/Ergebnislisten.
+
+## Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
+
+**Was fehlt / zu klären:** Einzeln existiert schon einiges — `meets/show` hat „Ergebnis erfassen"
+(`meets.results.create`), `results/show` hat jetzt Bearbeiten/Löschen, und es gibt `results/index` (global,
+nach Meet filterbar). Gewünscht ist aber eine **auf eine ausgewählte Veranstaltung fokussierte** Möglichkeit,
+Ergebnisse **manuell zu erfassen und zu löschen** — vermutlich eine meet-gebundene Ergebnis-Sammelansicht (alle
+Ergebnisse des Meets auf einen Blick, mit Anlegen/Löschen), statt des globalen `results/index` mit Filter.
+
+**Warum zurückgestellt:** Überschneidet sich teils mit dem bestehenden Punkt „Gesamte, editierbare Meldeliste einer
+Veranstaltung" (der betrifft aber **Meldungen**, nicht **Ergebnisse**) — zu klären, ob das eine gemeinsame
+Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll oder zwei getrennte Ansichten.
+
+**Wer entscheidet:** Erik — konkret was heute fehlt (nur ein schnellerer Zugang zum vorhandenen Erfassen/Löschen,
+oder eine echte neue Sammelansicht pro Meet?) und ob Ergebnis- und Meldungsverwaltung zusammengelegt werden.
+
+**Zum Schließen nötig:** Nach Klärung: ggf. neue meet-gebundene Ergebnis-Übersicht (Liste aller `Result` eines Meets
+mit Inline-Löschen + „Ergebnis erfassen"), verlinkt von `meets/show`.
+
+## Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik.
+
+**Was gemeldet wurde:** (1) Beim Anlegen einer Veranstaltung soll die Struktur rund um die **Wertungsgruppen**
+überarbeitet werden. (2) Der **LENEX-Export gibt die falsche Wertung aus** — eine korrekte Wertungsgruppe soll im
+LENEX korrekt abgebildet werden.
+
+**Warum zurückgestellt / was gebraucht wird:** Ohne ein konkretes Beispiel ist die Soll-Struktur nicht eindeutig.
+Gebraucht wird von Erik: **(a)** ein Beispiel einer *richtigen* Wertungsgruppe (wie sie fachlich aussehen soll —
+Alters-/Sportklassen-/Geschlechts-Zuschnitt), **(b)** eine **LENEX-Beispieldatei**, die diese Wertungsgruppe korrekt
+enthält, und **(c)** eine Beschreibung, was der aktuelle Export *stattdessen* ausgibt (welches Feld/welche Struktur
+falsch ist). Betrifft voraussichtlich `SwimEvent`/`sport_classes`-Zuordnung, die Wertungsgruppen-Logik beim
+Meet-Anlegen und `LenexExportService` (AGEGROUP/ranking-Struktur).
+
+**Wer entscheidet / liefert:** Erik — die drei Artefakte oben (Beispiel-Wertungsgruppe, korrekte LENEX-Datei,
+Beschreibung des Fehlers), erst danach ist die Umsetzung eindeutig planbar.
+
+**Zum Schließen nötig:** Nach Erhalt der Beispiele: Soll-Struktur der Wertungsgruppen festlegen, Meet-Anlage-UI
+anpassen, LENEX-Export gegen die Beispieldatei prüfen und die falsch erzeugte Wertung korrigieren.
+
+## Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
+
+**Was fehlt:** Import von Athletendaten aus einer **MSAccess-Datei** (`.mdb`/`.accdb`), die Erik bereitstellt. Dabei
+sind voraussichtlich **Erweiterungen am Athleten-Datenmodell** nötig (zusätzliche Felder, die die Access-Datei führt
+und die es bei uns noch nicht gibt).
+
+**Warum zurückgestellt / was gebraucht wird:** Ohne die Datei ist weder das Quellschema (Tabellen/Spalten) noch der
+Umfang der nötigen Modell-Erweiterungen bekannt. `.mdb`/`.accdb` ist zudem kein triviales Format in PHP (kein
+natives Reading) — Weg zu klären: Export der Access-Datei nach CSV/XLSX durch Erik und Import darüber, oder ein
+Konverter. Offene Fragen: Welche Felder kommen dazu (Mapping Access→`athletes`)? Wie werden Dubletten/Bestand
+behandelt (Update bestehender vs. nur neue anlegen — analog Rekord-Import-Matching)? Einmal-Migration oder
+wiederkehrender Import?
+
+**Wer entscheidet / liefert:** Erik — die Beispiel-Access-Datei und die Liste der zusätzlich benötigten
+Athleten-Felder.
+
+**Zum Schließen nötig:** Nach Erhalt der Datei: Quellschema sichten, Athleten-Migration(en) für neue Felder,
+Import-Weg festlegen (CSV/XLSX-Zwischenschritt vs. direkter Reader), Import-Service mit Matching/Update-Logik,
+Vorschau/Bestätigung analog Rekord-Import.
+
+## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
+
+**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
+
+**Was fehlt:** Ein klar definiertes Rollen-/Berechtigungsmodell für **Vereins-User** (Nicht-Admins). Heute
+unterscheidet die App im Wesentlichen `is_admin` vs. Vereins-User mit `club_id`; die genauen Rechte sind über
+einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle definiert.
+
+**Entschieden — Vereins-User sollen dürfen (Erik, 20.09.2026):**
+- **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss).
+- **Eigene Athleten pflegen** (Athleten des eigenen Vereins anlegen/bearbeiten).
+- **Eigene Ergebnisse einsehen** (Ergebnisse der eigenen Athleten ansehen, nicht bearbeiten).
+- **Vereinsstammdaten bearbeiten** (eigene Vereinsdaten wie Name/Kontakt pflegen).
+
+**Warum zurückgestellt:** Querschnitts-Feature über viele Controller/Policies/Views. Offene Detailfragen: Reicht die
+bestehende `club_id`-Bindung als „Rolle", oder braucht es echte Rollen (mehrere Rollentypen, evtl. mehrere User pro
+Verein mit unterschiedlichen Rechten)? Wie strikt ist „nur eigene" überall durchzusetzen (Policies für `Athlete`,
+`Entry`, `RelayEntry`, `Result`, `Club`)? Sichtbarkeit im Menü je Rolle (viele Admin-Menüpunkte ausblenden).
+
+**Wer entscheidet:** Erik — ob ein echtes Mehr-Rollen-Modell nötig ist oder die vier Fähigkeiten oben als fester
+Vereins-User-Satz reichen; Umgang mit Meldeschluss-Sperre; ob mehrere User je Verein.
+
+**Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
+Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in
+`UserManagementTest`/`WpsQualification*`).

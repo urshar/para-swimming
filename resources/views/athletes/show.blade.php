@@ -4,37 +4,35 @@
 
 @section('content')
 
-    <div class="flex items-start justify-between mb-6">
-        <div class="flex items-center gap-3">
-            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="ghost"
-                         icon="arrow-left" size="sm"/>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
-                    @if(!$athlete->is_active)
-                        <flux:badge color="zinc">Inaktiv</flux:badge>
-                    @endif
-                    @if($athlete->level)
-                        <flux:badge color="blue">Level: {{ $athlete->level }}</flux:badge>
-                    @endif
-                </div>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ match($athlete->gender) { 'M' => 'Herr', 'F' => 'Dame', default => 'Nicht binär' } }}
-                    @if($athlete->birth_date)
-                        · *{{ $athlete->birth_date->format('d.m.Y') }}
-                    @endif
-                    · {{ $athlete->nation?->code }}
-                </p>
-            </div>
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="primary"
+                         icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
+            @if(!$athlete->is_active)
+                <flux:badge color="zinc">Inaktiv</flux:badge>
+            @endif
+            @if($athlete->level)
+                <flux:badge color="blue">Level: {{ $athlete->level }}</flux:badge>
+            @endif
         </div>
-        <div class="flex gap-2">
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {{ match($athlete->gender) { 'M' => 'Herr', 'F' => 'Dame', default => 'Nicht binär' } }}
+            @if($athlete->birth_date)
+                · *{{ $athlete->birth_date->format('d.m.Y') }}
+            @endif
+            · {{ $athlete->nation?->code }}
+        </p>
+
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
             {{-- ?from=athlete: der Rückweg-Button auf der WPS-Analyse führt dann hierher zurück
                  statt zur Athletenauswahl unter Statistik (Design-Feedback Erik, 15.09.2026). --}}
             <flux:button href="{{ route('wps.athletes.show', ['athlete' => $athlete, 'from' => 'athlete']) }}"
-                         variant="ghost" icon="chart-bar" size="sm">
+                         variant="filled" icon="chart-bar" size="sm" class="text-blue-500!">
                 WPS-Analyse
             </flux:button>
-            <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="ghost" icon="pencil" size="sm">
+            <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
+                         class="text-amber-500!">
                 Bearbeiten
             </flux:button>
         </div>

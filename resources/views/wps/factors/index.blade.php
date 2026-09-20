@@ -6,11 +6,10 @@
     <div class="max-w-5xl">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Kurzbahn-Umrechnung</h1>
-            <div class="flex gap-2">
-                <flux:button href="{{ route('wps.factors.report') }}" variant="filled" icon="chart-bar">
-                    Faktorenbericht
-                </flux:button>
-            </div>
+            <flux:button href="{{ route('wps.factors.report') }}" variant="filled" icon="chart-bar"
+                         class="text-blue-500!">
+                Faktorenbericht
+            </flux:button>
         </div>
 
         @if(session('success'))

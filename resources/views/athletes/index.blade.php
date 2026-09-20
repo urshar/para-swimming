@@ -53,7 +53,8 @@
              (public/qualifying-times/index.blade.php: ml-auto statt "letztes Element"). --}}
         <div class="ml-auto flex items-center gap-3">
             @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
-                <flux:button href="{{ route('athletes.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                <flux:button href="{{ route('athletes.index') }}" variant="filled" icon="x-mark"
+                             class="text-red-500!">Zurücksetzen</flux:button>
             @endif
             <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
         </div>

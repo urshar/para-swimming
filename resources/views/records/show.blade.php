@@ -6,6 +6,8 @@
 
     <div class="mb-6">
         <div class="flex items-center gap-2">
+            <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="primary"
+                         icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
                 m {{ $record->strokeType?->name_de }}
@@ -19,34 +21,27 @@
             Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
         </p>
 
-        <div class="flex items-center flex-wrap gap-2 mt-4">
-            <flux:button href="{{ route('records.index', ['type' => $record->record_type]) }}" variant="filled"
-                         icon="arrow-left" size="sm">
-                Zurück
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            <flux:button href="{{ route('records.edit', $record) }}" variant="filled" icon="pencil" size="sm"
+                         class="text-amber-500!">
+                Bearbeiten
             </flux:button>
-
-            <div class="ml-auto flex items-center flex-wrap gap-2">
-                <flux:button href="{{ route('records.edit', $record) }}" variant="filled" icon="pencil" size="sm"
-                             class="text-amber-500!">
-                    Bearbeiten
+            <form method="POST" action="{{ route('records.destroy', $record) }}"
+                  x-data="{
+                      submit() {
+                          const msg = this.$el.dataset.hasPredecessor === '1'
+                              ? 'Rekord löschen? Der Vorgänger-Rekord wird automatisch wiederhergestellt.'
+                              : 'Rekord unwiderruflich löschen? Es gibt keinen Vorgänger-Rekord.';
+                          if (confirm(msg)) this.$el.submit()
+                      }
+                  }"
+                  @submit.prevent="submit()"
+                  data-has-predecessor="{{ $record->supersedes_id ? '1' : '0' }}">
+                @csrf @method('DELETE')
+                <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
+                    Löschen
                 </flux:button>
-                <form method="POST" action="{{ route('records.destroy', $record) }}"
-                      x-data="{
-                          submit() {
-                              const msg = this.$el.dataset.hasPredecessor === '1'
-                                  ? 'Rekord löschen? Der Vorgänger-Rekord wird automatisch wiederhergestellt.'
-                                  : 'Rekord unwiderruflich löschen? Es gibt keinen Vorgänger-Rekord.';
-                              if (confirm(msg)) this.$el.submit()
-                          }
-                      }"
-                      @submit.prevent="submit()"
-                      data-has-predecessor="{{ $record->supersedes_id ? '1' : '0' }}">
-                    @csrf @method('DELETE')
-                    <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
-                        Löschen
-                    </flux:button>
-                </form>
-            </div>
+            </form>
         </div>
     </div>
 

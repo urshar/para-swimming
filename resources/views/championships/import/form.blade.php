@@ -4,7 +4,11 @@
 
 @section('content')
     <div class="max-w-2xl">
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Normen importieren</h1>
+        <div class="flex items-center gap-2 mb-2">
+            <flux:button href="{{ route('championships.show', $championship) }}" variant="primary"
+                         icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Normen importieren</h1>
+        </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">{{ $championship->display_name }}</p>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6">

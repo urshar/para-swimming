@@ -366,6 +366,13 @@
                     Dokumente
                 </flux:navlist.item>
             </flux:navlist.group>
+
+            <flux:navlist.group heading="Verwaltung" expandable :expanded="request()->routeIs('admin.users.*')">
+                <flux:navlist.item icon="users" href="{{ route('admin.users.index') }}"
+                                   :current="request()->routeIs('admin.users.*')">
+                    Benutzerverwaltung
+                </flux:navlist.item>
+            </flux:navlist.group>
         @endif
 
     </flux:navlist>

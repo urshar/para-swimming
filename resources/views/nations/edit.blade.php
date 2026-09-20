@@ -4,6 +4,15 @@
 
 @section('content')
     <div class="max-w-lg">
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('nations.index') }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    Nation bearbeiten – {{ $nation->code }}
+                </h1>
+            </div>
+        </div>
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
             <form method="POST" action="{{ route('nations.update', $nation) }}" class="space-y-4">
                 @csrf

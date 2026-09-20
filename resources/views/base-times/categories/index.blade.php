@@ -5,33 +5,30 @@
 @section('content')
     <div class="max-w-4xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('base-times.versions.index') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
+            </div>
             <p class="text-sm text-zinc-400">
                 Gültig ab {{ $version->valid_from->format('d.m.Y') }}
                 @if($version->valid_until) bis {{ $version->valid_until->format('d.m.Y') }} @endif
             </p>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('base-times.versions.index') }}" variant="filled" icon="arrow-left"
-                             size="sm">
-                    Zurück
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
+                             variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
+                    Importieren
                 </flux:button>
-
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
-                                 variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
-                        Importieren
-                    </flux:button>
-                    {{-- Gesamte Version (alle Kategorien); je Kategorie: Buttons in der Detailansicht. --}}
-                    <flux:button href="{{ route('base-times.export', $version) }}"
-                                 variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
-                        Excel
-                    </flux:button>
-                    <flux:button href="{{ route('base-times.export.text', $version) }}"
-                                 variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
-                        MeetManager-Text
-                    </flux:button>
-                </div>
+                {{-- Gesamte Version (alle Kategorien); je Kategorie: Buttons in der Detailansicht. --}}
+                <flux:button href="{{ route('base-times.export', $version) }}"
+                             variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
+                    Excel
+                </flux:button>
+                <flux:button href="{{ route('base-times.export.text', $version) }}"
+                             variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">
+                    MeetManager-Text
+                </flux:button>
             </div>
         </div>
 

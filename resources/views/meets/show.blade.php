@@ -5,7 +5,11 @@
 @section('content')
     {{-- Header --}}
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->name }}</h1>
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('meets.index') }}" variant="primary" icon="arrow-left" size="sm"
+                         title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->name }}</h1>
+        </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ $meet->date_range }} · {{ $meet->city }}, {{ $meet->nation?->code }} · {{ $meet->course }}
             @if($meet->cup)
@@ -16,74 +20,69 @@
             @endif
         </p>
 
-        <div class="flex items-center flex-wrap gap-2 mt-4">
-            <flux:button href="{{ route('meets.index') }}" variant="filled" icon="arrow-left" size="sm">
-                Zurück
-            </flux:button>
-
-            <div class="ml-auto flex items-center flex-wrap gap-2">
-                {{-- Vereinsmeldungen — für Club-User und Admins, nur wenn Meet offen --}}
-                @if(auth()->check() && (auth()->user()->is_admin || (auth()->user()->club_id && $meet->is_open)))
-                    <flux:button href="{{ route('club-entries.index', $meet) }}" variant="filled"
-                                 icon="pencil-square" size="sm">
-                        Meldungen
-                    </flux:button>
-                @endif
-
-                @if(auth()->user()?->is_admin)
-                    <flux:button href="{{ route('meets.results.create', $meet) }}" variant="filled"
-                                 icon="plus" size="sm">
-                        Ergebnis erfassen
-                    </flux:button>
-                @endif
-
-                @if($meet->cup_id)
-                    <flux:button href="{{ route('meets.cup-daily-ranking.show', $meet) }}" variant="filled"
-                                 icon="trophy" size="sm">
-                        Cup-Tageswertung
-                    </flux:button>
-                @endif
-
-                @if($meet->qualifying_time_list_id)
-                    <flux:button href="{{ route('qualifying-time-lists.show', $meet->qualifying_time_list_id) }}"
-                                 variant="filled" icon="flag" size="sm">
-                        Richtzeiten anzeigen
-                    </flux:button>
-                @endif
-
-                @if(auth()->user()?->is_admin)
-                    <flux:button href="{{ route('admin.meets.documents.index', $meet) }}" variant="filled"
-                                 icon="document-text" size="sm">
-                        Dokumente ({{ $meet->documents_count }})
-                    </flux:button>
-                @endif
-
-                <flux:button href="{{ route('lenex.export') }}?meet_id={{ $meet->id }}" variant="filled"
-                             icon="arrow-down-tray" size="sm">
-                    LENEX Export
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            {{-- Vereinsmeldungen — für Club-User und Admins, nur wenn Meet offen --}}
+            @if(auth()->check() && (auth()->user()->is_admin || (auth()->user()->club_id && $meet->is_open)))
+                <flux:button href="{{ route('club-entries.index', $meet) }}" variant="filled"
+                             icon="pencil-square" size="sm" class="text-blue-500!">
+                    Meldungen
                 </flux:button>
-                <form method="POST" action="{{ route('records.check', $meet) }}"
-                      x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
+            @endif
+
+            @if(auth()->user()?->is_admin)
+                <flux:button href="{{ route('meets.results.create', $meet) }}" variant="filled"
+                             icon="plus" size="sm" class="text-blue-500!">
+                    Ergebnis erfassen
+                </flux:button>
+            @endif
+
+            @if($meet->cup_id)
+                <flux:button href="{{ route('meets.cup-daily-ranking.show', $meet) }}" variant="filled"
+                             icon="trophy" size="sm" class="text-blue-500!">
+                    Cup-Tageswertung
+                </flux:button>
+            @endif
+
+            @if($meet->qualifying_time_list_id)
+                <flux:button href="{{ route('qualifying-time-lists.show', $meet->qualifying_time_list_id) }}"
+                             variant="filled" icon="flag" size="sm" class="text-blue-500!">
+                    Richtzeiten anzeigen
+                </flux:button>
+            @endif
+
+            @if(auth()->user()?->is_admin)
+                <flux:button href="{{ route('admin.meets.documents.index', $meet) }}" variant="filled"
+                             icon="document-text" size="sm" class="text-blue-500!">
+                    Dokumente ({{ $meet->documents_count }})
+                </flux:button>
+            @endif
+
+            <flux:button href="{{ route('lenex.export') }}?meet_id={{ $meet->id }}" variant="filled"
+                         icon="arrow-down-tray" size="sm" class="text-blue-500!">
+                LENEX Export
+            </flux:button>
+            <form method="POST" action="{{ route('records.check', $meet) }}"
+                  x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
+                  @submit.prevent="submit()">
+                @csrf
+                <flux:button type="submit" variant="filled" icon="star" size="sm" class="text-blue-500!">
+                    Rekorde prüfen
+                </flux:button>
+            </form>
+            @if($meet->hasWpsPointsEnabled() && auth()->user()?->can('manageEntries', $meet))
+                <form method="POST" action="{{ route('meets.wps-points.recalculate', $meet) }}"
+                      x-data="{ submit() { if (confirm('WPS-Punkte für alle Ergebnisse neu berechnen?')) this.$el.submit() } }"
                       @submit.prevent="submit()">
                     @csrf
-                    <flux:button type="submit" variant="filled" icon="star" size="sm">
-                        Rekorde prüfen
+                    <flux:button type="submit" variant="filled" icon="calculator" size="sm" class="text-blue-500!">
+                        WPS-Punkte berechnen
                     </flux:button>
                 </form>
-                @if($meet->hasWpsPointsEnabled() && auth()->user()?->can('manageEntries', $meet))
-                    <form method="POST" action="{{ route('meets.wps-points.recalculate', $meet) }}"
-                          x-data="{ submit() { if (confirm('WPS-Punkte für alle Ergebnisse neu berechnen?')) this.$el.submit() } }"
-                          @submit.prevent="submit()">
-                        @csrf
-                        <flux:button type="submit" variant="filled" icon="calculator" size="sm">
-                            WPS-Punkte berechnen
-                        </flux:button>
-                    </form>
-                @endif
-                <flux:button href="{{ route('meets.edit', $meet) }}" variant="filled" icon="pencil" size="sm">
-                    Bearbeiten
-                </flux:button>
-            </div>
+            @endif
+            <flux:button href="{{ route('meets.edit', $meet) }}" variant="filled" icon="pencil" size="sm"
+                         class="text-amber-500!">
+                Bearbeiten
+            </flux:button>
         </div>
     </div>
 

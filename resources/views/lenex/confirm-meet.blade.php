@@ -5,14 +5,15 @@
 
 @section('content')
     <div class="max-w-2xl">
-        <div class="flex items-center gap-3 mb-6">
-            <flux:button href="{{ route('lenex.import') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('lenex.import') }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Wettkampf zuordnen</h1>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ $type === 'entries' ? 'Meldungen' : 'Ergebnisse' }} werden importiert
-                </p>
             </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $type === 'entries' ? 'Meldungen' : 'Ergebnisse' }} werden importiert
+            </p>
         </div>
 
         {{-- Erkannter Wettkampf aus der Datei --}}

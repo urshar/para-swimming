@@ -4,14 +4,15 @@
 
 @section('content')
     <div class="max-w-4xl">
-        <div class="flex items-center justify-between mb-6">
+        <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Basiswert-Versionen</h1>
-            <div class="flex gap-3">
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 <flux:button href="{{ route('base-times.import') }}" variant="filled" icon="arrow-up-tray"
-                             class="text-blue-500!">
+                             size="sm" class="text-blue-500!">
                     Importieren
                 </flux:button>
-                <flux:button href="{{ route('base-times.versions.create') }}" variant="primary" icon="plus">
+                <flux:button href="{{ route('base-times.versions.create') }}" variant="primary" icon="plus"
+                             size="sm">
                     Neue Version
                 </flux:button>
             </div>

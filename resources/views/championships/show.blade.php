@@ -4,34 +4,36 @@
 
 @section('content')
     <div class="max-w-6xl">
-        <div class="flex items-start justify-between mb-6">
-            <div>
+        <div class="mb-6">
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('championships.index') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zur Übersicht" aria-label="Zur Übersicht"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {{ $championship->name }}
                 </h1>
-                <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    Qualifikationszeitraum
-                    {{ $championship->qualification_start->format('d.m.Y') }}
-                    bis {{ $championship->qualification_end->format('d.m.Y') }}
-                    · Normen auf {{ $championship->course }}
-                    @if($championship->source)
-                        · Quelle: {{ $championship->source }}
-                    @endif
-                </p>
             </div>
-            <div class="flex gap-2">
-                <flux:button href="{{ route('championships.index') }}" variant="ghost" size="sm">
-                    Zur Übersicht
-                </flux:button>
-                @if(auth()->user()?->is_admin)
-                    <flux:button href="{{ route('championships.import', $championship) }}"
-                                 variant="ghost" size="sm" icon="arrow-up-tray">
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Qualifikationszeitraum
+                {{ $championship->qualification_start->format('d.m.Y') }}
+                bis {{ $championship->qualification_end->format('d.m.Y') }}
+                · Normen auf {{ $championship->course }}
+                @if($championship->source)
+                    · Quelle: {{ $championship->source }}
+                @endif
+            </p>
+
+            @if(auth()->user()?->is_admin)
+                <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                    <flux:button href="{{ route('championships.import', $championship) }}" variant="filled"
+                                 icon="arrow-up-tray" size="sm" class="text-blue-500!">
                         Importieren
                     </flux:button>
-                    <flux:button href="{{ route('championships.edit', $championship) }}"
-                                 variant="ghost" size="sm" icon="pencil"/>
-                @endif
-            </div>
+                    <flux:button href="{{ route('championships.edit', $championship) }}" variant="filled"
+                                 icon="pencil" size="sm" class="text-amber-500!">
+                        Bearbeiten
+                    </flux:button>
+                </div>
+            @endif
         </div>
 
         {{-- Die drei Auswertungen beantworten verschiedene Fragen (§7.5, §8); die Beschreibung

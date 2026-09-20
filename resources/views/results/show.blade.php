@@ -6,16 +6,31 @@
 
 @section('title', $result->athlete?->display_name . ' – ' . $result->swimEvent?->display_name)
 
-@section('actions')
-    <flux:button href="{{ route('results.edit', $result) }}" icon="pencil" size="sm">Bearbeiten</flux:button>
-    <form method="POST" action="{{ route('results.destroy', $result) }}">
-        @csrf @method('DELETE')
-        <flux:button type="submit" variant="danger" size="sm" onclick="return confirm('Ergebnis löschen?')">Löschen
-        </flux:button>
-    </form>
-@endsection
-
 @section('content')
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ url()->previous() }}" variant="primary" icon="arrow-left" size="sm"
+                         title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {{ $result->athlete?->display_name }} – {{ $result->swimEvent?->display_name }}
+            </h1>
+        </div>
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            <flux:button href="{{ route('results.edit', $result) }}" variant="filled" icon="pencil" size="sm"
+                         class="text-amber-500!">
+                Bearbeiten
+            </flux:button>
+            <form method="POST" action="{{ route('results.destroy', $result) }}"
+                  x-data="{ submit() { if (confirm('Ergebnis löschen?')) this.$el.submit() } }"
+                  @submit.prevent="submit()">
+                @csrf @method('DELETE')
+                <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
+                    Löschen
+                </flux:button>
+            </form>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {{-- Main Info --}}

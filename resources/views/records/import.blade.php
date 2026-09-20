@@ -5,11 +5,10 @@
 @section('content')
     <div class="max-w-xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekorde importieren</h1>
-            <div class="mt-4">
-                <flux:button href="{{ route('records.index') }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('records.index') }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekorde importieren</h1>
             </div>
         </div>
 
