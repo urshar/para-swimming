@@ -8,28 +8,26 @@
     @php $clubParam = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
 
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldungen</h1>
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left"
+                         size="sm" title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldungen</h1>
+        </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ $meet->name }} · {{ $club->display_name }}
         </p>
 
-        <div class="flex items-center flex-wrap gap-2 mt-4">
-            <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
-                Zurück
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParam)) }}"
+                         variant="filled" size="sm" class="text-blue-500!">
+                Einzelmeldungen
             </flux:button>
-
-            <div class="ml-auto flex items-center flex-wrap gap-2">
-                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParam)) }}"
-                             variant="filled" size="sm">
-                    Einzelmeldungen
+            @if($canManage)
+                <flux:button href="{{ route('club-entries.relay.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                             variant="primary" icon="plus" size="sm">
+                    Neue Staffelmeldung
                 </flux:button>
-                @if($canManage)
-                    <flux:button href="{{ route('club-entries.relay.create', array_merge(['meet' => $meet], $clubParam)) }}"
-                                 variant="primary" icon="plus">
-                        Neue Staffelmeldung
-                    </flux:button>
-                @endif
-            </div>
+            @endif
         </div>
     </div>
 

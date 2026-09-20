@@ -8,17 +8,14 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Neue Meldung</h1>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                             variant="primary" icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Neue Meldung</h1>
+            </div>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {{ $meet->name }} · {{ $club->display_name }}
             </p>
-
-            <div class="mt-4">
-                <flux:button href="{{ route('club-entries.index', array_merge(['meet' => $meet], $clubParams)) }}"
-                             variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-            </div>
         </div>
 
         @php

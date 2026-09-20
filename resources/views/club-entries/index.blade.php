@@ -12,29 +12,28 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Einzelmeldungen</h1>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Einzelmeldungen</h1>
+            </div>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {{ $meet->name }} · {{ $meet->city }} ·
                 {{ $meet->start_date->format('d.m.Y') }}
                 · {{ $club->display_name }}
             </p>
 
-            <div class="flex items-center flex-wrap gap-2 mt-4">
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
+                             variant="filled" size="sm" class="text-blue-500!">
+                    Staffelmeldungen
                 </flux:button>
-
-                <div class="ml-auto flex items-center flex-wrap gap-2">
-                    <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
-                                 variant="filled" size="sm">Staffelmeldungen
+                @if($canManage)
+                    <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
+                                 variant="primary" icon="plus" size="sm">
+                        Neue Meldung
                     </flux:button>
-                    @if($canManage)
-                        <flux:button href="{{ route('club-entries.create', array_merge(['meet' => $meet], $clubParam)) }}"
-                                     variant="primary" icon="plus">
-                            Neue Meldung
-                        </flux:button>
-                    @endif
-                </div>
+                @endif
             </div>
         </div>
 
