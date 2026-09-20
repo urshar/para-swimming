@@ -14,7 +14,7 @@ class SwimEventController extends Controller
     public function create(Meet $meet): View
     {
         $strokeTypes = StrokeType::active()
-            ->orderByRaw("FIELD(category, 'standard', 'special', 'fin')")
+            ->orderByRaw("CASE category WHEN 'standard' THEN 0 WHEN 'special' THEN 1 WHEN 'fin' THEN 2 ELSE 3 END")
             ->orderBy('name_de')
             ->get();
 
@@ -40,7 +40,7 @@ class SwimEventController extends Controller
     public function edit(SwimEvent $event): View
     {
         $strokeTypes = StrokeType::active()
-            ->orderByRaw("FIELD(category, 'standard', 'special', 'fin')")
+            ->orderByRaw("CASE category WHEN 'standard' THEN 0 WHEN 'special' THEN 1 WHEN 'fin' THEN 2 ELSE 3 END")
             ->orderBy('name_de')
             ->get();
 

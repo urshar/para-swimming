@@ -19,13 +19,12 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung anlegen</h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
-            <div class="mt-4">
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung anlegen</h1>
             </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
@@ -41,7 +40,7 @@
                 @csrf
 
                 <flux:field>
-                    <flux:label>Disziplin <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Disziplin<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="swim_event_id" required>
                         @foreach($swimEvents->groupBy('session_number') as $session => $events)
                             <flux:select.group label="Session {{ $session }}">
@@ -59,7 +58,7 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Athlet<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="athlete_id" x-model="athleteId" required>
                         @foreach($athletes as $athlete)
                             <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
@@ -73,7 +72,7 @@
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Meldender Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Meldender Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}" :selected="old('club_id') == $club->id">
@@ -87,12 +86,11 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — leer lassen für NT"/></flux:label>
                         <div x-data='maskedTimeField(@json($oldEntryTime))'>
                             <flux:input name="entry_time" type="text" x-model="value"
                                         placeholder="00:00.00" autocomplete="off"/>
                         </div>
-                        <flux:description class="mt-1!">MM:SS.hh — leer lassen für NT</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
                     <flux:field>

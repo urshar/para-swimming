@@ -115,7 +115,7 @@
                 {{-- Meldezeit + Kurs --}}
                 <div class="grid grid-cols-2 gap-4 mb-6 w-full items-start">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — z.B. 04:30.25"/></flux:label>
                         <flux:input
                             name="entry_time"
                             type="text"
@@ -133,7 +133,6 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1!">MM:SS.hh — z.B. 04:30.25</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

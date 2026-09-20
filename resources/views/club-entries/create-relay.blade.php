@@ -59,7 +59,7 @@
 
                 {{-- Event-Auswahl --}}
                 <flux:field class="mb-5">
-                    <flux:label>Staffel-Event <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Staffel-Event<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select
                         variant="listbox"
                         name="swim_event_id"
@@ -110,7 +110,7 @@
                 {{-- Meldezeit + Kurs --}}
                 <div class="grid grid-cols-2 gap-4 mb-5 w-full items-start">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — z.B. 04:30.25"/></flux:label>
                         <flux:input
                             name="entry_time"
                             type="text"
@@ -128,7 +128,6 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1!">MM:SS.hh — z.B. 04:30.25</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

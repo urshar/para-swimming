@@ -7,13 +7,12 @@
 
         {{-- Header --}}
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung bearbeiten</h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $entry->meet?->name }}</p>
-            <div class="mt-4">
-                <flux:button href="{{ url()->previous() }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ url()->previous() }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldung bearbeiten</h1>
             </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $entry->meet?->name }}</p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
@@ -45,7 +44,7 @@
                 @method('PUT')
 
                 <flux:field>
-                    <flux:label>Meldender Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Meldender Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="club_id" required>
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $entry->club_id) == $club->id">
@@ -58,7 +57,7 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — leer lassen für NT"/></flux:label>
                         <flux:input
                             name="entry_time"
                             type="text"
@@ -75,7 +74,6 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1!">MM:SS.hh — leer lassen für NT</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
                     <flux:field>

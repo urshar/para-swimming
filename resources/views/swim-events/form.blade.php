@@ -39,7 +39,7 @@
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
-                        <flux:label>Session <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Session<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="session_number" type="number" min="1"
                                     value="{{ old('session_number', $event->session_number ?? 1) }}" required/>
                         <flux:error name="session_number"/>
@@ -51,7 +51,7 @@
                         <flux:error name="event_number"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Runde <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Runde<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="round" required>
                             @foreach(['TIM' => 'Timed Finals', 'FIN' => 'Finale', 'SEM' => 'Halbfinale', 'PRE' => 'Vorlauf', 'TIMETRIAL' => 'Zeitlauf'] as $val => $label)
                                 <flux:select.option
@@ -63,7 +63,7 @@
 
                 <div class="grid grid-cols-4 gap-4">
                     <flux:field class="col-span-2">
-                        <flux:label>Schwimmstil <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Schwimmstil<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="stroke_type_id" required>
                             @foreach($strokeTypes->groupBy('category') as $category => $strokes)
                                 <flux:select.group label="{{ ucfirst($category) }}">
@@ -79,7 +79,7 @@
                         <flux:error name="stroke_type_id"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Distanz (m) <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Distanz (m)<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="distance" required>
                             @foreach($distanceOptions as $distanceOption)
                                 <flux:select.option value="{{ $distanceOption }}"
@@ -91,16 +91,15 @@
                         <flux:error name="distance"/>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Schwimmer/Staffel <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Schwimmer/Staffel<span class="text-red-500 dark:text-red-400 ms-1">*</span><x-hint content="1 = Einzel"/></flux:label>
                         <flux:input name="relay_count" type="number" min="1"
                                     value="{{ old('relay_count', $event->relay_count ?? 1) }}" required/>
-                        <flux:description class="mt-1!">1 = Einzel</flux:description>
                     </flux:field>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Geschlecht <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:label>Geschlecht<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="gender" required>
                             <flux:select.option value="A" :selected="old('gender', $event->gender ?? 'A') === 'A'">Offen (alle)
                             </flux:select.option>
@@ -111,10 +110,9 @@
                         </flux:select>
                     </flux:field>
                     <flux:field>
-                        <flux:label>Sport-Klassen</flux:label>
+                        <flux:label>Sport-Klassen<x-hint content="Leerzeichen-getrennt"/></flux:label>
                         <flux:input name="sport_classes" value="{{ old('sport_classes', $event->sport_classes ?? '') }}"
                                     placeholder="z.B. S1 S2 S3"/>
-                        <flux:description>Leerzeichen-getrennt</flux:description>
                     </flux:field>
                 </div>
 
