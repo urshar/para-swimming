@@ -33,7 +33,8 @@
         </flux:select>
         <div class="ml-auto flex items-center gap-3">
             @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
-                <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="x-mark">Zurücksetzen</flux:button>
+                <flux:button href="{{ route('classifiers.index') }}" variant="filled" icon="x-mark"
+                             class="text-red-500!">Zurücksetzen</flux:button>
             @endif
             <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
         </div>
@@ -70,7 +71,11 @@
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
-                        {{ $classifier->nation?->code ?? '–' }}
+                        @if($classifier->nation)
+                            <x-flag code="{{ $classifier->nation->code }}" :label="$classifier->nation->name_de"/>
+                        @else
+                            –
+                        @endif
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                         @if($classifier->email)

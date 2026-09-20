@@ -4,30 +4,31 @@
 
 @section('content')
 
-    <div class="flex items-start justify-between mb-6">
-        <div class="flex items-center gap-3">
-            <flux:button href="{{ route('classifiers.index') }}" variant="ghost" icon="arrow-left" size="sm"/>
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $classifier->full_name }}</h1>
-                    <flux:badge color="{{ $classifier->type === 'MED' ? 'red' : 'blue' }}">
-                        {{ $classifier->type_name }}
-                    </flux:badge>
-                    @if(!$classifier->is_active)
-                        <flux:badge color="zinc">Inaktiv</flux:badge>
-                    @endif
-                </div>
-                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{ match($classifier->gender ?? '') { 'M' => 'Herr', 'F' => 'Dame', 'N' => 'Nicht binär', default => '' } }}
-                    @if($classifier->nation)
-                        · {{ $classifier->nation->code }}
-                    @endif
-                </p>
-            </div>
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('classifiers.index') }}" variant="primary" icon="arrow-left" size="sm"
+                         title="Zurück" aria-label="Zurück"/>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $classifier->full_name }}</h1>
+            <flux:badge color="{{ $classifier->type === 'MED' ? 'red' : 'blue' }}">
+                {{ $classifier->type_name }}
+            </flux:badge>
+            @if(!$classifier->is_active)
+                <flux:badge color="zinc">Inaktiv</flux:badge>
+            @endif
         </div>
-        <flux:button href="{{ route('classifiers.edit', $classifier) }}" variant="ghost" icon="pencil" size="sm">
-            Bearbeiten
-        </flux:button>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {{ match($classifier->gender ?? '') { 'M' => 'Herr', 'F' => 'Dame', 'N' => 'Nicht binär', default => '' } }}
+            @if($classifier->nation)
+                · {{ $classifier->nation->code }}
+            @endif
+        </p>
+
+        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            <flux:button href="{{ route('classifiers.edit', $classifier) }}" variant="filled" icon="pencil"
+                         size="sm" class="text-amber-500!">
+                Bearbeiten
+            </flux:button>
+        </div>
     </div>
 
     <div class="grid grid-cols-3 gap-6 mb-6">
