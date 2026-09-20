@@ -6,15 +6,12 @@
     <div class="max-w-5xl">
         <div class="mb-6">
             <div class="flex items-center gap-2">
+                <flux:button href="{{ route('wps.versions.index') }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $version->label }}</h1>
                 @if($version->isArchived())
                     <flux:badge color="zinc" size="sm">Archiviert</flux:badge>
                 @endif
-            </div>
-            <div class="mt-4">
-                <flux:button href="{{ route('wps.versions.index') }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
             </div>
         </div>
 
