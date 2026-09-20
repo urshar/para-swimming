@@ -99,54 +99,66 @@
                 {{-- Bestzeiten-Anzeige (Jahres- + absolute Bestzeit). Klick auf eine Zeit übernimmt sie
                      als Meldezeit + Bahnlänge (applyTime); NT-Zeiten sind nicht klickbar. --}}
                 <div x-show="selectedAthleteId && selectedEventId"
-                     class="mb-5 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 text-sm">
+                     class="mb-5 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-700 text-sm">
                     <div x-show="loadingTimes" class="text-zinc-400 text-xs">Wird geladen…</div>
-                    <div x-show="!loadingTimes" class="space-y-3">
-                        {{-- Jahresbestzeit --}}
-                        <div>
-                            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">
-                                Jahresbestzeit (Vorjahr bis Wettkampfbeginn)
-                            </p>
-                            <div class="flex gap-6 items-end">
-                                <div>
-                                    <span class="text-xs text-zinc-400">LCM</span>
-                                    <p class="font-mono font-semibold"
-                                       :class="bestTimes.LCM && bestTimes.LCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
-                                       @click="bestTimes.LCM && applyTime('LCM', bestTimes.LCM.year.formatted)"
-                                       x-text="bestTimes.LCM ? bestTimes.LCM.year.formatted : 'NT'"></p>
+                    <div x-show="!loadingTimes">
+                        <div class="grid grid-cols-2 gap-6">
+                            {{-- Jahresbestzeit --}}
+                            <div>
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    Jahresbestzeit
+                                </p>
+                                <p class="text-xs text-zinc-400 mb-1">(Vorjahr bis Wettkampfbeginn)</p>
+                                <div class="flex gap-6 items-start">
+                                    <div>
+                                        <span class="text-xs text-zinc-400">LCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="bestTimes.LCM && bestTimes.LCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="bestTimes.LCM && applyTime('LCM', bestTimes.LCM.year.formatted)"
+                                           x-text="bestTimes.LCM ? bestTimes.LCM.year.formatted : 'NT'"></p>
+                                        <p class="text-xs text-zinc-400" x-show="bestTimes.LCM && bestTimes.LCM.year.date"
+                                           x-text="bestTimes.LCM ? bestTimes.LCM.year.date : ''"></p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-zinc-400">SCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="bestTimes.SCM && bestTimes.SCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="bestTimes.SCM && applyTime('SCM', bestTimes.SCM.year.formatted)"
+                                           x-text="bestTimes.SCM ? bestTimes.SCM.year.formatted : 'NT'"></p>
+                                        <p class="text-xs text-zinc-400" x-show="bestTimes.SCM && bestTimes.SCM.year.date"
+                                           x-text="bestTimes.SCM ? bestTimes.SCM.year.date : ''"></p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span class="text-xs text-zinc-400">SCM</span>
-                                    <p class="font-mono font-semibold"
-                                       :class="bestTimes.SCM && bestTimes.SCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
-                                       @click="bestTimes.SCM && applyTime('SCM', bestTimes.SCM.year.formatted)"
-                                       x-text="bestTimes.SCM ? bestTimes.SCM.year.formatted : 'NT'"></p>
+                            </div>
+                            {{-- Absolute Bestzeit --}}
+                            <div>
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    Absolute Bestzeit
+                                </p>
+                                <p class="text-xs text-zinc-400 mb-1">(alle Wettkämpfe)</p>
+                                <div class="flex gap-6 items-start">
+                                    <div>
+                                        <span class="text-xs text-zinc-400">LCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="bestTimes.LCM && bestTimes.LCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="bestTimes.LCM && applyTime('LCM', bestTimes.LCM.absolute.formatted)"
+                                           x-text="bestTimes.LCM ? bestTimes.LCM.absolute.formatted : 'NT'"></p>
+                                        <p class="text-xs text-zinc-400" x-show="bestTimes.LCM && bestTimes.LCM.absolute.date"
+                                           x-text="bestTimes.LCM ? bestTimes.LCM.absolute.date : ''"></p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-zinc-400">SCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="bestTimes.SCM && bestTimes.SCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="bestTimes.SCM && applyTime('SCM', bestTimes.SCM.absolute.formatted)"
+                                           x-text="bestTimes.SCM ? bestTimes.SCM.absolute.formatted : 'NT'"></p>
+                                        <p class="text-xs text-zinc-400" x-show="bestTimes.SCM && bestTimes.SCM.absolute.date"
+                                           x-text="bestTimes.SCM ? bestTimes.SCM.absolute.date : ''"></p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        {{-- Absolute Bestzeit --}}
-                        <div>
-                            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">
-                                Absolute Bestzeit
-                            </p>
-                            <div class="flex gap-6 items-end">
-                                <div>
-                                    <span class="text-xs text-zinc-400">LCM</span>
-                                    <p class="font-mono font-semibold"
-                                       :class="bestTimes.LCM && bestTimes.LCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
-                                       @click="bestTimes.LCM && applyTime('LCM', bestTimes.LCM.absolute.formatted)"
-                                       x-text="bestTimes.LCM ? bestTimes.LCM.absolute.formatted : 'NT'"></p>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-zinc-400">SCM</span>
-                                    <p class="font-mono font-semibold"
-                                       :class="bestTimes.SCM && bestTimes.SCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
-                                       @click="bestTimes.SCM && applyTime('SCM', bestTimes.SCM.absolute.formatted)"
-                                       x-text="bestTimes.SCM ? bestTimes.SCM.absolute.formatted : 'NT'"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-xs text-zinc-400">Klick auf eine Zeit übernimmt sie als Meldezeit.</p>
+                        <p class="text-xs text-zinc-400 mt-2">Klick auf eine Zeit übernimmt sie als Meldezeit.</p>
                     </div>
                 </div>
 

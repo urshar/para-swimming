@@ -1,7 +1,3 @@
-@php
-    use App\Support\TimeParser;
-@endphp
-
 @extends('layouts.app')
 
 @section('title', 'Meldung bearbeiten – ' . $meet->name)
@@ -53,28 +49,6 @@
                 </dl>
             </div>
 
-            {{-- Bestzeiten --}}
-            <div
-                class="mb-5 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-700 text-sm">
-                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide">
-                    Jahresbestzeit (Vorjahr bis Meet beginn)
-                </p>
-                <div class="flex gap-6">
-                    <div>
-                        <span class="text-xs text-zinc-400">LCM</span>
-                        <p class="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-                            {{ $bestTimes['LCM'] ? TimeParser::display($bestTimes['LCM']) : 'NT' }}
-                        </p>
-                    </div>
-                    <div>
-                        <span class="text-xs text-zinc-400">SCM</span>
-                        <p class="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-                            {{ $bestTimes['SCM'] ? TimeParser::display($bestTimes['SCM']) : 'NT' }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {{--
                 Formular. Konfiguration als EIN zusammenhängender JSON-Wert übergeben (siehe
                 club-entries/create.blade.php).
@@ -103,6 +77,40 @@
                     </div>
                 @endif
 
+                {{-- Bestzeiten (Jahres- + absolute Bestzeit, mit Datum) für Athlet + Disziplin dieser
+                     Meldung — server-seitig gerendert (hier fix). Klick auf eine Zeit übernimmt sie
+                     als Meldezeit + Bahnlänge (entryTime/entryCourse aus singleEntryForm). --}}
+                <div class="mb-5 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-700 text-sm">
+                    <div class="grid grid-cols-2 gap-6">
+                        @foreach (['year' => 'Jahresbestzeit', 'absolute' => 'Absolute Bestzeit'] as $kind => $label)
+                            <div>
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    {{ $label }}
+                                </p>
+                                <p class="text-xs text-zinc-400 mb-1">
+                                    {{ $kind === 'year' ? '(Vorjahr bis Wettkampfbeginn)' : '(alle Wettkämpfe)' }}
+                                </p>
+                                <div class="flex gap-6 items-start">
+                                    @foreach (['LCM', 'SCM'] as $course)
+                                        @php $t = $bestTimesPanel[$course][$kind]; @endphp
+                                        <div>
+                                            <span class="text-xs text-zinc-400">{{ $course }}</span>
+                                            @if ($t['formatted'] !== 'NT')
+                                                <p class="font-mono font-semibold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                                   x-on:click="entryTime = '{{ $t['formatted'] }}'; entryCourse = '{{ $course }}'">{{ $t['formatted'] }}</p>
+                                                <p class="text-xs text-zinc-400">{{ $t['date'] }}</p>
+                                            @else
+                                                <p class="font-mono font-semibold text-zinc-900 dark:text-zinc-100">NT</p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-zinc-400 mt-2">Klick auf eine Zeit übernimmt sie als Meldezeit.</p>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4 mb-6 items-start">
                     <flux:field>
                         <flux:label>Meldezeit<x-hint content="MM:SS.hh — z.B. 01:23.45"/></flux:label>
@@ -127,7 +135,7 @@
 
                     <flux:field>
                         <flux:label>Kurs</flux:label>
-                        <flux:select variant="listbox" name="entry_course">
+                        <flux:select variant="listbox" name="entry_course" x-model="entryCourse">
                             <flux:select.option value="LCM"
                                 :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'LCM'">
                                 LCM (50m)
@@ -144,18 +152,6 @@
                         <flux:error name="entry_course"/>
                     </flux:field>
                 </div>
-
-                {{-- Bestzeit-Übernahme --}}
-                @if($bestTimes[$meet->course])
-                    <div class="mb-4">
-                        <button type="button"
-                                x-on:click="entryTime = '{{ TimeParser::display($bestTimes[$meet->course]) }}'"
-                                class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                            Bestzeit übernehmen ({{ $meet->course }}:
-                            {{ TimeParser::display($bestTimes[$meet->course]) }})
-                        </button>
-                    </div>
-                @endif
 
                 <div class="flex gap-3 pt-2">
                     <flux:button type="submit" variant="primary">

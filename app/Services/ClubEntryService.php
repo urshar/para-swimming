@@ -120,6 +120,19 @@ readonly class ClubEntryService
         ];
     }
 
+    /**
+     * Vollständige Bestzeiten fürs Melde-Panel: je Kurs (LCM/SCM) Jahres- UND absolute
+     * Bestzeit, jeweils roh + formatiert ('NT' wenn keine). Genutzt von den best-times-
+     * AJAX-Endpoints in ClubEntryController (Vereinsmeldung) und EntryController (Admin).
+     */
+    public function bestTimesForPanel(Athlete $athlete, SwimEvent $event, Meet $meet): array
+    {
+        return [
+            'LCM' => $this->panelCourse($athlete, $event, $meet, 'LCM'),
+            'SCM' => $this->panelCourse($athlete, $event, $meet, 'SCM'),
+        ];
+    }
+
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
@@ -143,6 +156,28 @@ readonly class ClubEntryService
     public function parseTime(string $time): ?int
     {
         return TimeParser::parse($time);
+    }
+
+    /** Ein Kurs-Eintrag fürs Panel: Jahres- + absolute Bestzeit (Zeit, formatiert, Datum). */
+    private function panelCourse(Athlete $athlete, SwimEvent $event, Meet $meet, string $course): array
+    {
+        $from = Carbon::create((int) $meet->start_date->format('Y') - 1);
+        $until = $meet->start_date->copy()->subDay();
+
+        return [
+            'year' => $this->panelTime($this->bestResult($athlete, $event, $course, $from, $until)),
+            'absolute' => $this->panelTime($this->bestResult($athlete, $event, $course)),
+        ];
+    }
+
+    /** Result → {raw, formatted, date} fürs Panel ('NT' + null, wenn keine Zeit vorhanden). */
+    private function panelTime(?Result $result): array
+    {
+        return [
+            'raw' => $result?->swim_time,
+            'formatted' => $this->formatTime($result?->swim_time) ?? 'NT',
+            'date' => $result?->meet?->start_date?->format('d.m.Y'),
+        ];
     }
 
     /**
@@ -191,12 +226,35 @@ readonly class ClubEntryService
         ?CarbonInterface $from = null,
         ?CarbonInterface $until = null,
     ): ?int {
+        return $this->bestResult($athlete, $event, $course, $from, $until)?->swim_time;
+    }
+
+    /**
+     * Das schnellste gültige Result eines Athleten für die Disziplin (Distanz + Schwimmstil +
+     * relay_count) auf dem gegebenen Kurs — inkl. Meet (fürs Datum). Optionaler Datumsfilter.
+     *
+     * Match über die DISZIPLIN, nicht über die exakte swim_event_id: die historischen Ergebnisse
+     * eines Athleten hängen an den Events VERGANGENER Meets, nicht an dem gerade angelegten Event
+     * dieses Meets — ein Match auf $event->id fand daher nie etwas und lieferte immer NT.
+     */
+    private function bestResult(
+        Athlete $athlete,
+        SwimEvent $event,
+        string $course,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $until = null,
+    ): ?Result {
         $query = Result::query()
+            ->with('meet:id,start_date')
             ->where('athlete_id', $athlete->id)
-            ->where('swim_event_id', $event->id)
             ->whereNull('status')          // Keine DSQ/DNS/DNF
             ->whereNotNull('swim_time')
             ->where('swim_time', '>', 0)
+            ->whereHas('swimEvent', function ($q) use ($event) {
+                $q->where('distance', $event->distance)
+                    ->where('stroke_type_id', $event->stroke_type_id)
+                    ->where('relay_count', $event->relay_count);
+            })
             ->whereHas('meet', function ($q) use ($course) {
                 $q->where('course', $course);
             });
@@ -207,6 +265,6 @@ readonly class ClubEntryService
             });
         }
 
-        return $query->min('swim_time');
+        return $query->orderBy('swim_time')->first();
     }
 }
