@@ -71,7 +71,7 @@
                     <flux:tab.panel name="grunddaten" class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
-                                <flux:label>Disziplin <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                                <flux:label>Disziplin<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                 <flux:select variant="listbox" name="swim_event_id" required>
                                     @foreach($swimEvents as $event)
                                         <flux:select.option
@@ -89,7 +89,7 @@
                                     <flux:input value="{{ $result->athlete?->display_name }}" disabled/>
                                     <input type="hidden" name="athlete_id" value="{{ $result->athlete_id }}">
                                 @else
-                                    <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                                    <flux:label>Athlet<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                     <flux:select variant="listbox" searchable name="athlete_id" x-model="athleteId" required>
                                         @foreach($athletes as $athlete)
                                             <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
@@ -112,7 +112,7 @@
                                     <flux:input value="{{ $result->club?->display_name }}" disabled/>
                                     <input type="hidden" name="club_id" value="{{ $result->club_id }}">
                                 @else
-                                    <flux:label>Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                                    <flux:label>Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                     <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
                                         @foreach($clubs as $club)
                                             <flux:select.option
@@ -134,12 +134,11 @@
 
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
-                                <flux:label>Schwimmzeit</flux:label>
+                                <flux:label>Schwimmzeit<x-hint content="MM:SS.hh — leer lassen ohne Zeit (z.B. bei DNS)"/></flux:label>
                                 <div x-data='maskedTimeField(@json($swimTimeValue))'>
                                     <flux:input name="swim_time" type="text" x-model="value"
                                                 placeholder="00:00.00" autocomplete="off"/>
                                 </div>
-                                <flux:description class="mt-1!">MM:SS.hh — leer lassen ohne Zeit (z.B. bei DNS)</flux:description>
                                 <flux:error name="swim_time"/>
                             </flux:field>
                             <flux:field>
@@ -196,11 +195,10 @@
                                 <flux:error name="points"/>
                             </flux:field>
                             <flux:field>
-                                <flux:label>Reaktionszeit (Sekunden)</flux:label>
+                                <flux:label>Reaktionszeit (Sekunden)<x-hint content="Sekunden mit Komma — negativ bei Fehlstart"/></flux:label>
                                 <flux:input name="reaction_time" type="text"
                                             value="{{ $reactionTimeValue }}"
                                             placeholder="z.B. 0,14 oder -0,03" autocomplete="off"/>
-                                <flux:description class="mt-1!">Sekunden mit Komma — negativ bei Fehlstart</flux:description>
                                 <flux:error name="reaction_time"/>
                             </flux:field>
                         </div>

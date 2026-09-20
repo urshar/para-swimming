@@ -47,7 +47,7 @@
 
                 {{-- Event-Auswahl --}}
                 <flux:field class="mb-5">
-                    <flux:label>Event <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Event<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select
                         variant="listbox"
                         name="swim_event_id"
@@ -67,7 +67,7 @@
 
                 {{-- Athlet-Auswahl (wird per AJAX befüllt) --}}
                 <flux:field class="mb-5">
-                    <flux:label>Athlet <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Athlet<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <div x-show="loadingAthletes" class="flex items-center gap-2 text-sm text-zinc-400 py-2">
                         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -128,7 +128,7 @@
                 {{-- Meldezeit + Kurs --}}
                 <div class="grid grid-cols-2 gap-4 mb-5 items-start">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — z.B. 01:23.45"/></flux:label>
                         <flux:input
                             name="entry_time"
                             type="text"
@@ -145,7 +145,6 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1!">MM:SS.hh — z.B. 01:23.45</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
 

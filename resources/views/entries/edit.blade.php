@@ -45,7 +45,7 @@
                 @method('PUT')
 
                 <flux:field>
-                    <flux:label>Meldender Club <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:label>Meldender Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" searchable name="club_id" required>
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $entry->club_id) == $club->id">
@@ -58,7 +58,7 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Meldezeit</flux:label>
+                        <flux:label>Meldezeit<x-hint content="MM:SS.hh — leer lassen für NT"/></flux:label>
                         <flux:input
                             name="entry_time"
                             type="text"
@@ -75,7 +75,6 @@
                                 $watch('entryTime', v => { if (mask.value !== v) mask.value = v; });
                             "
                         />
-                        <flux:description class="mt-1!">MM:SS.hh — leer lassen für NT</flux:description>
                         <flux:error name="entry_time"/>
                     </flux:field>
                     <flux:field>

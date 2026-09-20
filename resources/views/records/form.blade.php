@@ -370,7 +370,7 @@
                              für dieselbe Erkenntnis — deshalb ein eigener, schrumpfbarer Wrapper-Div). --}}
                         <div class="grid grid-cols-3 gap-4 items-start">
                             <flux:field>
-                                <flux:label>Schwimmzeit<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                                <flux:label>Schwimmzeit<span class="text-red-500 dark:text-red-400 ms-1">*</span><x-hint content="MM:SS.cs — z.B. 01:05.32"/></flux:label>
                                 <div class="w-full max-w-40">
                                     <flux:input
                                         name="swim_time"
@@ -382,7 +382,6 @@
                                         x-init="IMask($el, { mask: '00:00.00', lazy: false, placeholderChar: '0' })"
                                     />
                                 </div>
-                                <flux:description class="mt-1!">MM:SS.cs — z.B. 01:05.32</flux:description>
                                 <flux:error name="swim_time"/>
                             </flux:field>
                             <flux:field>

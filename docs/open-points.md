@@ -17,42 +17,42 @@ phasenweise Arbeitsweise aus `CLAUDE.md` (Plan → Freigabe → Umsetzung → Te
 Drei Gruppen, in dieser Reihenfolge abzuarbeiten:
 
 **Gruppe 1 — erledigt.** Das Titelleisten-/Header-Muster wurde als `feature/admin-ui-header-pattern` umgesetzt —
-deutlich über den ursprünglichen „nur show.blade.php"-Umfang hinaus, auf **alle** Admin-Header. Dokumentiert in
-`specs/admin-ui-rework.md` (Abschnitt „Header-/Titelleisten-Muster vereinheitlicht"); der zugehörige Open Point unten
+deutlich über den ursprünglichen "nur show.blade.php"-Umfang hinaus, auf **alle** Admin-Header. Dokumentiert in
+`specs/admin-ui-rework.md` (Abschnitt "Header-/Titelleisten-Muster vereinheitlicht"); der zugehörige Open Point unten
 wurde entfernt.
 
-„Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
-mitgenommen nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
+"Pflichtfeld-Sternchen" unten bekommt bewusst **keinen eigenen Branch** — bleibt wie bisher rein opportunistisch,
+mitgenommen, nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert wird.
 
 **Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
-Aufwand (kleine zuerst):
+Aufwand (kleine zuerst). **Erledigt:** `feature/meets-status-column` ("Status-Spalte in meets/index", PR #13) und
+`feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip) — die zugehörigen Open Points
+unten wurden entfernt.
 
-2. `feature/meets-status-column` — „Status-Spalte in meets/index" unten
-3. `feature/form-tooltip-hints` — „Tooltip/Popover statt Info-Text" unten
-4. `feature/entries-year-best-times` — „Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
-5. `feature/entries-absolute-best-time` — „Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick" unten
-6. `feature/relay-entry-time-suggestion` — „Meldezeit bei Staffelmeldungen ... herleiten" unten
-7. `feature/statistics-multi-year-chart` — „Statistik: 5-Jahres-Vergleichsgrafik" unten
-8. `feature/meet-entries-overview` — „Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-9. `feature/record-import-review` — „Post-Import Review-Liste" unten (größter/komplexester Punkt)
+1. `feature/entries-year-best-times` — "Jahresbestzeiten fehlen bei der admin-seitigen Meldungserfassung" unten
+2. `feature/entries-absolute-best-time` — "Absolute Bestzeit bei Einzelmeldungen + Übernahme per Klick" unten
+3. `feature/relay-entry-time-suggestion` — "Meldezeit bei Staffelmeldungen ... herleiten" unten
+4. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
+5. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+6. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
-Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter „Wer entscheidet" genannten Fragen mit
+Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-10. „LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
-    wie geöffnet)
-11. „Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
-    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-12. **„Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
-    Vorstand noch offen ist
+1. "LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
+   wie geöffnet)
+2. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+   echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
+3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+   Vorstand noch offen ist
 
 ## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
 
 **Seit:** Phase-13-Planung, Design-Feedback Erik (15.09.2026): "Ich würde auch eine Grafik benötigen, um zu sehen,
-wieviele Starts im Vergleich der letzten 5 Jahre waren, Teilnehmer, getrennt nach Damen und Herren, Staffeln
-(Herren, Damen, Mixed) eventuell gehört das in die open points." — von Erik selbst als eigener Punkt vorgeschlagen,
+wie viele Starts im Vergleich der letzten 5 Jahre waren, Teilnehmer, getrennt nach Damen und Herren, Staffeln (Herren,
+Damen, Mixed) eventuell gehört das in die open points." — von Erik selbst als eigener Punkt vorgeschlagen,
 statt es in den Phase-13-Umfang zu mischen.
 
 **Was fehlt:** Eine Grafik im Statistik-Dashboard, die Starts/Teilnehmer der letzten 5 Jahre nebeneinander zeigt,
@@ -71,13 +71,13 @@ vor der Umsetzung geklärt werden, nicht nebenbei in Phase 13 entschieden.
 Mehrjahres-Zeitreihe der gewünschten Kennzahlen, dann eine Grafik dafür im Dashboard (voraussichtlich
 `flux:chart`, siehe Phase 13 — dort erstmals im Projekt eingeführt).
 
-## „Zurück"-Buttons kontextsensitiv statt fest auf den Index
+## "Zurück"-Buttons kontextsensitiv statt fest auf den Index
 
 **Seit:** `feature/admin-ui-header-pattern` (19.09.2026), Rückmeldung Erik beim Header-Rework Gruppe 1 (records).
 
-**Was fehlt:** Viele „Zurück"-Buttons führen fest auf die jeweilige Index-/Listenseite (`records.index`,
+**Was fehlt:** Viele "Zurück"-Buttons führen fest auf die jeweilige Index-/Listenseite (`records.index`,
 `meets.index` …), nicht auf die tatsächlich vorher aufgerufene Ansicht. Beispiel: gefilterte Rekordliste → Detail →
-„Bearbeiten"; der „Zurück"-Button auf dem Formular springt auf `records.index` statt zurück auf die Detailseite bzw.
+"Bearbeiten"; der "Zurück"-Button auf dem Formular springt auf `records.index` statt zurück auf die Detailseite bzw.
 die vorher gewählte (gefilterte) Liste. `athletes/show` macht es bereits richtig — es merkt sich die zuletzt
 aufgerufene Listen-URL in der Session (`athletes.list_url`, siehe `AdminUiAthletesTest`); records/meets/… tun das
 nicht. `records/import-preview` zeigt korrekt auf den vorherigen Schritt (`records.import`) — der Rest zeigt stumpf
@@ -86,51 +86,51 @@ auf den Index.
 Konkret bei `records/show`: Der Back-Link übergibt **nur** `type` (`records.index?type=…`), aber keinen der übrigen
 Filter (`sportClass`, `ageGroup`, `gender`, `course`, `category`, `relay`, `status`). Die `records.index` fällt ohne
 `sportClass`-Parameter auf ihren Default zurück und zeigt dann **immer S01/SB01/SM01**, unabhängig davon, aus welcher
-Sportklasse/Ansicht der Nutzer kam. Das „Zurück" landet also gerade nicht in der Darstellung, aus der man kam — es
+Sportklasse/Ansicht der Nutzer kam. Das "Zurück" landet also gerade nicht in der Darstellung, aus der man kam — es
 reicht nicht, nur `type` mitzugeben, es muss der komplette Filter-Zustand (bzw. die vollständige vorherige URL)
 wiederhergestellt werden.
 
 **Warum zurückgestellt:** Der Header-Rework (`feature/admin-ui-header-pattern`) ist bewusst rein kosmetisch
-(Anordnung/Farbe/Höhe der Buttons) und fasst die Back-**Ziele** nicht an. Kontextsensitive Rücknavigation ist ein
+(Anordnung/Farbe/Höhe der Buttons) und fasst die Back- **Ziele** nicht an. Kontextsensitive Rücknavigation ist ein
 eigenes Verhalten: Referrer/letzte-Liste je Bereich in der Session merken (wie bei Athleten) oder gezielt
-`url()->previous()` mit sinnvollem Fallback — plus die Entscheidung, wie weit „zurück" gehen soll (unmittelbar
+`url()->previous()` mit sinnvollem Fallback — plus die Entscheidung, wie weit "zurück" gehen soll (unmittelbar
 vorherige Seite vs. gemerkte Listenansicht inkl. Filter).
 
-**Wer entscheidet:** Erik — pro Bereich das gewünschte Verhalten (immer zur letzten Liste inkl. Filter? zur
-unmittelbar vorherigen Seite? nur bestimmte Flows?).
+**Wer entscheidet:** Erik — pro Bereich das gewünschte Verhalten (immer zur letzten Liste inkl. Filter? Zur
+unmittelbar vorherigen Seite? Nur bestimmte Flows?).
 
 **Zum Schließen nötig:** Das Muster von `athletes.list_url` (Session-gespeicherte Rücksprung-URL) auf die übrigen
 Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
 -Back-Links auf das gemerkte Ziel umstellen.
 
-## Index-Filter einheitlich: sofort filtern bei Feldänderung statt „Filtern"-Button
+## Index-Filter einheitlich: sofort filtern bei Feldänderung statt "Filtern"-Button
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework
 (Athleten/Vereine/Klassifizierer).
 
 **Was fehlt:** Die Index-Filter verhalten sich uneinheitlich. `records/index` filtert bereits automatisch bei jeder
-Feldänderung (Alpine `x-model` + `x-init="$watch(...)"` → Auto-Submit, kein „Filtern"-Button — siehe die ausführliche
-Begründung im Kommentar dort). Die übrigen Index-Filter verlangen dagegen einen Klick auf „Filtern"
+Feldänderung (Alpine `x-model` + `x-init="$watch(...)"` → Auto-Submit, kein "Filtern"-Button — siehe die ausführliche
+Begründung im Kommentar dort). Die übrigen Index-Filter verlangen dagegen einen Klick auf "Filtern"
 (`type="submit"`, `icon="funnel"`): **athletes, clubs, classifiers, results, meets, entries** (6 Seiten).
 Zusätzlich wirken einzelne Elemente auf derselben Seite sofort (z. B. der A–Z-Buchstabenfilter auf `athletes/index`
-sind Links, die sofort navigieren), während die Text-/Select-Felder daneben erst auf „Filtern" reagieren — genau
+sind Links, die sofort navigieren), während die Text-/Select-Felder daneben erst auf "Filtern" reagieren — genau
 diese Mischung fällt als inkonsistent auf. Gewünscht: In allen Index-Filtern soll die Liste sofort aktualisiert
 werden, sobald ein Feld ausgewählt/eingetragen wird (mindestens athletes, clubs, classifiers; sinngemäß auch
 results, meets, entries).
 
-**Ergänzung (Erik, 20.09.2026):** Dasselbe gilt für die Filter der Meisterschafts-Unterseiten
-(**Qualifikanten**, **Förderansicht**, **Auswahl-Rangliste** — die drei Ansichten zu einer Meisterschaft, plus
-„Normen"/`championships.show`). Dort sollen die bestehenden Filter angepasst und die **Dropdown-Boxen ausgetauscht**
+**Ergänzung (Erik, 20.09.2026):** Dasselbe gilt für die Filter der Meisterschafts-Unterseiten (**Qualifikanten**,
+**Förderansicht**, **Auswahl-Rangliste** — die drei Ansichten zu einer Meisterschaft, plus
+"Normen"/`championships.show`). Dort sollen die bestehenden Filter angepasst und die **Dropdown-Boxen ausgetauscht**
 werden — auf dasselbe Muster (`flux:select variant="listbox"` + Auto-Submit statt nativer/alter Dropdowns). Diese
 Ansichten sind Livewire-Tabellen (`championship-qualification-table`, `championship-development-table`), die Filter
 laufen dort ggf. über `wire:model` statt der GET-Form — beim Umbau zu prüfen, ob das Alpine-Auto-Submit-Muster
 greift oder die Livewire-Variante (`wire:model.live`) die passendere ist.
 
-**Warum zurückgestellt / offene Entscheidung:** Kein reines Copy-Paste vom records-Muster, weil dort **nur Selects**
+**Warum zurückgestellt / offene Entscheidung:** Kein reines Copy-and-paste vom records-Muster, weil dort **nur Selects**
 gefiltert werden. athletes/clubs/… haben zusätzlich ein **Text-Suchfeld** — ein Auto-Submit bei jedem Tastendruck
 ist unbrauchbar (Submit pro Zeichen, Fokusverlust). Braucht eine Entscheidung: Debounce (z. B. 300–400 ms) auf dem
-Suchfeld, oder Text erst bei „Enter"/Blur, Selects sofort. Außerdem: „Filtern"-Button ganz entfernen (wie
-`records/index`) oder als No-JS-Fallback behalten? Der „Zurücksetzen"-Button bleibt in jedem Fall.
+Suchfeld, oder Text erst bei "Enter"/Blur, Selects sofort. Außerdem: "Filtern"-Button ganz entfernen (wie
+`records/index`) oder als No-JS-Fallback behalten? Der "Zurücksetzen"-Button bleibt in jedem Fall.
 
 **Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der „Filtern"-Button verschwindet.
 
@@ -237,38 +237,6 @@ gegenprüfen, insbesondere die Rechtsgrundlage für die Athletendaten-Veröffent
 `Disallow`-Zeilen in `app/Http/Controllers/Public/RobotsController.php` streichen und in
 `app/Http/Controllers/Public/SitemapController.php::STATIC_ROUTES` aufnehmen.
 
-## Status-Spalte in `meets/index` — I/E/R-Schema statt LENEX-Status
-
-**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
-
-**Was fehlt:** Die Spalte "Status" in der Wettkampfliste zeigt aktuell `$meet->lenex_status`
-(OFFICIAL/RUNNING/SEEDED, ein LENEX-Importfeld). Gewünscht ist stattdessen ein Schema, das auf einen Blick zeigt, was zu
-einem Wettkampf schon existiert: **I** = Disziplinen mit Wertungsgruppen angelegt, **E** = Meldungen liegen vor, **R** =
-Ergebnisse liegen vor. Braucht eine eigene Abfrage pro Zeile (vermutlich `withCount`/`withExists` auf `swimEvents`/
-`entries`/
-`results`, plus Klärung ob "Disziplinen mit Wertungsgruppen" `sport_classes IS NOT NULL` meint oder etwas anderes) und
-wahrscheinlich Tooltip-Text pro Buchstabe.
-
-**Wer entscheidet:** Erik — ob `lenex_status` daneben erhalten bleibt oder ersetzt wird, und die genaue Definition von
-"I" (welche Wertungsgruppen-Zuordnung genau gemeint ist).
-
-**Zum Schließen nötig:** Definition der drei Zustände abstimmen, `MeetController::index()` um die nötigen
-Zähl-/Exists-Abfragen erweitern, `meets/index.blade.php`-Statusspalte umbauen.
-
-## Tooltip/Popover statt Info-Text bei Disziplin-Formular-Hinweisen
-
-**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
-
-**Was fehlt:** In `swim-events/form.blade.php` stehen bei "Schwimmer/Staffel" ("1 = Einzel") und
-"Sport-Klassen" ("Leerzeichen-getrennt") aktuell permanent sichtbare `flux:description`-Zeilen. Gewünscht: Anzeige als
-Tooltip/Popover statt dauerhaft sichtbarem Text. Noch keine entschiedene Lösung — Nutzer ist offen für Vorschläge
-(`flux:tooltip`? Info-Icon mit `flux:popover`?).
-
-**Wer entscheidet:** Erik — welche Variante (Tooltip vs. Popover vs. Icon-Trigger).
-
-**Zum Schließen nötig:** Kurze Abstimmung über die Zielkomponente, dann Umbau der beiden Felder (und ggf. gleichartiger
-`flux:description`-Hinweise an anderen Stellen, falls das Muster gefallen soll).
-
 ## Meldezeit bei Staffelmeldungen aus den gemeldeten Athleten herleiten
 
 **Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
@@ -298,7 +266,7 @@ Bestzeit* (ohne Datumsfilter) anzeigen. Die Backend-Methode dafür existiert ber
 string $course): ?int`), wird aber aktuell nirgends aufgerufen/ausgeliefert.
 
 **Entschieden (Erik, 20.09.2026):** Ein **Einfachklick** auf eine der beiden angezeigten Zeiten (Jahres- oder absolute
-Bestzeit) übernimmt sie direkt als Meldezeit. Der separate „Bestzeit übernehmen"-**Button entfällt** dadurch (wird
+Bestzeit) übernimmt sie direkt als Meldezeit. Der separate „Bestzeit übernehmen"- **Button entfällt** dadurch (wird
 durch das Klick-auf-Zeit-Verhalten ersetzt).
 
 **Wer entscheidet:** Keine offene Frage mehr — nur noch Umsetzung.
@@ -450,15 +418,9 @@ offen).
 - `resources/views/lenex/export.blade.php`
 - `resources/views/sport-class-groups/form.blade.php`
 
-**Farbe vorhanden, Abstand kollabiert (8 Dateien):**
+**Farbe vorhanden, Abstand kollabiert (2 Dateien):**
 
-- `resources/views/swim-events/form.blade.php`
-- `resources/views/results/form.blade.php`
-- `resources/views/entries/form.blade.php`
-- `resources/views/entries/edit.blade.php`
 - `resources/views/clubs/form.blade.php`
-- `resources/views/club-entries/create.blade.php`
-- `resources/views/club-entries/create-relay.blade.php`
 - `resources/views/classifiers/form.blade.php`
 
 **Erledigt (Phase 14, 16.09.2026, opportunistisch mitgenommen — diese 7 Dateien wurden ohnehin für Teil B
@@ -478,10 +440,10 @@ Reihenfolge/der Anlass ist offen (siehe oben).
 
 **Zum Schließen nötig:** Wenn eine Datei aus einer der beiden Listen aus anderem Anlass geändert wird: alle
 `*`-Pflichtfeld-Markierungen darin auf `Feld<span class="text-red-500 dark:text-red-400 ms-1">*</span>` bringen,
-stichprobenartig mit `getBoundingClientRect()` nachmessen statt nur optisch zu prüfen, Datei aus der jeweiligen
+stichprobenartig mit `getBoundingClientRect()` nachmessen, statt nur optisch zu prüfen, Datei aus der jeweiligen
 Liste streichen. Beide Listen sind erst leer, wenn alle 22 Dateien auf diesem Weg durchlaufen sind.
 
-### Randnotiz aus derselben Rückmeldung — kein Open Point, nur zur Info festgehalten
+### Randnotiz aus derselben Rückmeldung — kein Open Point, nur zur Information festgehalten
 
 Erik beschrieb beim Datumsfeld in `wps/import/form.blade.php` einen "schwarzen Rahmen" beim manuellen Eintippen. Live
 nachgestellt (fokussiertes Segment-`<input>` des Datepickers untersucht): Jedes der vier Ziffern-Segmente
@@ -513,8 +475,8 @@ können.
 
 **Warum zurückgestellt — kein Header-/Cosmetic-Fix, sondern Feature mit Datenintegritäts-Frage:** Nationen sind
 IOC-Referenzdaten (geseedet) und werden von `athletes`, `clubs`, `swim_records`, `meets` u. a. per FK referenziert.
-Ein Löschen einer *verwendeten* Nation würde die FK-Constraint verletzen (DB-Fehler) — es braucht einen Guard
-(Löschen nur, wenn nichts darauf verweist; sonst Hinweis „N Athleten/Vereine hängen daran"). Zusätzlich offene
+Ein Löschen einer *verwendeten* Nation würde die FK-Constraint verletzen (DB-Fehler) — es braucht einen Guard (Löschen
+nur, wenn nichts darauf verweist; sonst Hinweis „N Athleten/Vereine hängen daran"). Zusätzlich offene
 Fragen: Sollen Nationen überhaupt frei anlegbar sein (Kollision mit dem IOC-Seed / der `<x-flag>`-Code-Zuordnung),
 oder nur solche außerhalb des Seeds? Welche Felder beim Anlegen (Code, name_de, name_en, is_active)?
 
@@ -532,6 +494,7 @@ und Delete-Button je Zeile (rot, mit Confirm) in `nations/index`.
 **Was fehlt:** Bei Meldungen (Einzel **und** Staffel) soll ein Kennzeichen „außer Konkurrenz" (AK) setzbar sein.
 
 **Entschieden (Erik, 20.09.2026):**
+
 - **Umfang:** AK ist sowohl bei Einzel- (`Entry`) als auch bei Staffelmeldungen (`RelayEntry`) setzbar.
 - **Wirkung:** AK-Starts werden **nur aus der Cup-/Punktewertung** ausgeschlossen. Rekorde und Ranglisten (WPS)
   zählen weiterhin normal, und der Start erscheint ganz normal in Ergebnissen und im LENEX-Export.
@@ -606,7 +569,7 @@ wiederkehrender Import?
 **Wer entscheidet / liefert:** Erik — die Beispiel-Access-Datei und die Liste der zusätzlich benötigten
 Athleten-Felder.
 
-**Zum Schließen nötig:** Nach Erhalt der Datei: Quellschema sichten, Athleten-Migration(en) für neue Felder,
+**Zum Schließen nötig:** Nach Erhalt der Datei: Quellschema sichten, Athleten-Migration (en) für neue Felder,
 Import-Weg festlegen (CSV/XLSX-Zwischenschritt vs. direkter Reader), Import-Service mit Matching/Update-Logik,
 Vorschau/Bestätigung analog Rekord-Import.
 
@@ -619,6 +582,7 @@ unterscheidet die App im Wesentlichen `is_admin` vs. Vereins-User mit `club_id`;
 einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle definiert.
 
 **Entschieden — Vereins-User sollen dürfen (Erik, 20.09.2026):**
+
 - **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss).
 - **Eigene Athleten pflegen** (Athleten des eigenen Vereins anlegen/bearbeiten).
 - **Eigene Ergebnisse einsehen** (Ergebnisse der eigenen Athleten ansehen, nicht bearbeiten).
@@ -648,13 +612,14 @@ Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll d
 `meets/show`-Seite** zurückführen (nicht auf den Index).
 
 **Warum zurückgestellt / Überschneidungen:** Teilweise existieren Zielansichten schon, teils nicht:
+
 - **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
   kontextsensitive Rücksprung. Überschneidet sich mit „Ergebnisse einer Veranstaltung manuell erfassen & löschen".
 - **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es noch nicht — das ist
   genau der bestehende Punkt „Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
   Einstieg dorthin.
-- **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen
-  (Anker) statt eine eigene Seite zu öffnen.
+- **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
+  statt eine eigene Seite zu öffnen.
 - **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.
 
 Der geforderte **Rücksprung auf `meets/show`** hängt zudem am allgemeinen Punkt „‚Zurück'-Buttons kontextsensitiv"
