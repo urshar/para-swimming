@@ -23,6 +23,7 @@
             // JSON-Wert statt einzelner {{ }}-Ausdrücke im JS-Objektliteral.
             $relayEntryFormConfig = [
                 'relayAthletesUrl' => route('club-entries.relay.relay-athletes', array_merge(['meet' => $meet], $clubParams)),
+                'relayBestTimeUrl' => route('club-entries.relay.relay-best-time', array_merge(['meet' => $meet], $clubParams)),
                 'meetCourse' => $meet->course,
                 'events' => $events->pluck('relay_count', 'id'),
                 'selectedEventId' => old('swim_event_id', ''),
@@ -107,6 +108,97 @@
                     </p>
                 </div>
 
+                {{-- Meldezeit-Vorschlag: Summe der Einzel-Bestzeiten der ausgewählten Athleten (Jahres- +
+                     absolute Summe je Kurs). Klick auf eine Summe übernimmt sie als Meldezeit + Kurs
+                     (applyRelayTime); bei unvollständiger Aufstellung Teilsumme + "n von N Zeiten fehlen".
+                     Inline (kein Partial): sonst kann die IDE die Alpine-Ausdrücke nicht auflösen. --}}
+                <div x-show="(selectedEventId || fixedEventId) && selectedAthletes.length > 0"
+                     class="mb-5 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-700 text-sm">
+                    <div x-show="loadingRelayTimes" class="text-zinc-400 text-xs">Wird geladen…</div>
+                    <div x-show="!loadingRelayTimes">
+                        <div class="grid grid-cols-2 gap-6">
+                            {{-- Jahresbestzeit-Summe --}}
+                            <div>
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    Vorschlag Jahresbestzeit
+                                </p>
+                                <p class="text-xs text-zinc-400 mb-1">(Summe, Vorjahr bis Wettkampfbeginn)</p>
+                                <div class="flex gap-6 items-start">
+                                    <div>
+                                        <span class="text-xs text-zinc-400">LCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="relayBestTimes.LCM && relayBestTimes.LCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="relayBestTimes.LCM && applyRelayTime('LCM', relayBestTimes.LCM.year.formatted)"
+                                           x-text="relayBestTimes.LCM ? relayBestTimes.LCM.year.formatted : 'NT'"></p>
+                                        <p class="text-xs text-amber-600 dark:text-amber-400"
+                                           x-show="relayBestTimes.LCM && relayBestTimes.LCM.year.missing > 0"
+                                           x-text="relayBestTimes.LCM ? (relayBestTimes.LCM.year.missing + ' von ' + relayBestTimes.LCM.year.total + ' Zeiten fehlen') : ''"></p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-zinc-400">SCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="relayBestTimes.SCM && relayBestTimes.SCM.year.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="relayBestTimes.SCM && applyRelayTime('SCM', relayBestTimes.SCM.year.formatted)"
+                                           x-text="relayBestTimes.SCM ? relayBestTimes.SCM.year.formatted : 'NT'"></p>
+                                        <p class="text-xs text-amber-600 dark:text-amber-400"
+                                           x-show="relayBestTimes.SCM && relayBestTimes.SCM.year.missing > 0"
+                                           x-text="relayBestTimes.SCM ? (relayBestTimes.SCM.year.missing + ' von ' + relayBestTimes.SCM.year.total + ' Zeiten fehlen') : ''"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            {{-- Absolute Summe --}}
+                            <div>
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    Vorschlag absolute Bestzeit
+                                </p>
+                                <p class="text-xs text-zinc-400 mb-1">(Summe, alle Wettkämpfe)</p>
+                                <div class="flex gap-6 items-start">
+                                    <div>
+                                        <span class="text-xs text-zinc-400">LCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="relayBestTimes.LCM && relayBestTimes.LCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="relayBestTimes.LCM && applyRelayTime('LCM', relayBestTimes.LCM.absolute.formatted)"
+                                           x-text="relayBestTimes.LCM ? relayBestTimes.LCM.absolute.formatted : 'NT'"></p>
+                                        <p class="text-xs text-amber-600 dark:text-amber-400"
+                                           x-show="relayBestTimes.LCM && relayBestTimes.LCM.absolute.missing > 0"
+                                           x-text="relayBestTimes.LCM ? (relayBestTimes.LCM.absolute.missing + ' von ' + relayBestTimes.LCM.absolute.total + ' Zeiten fehlen') : ''"></p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-zinc-400">SCM</span>
+                                        <p class="font-mono font-semibold"
+                                           :class="relayBestTimes.SCM && relayBestTimes.SCM.absolute.formatted !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                                           @click="relayBestTimes.SCM && applyRelayTime('SCM', relayBestTimes.SCM.absolute.formatted)"
+                                           x-text="relayBestTimes.SCM ? relayBestTimes.SCM.absolute.formatted : 'NT'"></p>
+                                        <p class="text-xs text-amber-600 dark:text-amber-400"
+                                           x-show="relayBestTimes.SCM && relayBestTimes.SCM.absolute.missing > 0"
+                                           x-text="relayBestTimes.SCM ? (relayBestTimes.SCM.absolute.missing + ' von ' + relayBestTimes.SCM.absolute.total + ' Zeiten fehlen') : ''"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {{-- Gemischte Summe: pro Schwimmer in der Aufstellung JBZ/ABZ wählbar,
+                             hier die Summe für den aktuell gewählten Kurs. Klick übernimmt sie. --}}
+                        <div class="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800 flex items-baseline gap-3 flex-wrap">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                    Gemischte Summe (Kurs <span x-text="entryCourse"></span>)
+                                </p>
+                                <p class="text-xs text-zinc-400">Je Schwimmer in der Aufstellung wählbar (JBZ/ABZ)</p>
+                            </div>
+                            <p class="font-mono font-semibold text-lg"
+                               :class="mixedSumFormatted() !== 'NT' ? 'text-blue-600 dark:text-blue-400 cursor-pointer hover:underline' : 'text-zinc-900 dark:text-zinc-100'"
+                               @click="applyMixedSum()"
+                               x-text="mixedSumFormatted()"></p>
+                            <p class="text-xs text-amber-600 dark:text-amber-400"
+                               x-show="mixedMissingLabel()" x-text="mixedMissingLabel()"></p>
+                        </div>
+                        <p class="text-xs text-zinc-400 mt-2">
+                            Klick auf eine Summe übernimmt sie als Meldezeit. Bei Lagenstaffeln bestimmt die
+                            Startreihenfolge den Stil je Position.
+                        </p>
+                    </div>
+                </div>
+
                 {{-- Meldezeit + Kurs --}}
                 <div class="grid grid-cols-2 gap-4 mb-5 w-full items-start">
                     <flux:field>
@@ -136,7 +228,6 @@
                         <flux:select variant="listbox" name="entry_course" x-model="entryCourse">
                             <flux:select.option value="LCM">LCM (50m)</flux:select.option>
                             <flux:select.option value="SCM">SCM (25m)</flux:select.option>
-                            <flux:select.option value="SCY">SCY (Yards)</flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

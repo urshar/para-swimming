@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('meets/{meet}/relay-entries')->name('club-entries.relay.')->group(function () {
         // AJAX zuerst (vor {relayEntry}-Platzhalter, sonst wird 'relay-athletes' als ID interpretiert)
         Route::get('/relay-athletes', [ClubEntryController::class, 'eligibleRelayAthletes'])->name('relay-athletes');
+        Route::get('/relay-best-time', [ClubEntryController::class, 'relayBestTime'])->name('relay-best-time');
 
         Route::get('/', [ClubEntryController::class, 'indexRelay'])->name('index');
         Route::get('/create', [ClubEntryController::class, 'createRelay'])->name('create');
@@ -345,7 +346,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('entries', EntryController::class)->only(['index']);
     Route::resource('meets.entries', EntryController::class)
         ->shallow()
-        ->except(['index'])
+        ->except(['index', 'show'])
         ->parameters(['entries' => 'entry']);
 
     // Ergebnisse

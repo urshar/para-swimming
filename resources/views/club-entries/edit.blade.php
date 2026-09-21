@@ -144,10 +144,6 @@
                                 :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'SCM'">
                                 SCM (25m)
                             </flux:select.option>
-                            <flux:select.option value="SCY"
-                                :selected="old('entry_course', $entry->entry_course ?? $meet->course) === 'SCY'">
-                                SCY (Yards)
-                            </flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

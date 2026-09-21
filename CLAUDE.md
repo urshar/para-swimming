@@ -201,6 +201,24 @@ composer lint:check   # Pint nur prüfen
   bestehenden Regressionstest ("zeigt Sportklassen mit unerwartetem Format unter „Sonstige Sportklassen"",
   `tests/Feature/QualifyingTimeGroupingTest.php`) bereits als korrekt verifiziert. Kein Code-Fix nötig;
   einfach als PhpStorm-Fehlalarm stehen lassen.
+- **Alpine-Ausdrücke in einem `@include`-Partial: "Element is not exported", "Unresolved variable X" und
+  "Missing import statement" sind FALSCH-POSITIVE — ignorieren.** Ursache: Das `x-data` (die
+  Alpine-Komponente) liegt auf einem Elternelement der EINBINDENDEN View; über die `@include`-Grenze sieht
+  PhpStorm diesen Scope nicht und meldet daher in jeder `x-…`/`@…`/`:…`-Bindung des Partials, die eine
+  Komponenten-Eigenschaft oder -Methode nennt, eine dieser drei Warnungen. Zur Laufzeit existiert der Scope
+  korrekt. Dieselben Ausdrücke INLINE in der View (kein Partial) erzeugen die Warnungen NICHT, weil PhpStorm
+  das `x-data` dann auf dem Vorfahren findet — deshalb wurde z. B. das Bestzeiten-Panel inline gezogen
+  (`club-entries/create-relay.blade.php`), der große geteilte Athleten-Picker
+  (`club-entries/_athlete-picker.blade.php`) bewusst NICHT (Duplizierung > Nutzen; die Warnungen sind
+  dokumentiert ignorierbar). Ebenfalls falsch-positiv derselben Familie: **Alpine-Methoden in der `.js`, die
+  nur aus Blade aufgerufen werden** (z. B. `applyRelayTime`, `applyMixedSum` in `relay-entry-form.js`),
+  meldet PhpStorm als "unused function" — die Blade→JS-Nutzung ist für die statische Analyse unsichtbar.
+  **Abgrenzung zum ECHTEN Fehler:** Ein roter Syntaxfehler ("Variable name expected", "'in' or ; expected",
+  "Declaration expected", gefolgt von "Unreachable code") ist KEIN Scope-Fehlalarm, sondern echt — Alpines
+  Tupel-Schleife `x-for="(item, index) in liste"` zerbricht PhpStorms JS-for-in-Parser im Partial. Fix:
+  `x-for="item in liste"` und den Index per Methode holen (`positionOf(item)` über
+  `selectedAthletes.findIndex(...)`), nicht die Tupel-Form verwenden. Faustregel: **rot = echt, gelb an einer
+  Alpine-Bindung im Partial = ignorierbar.**
 
 ## Weitere Hinweise
 

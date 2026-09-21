@@ -16,25 +16,24 @@
 
         @auth
             @if(auth()->user()->is_admin && $clubs)
-                {{-- Admin: Vereins-Auswahl --}}
+                {{-- Admin: Vereins-Auswahl. Flux-Select ist ein Custom Element, dessen change-Event
+                     nicht zuverlässig bubbelt (siehe CLAUDE.md) — daher Navigation über x-model +
+                     $watch statt onchange. --}}
                 <div class="mb-6 p-4 rounded-xl border border-blue-200 dark:border-blue-800
-                        bg-blue-50 dark:bg-blue-950/20">
+                        bg-blue-50 dark:bg-blue-950/20"
+                     x-data="{ clubId: '{{ request()->integer('club_id') ?: '' }}' }"
+                     x-init="$watch('clubId', v => { if (v) window.location.href = '{{ request()->url() }}?club_id=' + v; })">
                     <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
                         Verein (Admin)
                     </p>
-                    <select name="club_id"
-                            onchange="window.location.href = '{{ request()->url() }}?club_id=' + this.value"
-                            class="w-full rounded-lg border border-zinc-300 dark:border-zinc-600
-                               bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100
-                               px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        <option value="">Verein wählen…</option>
+                    <flux:select variant="listbox" searchable x-model="clubId" placeholder="Verein wählen…">
                         @foreach($clubs as $club)
-                            <option value="{{ $club->id }}"
-                                {{ request()->integer('club_id') === $club->id ? 'selected' : '' }}>
+                            <flux:select.option value="{{ $club->id }}"
+                                                :selected="request()->integer('club_id') === $club->id">
                                 {{ $club->name }}
-                            </option>
+                            </flux:select.option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </div>
             @endif
         @endauth
