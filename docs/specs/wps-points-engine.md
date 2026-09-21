@@ -465,7 +465,7 @@ WPS-Parameter und führen zum Übersprungen-Status. `S15` existiert im WPS-Regel
 
 Analog zu `WorldAquaticsPointsService`: Bei Einzelbewerben zählt das Geschlecht des **Athleten**
 (`athletes.gender`), bei Staffeln (`relay_count > 1`) das Geschlecht des **Bewerbs** (`swim_events.gender`). Grund:
-manche Meets listen Einzelbewerbe organisatorisch als „Mixed“.
+manche Meets listen Einzelbewerbe organisatorisch als "Mixed".
 
 **Staffeln sind in Version 1.1 ausgeschlossen** — WPS veröffentlicht keine Staffel-Parameter. Ergebnisse mit
 `relay_count > 1` werden mit Begründung übersprungen. Die Spalte `relay_count` ist in
@@ -934,7 +934,7 @@ Alle Fehler werden **gesammelt** und mit Zeilennummer gemeldet; der Import brich
 
 ## 11.4 Dateiformat — festgelegt
 
-Referenzdatei: **`2026_01_30__World_Para_Swimming_Points_Calculator.xlsx`**, Version 1 vom 30.01.2026, Titel *„World
+Referenzdatei: **`2026_01_30__World_Para_Swimming_Points_Calculator.xlsx`**, Version 1 vom 30.01.2026, Titel *"World
 Para Swimming Point Scores for Senior Long Course Events 2026"*.
 
 ### 11.4.1 Aufbau der Datei
@@ -1096,7 +1096,7 @@ Paginierung).
 
 ## 14.2 Veranstaltungs-Einstellungen
 
-Im Meet-Formular ein Abschnitt „Punkteberechnung“ mit Checkboxen je `point_system` und — bei aktiviertem WPS — einer
+Im Meet-Formular ein Abschnitt "Punkteberechnung" mit Checkboxen je `point_system` und — bei aktiviertem WPS — einer
 Versionsauswahl. Bei `course` ≠ `LCM` wird der SCM-Hinweis eingeblendet.
 
 ## 14.3 Ergebnisanzeige
@@ -1119,7 +1119,7 @@ Hinweis: Kurzbahnzeit auf Langbahn umgerechnet. Nicht offiziell von World Para
 Swimming anerkannt. Bei Nachwuchsathleten tendenziell zu optimistisch (§9.6).
 ```
 
-Ist kein Wert vorhanden, wird der Block ausgeblendet — kein „—“, keine Fehlermeldung.
+Ist kein Wert vorhanden, wird der Block ausgeblendet — kein "—", keine Fehlermeldung.
 
 ## 14.4 Blade-/Flux-Konventionen
 
@@ -1277,7 +1277,7 @@ Benutzer können Punkte inklusive Version und Berechnungstyp nachvollziehen.
 | R7  | Queue-Worker läuft produktiv nicht → Berechnungen bleiben liegen                 | Schwellenwert §12.1, Betriebshinweis                   |
 | R8  | ~~Importformat unbekannt~~                                                       | **erledigt** — Format festgelegt in §11.4              |
 | R9  | Abrunden statt Runden übersehen → jeder zweite Wert um 1 zu hoch                 | §5.3, Testvektor S2 in §11.4.7                         |
-| R10 | Annahme „max. 1000 Punkte" in Anzeige oder Validierung                           | §5.2, `a = 1200`                                       |
+| R10 | Annahme "max. 1000 Punkte" in Anzeige oder Validierung                           | §5.2, `a = 1200`                                       |
 | R11 | Alternation `S\|SB\|SM` liefert für `SB9` die Kategorie `S`                      | §7.1, eigener Testfall                                 |
 | R12 | Datumsvergleich am ersten Gültigkeitstag scheitert an der gespeicherten Uhrzeit  | §6, Grenzfalltests                                     |
 

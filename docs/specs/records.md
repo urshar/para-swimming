@@ -121,8 +121,8 @@ Regeln und Eigenheiten:
 - `swimtime = "NT"` wird übersprungen.
 - LENEX-Typ `AUT.JG` wird auf `AUT.JR` gemappt (`TYPE_MAP`).
 - **Athleten-Matching**: `license`, sonst Name + Geburtsdatum + Geschlecht. Der Namensvergleich ist
-  normalisiert (Unicode-Kleinschreibung, Leerraum um Bindestriche entfernt: „Weber-Treiber" ↔
-  „Weber - Treiber"), das Geburtsdatum wird per portablem `whereDate()` verglichen.
+  normalisiert (Unicode-Kleinschreibung, Leerraum um Bindestriche entfernt: "Weber-Treiber" ↔
+  "Weber - Treiber"), das Geburtsdatum wird per portablem `whereDate()` verglichen.
 - **Vereins-Matching**: `code` + Nation, sonst Name + Nation. Vereine mit
   `name = "???"` oder leerem Schlüssel werden ignoriert.
 - **Staffeln**: `RELAY > CLUB` und `RELAYPOSITIONS > RELAYPOSITION > ATHLETE`; Team landet in `relay_team_members`,
@@ -149,7 +149,7 @@ Der HTTP-Ablauf (`RecordImportController`): `showForm()` → `preview(Request)`
 ## Import-Vorschau — Vorschläge & Vorbelegung
 
 Nicht exakt gefundene Athleten/Vereine werden in der Vorschau (`records/import-preview.blade.php`) nicht
-nur als „unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen — nie automatisch
+nur als "unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen — nie automatisch
 übernommen, nur als (ggf. vorbelegte) Auswahl im Dropdown.
 
 - **Athleten (`suggestAthletes()`)**: LENEX-Rekordfiles tragen bei unbekanntem Tag/Monat oft
@@ -158,11 +158,11 @@ nur als „unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen
   Name + Geschlecht. **Vorbelegung** nur bei genau einem Jahr-Treffer (leeres Datum: nie). Im Dropdown
   wird das **volle Geburtsdatum** des Kandidaten gezeigt, damit die Abweichung erkennbar ist.
 - **Vereine (`suggestClubs()`)**: Kandidaten über normalisierten Namen/Kurznamen bzw. Code exakt
-  (Nation ignoriert) oder mehrwortiges Wortgrenzen-Präfix („Flying Flippers Schwimmteam" ↔
-  „Flying Flippers"). **Vorbelegung** nur bei genau einem Treffer.
+  (Nation ignoriert) oder mehrwortiges Wortgrenzen-Präfix ("Flying Flippers Schwimmteam" ↔
+  "Flying Flippers"). **Vorbelegung** nur bei genau einem Treffer.
 - **Namens-Normalisierung (`normalizeName()`)**: Unicode-Kleinschreibung, Leerraum um Bindestriche
   entfernt, sonstiger Leerraum kollabiert — greift auch im exakten Athleten-Match.
-- **Live-Vereinsname**: Die Vereins-Auswahl im Abschnitt „Unbekannte Vereine" ist per Alpine
+- **Live-Vereinsname**: Die Vereins-Auswahl im Abschnitt "Unbekannte Vereine" ist per Alpine
   (`recordImportPreview`, `resources/js/record-import-preview.js`) mit der Namensanzeige bei den
   unbekannten Athleten verknüpft — eine (auch vorbelegte) Zuordnung aktualisiert den dort gezeigten
   Vereinsnamen sofort.

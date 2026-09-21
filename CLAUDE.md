@@ -198,7 +198,7 @@ composer lint:check   # Pint nur prüfen
   Nicht-Closure-Wert unverändert durchreicht). Betraf
   `DisabilityGroupGrouper::byNumberThenStroke()`: `$unassigned = $byNumber->get('');` gefolgt von
   `$unassigned->isNotEmpty()`/`->sortBy(...)` hinter einem `if ($unassigned && ...)`-Guard — durch den
-  bestehenden Regressionstest ("zeigt Sportklassen mit unerwartetem Format unter „Sonstige Sportklassen"",
+  bestehenden Regressionstest ("zeigt Sportklassen mit unerwartetem Format unter "Sonstige Sportklassen"",
   `tests/Feature/QualifyingTimeGroupingTest.php`) bereits als korrekt verifiziert. Kein Code-Fix nötig;
   einfach als PhpStorm-Fehlalarm stehen lassen.
 - **Alpine-Ausdrücke in einem `@include`-Partial: "Element is not exported", "Unresolved variable X" und

@@ -39,6 +39,6 @@ Laufzeit.
 Die Datei im Projektwurzelverzeichnis (`allowJs: true`, `checkJs: false`) sagt der IDE, welche
 Dateien zum JavaScript-Projekt gehören, und bindet dieses Verzeichnis ein. Eine `tsconfig.json`
 statt einer `jsconfig.json`, weil PhpStorms TypeScript-Service für die Meldung
-„File is not included in any tsconfig.json" ausschließlich `tsconfig.json` berücksichtigt.
+"File is not included in any tsconfig.json" ausschließlich `tsconfig.json` berücksichtigt.
 Nach dem Einspielen einmal *File → Invalidate Caches → Invalidate and Restart*, sonst greift sie
 nicht sofort.

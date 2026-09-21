@@ -36,7 +36,7 @@ meets.cup_id IS NOT NULL
 
 Es fließen keine Ergebnisse aus normalen Wettkämpfen, Landesmeisterschaften, Österreichischen Meisterschaften oder anderen Veranstaltungen automatisch in die Vereinswertung ein.
 
-Die Auswertung erfolgt immer innerhalb eines bestimmten Cups bzw. Cup-Jahres (`cups.year`), z.B. „ÖBSV Cup 2026". Die Wertungen vergangener Jahre müssen jederzeit abrufbar sein.
+Die Auswertung erfolgt immer innerhalb eines bestimmten Cups bzw. Cup-Jahres (`cups.year`), z.B. "ÖBSV Cup 2026". Die Wertungen vergangener Jahre müssen jederzeit abrufbar sein.
 
 ---
 
@@ -132,7 +132,7 @@ counted_meets_per_athlete = 3
 
 Beispiel: Meets mit 810 / 790 / 760 / 720 → Athletenwert = 810 + 790 + 760 = **2.360** (das vierte Meet fällt weg).
 
-**Vereinswechsel (Entscheidung Phase 0, §9):** Der Saisonwert wird **je Verein getrennt** gebildet. Ein Athlet, der innerhalb der Saison den Verein wechselt, trägt bei jedem seiner Vereine nur mit den dort (laut `results.club_id`) erzielten Cup-Meets bei. Die „besten N Meets" werden also je (Athlet, Verein) ermittelt, nicht global je Athlet.
+**Vereinswechsel (Entscheidung Phase 0, §9):** Der Saisonwert wird **je Verein getrennt** gebildet. Ein Athlet, der innerhalb der Saison den Verein wechselt, trägt bei jedem seiner Vereine nur mit den dort (laut `results.club_id`) erzielten Cup-Meets bei. Die "besten N Meets" werden also je (Athlet, Verein) ermittelt, nicht global je Athlet.
 
 Die Anzahl der zu berücksichtigenden Meets ist konfigurierbar (`counted_meets_per_athlete`, siehe §8).
 
@@ -270,7 +270,7 @@ Falls eine offizielle Wertung nach Cup-Abschluss unveränderlich archiviert werd
 
 ### 13.1 Hauptseite
 
-Erreichbar über das Cup-Modul (Navigationsgruppe „Cup Wertung"):
+Erreichbar über das Cup-Modul (Navigationsgruppe "Cup Wertung"):
 
 ```text
 ÖBSV Cup
@@ -279,7 +279,7 @@ Erreichbar über das Cup-Modul (Navigationsgruppe „Cup Wertung"):
     └── Vereinswertung   ← neu
 ```
 
-Umsetzung: neuer `CupClubRankingController` (`show(Cup)`, `pdf(Cup)`), Views unter `resources/views/cups/`, Einstieg über die bestehende öffentliche Cup-Übersicht sowie einen neuen Navigationseintrag „Vereinswertung".
+Umsetzung: neuer `CupClubRankingController` (`show(Cup)`, `pdf(Cup)`), Views unter `resources/views/cups/`, Einstieg über die bestehende öffentliche Cup-Übersicht sowie einen neuen Navigationseintrag "Vereinswertung".
 
 ### 13.2 Filter
 
@@ -332,7 +332,7 @@ Nicht berücksichtigt werden:
 
 **DSQ und DNF** werden in der **Startwertung** als Start gewertet (der Athlet ist angetreten). In der **Leistungswertung** erhalten sie über den `WorldAquaticsPointsService` ohnehin keine Punkte und wirken daher nicht mit.
 
-> Hinweis: Das Ergebnisstatus-Enum kennt `DNS` (nicht „NS"). Frühere Spec-Fassungen nannten „NS" — gemeint war stets `DNS`.
+> Hinweis: Das Ergebnisstatus-Enum kennt `DNS` (nicht "NS"). Frühere Spec-Fassungen nannten "NS" — gemeint war stets `DNS`.
 
 ---
 
@@ -378,7 +378,7 @@ Abgeschlossen (Analysebericht liegt vor).
 
 ### Phase 3 — UI
 - `CupClubRankingController` (`index`, `show`) mit Routen `cups.club-ranking.index` (`/vereinswertung`) und `cups.club-ranking.show` (`/cups/{cup}/club-ranking?system=&foreign=`)
-- Navigationseintrag „Vereinswertung" in der Gruppe „Cup Wertung"
+- Navigationseintrag "Vereinswertung" in der Gruppe "Cup Wertung"
 - Views `cups/club-ranking-index` und `cups/club-ranking` (Cup/Jahr-Auswahl, Umschalter Start/Leistung, Ausland-Umschalter, Tabellen §13.3/§13.4, aufklappbare Athleten-Details, Staleness-Hinweis)
 - `CupStalenessService::clubRankingStatus(Cup)` (Aktualität der Tageswertungen über alle Cup-Meets)
 - `ClubRankingConfiguration::withIncludeForeignClubs()` (UI-Übersteuerung des Ausland-Schalters)
@@ -388,7 +388,7 @@ Abgeschlossen (Analysebericht liegt vor).
 ### Phase 4 — PDF / Export
 - Route `cups.club-ranking.pdf` (`/cups/{cup}/club-ranking/pdf?system=&foreign=&kader=&detail=0|1`) und `CupClubRankingController::pdf()`; `show()` und `pdf()` teilen sich einen privaten Helfer (`resolveRankingData`), damit Ansicht und PDF dieselbe Wertung/Filter zeigen.
 - PDF-View `pdf/cup-club-ranking.blade.php` (dompdf, Portrait) für beide Wertungssysteme; bei der Leistungswertung optional die gewerteten Athleten je Verein (`detail=1`, Kaderathleten gekennzeichnet). Kopf mit aktiven Filtern, Tageswertungs-Stand und Staleness-Hinweis.
-- PDF-Buttons in der Ansicht (Startwertung: „PDF"; Leistungswertung: „PDF Übersicht" und „PDF mit Athleten"), die die aktiven Filter mitnehmen.
+- PDF-Buttons in der Ansicht (Startwertung: "PDF"; Leistungswertung: "PDF Übersicht" und "PDF mit Athleten"), die die aktiven Filter mitnehmen.
 - Feature-Tests (`cup-club-ranking-p3`): PDF beider Systeme (200, `application/pdf`), Detail-Variante, Anmeldepflicht.
 
 ---

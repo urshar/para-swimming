@@ -176,10 +176,10 @@ Ergebnisses". Das Cup-Modul verwendet dagegen das Alter **zum 31. Dezember des W
 Zwei unterschiedliche Alterskonventionen in derselben Anwendung sind eine Fehlerquelle. **Entscheidung:** Auch
 `wps-rankings` verwendet **Alter zum 31. Dezember des Wettkampfjahres**, in derselben Ausprägung wie im Cup-Modul.
 
-Damit ist die Jugendgrenze eine Jahrgangsgrenze: „U18“ bedeutet, dass der Athlet im Wettkampfjahr höchstens 18 wird.
+Damit ist die Jugendgrenze eine Jahrgangsgrenze: "U18" bedeutet, dass der Athlet im Wettkampfjahr höchstens 18 wird.
 
-Athleten **ohne Geburtsdatum** werden aus Altersranglisten ausgeschlossen und als sichtbarer Sammelposten „Ohne
-Geburtsdatum“ ausgewiesen — analog zur im Statistikmodul bestätigten Regel, dass fehlende Zuordnungen sichtbar bleiben
+Athleten **ohne Geburtsdatum** werden aus Altersranglisten ausgeschlossen und als sichtbarer Sammelposten "Ohne
+Geburtsdatum" ausgewiesen — analog zur im Statistikmodul bestätigten Regel, dass fehlende Zuordnungen sichtbar bleiben
 und nicht still verschwinden.
 
 **Altersgruppen — Entscheidung getroffen:** Die bestehende `AgeGroup`-Struktur des Cup-Moduls wird **wiederverwendet**.
@@ -371,7 +371,7 @@ Gegenüberstellung mehrerer Athleten, Leistungen oder Zeitpunkte.
 
 Referenzen: höchste Punktzahl der Rangliste, nationale Bestleistung, frei eingetragener Zielwert.
 
-„Weltklasse“ und „internationale Spitze“ setzen internationale Vergleichsdaten voraus und sind mit §6.5 zurückgestellt.
+"Weltklasse" und "internationale Spitze" setzen internationale Vergleichsdaten voraus und sind mit §6.5 zurückgestellt.
 
 **Kadernorm:** Es existieren bereits `kader_types` und `athlete_kader_memberships` sowie das Richtzeitenmodul
 (`qualifying_times`). Vor Phase 4 ist zu klären, ob die Richtzeiten als WPS-Referenz taugen — sie sind über die

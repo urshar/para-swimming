@@ -2937,8 +2937,8 @@ jetzt wieder nur die Tabelle enthält). Betrifft `admin/users/index.blade.php`, 
 mit `wps/versions/show.blade.php`.
 
 **Weitere 5 der 13 nackten Tabellen nachgezogen** (Erik: "Dokumente, athletes/index und show, classifier"),
-alle nach demselben einfachen Muster (Card+Bleed direkt am Card-Div, bestehende `<div class="mt-4">{{ … }}
-</div>`-Pagination unverändert übernommen, da sie schon dem Zielmuster entsprach): `admin/documents/index.blade.php`
+alle nach demselben einfachen Muster (Card+Bleed direkt am Card-Div, bestehende Pagination im `mt-4`-Wrapper
+unverändert übernommen, da sie schon dem Zielmuster entsprach): `admin/documents/index.blade.php`
 (keine Pagination), `athletes/index.blade.php`, `athletes/show.blade.php` (Ergebnisliste), `classifiers/index.blade.php`,
 `classifiers/show.blade.php`.
 
@@ -3145,10 +3145,10 @@ Zusammenhang zu dieser Änderung, hier nicht behoben.
 
 ## Header-/Titelleisten-Muster vereinheitlicht (`feature/admin-ui-header-pattern`, 20.09.2026)
 
-Das seit Phase 9 etablierte Titelleisten-Muster (Text-„Zurück" links, Aktionen rechts in einer eigenen `mt-4`
+Das seit Phase 9 etablierte Titelleisten-Muster (Text-"Zurück" links, Aktionen rechts in einer eigenen `mt-4`
 -Zeile) wurde auf Wunsch von Erik **verfeinert und projektweit auf alle Admin-Header** ausgerollt — nicht mehr nur
 `show`-Seiten, sondern jeder Header mit Back-Button oder Button-Leiste. Damit ist der frühere Open Point
-„Titelleisten-Muster auf alle `show.blade.php`" erledigt (aus `open-points.md` entfernt). Das neue, jetzt
+"Titelleisten-Muster auf alle `show.blade.php`" erledigt (aus `open-points.md` entfernt). Das neue, jetzt
 verbindliche Muster:
 
 **Finalisiertes Muster:**
@@ -3157,7 +3157,7 @@ verbindliche Muster:
   `aria-label` statt Text; danach Titel und ggf. Badges.
 - **Untertitel**: unverändert `<p class="… mt-0.5">` direkt darunter.
 - **Aktionszeile** (`flex items-center flex-wrap justify-end gap-2 mt-4`): alle Aktionen **rechtsbündig**, alle
-  `size="sm"` (gleiche Höhe). Kein `ml-auto`-Split und keine Text-„Zurück" mehr.
+  `size="sm"` (gleiche Höhe). Kein `ml-auto`-Split und keine Text-"Zurück" mehr.
 - **Filter** (falls vorhanden): darunter.
 
 **Semantische Farben** (keine neutral-grauen Buttons mehr): Primäraktion (Neu/Speichern) `variant="primary"`;
@@ -3167,9 +3167,9 @@ Excel/MeetManager-Export grün (`text-emerald-500!`).
 
 **Regeln:**
 - **Index-Seiten mit genau einem Header-Button** behalten Inline-Layout (`justify-between`, Titel links / Button
-  rechts) — kein „schwebender" Einzelbutton in eigener Zeile.
+  rechts) — kein "schwebender" Einzelbutton in eigener Zeile.
 - **Index/show/form mit Back-Button oder mehreren Buttons** → Titelzeile + rechtsbündige Aktionszeile.
-- **Index-Filter-Leisten**: „Filtern" `variant="primary"`, „Zurücksetzen" `filled` + `text-red-500!`.
+- **Index-Filter-Leisten**: "Filtern" `variant="primary"`, "Zurücksetzen" `filled` + `text-red-500!`.
 - **Tabellen-Zeilen-Aktionen**: Anzeigen/eye neutral (ghost), Bearbeiten amber, Löschen rot (bestehende
   meets-Tabellen-Konvention, auf championships-Tabelle nachgezogen).
 
@@ -3183,12 +3183,12 @@ qualifying-excluded-disciplines) blieben unverändert.
 - `results/show.blade.php` hatte einen **toten `@section('actions')`** (nirgends im Layout ge-yielded →
   Bearbeiten/Löschen unsichtbar) und keinen Header — jetzt echter Inline-Header mit Icon-Back + Bearbeiten/Löschen.
 - **Benutzerverwaltung (`admin.users.index`) fehlte in der Navigation** — neuer admin-gegateter Menüpunkt
-  „Verwaltung → Benutzerverwaltung".
+  "Verwaltung → Benutzerverwaltung".
 - `meets/index` (Ort) und `classifiers/index` (Nation): zeigen jetzt die Flagge (`<x-flag>`) statt Klartext-Code.
 - `championships/form` + `championships/import/form` hatten keinen Header-Back-Button — ergänzt.
 - `nations/edit` hatte gar keinen Header — Back-Button + Titel ergänzt.
 
-**Bewusst NICHT angefasst** (als eigene Open Points dokumentiert): kontextsensitive „Zurück"-Ziele (fest auf Index
+**Bewusst NICHT angefasst** (als eigene Open Points dokumentiert): kontextsensitive "Zurück"-Ziele (fest auf Index
 statt letzter Ansicht), Vereinheitlichung des Index-Filter-Auto-Submit inkl. der championship-Unterseiten.
 
 **Tests**: volle Suite (1444) grün, `composer lint:check` grün, `php artisan view:cache` fehlerfrei. Visuelle

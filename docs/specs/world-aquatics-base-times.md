@@ -19,7 +19,7 @@ Tabellen (`base_time_versions`, `_categories`, `_disciplines`, `_sport_classes`,
 |----------------------------------|--------------------------------------------------------|
 | Punkteberechnung                 | `App\Services\WorldAquaticsPointsService`              |
 | Basiswert-Berechnung (Ableitung) | `App\Services\BaseTimeCalculationService`              |
-| Import-Basis (Persistenz)        | `App\Services\AbstractBaseTimeImportService`          |
+| Import-Basis (Persistenz)        | `App\Services\AbstractBaseTimeImportService`           |
 | Excel-Import (World Aquatics)    | `App\Services\BaseTimeImportService`                   |
 | Text-Import (MeetManager)        | `App\Services\BaseTimeTextImportService`               |
 | Excel-Export (World Aquatics)    | `App\Services\BaseTimeExportService`                   |
@@ -61,7 +61,7 @@ Ablauf: `parse(filePath)` liest die Datei und liefert eine **Vorschau** ohne DB-
 `importIntoExistingVersion(filePath, version)` importiert in eine bestehende Version (in einer Transaktion).
 Sportklassen-Codes, die in der Excel-Datei abweichend heißen, werden über eine Mapping-Tabelle normalisiert.
 
-Die dateiformat-**unabhängige** Persistenz (`import`/`importIntoExistingVersion`, Überlappungsprüfung,
+Die dateiformat- **unabhängige** Persistenz (`import`/`importIntoExistingVersion`, Überlappungsprüfung,
 Schreiben von Kategorien/Bewerben/Sportklassen/Regeln/Basiswerten) liegt in der abstrakten Basisklasse
 `AbstractBaseTimeImportService`; die konkreten Import-Services liefern nur ein formatspezifisches `parse()`, das
 dieselbe Struktur (`categories`/`disciplines`/`sportClasses`/`cells`/`warnings`) zurückgibt.
@@ -72,7 +72,7 @@ passende Parser gewählt.
 
 ## MeetManager-Text-Import — `BaseTimeTextImportService`
 
-Importiert **zusätzlich** zum Excel-Format die von Splash MeetManager/Hy-Tek exportierte „Points"-Textdatei
+Importiert **zusätzlich** zum Excel-Format die von Splash MeetManager/Hy-Tek exportierte "Points"-Textdatei
 (`COURSE;GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;MINTIME`, siehe Fixture
 `tests/Fixtures/base-times/502-para-2021.txt`). Erbt die Persistenz von `AbstractBaseTimeImportService`.
 
@@ -150,10 +150,10 @@ Die Matrix wird über die Livewire-Komponente
 Darstellung der Matrix:
 
 - **Einzel- und Staffelbewerbe** stehen in **getrennten Tabs**: Einzel (`relay_count = 1`) je 10er-Block der
-  Sportklassen, Staffeln (`relay_count > 1`) in einem eigenen „Staffeln"-Tab (nur die Staffel-Sportklassen). So
+  Sportklassen, Staffeln (`relay_count > 1`) in einem eigenen "Staffeln"-Tab (nur die Staffel-Sportklassen). So
   erscheinen leere Staffelzeilen nicht in den Einzel-Tabs.
-- Die Einzel-Tab-Beschriftung leitet sich aus den **tatsächlichen** Sportklassen-Codes des Blocks ab
-  (erster…letzter, z. B. `S11…S49`), nicht aus der Spaltenposition.
+- Die Einzel-Tab-Beschriftung leitet sich aus den **tatsächlichen** Sportklassen-Codes des Blocks ab (erster…letzter, z.
+  B. `S11…S49`), nicht aus der Spaltenposition.
 - **Export-Buttons je Kontext:** in der Kategorie-Detailansicht exportieren sie nur **diese** Kategorie, in der
   Kategorien-Übersicht und der Versionsliste die **gesamte** Version — jeweils als Excel oder MeetManager-Text.
 
@@ -167,7 +167,7 @@ liefert den Download-Namen (z. B. `OeBSV-Base-Times_2021-2026.xlsx` bzw. `…_LC
 ## MeetManager-Text-Export — `BaseTimeTextExportService`
 
 Umkehrung des Text-Imports (Round-Trip): `export(BaseTimeVersion, ?BaseTimeCategory)` schreibt die Version — oder nur
-eine Kategorie — als `.txt` im MeetManager-„Points"-Format (voller Kopf inkl. `Formula=CUBED`/`Options=HANDICAP`,
+eine Kategorie — als `.txt` im MeetManager-"Points"-Format (voller Kopf inkl. `Formula=CUBED`/`Options=HANDICAP`,
 `<BASETIMES>`, Spaltenkopf, je Basiswert eine `;`-Zeile). Rückabbildung: Kategorie → COURSE/GENDER, Bewerb →
 RELAYCOUNT/DISTANCE/STROKE (MEDLEY für IM und ME), Sportklasse → HANDICAP (Einzel ohne, Staffel mit `S`-Präfix),
 `NOT_APPLICABLE` → `99:99.99`. `buildContent()` liefert den reinen Text (ohne Datei), `downloadFilename(version,
@@ -177,13 +177,13 @@ RELAYCOUNT/DISTANCE/STROKE (MEDLEY für IM und ME), Sportklasse → HANDICAP (Ei
 
 Alle unter `auth`. Prefix `base-times`:
 
-| Route                                                                    | Name                               |
-|--------------------------------------------------------------------------|------------------------------------|
-| `GET /base-times/import` · `POST …/import/preview` · `POST …/import/run` | `base-times.import[.preview/.run]` |
-| `resource versions` (ohne `show`)                                        | `base-times.versions.*`            |
-| `GET /base-times/{version}/categories`                                   | `base-times.categories.index`      |
-| `GET /base-times/{version}/categories/{category}`                        | `base-times.categories.show`       |
-| `GET /base-times/{version}/export` · `…/export-text`                     | `base-times.export[.text]`         |
+| Route                                                                    | Name                                  |
+|--------------------------------------------------------------------------|---------------------------------------|
+| `GET /base-times/import` · `POST …/import/preview` · `POST …/import/run` | `base-times.import[.preview/.run]`    |
+| `resource versions` (ohne `show`)                                        | `base-times.versions.*`               |
+| `GET /base-times/{version}/categories`                                   | `base-times.categories.index`         |
+| `GET /base-times/{version}/categories/{category}`                        | `base-times.categories.show`          |
+| `GET /base-times/{version}/export` · `…/export-text`                     | `base-times.export[.text]`            |
 | `GET /base-times/{version}/categories/{category}/export[-text]`          | `base-times.categories.export[.text]` |
 
 Zusätzlich (außerhalb des Prefix): `POST /meets/{meet}/recalculate-points`

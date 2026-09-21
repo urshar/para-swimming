@@ -89,7 +89,7 @@ Der Parser gleicht mehrere Splash-Besonderheiten aus:
 - **Fehlendes `startdate`** (Entries-Export) → Fallback auf das Datum der ersten Session.
 - **Fehlende `meetid`** (Splash Entries-Export) → Meet-Matching über
   `name` + `start_date`.
-- **City-Normalisierung** („Rif / Hallein" vs. „Rif/Hallein").
+- **City-Normalisierung** ("Rif / Hallein" vs. "Rif/Hallein").
 - **Redundante AGEGROUPs** (Gesamtliste + einzelne Untergruppen) werden dedupliziert.
 - **Sportklassen-Trennzeichen**: Splash nutzt Komma, LENEX-Standard Leerzeichen; beides wird eingelesen, dedupliziert
   und numerisch sortiert (1 … 9, 10 … 21). Fehlen AGEGROUPs (Entries-Export), bleibt der bestehende DB-Wert des Events

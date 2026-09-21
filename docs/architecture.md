@@ -29,18 +29,18 @@ querschnittliche Wiederverwendung in **Traits** (`app/Concerns`).
 
 ## Verzeichnisstruktur (`app/`)
 
-| Verzeichnis        | Rolle                                                                                                                                               |
-|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Http/Controllers` | Dünne Controller; ein Controller je Ressource (RESTful) plus dedizierte Import-/Export-Controller. Admin-Controller unter `Http/Controllers/Admin`. |
+| Verzeichnis        | Rolle                                                                                                                                                                                                                          |
+|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Http/Controllers` | Dünne Controller; ein Controller je Ressource (RESTful) plus dedizierte Import-/Export-Controller. Admin-Controller unter `Http/Controllers/Admin`.                                                                            |
 | `Livewire`         | Interaktive Komponenten: `StatisticsDashboard`, `Admin/UserManager`, `Admin/BaseTimeTable`, `Admin/ChampionshipStandardTable`, `Admin/ChampionshipQualificationTable`, `Admin/ChampionshipDevelopmentTable`, `Actions/Logout`. |
-| `Models`           | Eloquent-Modelle (die Domäne, ~45 Modelle).                                                                                                         |
-| `Services`         | Geschäftslogik: Import/Export, Berechnungen, Wertung, Statistik (~26 Services).                                                                     |
-| `Support`          | Zustandslose Helfer und Wertobjekte: `TimeParser`, `SportClassSorter`, `SportClassValidator`, `AthleteAge`, `ReportConfiguration`.                  |
-| `Concerns`         | Traits: `PasswordValidationRules`, `ProfileValidationRules`, `SearchesAthletes`.                                                                    |
-| `Policies`         | Autorisierung: `EntryPolicy` (wer darf Meldungen verwalten).                                                                                        |
-| `Http/Middleware`  | `RequireAdmin`.                                                                                                                                     |
-| `Providers`        | `AppServiceProvider`, `FortifyServiceProvider`.                                                                                                     |
-| `Console/Commands` | Artisan-Commands, z. B. `StatisticsReferenceCheckCommand`.                                                                                          |
+| `Models`           | Eloquent-Modelle (die Domäne, ~45 Modelle).                                                                                                                                                                                    |
+| `Services`         | Geschäftslogik: Import/Export, Berechnungen, Wertung, Statistik (~26 Services).                                                                                                                                                |
+| `Support`          | Zustandslose Helfer und Wertobjekte: `TimeParser`, `SportClassSorter`, `SportClassValidator`, `AthleteAge`, `ReportConfiguration`.                                                                                             |
+| `Concerns`         | Traits: `PasswordValidationRules`, `ProfileValidationRules`, `SearchesAthletes`.                                                                                                                                               |
+| `Policies`         | Autorisierung: `EntryPolicy` (wer darf Meldungen verwalten).                                                                                                                                                                   |
+| `Http/Middleware`  | `RequireAdmin`.                                                                                                                                                                                                                |
+| `Providers`        | `AppServiceProvider`, `FortifyServiceProvider`.                                                                                                                                                                                |
+| `Console/Commands` | Artisan-Commands, z. B. `StatisticsReferenceCheckCommand`.                                                                                                                                                                     |
 
 ## Service-Muster
 
@@ -117,11 +117,11 @@ Bei einer Massenberechnung werden Parametersätze und Umrechnungsfaktoren **einm
 
 Das Modul beantwortet drei verschiedene Fragen, und die Trennung zwischen ihnen ist sein Kern:
 
-| Frage | Ansicht | Grundlage |
-|---|---|---|
-| Wer hat sich qualifiziert, und wie weit fehlt den übrigen? | Qualifikanten | **nur Nachweise**: reale Zeiten auf der Bahnlänge der Meisterschaft aus WPS-anerkannten Wettkämpfen |
-| Hat der Athlet international eine Chance? | Förderansicht | alles, einschließlich umgerechneter Kurzbahnzeiten — gekennzeichnet |
-| Wer fährt? | Auswahl-Rangliste | Nachweise, sortiert nach WPS-Punkten |
+| Frage                                                      | Ansicht           | Grundlage                                                                                           |
+|------------------------------------------------------------|-------------------|-----------------------------------------------------------------------------------------------------|
+| Wer hat sich qualifiziert, und wie weit fehlt den übrigen? | Qualifikanten     | **nur Nachweise**: reale Zeiten auf der Bahnlänge der Meisterschaft aus WPS-anerkannten Wettkämpfen |
+| Hat der Athlet international eine Chance?                  | Förderansicht     | alles, einschließlich umgerechneter Kurzbahnzeiten — gekennzeichnet                                 |
+| Wer fährt?                                                 | Auswahl-Rangliste | Nachweise, sortiert nach WPS-Punkten                                                                |
 
 Vier Punkte, die beim Anfassen des Moduls wichtig sind:
 
@@ -163,7 +163,8 @@ Hintergrund und verworfene Alternativen in `docs/specs/wps-qualification.md`.
 ## Views
 
 Blade-Views liegen modulweise unter `resources/views/<modul>` (z. B.
-`records`, `club-entries`, `cups`, `qualifying-time-lists`, `championships`, `statistics`). Layouts unter `resources/views/layouts`,
+`records`, `club-entries`, `cups`, `qualifying-time-lists`, `championships`, `statistics`). Layouts unter
+`resources/views/layouts`,
 gemeinsame Bausteine unter
 `components` und `partials`, PDF-Templates unter `pdf`.
 

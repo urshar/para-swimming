@@ -113,13 +113,13 @@ Summe:
 
 - **Teilstrecken-Disziplin** je Startposition: Distanz = Staffeldistanz, `relay_count = 1`, Stil nach
   Staffelart — Freistilstaffel (FREE) → alle Freistil; Lagenstaffel (MEDLEY, genau 4 Beine) → Position 1
-  Rücken, 2 Brust, 3 Schmetterling, 4 Freistil; Lagen-Staffel jeder alle Stile (IMRELAY) → alle Einzel-Lagen
-  (MEDLEY); sonst Freistil-Fallback.
+  Rücken, 2 Brust, 3 Schmetterling, 4 Freistil; Lagen-Staffel jeder alle Stile (IMRELAY) → alle Einzel-Lagen (MEDLEY);
+  sonst Freistil-Fallback.
 - **Teilsumme**: summiert wird über die vorhandenen Zeiten; `missing`/`total` (= `relay_count`) melden fehlende
   Positionen (leer oder ohne Ergebnis).
 - Das Formular zeigt die Gesamt-Summen (alle JBZ / alle ABZ) je Kurs und erlaubt zusätzlich, je Schwimmer in
-  der Startaufstellung JBZ (Jahres-) oder ABZ (absolute Bestzeit) zu wählen (Default JBZ); daraus wird eine
-  **gemischte Summe** für den aktuell gewählten Kurs gebildet und ist per Klick übernehmbar.
+  der Startaufstellung JBZ (Jahres-) oder ABZ (absolute Bestzeit) zu wählen (Default JBZ); daraus wird eine **gemischte
+  Summe** für den aktuell gewählten Kurs gebildet und ist per Klick übernehmbar.
 
 ## Staffelklassen — `RelayClassValidator`
 
@@ -174,12 +174,12 @@ Weitere Methoden:
 
 **JSON-Endpunkte (AJAX)**
 
-| Methode                                | Rückgabe                                                                    |
-|----------------------------------------|-----------------------------------------------------------------------------|
-| `eligibleAthletes(Request, Meet)`      | geeignete Einzel-Athleten für ein Event (`event_id`)                        |
+| Methode                                | Rückgabe                                                                     |
+|----------------------------------------|------------------------------------------------------------------------------|
+| `eligibleAthletes(Request, Meet)`      | geeignete Einzel-Athleten für ein Event (`event_id`)                         |
 | `eligibleRelayAthletes(Request, Meet)` | geeignete Staffel-Athleten (aktiv) inkl. `gender` + `classes` für den Filter |
-| `bestTimes(Request, Meet)`             | Panel-Bestzeiten (Jahres + absolut, LCM/SCM) für Athlet + Event             |
-| `relayBestTime(Request, Meet)`         | Staffel-Summe je Kurs + `legs` (Reihenfolge = `athlete_ids[]`)              |
+| `bestTimes(Request, Meet)`             | Panel-Bestzeiten (Jahres + absolut, LCM/SCM) für Athlet + Event              |
+| `relayBestTime(Request, Meet)`         | Staffel-Summe je Kurs + `legs` (Reihenfolge = `athlete_ids[]`)               |
 
 Route der Staffel-Summe: `GET meets/{meet}/relay-entries/relay-best-time?event_id=&athlete_ids[]=` (Name
 `club-entries.relay.relay-best-time`), vor dem `{relayEntry}`-Platzhalter registriert. Die Athleten werden auf

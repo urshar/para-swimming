@@ -160,8 +160,8 @@ Analog zu `wps-points` **[E2]** — kein neues Rollensystem:
 | Feld                | Typ                      | Beschreibung                                            |
 |---------------------|--------------------------|---------------------------------------------------------|
 | id                  | bigint                   | PK                                                      |
-| name                | string(150)              | z. B. „World Para Swimming European Championships 2026" |
-| short_name          | string(50), nullable     | z. B. „EM 2026"                                         |
+| name                | string(150)              | z. B. "World Para Swimming European Championships 2026" |
+| short_name          | string(50), nullable     | z. B. "EM 2026"                                         |
 | type                | string(20)               | `EC` / `WC` / `PARALYMPICS` / `OTHER`                   |
 | year                | smallint unsigned        |                                                         |
 | course              | string(3), default `LCM` | Bahnlänge der Normen                                    |
@@ -577,7 +577,7 @@ die Grundlage je ändert.
 
 ```
 Hinweis:
-Mit „rechnerisch erreicht" gekennzeichnete Leistungen beruhen auf umgerechneten
+Mit "rechnerisch erreicht" gekennzeichnete Leistungen beruhen auf umgerechneten
 Kurzbahnzeiten. Sie sind kein Qualifikationsnachweis — international zählt
 ausschließlich eine auf der Langbahn geschwommene Zeit innerhalb des
 Qualifikationszeitraums.
@@ -722,7 +722,7 @@ bestimmt den Inhalt des Förder-PDF.
 | Q-R1 | Umgerechnete Zeit wird als Qualifikation missverstanden                      | **[Q4]**, eigener Status, Hinweis in Anzeige und PDF, eigener Testfall         |
 | Q-R2 | Dateiformat ändert sich zwischen Veröffentlichungen                          | manuelle Pflege als Regelfall (§9.1), Import bricht verständlich ab            |
 | Q-R3 | Erneuter Import überschreibt ÖBSV-Festlegungen                               | Import füllt nur MQS und MET (§9.2)                                            |
-| Q-R4 | Fehlende Norm wird als „nicht erfüllt" gelesen                               | eigener Status `no_standard` (§7.2), eigener Abschnitt (§7.4)                  |
+| Q-R4 | Fehlende Norm wird als "nicht erfüllt" gelesen                               | eigener Status `no_standard` (§7.2), eigener Abschnitt (§7.4)                  |
 | Q-R5 | MET wird ohne MQS als Qualifikation gewertet                                 | bedingte Auswertung (§7.2), eigener Testfall                                   |
 | Q-R6 | Prozentsatz auf die Zeit wirkt über die Bewerbe ungleich                     | Punktanzeige neben der Zeit (§5.3)                                             |
 | Q-R7 | Offene Zeilen sehen aus wie bewusst gesetzte                                 | `null` ≠ `0` (**[Q3]**), Kennzeichnung offener Zeilen                          |

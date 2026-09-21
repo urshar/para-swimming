@@ -33,7 +33,7 @@ Unveränderliches Value Object (kein Model/keine Tabelle). Es beschreibt nur, **
 | `dateFrom` / `dateTo`         | Auswertungszeitraum (`CarbonImmutable`)                        |
 | `meetIds`                     | ausgewählte Veranstaltungen; **leer = alle Meets im Zeitraum** |
 | `sections`                    | Abschnitt ⇒ aktiv? (nur Schlüssel aus `SECTION_KEYS`)          |
-| `minParticipations`           | Schwelle X für „mind. X Teilnahmen", Default **2**             |
+| `minParticipations`           | Schwelle X für "mind. X Teilnahmen", Default **2**             |
 | `oebmMeetIds` / `oejmMeetIds` | Meets, die als ÖBM bzw. ÖJM ausgewertet werden                 |
 
 Kanonische Abschnittsschlüssel (`SECTION_KEYS`, einzige Quelle der Wahrheit, zugleich Ausgabereihenfolge):
