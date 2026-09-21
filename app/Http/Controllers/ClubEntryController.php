@@ -71,7 +71,7 @@ class ClubEntryController extends Controller
             'swim_event_id' => ['required', 'integer', 'exists:swim_events,id'],
             'athlete_id' => ['required', 'integer', 'exists:athletes,id'],
             'entry_time' => ['nullable', 'string', 'max:20'],
-            'entry_course' => ['nullable', 'in:LCM,SCM,SCY'],
+            'entry_course' => ['nullable', 'in:LCM,SCM'],
         ]);
 
         // SwimEvent muss zum Meet gehören und Einzel-Event sein
@@ -270,7 +270,7 @@ class ClubEntryController extends Controller
             'athlete_ids' => ['nullable', 'array'],
             'athlete_ids.*' => ['integer', 'exists:athletes,id'],
             'entry_time' => ['nullable', 'string', 'max:20'],
-            'entry_course' => ['nullable', 'in:LCM,SCM,SCY'],
+            'entry_course' => ['nullable', 'in:LCM,SCM'],
         ]);
 
         // SwimEvent muss zum Meet gehören und ein Staffel-Event sein
@@ -380,7 +380,7 @@ class ClubEntryController extends Controller
             'athlete_ids' => ['nullable', 'array'],
             'athlete_ids.*' => ['integer', 'exists:athletes,id'],
             'entry_time' => ['nullable', 'string', 'max:20'],
-            'entry_course' => ['nullable', 'in:LCM,SCM,SCY'],
+            'entry_course' => ['nullable', 'in:LCM,SCM'],
         ]);
 
         $event = $relayEntry->swimEvent;
@@ -437,7 +437,7 @@ class ClubEntryController extends Controller
 
         $validated = $request->validate([
             'entry_time' => ['nullable', 'string', 'max:20'],
-            'entry_course' => ['nullable', 'in:LCM,SCM,SCY'],
+            'entry_course' => ['nullable', 'in:LCM,SCM'],
         ]);
 
         $entryTime = null;
@@ -509,11 +509,44 @@ class ClubEntryController extends Controller
             ->map(fn ($a) => [
                 'id' => $a->id,
                 'name' => $a->last_name.', '.$a->first_name,
+                'gender' => $a->gender,
                 'birth_year' => $a->birth_date ? substr($a->birth_date, 0, 4) : null,
                 'classes' => $a->sportClasses->pluck('sport_class')->join(', '),
             ]);
 
         return response()->json($athletes);
+    }
+
+    /**
+     * AJAX: Vorgeschlagene Staffel-Meldezeit (Summe der Einzel-Bestzeiten der gemeldeten
+     * Athleten je Kurs, Jahres- + absolute Summe). Reihenfolge der athlete_ids = Startposition.
+     *
+     * GET /meets/{meet}/relay-entries/relay-best-time?event_id=X&athlete_ids[]=…
+     */
+    public function relayBestTime(Request $request, Meet $meet): JsonResponse
+    {
+        $request->validate([
+            'event_id' => ['required', 'integer', 'exists:swim_events,id'],
+            'athlete_ids' => ['nullable', 'array'],
+            'athlete_ids.*' => ['integer', 'exists:athletes,id'],
+        ]);
+
+        $event = SwimEvent::with('strokeType')
+            ->where('id', $request->event_id)
+            ->where('meet_id', $meet->id)
+            ->where('relay_count', '>', 1)
+            ->firstOrFail();
+
+        // Auf den Club scopen (fremde IDs fallen raus), aber die übergebene Reihenfolge
+        // erhalten — die Startposition bestimmt bei Lagenstaffeln den Teilstrecken-Stil.
+        $clubAthleteIds = $this->userClub()->athletes()->pluck('id');
+        $orderedAthleteIds = collect($request->input('athlete_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $clubAthleteIds->contains($id))
+            ->values()
+            ->all();
+
+        return response()->json($this->entryService->relayBestTimes($event, $orderedAthleteIds, $meet));
     }
 
     // ── AJAX Endpunkte ────────────────────────────────────────────────────────

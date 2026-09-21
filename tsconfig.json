@@ -7,7 +7,7 @@
         "checkJs": false,
         "noEmit": true,
         "paths": {
-            "@/*": ["resources/js/*"]
+            "@/*": ["./resources/js/*"]
         }
     },
     "include": [

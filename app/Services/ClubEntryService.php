@@ -7,6 +7,7 @@ use App\Models\Club;
 use App\Models\Meet;
 use App\Models\RelayEntryMember;
 use App\Models\Result;
+use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Support\TimeParser;
 use Carbon\Carbon;
@@ -90,6 +91,7 @@ readonly class ClubEntryService
             ->pluck('athlete_id');
 
         return $club->athletes()
+            ->where('is_active', true) // nur aktive Sportler in der Auswahl
             ->with('sportClasses')
             ->get()
             ->filter(fn (Athlete $athlete) => $this->genderMatches($event->gender, $athlete->gender)
@@ -133,16 +135,31 @@ readonly class ClubEntryService
         ];
     }
 
-    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
-
     /**
-     * Absolute Bestzeit ohne Datum filter, für einen bestimmten Kurs.
-     * Gibt null zurück, wenn keine gültige Zeit vorhanden.
+     * Vorgeschlagene Staffel-Meldezeit als Summe der Einzel-Bestzeiten der (der Reihe nach)
+     * gemeldeten Athleten über die Teilstrecke. Je Kurs (LCM/SCM) Jahres- UND absolute Summe.
+     *
+     * Teilstrecken-Disziplin: Distanz = Staffeldistanz, relay_count = 1, Stil je nach Staffelart
+     * (siehe relayLegStrokeIds()). Es wird über die vorhandenen Einzel-Bestzeiten summiert; fehlende
+     * (leere Positionen oder Schwimmer ohne Zeit) werden über 'missing'/'total' gemeldet (Teilsumme).
+     *
+     * @param  array<int, int>  $orderedAthleteIds  Athleten-IDs in Startreihenfolge (Position = Index)
+     * @return array{LCM: array, SCM: array}
      */
-    public function absoluteBestTime(Athlete $athlete, SwimEvent $event, string $course): ?int
+    public function relayBestTimes(SwimEvent $relayEvent, array $orderedAthleteIds, Meet $meet): array
     {
-        return $this->queryBestTime($athlete, $event, $course);
+        $from = Carbon::create((int) $meet->start_date->format('Y') - 1);
+        $until = $meet->start_date->copy()->subDay();
+
+        $legStrokeIds = $this->relayLegStrokeIds($relayEvent);
+
+        return [
+            'LCM' => $this->relaySumCourse($relayEvent, $orderedAthleteIds, $legStrokeIds, 'LCM', $from, $until),
+            'SCM' => $this->relaySumCourse($relayEvent, $orderedAthleteIds, $legStrokeIds, 'SCM', $from, $until),
+        ];
     }
+
+    // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     public function formatTime(?int $centiseconds): ?string
     {
@@ -178,6 +195,114 @@ readonly class ClubEntryService
             'formatted' => $this->formatTime($result?->swim_time) ?? 'NT',
             'date' => $result?->meet?->start_date?->format('d.m.Y'),
         ];
+    }
+
+    /**
+     * Ein Kurs-Eintrag der Staffel-Summe. Enthält die aggregierten "Alles"-Summen
+     * (year/absolute, jeweils {raw, formatted, missing, total}) UND eine per-Schwimmer-Aufschlüsselung
+     * ('legs': je Startposition {athlete_id, year, absolute}), damit das Formular auch eine gemischte
+     * Summe (pro Schwimmer JBZ oder ABZ) bilden kann. Beide Ergebnismengen entstehen in EINEM Durchlauf.
+     */
+    private function relaySumCourse(
+        SwimEvent $relayEvent,
+        array $orderedAthleteIds,
+        array $legStrokeIds,
+        string $course,
+        CarbonInterface $from,
+        CarbonInterface $until,
+    ): array {
+        $total = (int) $relayEvent->relay_count;
+        $distance = (int) $relayEvent->distance;
+
+        $legs = [];
+        $yearSum = 0;
+        $yearContributed = 0;
+        $absoluteSum = 0;
+        $absoluteContributed = 0;
+
+        foreach (array_values($orderedAthleteIds) as $pos => $athleteId) {
+            if ($pos >= $total) {
+                break; // mehr Athleten als Staffelplätze — überzählige ignorieren
+            }
+
+            $strokeId = (int) ($legStrokeIds[$pos] ?? $legStrokeIds[0]);
+            $athleteId = (int) $athleteId;
+
+            $yearResult = $this->bestResultForDiscipline($athleteId, $distance, $strokeId, 1, $course, $from, $until);
+            $absoluteResult = $this->bestResultForDiscipline($athleteId, $distance, $strokeId, 1, $course);
+
+            if ($yearResult?->swim_time !== null) {
+                $yearSum += $yearResult->swim_time;
+                $yearContributed++;
+            }
+            if ($absoluteResult?->swim_time !== null) {
+                $absoluteSum += $absoluteResult->swim_time;
+                $absoluteContributed++;
+            }
+
+            $legs[] = [
+                'athlete_id' => $athleteId,
+                'year' => $this->panelTime($yearResult),
+                'absolute' => $this->panelTime($absoluteResult),
+            ];
+        }
+
+        return [
+            'year' => $this->relaySumAggregate($yearSum, $yearContributed, $total),
+            'absolute' => $this->relaySumAggregate($absoluteSum, $absoluteContributed, $total),
+            'legs' => $legs,
+        ];
+    }
+
+    /**
+     * Fasst eine Summe zusammen: {raw, formatted, missing, total}. 'missing' = Positionen ohne Zeit
+     * (leer oder ohne Ergebnis), 'total' = relay_count. 'NT'/null, wenn nichts beigetragen hat.
+     *
+     * @return array{raw: ?int, formatted: string, missing: int, total: int}
+     */
+    private function relaySumAggregate(int $sum, int $contributed, int $total): array
+    {
+        return [
+            'raw' => $contributed > 0 ? $sum : null,
+            'formatted' => $contributed > 0 ? $this->formatTime($sum) : 'NT',
+            'missing' => $total - $contributed,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * Ermittelt je Startposition (Index) die Einzel-Teilstrecken-Stroke-ID.
+     *   - Freistilstaffel (FREE): jeder Freistil
+     *   - Lagenstaffel (MEDLEY, genau 4 Beine): Pos 1 Rücken, 2 Brust, 3 Schmetterling, 4 Freistil
+     *   - Lagen-Staffel jeder alle Stile (IMRELAY): jeder Einzel-Lagen (MEDLEY)
+     *   - sonst / MEDLEY ≠ 4 Beine: Freistil-Fallback (bzw. Stroke des Staffel-Events, falls FREE fehlt)
+     *
+     * @return array<int, int> Position (0-basiert) => stroke_type_id
+     */
+    private function relayLegStrokeIds(SwimEvent $relayEvent): array
+    {
+        $count = max((int) $relayEvent->relay_count, 1);
+        $ids = StrokeType::whereIn('lenex_code', ['FREE', 'BACK', 'BREAST', 'FLY', 'MEDLEY'])
+            ->pluck('id', 'lenex_code');
+
+        $relayCode = $relayEvent->strokeType?->lenex_code;
+        $fallback = (int) ($ids['FREE'] ?? $relayEvent->stroke_type_id);
+
+        if ($relayCode === 'MEDLEY' && $count === 4) {
+            return [
+                (int) ($ids['BACK'] ?? $fallback),
+                (int) ($ids['BREAST'] ?? $fallback),
+                (int) ($ids['FLY'] ?? $fallback),
+                (int) ($ids['FREE'] ?? $fallback),
+            ];
+        }
+
+        $legStroke = match ($relayCode) {
+            'IMRELAY' => (int) ($ids['MEDLEY'] ?? $relayEvent->stroke_type_id),
+            default => $fallback,
+        };
+
+        return array_fill(0, $count, $legStroke);
     }
 
     /**
@@ -244,16 +369,41 @@ readonly class ClubEntryService
         ?CarbonInterface $from = null,
         ?CarbonInterface $until = null,
     ): ?Result {
+        return $this->bestResultForDiscipline(
+            $athlete->id,
+            (int) $event->distance,
+            (int) $event->stroke_type_id,
+            (int) $event->relay_count,
+            $course,
+            $from,
+            $until,
+        );
+    }
+
+    /**
+     * Das schnellste gültige Result eines Athleten für eine explizit angegebene Disziplin
+     * (Distanz + Schwimmstil + relay_count) auf dem gegebenen Kurs — inkl. Meet (fürs Datum).
+     * Optionaler Datumsfilter. Basis für Einzel- (bestResult) und Staffel-Bestzeiten (relaySum).
+     */
+    private function bestResultForDiscipline(
+        int $athleteId,
+        int $distance,
+        int $strokeTypeId,
+        int $relayCount,
+        string $course,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $until = null,
+    ): ?Result {
         $query = Result::query()
             ->with('meet:id,start_date')
-            ->where('athlete_id', $athlete->id)
+            ->where('athlete_id', $athleteId)
             ->whereNull('status')          // Keine DSQ/DNS/DNF
             ->whereNotNull('swim_time')
             ->where('swim_time', '>', 0)
-            ->whereHas('swimEvent', function ($q) use ($event) {
-                $q->where('distance', $event->distance)
-                    ->where('stroke_type_id', $event->stroke_type_id)
-                    ->where('relay_count', $event->relay_count);
+            ->whereHas('swimEvent', function ($q) use ($distance, $strokeTypeId, $relayCount) {
+                $q->where('distance', $distance)
+                    ->where('stroke_type_id', $strokeTypeId)
+                    ->where('relay_count', $relayCount);
             })
             ->whereHas('meet', function ($q) use ($course) {
                 $q->where('course', $course);

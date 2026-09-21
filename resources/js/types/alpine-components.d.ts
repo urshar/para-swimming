@@ -56,6 +56,8 @@ interface EntryBestTimesConfig {
 /** Konfiguration für relayEntryForm — Staffelmeldungs-Formular. */
 interface RelayEntryFormConfig {
     relayAthletesUrl: string;
+    /** AJAX-Endpoint für den Meldezeit-Vorschlag (Summe der Einzel-Bestzeiten). */
+    relayBestTimeUrl?: string;
     meetCourse: string;
     /** create-Modus: { [event_id]: relay_count } aller wählbaren Staffel-Events. */
     events?: Record<string, number>;

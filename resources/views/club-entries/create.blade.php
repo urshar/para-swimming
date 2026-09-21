@@ -190,7 +190,6 @@
                         <flux:select variant="listbox" name="entry_course" x-model="entryCourse">
                             <flux:select.option value="LCM">LCM (50m)</flux:select.option>
                             <flux:select.option value="SCM">SCM (25m)</flux:select.option>
-                            <flux:select.option value="SCY">SCY (Yards)</flux:select.option>
                         </flux:select>
                         <flux:error name="entry_course"/>
                     </flux:field>

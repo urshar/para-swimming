@@ -58,34 +58,68 @@ Sortierung nach Nachname, Vorname.
 
 ### Staffel-Events — `eligibleRelayAthletes(SwimEvent, Club, ?excludeRelayEntryId)`
 
-Geeignet sind Vereinsathleten mit passendem Geschlecht, die **nicht bereits in einer anderen Staffelmeldung desselben
-Events** (`meet_id` + `swim_event_id`)
-gemeldet sind. Beim Bearbeiten einer bestehenden Staffel (`excludeRelayEntryId`) bleiben deren eigene Mitglieder
-wählbar.
+Geeignet sind **aktive** Vereinsathleten (`is_active = true`) mit passendem Geschlecht, die **nicht bereits in
+einer anderen Staffelmeldung desselben Events** (`meet_id` + `swim_event_id`) gemeldet sind. Beim Bearbeiten
+einer bestehenden Staffel (`excludeRelayEntryId`) bleiben deren eigene Mitglieder wählbar.
+
+Der AJAX-Endpunkt liefert je Athlet zusätzlich `gender` und die Sportklassen-Liste (`classes`) für den
+client-seitigen Picker-Filter (s. u.).
+
+### Athleten-Picker-Filter (Staffelformular)
+
+Der Athleten-Picker (`club-entries/_athlete-picker.blade.php`, Alpine `relayEntryForm`) filtert die bereits
+geladene Liste rein client-seitig:
+
+- **Geschlecht** (Flux-Select): nur die tatsächlich vorkommenden Werte.
+- **Sportklassen** (Chips, mehrfach wählbar): Chips zeigen nur die S-Nummern (S7, S14, ...). Die Auswahl matcht
+  über die **Klassennummer** — "S7" zeigt jeden Athleten mit Code 7 in irgendeiner Kategorie (S7, SB7 oder
+  SM7). Mehrere Chips lassen sich kombinieren (z. B. S14 + S21).
 
 ## Bestzeiten
 
-`bestTimes(Athlete, SwimEvent, Meet)` liefert die **Jahresbestzeit je Kurs**:
+Bestzeiten werden meet-übergreifend über die **Disziplin** (Distanz + `stroke_type_id` + `relay_count` + Kurs)
+ermittelt, nicht über die konkrete `swim_event_id` des aktuellen Meets — historische Ergebnisse hängen an den
+Events vergangener Meets. (Früher wurde auf `swim_event_id` gematcht, was für ein neu angelegtes Event immer
+"NT" lieferte; behoben.) Nur gültige Ergebnisse: `status IS NULL` (kein DSQ/DNS/DNF), `swim_time > 0`. Nur
+Kurse LCM/SCM (kein SCY). Zeitraum der Jahresbestzeit: 1. Januar des Vorjahres bis zum **Tag vor**
+`meet.start_date` (`whereBetween('start_date', ...)`, DB-portabel).
+
+### Einzelmeldung — `bestTimesForPanel(Athlete, SwimEvent, Meet)`
+
+Liefert je Kurs (LCM/SCM) die **Jahres- und die absolute Bestzeit**, jeweils roh, formatiert und mit Datum:
 
 ```
-['LCM' => ?int, 'SCM' => ?int]   // Werte in Hundertstelsekunden
+['LCM' => ['year'     => ['raw' => ?int, 'formatted' => string, 'date' => ?string],
+           'absolute' => ['raw' => ?int, 'formatted' => string, 'date' => ?string]],
+ 'SCM' => [...]]
 ```
 
-- **Zeitraum**: 1. Januar des Vorjahres bis zum **Tag vor** `meet.start_date`
-  (`whereBetween('start_date', …)`, DB-portabel).
-- Nur gültige Ergebnisse: `status IS NULL` (kein DSQ/DNS/DNF), `swim_time > 0`.
-- Getrennt für Kurs `LCM` und `SCM` (kein SCY).
+`formatted` ist "NT", wenn keine Zeit vorhanden. Das Melde-Formular zeigt daraus ein blaues Panel mit Jahres-
+und absoluter Bestzeit je Kurs; Klick auf eine Zeit übernimmt sie als Meldezeit + Bahnlänge. Bereitgestellt per
+AJAX (`bestTimes`, s. u.).
 
-`absoluteBestTime(Athlete, SwimEvent, string $course)` liefert dieselbe Abfrage **ohne** Datumsfilter (für die
-Validierung/Anzeige).
+### Staffelmeldung — `relayBestTimes(SwimEvent, array $orderedAthleteIds, Meet)`
 
-> **Hinweis zum Matching:** Beide Abfragen filtern auf die konkrete
-> `swim_event_id` des übergebenen Events (nicht auf Stroke + Distanz + Kurs).
-> Ergebnisse aus gleichartigen Events **anderer** Meets werden dadurch nur
-> gefunden, wenn deren `Result.swim_event_id` auf genau dieses Event zeigt.
-> Falls Bestzeiten meet übergreifend über die Disziplin gesucht werden sollen,
-> müsste hier auf `stroke_type_id` + `distance` + `course` gematcht werden.
-> (Das aktuelle Verhalten ist durch `ClubEntryServiceTest` abgedeckt.)
+Liefert je Kurs einen **Meldezeit-Vorschlag als Summe der Einzel-Bestzeiten** der (der Reihe nach) gemeldeten
+Athleten über die jeweilige Teilstrecke, plus eine per-Schwimmer-Aufschlüsselung (`legs`) für eine gemischte
+Summe:
+
+```
+['LCM' => ['year'     => ['raw' => ?int, 'formatted' => string, 'missing' => int, 'total' => int],
+           'absolute' => [...],
+           'legs'     => [['athlete_id' => int, 'year' => {raw, formatted, date}, 'absolute' => {...}], ...]],
+ 'SCM' => [...]]
+```
+
+- **Teilstrecken-Disziplin** je Startposition: Distanz = Staffeldistanz, `relay_count = 1`, Stil nach
+  Staffelart — Freistilstaffel (FREE) → alle Freistil; Lagenstaffel (MEDLEY, genau 4 Beine) → Position 1
+  Rücken, 2 Brust, 3 Schmetterling, 4 Freistil; Lagen-Staffel jeder alle Stile (IMRELAY) → alle Einzel-Lagen
+  (MEDLEY); sonst Freistil-Fallback.
+- **Teilsumme**: summiert wird über die vorhandenen Zeiten; `missing`/`total` (= `relay_count`) melden fehlende
+  Positionen (leer oder ohne Ergebnis).
+- Das Formular zeigt die Gesamt-Summen (alle JBZ / alle ABZ) je Kurs und erlaubt zusätzlich, je Schwimmer in
+  der Startaufstellung JBZ (Jahres-) oder ABZ (absolute Bestzeit) zu wählen (Default JBZ); daraus wird eine
+  **gemischte Summe** für den aktuell gewählten Kurs gebildet und ist per Klick übernehmbar.
 
 ## Staffelklassen — `RelayClassValidator`
 
@@ -140,10 +174,17 @@ Weitere Methoden:
 
 **JSON-Endpunkte (AJAX)**
 
-| Methode                           | Rückgabe                                      |
-|-----------------------------------|-----------------------------------------------|
-| `eligibleAthletes(Request, Meet)` | geeignete Athleten für ein Event (`event_id`) |
-| `bestTimes(Request, Meet)`        | Jahresbestzeiten LCM/SCM für Athlet + Event   |
+| Methode                                | Rückgabe                                                                    |
+|----------------------------------------|-----------------------------------------------------------------------------|
+| `eligibleAthletes(Request, Meet)`      | geeignete Einzel-Athleten für ein Event (`event_id`)                        |
+| `eligibleRelayAthletes(Request, Meet)` | geeignete Staffel-Athleten (aktiv) inkl. `gender` + `classes` für den Filter |
+| `bestTimes(Request, Meet)`             | Panel-Bestzeiten (Jahres + absolut, LCM/SCM) für Athlet + Event             |
+| `relayBestTime(Request, Meet)`         | Staffel-Summe je Kurs + `legs` (Reihenfolge = `athlete_ids[]`)              |
+
+Route der Staffel-Summe: `GET meets/{meet}/relay-entries/relay-best-time?event_id=&athlete_ids[]=` (Name
+`club-entries.relay.relay-best-time`), vor dem `{relayEntry}`-Platzhalter registriert. Die Athleten werden auf
+den Verein gescoped, die übergebene Reihenfolge bleibt erhalten (Startposition bestimmt bei Lagenstaffeln den
+Stil).
 
 Beim Anlegen einer Einzelmeldung wird `Entry::updateOrCreate` auf
 `(meet_id, swim_event_id, athlete_id)` verwendet; eine erneute Meldung aktualisiert also den bestehenden Datensatz.
@@ -158,7 +199,7 @@ Beim Anlegen einer Einzelmeldung wird `Entry::updateOrCreate` auf
 'swim_event_id' => ['required', 'integer', 'exists:swim_events,id'],
 'athlete_id'    => ['required', 'integer', 'exists:athletes,id'],
 'entry_time'    => ['nullable', 'string', 'max:20'],
-'entry_course'  => ['nullable', 'in:LCM,SCM,SCY'],
+'entry_course'  => ['nullable', 'in:LCM,SCM'],
 ```
 
 Zusätzlich: Das Event muss zum Meet gehören und ein **Einzel-Event** sein (`relay_count = 1`); der Athlet muss zum
@@ -171,7 +212,7 @@ Verein des Users gehören (`club->athletes()->findOrFail(...)`).
 'athlete_ids'    => ['nullable', 'array'],
 'athlete_ids.*'  => ['integer', 'exists:athletes,id'],
 'entry_time'     => ['nullable', 'string', 'max:20'],
-'entry_course'   => ['nullable', 'in:LCM,SCM,SCY'],
+'entry_course'   => ['nullable', 'in:LCM,SCM'],
 ```
 
 Zusätzlich: Das Event muss zum Meet gehören und ein **Staffel-Event** sein (`relay_count > 1`); die Mitglieder werden
@@ -196,5 +237,8 @@ Phase).
 - `tests/Unit/RelayClassValidatorTest.php` — Staffelklassen-Regeln.
 - `tests/Feature/ClubEntryTest.php` — CRUD Einzelmeldungen inkl. Autorisierung.
 - `tests/Feature/RelayEntryTest.php`, `tests/Feature/RelayEntryFeatureTest.php`
-  — Staffelmeldungen.
+  — Staffelmeldungen (inkl. `relay-athletes`-Filterdaten: aktiv, `gender`, `classes`).
+- `tests/Feature/EntriesBestTimesTest.php` — Panel-Bestzeiten (Jahres + absolut) je Melde-Formular.
+- `tests/Feature/RelayBestTimeTest.php` — Staffel-Summe (FREE/MEDLEY-Position/IMRELAY), `legs`,
+  Teilsumme/Missing, Panel-/Filter-Rendering.
 - `tests/Feature/EntryPolicyTest.php` — Meldeschluss/Autorisierung.

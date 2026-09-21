@@ -26,14 +26,15 @@ mitgenommen, nur wenn eine betroffene Datei ohnehin aus anderem Anlass geändert
 
 **Gruppe 2 — erst kurze Entscheidungsrunde mit Erik, dann eigener Branch je Punkt.** Vorgeschlagene Reihenfolge nach
 Aufwand (kleine zuerst). **Erledigt:** `feature/meets-status-column` ("Status-Spalte in meets/index", PR #13),
-`feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip) und
+`feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip),
 `feature/entries-best-times` ("Jahresbestzeiten im Admin-Formular" + "Absolute Bestzeit + Klick-Übernahme", PR #15 —
-beide Punkte zusammen in einem Branch) — die zugehörigen Open Points unten wurden entfernt.
+beide Punkte zusammen in einem Branch) und
+`feature/relay-entry-time-suggestion` ("Meldezeit bei Staffelmeldungen aus den Athleten herleiten") — die
+zugehörigen Open Points unten wurden entfernt.
 
-1. `feature/relay-entry-time-suggestion` — "Meldezeit bei Staffelmeldungen ... herleiten" unten
-2. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
-3. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-4. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+1. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
+2. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+3. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -159,7 +160,7 @@ anklicken (bei größeren Meisterschaften z. B. 50+ Vereine).
 **Warum zurückgestellt:** Keine Bugfix-Zeile, sondern eine neue View/Route mit mehreren offenen Design-Fragen:
 Einzel- und Staffelmeldungen in einer Tabelle oder zwei Abschnitten? Gruppierung nach Disziplin, nach Verein, oder
 beides wählbar? Inline-bearbeitbar oder Klick auf Zeile → bestehendes Formular (`entries.edit`/
-`club-entries.relay.edit`)? Bei ggf. hunderten Meldungen (siehe z. B. "72. Österr. Staats- & Österr. Meisteschaften")
+`club-entries.relay.edit`)? Bei ggf. hunderten Meldungen (siehe z. B. "72. Österr. Staats- & Österr. Meisterschaften")
 Paginierung nötig, vermutlich pro Disziplin statt pro feste Seitengröße. Berechtigung: nur Admins, oder auch
 Vereinsvertreter (dann aber nur auf den eigenen Verein eingeschränkt — überschneidet sich mit dem bestehenden
 `club-entries`-Zugriff und dessen Meldeschluss-Sperre)?
@@ -216,23 +217,41 @@ gegenprüfen, insbesondere die Rechtsgrundlage für die Athletendaten-Veröffent
 `Disallow`-Zeilen in `app/Http/Controllers/Public/RobotsController.php` streichen und in
 `app/Http/Controllers/Public/SitemapController.php::STATIC_ROUTES` aufnehmen.
 
-## Meldezeit bei Staffelmeldungen aus den gemeldeten Athleten herleiten
+## Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)
 
-**Seit:** Admin-UI-Rework Phase 9, Design-Feedback-Runde nach `npm run dev`-Test.
+**Seit:** `feature/relay-entry-time-suggestion` (21.09.2026), Beobachtung Erik.
 
-**Was fehlt:** Bei `club-entries/create-relay.blade.php`/`edit-relay.blade.php` soll die Meldezeit sich (wenn möglich)
-automatisch aus den Bestzeiten der ausgewählten Staffel-Schwimmer als Vorschlag/Default ableiten lassen — analog zur
-bereits bestehenden Bestzeit-Übernahme bei Einzelmeldungen (`ClubEntryService::bestTimes()`). Für Staffeln braucht das
-eine eigene Regel (Summe der Einzel-Bestzeiten über die passende Teilstrecke/Bahnlänge? Nur wenn alle vier Plätze belegt
-sind? Rundungs-/Sicherheitsaufschlag?) — nicht ohne Rücksprache zu implementieren.
+**Aktueller Stand (verifiziert im Code):** Der Meldeschluss wird für **Vereins-User bereits durchgesetzt** —
+`EntryPolicy::manageEntries()` gibt nach Ablauf `false` zurück (`Carbon::today()->lte(entries_deadline)`), und
+alle mutierenden Pfade in `ClubEntryController` (Einzel- UND Staffelmeldung: create/store/edit/update/destroy)
+rufen `authorize('manageEntries', $meet)` bzw. `authorize('deleteEntry', $meet)`; `club-entries/index`
+blendet die Buttons aus und zeigt "Meldeschluss war am …". **Admins sind per Policy dagegen IMMER erlaubt, ohne
+Zeitlimit** — das ist vermutlich der Grund, warum "Meldungen noch möglich" beobachtet wurde (Test als Admin).
 
-**Wer entscheidet:** Erik — die genaue Herleitungsregel (Summenbildung, Umgang mit fehlenden Einzel-Bestzeiten einzelner
-Mitglieder, Kurzbahn/Langbahn-Umrechnung wie bei Einzelmeldungen).
+**Was fehlt / gewünscht (Erik):** Nach Meldeschluss soll die Veranstaltung **geschlossen** sein; nur der Admin
+darf danach etwas ändern/hinzufügen. Zusätzlich soll der Admin die Veranstaltung **für einen begrenzten
+Zeitraum (z. B. 24 h) wieder öffnen** können, damit z. B. Vereine kontrolliert Nachmeldungen/Korrekturen machen
+können — danach schließt sie automatisch wieder.
 
-**Zum Schließen nötig:** Regel abstimmen, dann in `ClubEntryService` eine
-`relayBestTime()`-ähnliche Methode ergänzen, per AJAX-Endpunkt (analog `best-times`) an
-`relay-entry-form.js` liefern, dort als Vorschlag mit "Bestzeit übernehmen"-Button anzeigen (gleiches UI-Muster wie bei
-Einzelmeldungen).
+**Offene Entscheidungen (Erik):**
+- Behält der Admin die unbegrenzte Direkt-Bearbeitung (Admin-Override wie heute), oder soll auch für den Admin
+  nach Ablauf erst "wiedereröffnen" nötig sein?
+- Wer darf während des Wiedereröffnungs-Fensters melden — nur der Admin, oder wieder die Vereine (das ist der
+  eigentliche Nutzen)?
+- Fenster fix 24 h oder frei wählbar (Datum/Uhrzeit)? Pro Veranstaltung global oder je Verein?
+- Soll das Wiederöffnen protokolliert werden (wer/wann/bis wann)?
+
+**Wer entscheidet:** Erik — die vier Punkte oben (v. a. wer im Fenster melden darf und ob der Admin-Override
+bleibt).
+
+**Zum Schließen nötig:** Migration `entries_reopened_until` (nullable `timestamp`) auf `meets`; `EntryPolicy`
+erweitern (Vereins-User zusätzlich erlaubt, wenn `entries_reopened_until` gesetzt und `now()` davor — die
+zentrale Policy deckt automatisch alle o. g. Controller-Pfade ab); Admin-UI zum Wiederöffnen (Button
+"+24 h" / freies Datum, Anzeige des aktiven Fensters inkl. Ablauf) auf `meets/show` bzw. in der
+Meldungsverwaltung; sichtbarer Status ("wieder geöffnet bis …") in `club-entries/index(-relay)`. **Zusätzlich
+als Absicherung:** ein Regressionstest, der bestätigt, dass ein Vereins-User nach Ablauf auf ALLEN Pfaden
+(Einzel + Staffel, store/update/destroy) 403 bekommt und während eines aktiven Wiederöffnungs-Fensters wieder
+darf — damit ein etwaiges echtes Leck (statt nur des Admin-Overrides) auffliegt.
 
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
 
@@ -402,16 +421,16 @@ Liste streichen. Beide Listen sind erst leer, wenn alle 22 Dateien auf diesem We
 ### Randnotiz aus derselben Rückmeldung — kein Open Point, nur zur Information festgehalten
 
 Erik beschrieb beim Datumsfeld in `wps/import/form.blade.php` einen "schwarzen Rahmen" beim manuellen Eintippen. Live
-nachgestellt (fokussiertes Segment-`<input>` des Datepickers untersucht): Jedes der vier Ziffern-Segmente
+nachgestellt (fokussiertes Segment-`<input>` des Date pickers untersucht): Jedes der vier Ziffern-Segmente
 (Tag/Monat/Jahr) trägt bewusst `focus:outline-[revert]` — laut `vendor/livewire/flux-pro/CLAUDE.md` ("Focus rings:
-prefer native browser outlines... Never use `focus:outline-none focus:ring-2...`") ist das eine **bewusste**
+prefer native browser outlines … Never use `focus:outline-none focus:ring-2...`") ist das eine **bewusste**
 Design-Entscheidung von Flux Pro selbst: der native Browser-Fokusring statt eines eigenen Stils. In diesem
 Test-Environment gemessen als `1px auto`-Outline in einem Amber-/Orange-Ton (`rgb(229, 151, 0)`), nicht Schwarz — die
 genaue Farbe ist browser-/OS-abhängig (`-webkit-focus-ring-color`) und kann auf Eriks System anders/dunkler
 ausfallen. Da dieses Verhalten absichtlich auf nativen Browser-Fokus statt auf eigenes Styling setzt, wurde hier
 **nichts geändert** — ein Override würde der eigenen Konvention des Pakets widersprechen und bei einem Paket-Update
 vermutlich wieder verschwinden. Falls der native Fokusring bei Erik tatsächlich als störend schwarz erscheint, bitte
-Rückmeldung mit Browser/OS, dann gezielt nachschauen (ggf. als eigener, kleiner Punkt hier ergänzen statt in P14 zu
+Rückmeldung mit Browser/OS, dann gezielt nachschauen (ggf. als eigener, kleiner Punkt hier ergänzen, statt in P14 zu
 verstecken).
 
 Zusätzlich aufgefallen: Die englische Fehlermeldung "The valid from field is required" im mitgeschickten Screenshot
