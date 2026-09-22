@@ -107,28 +107,15 @@ class StatisticsController extends Controller
         string $format,
     ): BinaryFileResponse {
         $config = $this->configurationFrom($request);
-        $section = $this->requestedSection($request);
         $sections = $statistics->generate($config);
 
         $path = $format === 'csv'
-            ? $export->csv($sections, $section)
-            : $export->xlsx($sections, $section);
+            ? $export->csv($sections)
+            : $export->xlsx($sections);
 
         return response()
-            ->download($path, $export->downloadFilename($config, $format, $section))
+            ->download($path, $export->downloadFilename($config, $format))
             ->deleteFileAfterSend();
-    }
-
-    /**
-     * Optionaler Einzelabschnitt für den Export. Unbekannte Werte werden
-     * ignoriert, damit ein manipulierter Parameter nicht zu einem Fehler,
-     * sondern schlicht zum vollständigen Export führt.
-     */
-    private function requestedSection(Request $request): ?string
-    {
-        $section = $request->string('section')->toString();
-
-        return in_array($section, ReportConfiguration::SECTION_KEYS, true) ? $section : null;
     }
 
     /**
@@ -171,7 +158,7 @@ class StatisticsController extends Controller
     private function selectedMeets(ReportConfiguration $config): Collection
     {
         $query = Meet::query()
-            ->orderBy('start_date')
+            ->oldest('start_date')
             ->orderBy('name');
 
         if ($config->isMeetFiltered()) {

@@ -36,16 +36,15 @@ final readonly class StatisticsExportService
      * absoluten Dateipfad zurück.
      *
      * @param  array<string, mixed>  $statistics
-     * @param  string|null  $section  nur diesen Abschnitt exportieren; null = alle
      *
      * @throws Exception
      */
-    public function xlsx(array $statistics, ?string $section = null): string
+    public function xlsx(array $statistics): string
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->removeSheetByIndex(0);
 
-        $tables = $this->tables($statistics, $section);
+        $tables = $this->tables($statistics);
 
         if ($tables->isEmpty()) {
             $spreadsheet->createSheet()->setTitle('Keine Daten');
@@ -94,13 +93,13 @@ final readonly class StatisticsExportService
      *
      * @throws Exception
      */
-    public function csv(array $statistics, ?string $section = null): string
+    public function csv(array $statistics): string
     {
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $row = 1;
 
-        foreach ($this->tables($statistics, $section) as $table) {
+        foreach ($this->tables($statistics) as $table) {
             $sheet->setCellValue("A$row", $table['title']);
             $sheet->getStyle("A$row")->getFont()->setBold(true);
             $row++;
@@ -126,25 +125,23 @@ final readonly class StatisticsExportService
         return $path;
     }
 
-    /** Dateiname für den Download, z.B. "jahresbericht-2024-vereine.csv". */
-    public function downloadFilename(ReportConfiguration $config, string $extension, ?string $section = null): string
+    /** Dateiname für den Download, z.B. "jahresbericht-2024.csv". */
+    public function downloadFilename(ReportConfiguration $config, string $extension): string
     {
-        $suffix = $section === null ? '' : '-'.str_replace('_', '-', $section);
-
-        return "jahresbericht-$config->year$suffix.$extension";
+        return "jahresbericht-$config->year.$extension";
     }
 
     /**
-     * Überführt die Abschnitte in exportierbare Tabellen.
+     * Überführt die aktivierten Abschnitte in exportierbare Tabellen. Welche
+     * Abschnitte enthalten sind, steuert allein die Abschnittsauswahl des
+     * Berichts (Häkchen) — es gibt keinen gesonderten Einzelabschnitt-Export.
      *
      * @param  array<string, mixed>  $statistics
      * @return Collection<int, array{title: string, headers: list<string>, rows: list<list<mixed>>}>
      */
-    private function tables(array $statistics, ?string $section = null): Collection
+    private function tables(array $statistics): Collection
     {
-        $sections = $section === null
-            ? $statistics
-            : array_intersect_key($statistics, [$section => true]);
+        $sections = $statistics;
 
         $tables = collect();
 

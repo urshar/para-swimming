@@ -1,17 +1,6 @@
 @php
     /** @var array<string, mixed> $stats */
     $stats = $this->statistics;
-
-    /*
-     * Native <select>-Elemente erben im Dunkelmodus weder Textfarbe noch
-     * Farbschema — ohne explizite Angabe steht schwarze Schrift auf dunklem
-     * Grund. color-scheme sorgt zusätzlich dafür, dass der Browser Rahmen und
-     * Bildlaufleiste passend zeichnet.
-     */
-    $selectClasses = 'mt-1 w-full rounded-lg border p-2 text-sm '
-        .'border-zinc-200 bg-white text-zinc-900 '
-        .'dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:[color-scheme:dark]';
-    $optionClasses = 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100';
     $overview = $stats['overview'];
     $records = $stats['records'];
 @endphp
@@ -310,7 +299,8 @@
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mt-6">
         <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Jahresbericht</h2>
         <p class="text-xs text-zinc-400 mt-0.5 mb-4">
-            Jahr und Veranstaltungen werden aus der Auswahl oben übernommen. Jeder Abschnitt ist einzeln abwählbar.
+            Jahr und Veranstaltungen werden aus der Auswahl oben übernommen. Nur die angehakten Abschnitte
+            erscheinen in Anzeige, PDF und Export — für einen einzelnen Bereich nur diesen anhaken.
         </p>
 
         <form method="GET" action="{{ route('statistics.report') }}" target="_blank">
@@ -352,15 +342,6 @@
                 @endforeach
             </div>
 
-            <div class="mb-4 max-w-md">
-                <flux:label>Nur ein Bereich exportieren (optional, für Excel und CSV)</flux:label>
-                <select name="section" class="{{ $selectClasses }}">
-                    <option value="" class="{{ $optionClasses }}">Alle gewählten Abschnitte</option>
-                    @foreach($reportSections as $sectionKey => $sectionLabel)
-                        <option value="{{ $sectionKey }}" class="{{ $optionClasses }}">{{ $sectionLabel }}</option>
-                    @endforeach
-                </select>
-            </div>
 
             <div class="flex flex-wrap gap-2">
                 <flux:button type="submit" variant="primary" icon="document-text">
