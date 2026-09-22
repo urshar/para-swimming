@@ -1612,3 +1612,79 @@ it('lädt über loadAgeGroups() nur aktive Altersgruppen in Sortierreihenfolge',
 
     expect($codes)->toBe(['JUGEND', 'OFFEN']);
 })->group('statistik-p8');
+
+// ── Staffelstarts je Event-Geschlecht (5-Jahres-Vergleichsgrafik) ────────────
+
+/** Ein Staffel-Bewerb mit gegebenem Event-Geschlecht (M/F/X). */
+function stat2_relayEvent(Meet $meet, string $gender): SwimEvent
+{
+    return SwimEvent::create([
+        'meet_id' => $meet->id,
+        'stroke_type_id' => stat2_strokeType()->id,
+        'distance' => 100,
+        'gender' => $gender,
+        'relay_count' => 4,
+    ]);
+}
+
+/** Eine angetretene Staffel-Ergebniszeile (ein Schwimmer der Staffel). */
+function stat2_relayStart(Athlete $athlete, Club $club, Meet $meet, SwimEvent $event, array $attrs = []): Result
+{
+    return Result::create(array_merge([
+        'meet_id' => $meet->id,
+        'swim_event_id' => $event->id,
+        'athlete_id' => $athlete->id,
+        'club_id' => $club->id,
+        'sport_class' => 'S9',
+        'swim_time' => 24000,
+    ], $attrs));
+}
+
+it('zählt Staffelstarts pro Athlet und gruppiert nach Event-Geschlecht (M/F/X)', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+
+    $mixed = stat2_relayEvent($meet, 'X');
+    $herren = stat2_relayEvent($meet, 'M');
+
+    // Mixed-Staffel: 4 Schwimmer → 4 Starts unter 'X', unabhängig vom Geschlecht.
+    foreach (['M', 'F', 'F', 'M'] as $g) {
+        stat2_relayStart(stat2_athlete(['gender' => $g]), $club, $meet, $mixed);
+    }
+    // Herren-Staffel: 3 Schwimmer angelegt → 3 Starts unter 'M'.
+    for ($i = 0; $i < 3; $i++) {
+        stat2_relayStart(stat2_athlete(), $club, $meet, $herren);
+    }
+
+    $counts = stat2_service()->relayStartsByEventGender(stat2_config());
+
+    expect($counts)->toBe(['M' => 3, 'F' => 0, 'X' => 4]);
+})->group('statistics-multi-year-chart');
+
+it('lässt in der Staffelzählung nicht angetretene Ergebnisse (DNS/SICK/WDR) außen vor', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+    $damen = stat2_relayEvent($meet, 'F');
+
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen);                       // regulär → zählt
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'DSQ']);  // angetreten → zählt
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'DNS']);  // nicht angetreten
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'WDR']);  // nicht angetreten
+
+    $counts = stat2_service()->relayStartsByEventGender(stat2_config());
+
+    expect($counts)->toBe(['M' => 0, 'F' => 2, 'X' => 0]);
+})->group('statistics-multi-year-chart');
+
+it('trennt Einzel- und Staffelstarts: Einzelbewerbe zählen nicht als Staffelstarts', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['event' => stat2_relayEvent($meet, 'X')]); // Staffel
+    stat2_start(stat2_athlete(), $club, $meet);                                            // Einzel
+
+    $service = stat2_service();
+
+    expect($service->relayStartsByEventGender(stat2_config()))->toBe(['M' => 0, 'F' => 0, 'X' => 1])
+        ->and($service->byGender(stat2_config())->sum('starts'))->toBe(1); // nur der Einzelstart
+})->group('statistics-multi-year-chart');

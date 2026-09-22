@@ -67,6 +67,17 @@ final readonly class ParticipationStatisticsService
     private const array GENDER_ORDER = ['M', 'F', 'N'];
 
     /**
+     * Ausgabereihenfolge der Staffel-Geschlechter. Maßgeblich ist das
+     * Geschlecht des Staffel-Bewerbs (swim_events.gender), nicht das des
+     * einzelnen Schwimmers: Herren (M), Damen (F), Mixed (X). Der
+     * Default-Wert 'A' (all) kommt bei Staffeln nicht vor und wird daher
+     * bewusst nicht geführt.
+     *
+     * @var list<string>
+     */
+    private const array RELAY_GENDER_ORDER = ['M', 'F', 'X'];
+
+    /**
      * Gruppierungsschlüssel für den sichtbaren Sammeleintrag, unter dem
      * Datensätze ohne auflösbare Zuordnung ausgewiesen werden (statt sie
      * stillschweigend zu verwerfen). Er kann mit keiner echten ID kollidieren.
@@ -174,7 +185,7 @@ final readonly class ParticipationStatisticsService
 
         return Meet::query()
             ->whereIn('id', $aggregates->keys())
-            ->orderBy('start_date')
+            ->oldest('start_date')
             ->orderBy('name')
             ->get(['id', 'name', 'start_date'])
             ->map(fn (Meet $meet): array => [
@@ -541,7 +552,46 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Gemeinsamer Auswertungsumfang für alle Kennzahlen:
+     * Staffelstarts je Event-Geschlecht (Herren = M, Damen = F, Mixed = X) im
+     * Auswertungsumfang, gezählt "pro Athlet": jede angetretene
+     * Staffel-Ergebniszeile (ein eingesetzter Schwimmer) zählt einzeln.
+     *
+     * Maßgeblich ist das Geschlecht des Staffel-Bewerbs (swim_events.gender),
+     * nicht das des einzelnen Schwimmers — eine Mixed-Staffel bleibt Mixed (X),
+     * unabhängig von der Zusammensetzung. Ausschließlich Staffeln
+     * (relay_count > 1); Einzelbewerbe bleiben außen vor.
+     *
+     * Als "angetreten" gilt dieselbe Definition wie bei den Einzelstarts
+     * (onlyStarted): reguläre Ergebnisse plus alle Status außer
+     * NON_START_STATUSES. Alle drei Schlüssel erscheinen immer (0, falls nicht
+     * vorhanden), in der Reihenfolge Herren, Damen, Mixed.
+     *
+     * @return array<string, int>
+     */
+    public function relayStartsByEventGender(ReportConfiguration $config): array
+    {
+        $counts = array_fill_keys(self::RELAY_GENDER_ORDER, 0);
+
+        $rows = $this->onlyStarted($this->relayScopedQuery($config))
+            ->join('swim_events', 'swim_events.id', '=', 'results.swim_event_id')
+            ->toBase()
+            ->selectRaw('swim_events.gender as gender, COUNT(*) as starts')
+            ->groupBy('swim_events.gender')
+            ->get();
+
+        foreach ($rows as $row) {
+            $gender = (string) $row->gender;
+
+            if (array_key_exists($gender, $counts)) {
+                $counts[$gender] = (int) $row->starts;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Gemeinsamer Auswertungsumfang für alle Einzel-Kennzahlen:
      *   - Einzelbewerbe (keine Staffeln — relay_count = 1),
      *   - eingeschränkt auf die ausgewählten Veranstaltungen; ohne Auswahl auf
      *     alle Meets, deren start_date im Zeitraum liegt.
@@ -550,13 +600,37 @@ final readonly class ParticipationStatisticsService
      * (startsQuery) als auch die vollständige Status-Aufschlüsselung
      * (statusBreakdown) aufsetzen können.
      *
-     * Staffeln werden derzeit ausgeklammert (der Staffelcup ist noch nicht
-     * definiert).
+     * Staffeln werden hier ausgeklammert; sie laufen über relayScopedQuery().
      */
     private function scopedQuery(ReportConfiguration $config): Builder
     {
-        $query = Result::query()
+        return $this->periodScopedQuery($config)
             ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
+    }
+
+    /**
+     * Auswertungsumfang für Staffeln (relay_count > 1) — das Gegenstück zu
+     * scopedQuery(). Staffelergebnisse liegen pro eingesetztem Schwimmer als
+     * eigene Ergebniszeile vor (results.athlete_id ist Pflichtfeld); die
+     * Zählweise "pro Athlet" ergibt sich damit direkt aus COUNT(*).
+     *
+     * Zeitraum- und Meet-Scope sind identisch zur Einzelauswertung
+     * (periodScopedQuery); ebenfalls bewusst OHNE Status-Filter.
+     */
+    private function relayScopedQuery(ReportConfiguration $config): Builder
+    {
+        return $this->periodScopedQuery($config)
+            ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '>', 1));
+    }
+
+    /**
+     * Reiner Zeitraum-/Meet-Scope ohne Staffel-Unterscheidung — gemeinsame
+     * Grundlage von scopedQuery() (Einzel) und relayScopedQuery() (Staffel),
+     * damit die Definition des Auswertungsfensters an genau einer Stelle liegt.
+     */
+    private function periodScopedQuery(ReportConfiguration $config): Builder
+    {
+        $query = Result::query();
 
         if ($config->isMeetFiltered()) {
             $query->whereIn('results.meet_id', $config->meetIds);
@@ -575,15 +649,26 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Grundgesamtheit aller Starts: der Auswertungsumfang, eingeschränkt auf
-     * angetretene Ergebnisse (ohne NON_START_STATUSES).
+     * Grundgesamtheit aller (Einzel-)Starts: der Auswertungsumfang,
+     * eingeschränkt auf angetretene Ergebnisse (ohne NON_START_STATUSES).
      *
      * Wichtig: `status = null` (reguläres Ergebnis) muss ausdrücklich
      * eingeschlossen werden, weil `NOT IN (...)` in SQL bei NULL nicht greift.
      */
     private function startsQuery(ReportConfiguration $config): Builder
     {
-        return $this->scopedQuery($config)->where(function (Builder $q): void {
+        return $this->onlyStarted($this->scopedQuery($config));
+    }
+
+    /**
+     * Schränkt einen Ergebnis-Query auf angetretene Ergebnisse ein (reguläre
+     * Ergebnisse mit status = null sowie alle Status außer NON_START_STATUSES).
+     * Ausgelagert, damit Einzel- (startsQuery) und Staffelauswertung
+     * (relayStartsByEventGender) dieselbe Start-Definition teilen.
+     */
+    private function onlyStarted(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
             $q->whereNull('results.status')
                 ->orWhereNotIn('results.status', self::NON_START_STATUSES);
         });
