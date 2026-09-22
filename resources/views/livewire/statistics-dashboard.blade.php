@@ -100,6 +100,9 @@
         @endforeach
     </div>
 
+    {{-- ── 5-Jahres-Vergleich ────────────────────────────────────────────── --}}
+    @include('partials.statistics-multi-year-charts', ['series' => $this->multiYearStatistics])
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- ── Teilnehmer und Starts pro Veranstaltung ────────────────────── --}}
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden lg:col-span-2">

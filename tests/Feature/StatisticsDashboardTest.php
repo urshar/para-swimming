@@ -228,3 +228,41 @@ it('zeigt einen Hinweis, wenn für das Jahr keine Veranstaltungen erfasst sind',
         ->test(StatisticsDashboard::class)
         ->assertSee('sind keine Veranstaltungen erfasst');
 });
+
+// ── 5-Jahres-Vergleichsgrafiken ──────────────────────────────────────────────
+
+it('rendert die drei 5-Jahres-Vergleichsgrafiken, wenn Starts vorliegen', function () {
+    $meet = dash12_meet('Meet 2024', '2024-06-01');
+    dash12_start($meet, dash12_athlete('Muster'), dash12_club('Testclub'));
+
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(StatisticsDashboard::class)
+        ->assertSet('year', 2024)
+        ->assertSee('5-Jahres-Vergleich')
+        ->assertSee('Einzelstarts nach Geschlecht')
+        ->assertSee('Teilnehmer nach Geschlecht')
+        ->assertSee('Staffelstarts nach Typ');
+});
+
+it('verankert die Zeitreihe am gewählten Jahr (Jahr + vier Vorjahre)', function () {
+    dash12_meet('Meet 2022', '2022-06-01');
+    dash12_meet('Meet 2024', '2024-06-01');
+
+    $series = Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(StatisticsDashboard::class)
+        ->set('year', 2024)
+        ->instance()
+        ->multiYearStatistics();
+
+    expect($series['years'])->toBe([2020, 2021, 2022, 2023, 2024]);
+});
+
+it('zeigt bei fehlenden Starts einen Hinweis statt der Grafiken', function () {
+    // Meet ohne Ergebnisse: Jahr wird vorgewählt, aber keine Starts → Hinweis.
+    dash12_meet('Meet 2024', '2024-06-01');
+
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(StatisticsDashboard::class)
+        ->assertSee('5-Jahres-Vergleich')
+        ->assertSee('sind keine Starts erfasst');
+});

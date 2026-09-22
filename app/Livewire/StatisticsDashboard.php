@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Meet;
+use App\Services\MultiYearStatisticsService;
 use App\Services\StatisticsService;
 use App\Support\ReportConfiguration;
 use Carbon\CarbonImmutable;
@@ -117,6 +118,21 @@ class StatisticsDashboard extends Component
     public function statistics(): array
     {
         return app(StatisticsService::class)->generate($this->configuration());
+    }
+
+    /**
+     * Mehrjahres-Zeitreihe für die 5-Jahres-Vergleichsgrafiken. Bewusst
+     * unabhängig von statistics()/den Abschnitten und von der Meet-Auswahl:
+     * Der Vergleich zeigt immer volle Kalenderjahre, verankert am gewählten
+     * Jahr (dieses + die 4 Vorjahre), und aktualisiert sich bei einem
+     * Jahreswechsel automatisch mit.
+     *
+     * @return array<string, mixed>
+     */
+    #[Computed]
+    public function multiYearStatistics(): array
+    {
+        return app(MultiYearStatisticsService::class)->series($this->year);
     }
 
     /** Wechselt das Jahr, verwirft dabei die Auswahl von Veranstaltungen des Vorjahres. */
