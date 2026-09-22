@@ -41,6 +41,7 @@ class StatisticsDashboard extends Component
      */
     public const array REPORT_SECTION_LABELS = [
         'overview' => 'Allgemeiner Überblick',
+        'multi_year' => '5-Jahres-Vergleich',
         'meets' => 'Teilnehmer und Starts',
         'participants' => 'Altersgruppen und Geschlecht',
         'clubs' => 'Vereinsstatistik',

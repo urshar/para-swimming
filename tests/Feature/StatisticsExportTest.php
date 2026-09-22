@@ -201,6 +201,26 @@ it('enthält im CSV mehrerer Tabellen deren Überschriften', function () {
         ->and($content)->toContain('Rekorde je Sportler');
 });
 
+it('exportiert die 5-Jahres-Vergleichstabellen mit Jahresspalten', function () {
+    exp15_seed();
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report.csv', [
+            'year' => 2024,
+            'sections' => ['multi_year' => '1'],
+            'section' => 'multi_year',
+        ]));
+
+    $response->assertOk();
+    $content = exp15_content($response);
+
+    expect($content)->toContain('5J Einzelstarts')
+        ->and($content)->toContain('5J Teilnehmer')
+        ->and($content)->toContain('5J Staffelstarts')
+        ->and($content)->toContain('2020')
+        ->and($content)->toContain('2024');
+});
+
 it('berücksichtigt die Einschränkung auf ausgewählte Veranstaltungen', function () {
     $meet = exp15_seed();
 

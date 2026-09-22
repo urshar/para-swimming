@@ -28,6 +28,7 @@ final readonly class StatisticsService
         private ParticipationStatisticsService $participation,
         private RecordStatisticsService $records,
         private CupStatisticsService $cup,
+        private MultiYearStatisticsService $multiYear,
     ) {}
 
     /**
@@ -35,6 +36,8 @@ final readonly class StatisticsService
      *
      * Aufbau der Abschnitte:
      *   overview       Basiskennzahlen inkl. Status-Aufschlüsselung
+     *   multi_year     5-Jahres-Zeitreihe (Starts/Teilnehmer je Geschlecht,
+     *                  Staffelstarts je Typ), verankert am Berichtsjahr
      *   meets          je Veranstaltung Teilnehmer und Starts
      *   participants   Struktur der Teilnehmer (Altersgruppe, Geschlecht)
      *   clubs          je Verein Teilnehmer und Starts
@@ -74,6 +77,7 @@ final readonly class StatisticsService
     {
         return match ($section) {
             'overview' => $this->overview($config),
+            'multi_year' => $this->multiYear->series($config->year),
             'meets' => $this->participation->byMeet($config),
             'participants' => [
                 'by_age_group' => $this->participation->byAgeGroup($config),

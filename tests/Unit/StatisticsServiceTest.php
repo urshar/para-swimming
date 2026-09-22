@@ -16,6 +16,7 @@ use App\Models\SwimEvent;
 use App\Models\SwimRecord;
 use App\Services\CupStatisticsService;
 use App\Services\GroupResolverService;
+use App\Services\MultiYearStatisticsService;
 use App\Services\OverallRankingService;
 use App\Services\ParticipationStatisticsService;
 use App\Services\RecordStatisticsService;
@@ -34,6 +35,7 @@ function stat11_service(): StatisticsService
         new ParticipationStatisticsService(new GroupResolverService),
         new RecordStatisticsService,
         new CupStatisticsService(new OverallRankingService(new GroupResolverService)),
+        new MultiYearStatisticsService(new ParticipationStatisticsService(new GroupResolverService)),
     );
 }
 
@@ -166,6 +168,16 @@ it('liefert ein leeres Ergebnis, wenn kein Abschnitt aktiviert ist', function ()
 });
 
 // ── Inhalt der Abschnitte ────────────────────────────────────────────────────
+
+it('liefert die 5-Jahres-Zeitreihe verankert am Berichtsjahr', function () {
+    stat11_seed();
+
+    $multiYear = stat11_service()->generate(stat11_config())['multi_year'];
+
+    expect($multiYear)->toHaveKeys(['anchor_year', 'years', 'individual_genders', 'relay_genders', 'rows'])
+        ->and($multiYear['anchor_year'])->toBe(2024)
+        ->and($multiYear['years'])->toBe([2020, 2021, 2022, 2023, 2024]);
+});
 
 it('fasst im Überblick Basiskennzahlen, Schwellenwert und Statusverteilung zusammen', function () {
     stat11_seed();

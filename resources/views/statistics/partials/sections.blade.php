@@ -163,6 +163,57 @@
     <p class="note">Als Start zählen reguläre Ergebnisse sowie EXH, DSQ und DNF.</p>
 @endif
 
+{{-- ── 5-Jahres-Vergleich ──────────────────────────────────────────────── --}}
+@if($number = $section('multi_year'))
+    @php
+        $multiYear = $statistics['multi_year'];
+        $years = $multiYear['years'];
+        $rowsByYear = collect($multiYear['rows'])->keyBy('year');
+        $genderLabels = ['M' => 'Herren', 'F' => 'Damen', 'N' => 'Nicht binär'];
+        $relayGenderLabels = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
+
+        // Die drei Vergleichstabellen: Feld-Präfix, welche Geschlechter, welche Beschriftung.
+        $multiYearTables = [
+            ['title' => 'Einzelstarts nach Geschlecht', 'prefix' => 'starts',
+                'genders' => $multiYear['individual_genders'], 'labels' => $genderLabels],
+            ['title' => 'Teilnehmer nach Geschlecht', 'prefix' => 'participants',
+                'genders' => $multiYear['individual_genders'], 'labels' => $genderLabels],
+            ['title' => 'Staffelstarts nach Typ', 'prefix' => 'relay',
+                'genders' => $multiYear['relay_genders'], 'labels' => $relayGenderLabels],
+        ];
+    @endphp
+    <h2>{{ $number }}. 5-Jahres-Vergleich ({{ $years[0] }}–{{ $years[count($years) - 1] }})</h2>
+
+    @foreach($multiYearTables as $myTable)
+        <h3>{{ $myTable['title'] }}</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Geschlecht</th>
+                @foreach($years as $y)
+                    <th class="num">{{ $y }}</th>
+                @endforeach
+            </tr>
+            </thead>
+            <tbody>
+            @foreach($myTable['genders'] as $g)
+                <tr>
+                    <td>{{ $myTable['labels'][$g] }}</td>
+                    @foreach($years as $y)
+                        <td class="num">{{ $rowsByYear[$y][$myTable['prefix'].'_'.strtolower($g)] }}</td>
+                    @endforeach
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @endforeach
+
+    <p class="note">
+        Volle Kalenderjahre, verankert am Berichtsjahr; unabhängig von einer Veranstaltungsauswahl.
+        Staffelstarts pro eingesetztem Schwimmer.
+    </p>
+@endif
+
 {{-- ── Teilnehmer und Starts pro Veranstaltung ─────────────────────────── --}}
 @if($number = $section('meets'))
     <h2>{{ $number }}. Teilnehmer und Starts pro Veranstaltung</h2>

@@ -164,6 +164,7 @@ final readonly class StatisticsExportService
     {
         return match ($section) {
             'overview' => $this->overviewTables($data),
+            'multi_year' => $this->multiYearTables($data),
             'meets' => [$this->meetTable('Veranstaltungen', $data)],
             'participants' => [
                 $this->table('Altersgruppen', ['Altersgruppe', 'Teilnehmer', 'Starts'], $data['by_age_group'],
@@ -315,6 +316,41 @@ final readonly class StatisticsExportService
             $this->meetTable("$label Veranstaltungen", $championship['meets']),
             $this->athleteTable("$label Sportler", $championship['athletes']),
         ];
+    }
+
+    /**
+     * Drei Vergleichstabellen der 5-Jahres-Zeitreihe (Einzelstarts,
+     * Teilnehmer, Staffelstarts): je Geschlecht eine Zeile, je Jahr eine
+     * Spalte — dieselbe Aufteilung wie die Grafiken und die Bericht-Tabellen.
+     *
+     * @param  array<string, mixed>  $data  Rückgabe von MultiYearStatisticsService::series()
+     * @return list<array{title: string, headers: list<string>, rows: list<list<mixed>>}>
+     */
+    private function multiYearTables(array $data): array
+    {
+        $years = $data['years'];
+        $rowsByYear = collect($data['rows'])->keyBy('year');
+
+        $specs = [
+            ['title' => '5J Einzelstarts', 'prefix' => 'starts',
+                'genders' => $data['individual_genders'], 'labels' => MultiYearStatisticsService::GENDER_LABELS],
+            ['title' => '5J Teilnehmer', 'prefix' => 'participants',
+                'genders' => $data['individual_genders'], 'labels' => MultiYearStatisticsService::GENDER_LABELS],
+            ['title' => '5J Staffelstarts', 'prefix' => 'relay',
+                'genders' => $data['relay_genders'], 'labels' => MultiYearStatisticsService::RELAY_GENDER_LABELS],
+        ];
+
+        return array_map(fn (array $spec): array => [
+            'title' => $spec['title'],
+            'headers' => array_merge(['Geschlecht'], array_map(fn (int $y): string => (string) $y, $years)),
+            'rows' => array_map(
+                fn (string $gender): array => array_merge(
+                    [$spec['labels'][$gender]],
+                    array_map(fn (int $year): int => $rowsByYear[$year][$spec['prefix'].'_'.strtolower($gender)], $years),
+                ),
+                $spec['genders'],
+            ),
+        ], $specs);
     }
 
     /**
