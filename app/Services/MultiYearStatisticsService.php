@@ -47,6 +47,23 @@ final readonly class MultiYearStatisticsService
     public const array RELAY_GENDER_LABELS = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
 
     /**
+     * Beschriftung der Ergebnis-Status für die Status-Zeitreihe. Reihenfolge und
+     * Schlüssel entsprechen ParticipationStatisticsService::statusBreakdown()
+     * (reguläre Ergebnisse unter 'regular').
+     *
+     * @var array<string, string>
+     */
+    public const array STATUS_LABELS = [
+        'regular' => 'Regulär',
+        'EXH' => 'EXH',
+        'DSQ' => 'DSQ',
+        'DNS' => 'DNS',
+        'DNF' => 'DNF',
+        'SICK' => 'SICK',
+        'WDR' => 'WDR',
+    ];
+
+    /**
      * Immer geführte Einzel-Geschlechter. 'N' (nicht binär) erscheint nur, wenn
      * im Zeitraum tatsächlich Daten dazu vorliegen — sonst bliebe eine
      * durchgehende Null-Linie in der Grafik.
@@ -57,6 +74,7 @@ final readonly class MultiYearStatisticsService
 
     public function __construct(
         private ParticipationStatisticsService $participation,
+        private RecordStatisticsService $records,
     ) {}
 
     /**
@@ -90,19 +108,90 @@ final readonly class MultiYearStatisticsService
      */
     public function series(int $anchorYear, int $span = self::DEFAULT_SPAN): array
     {
-        $span = max(1, $span);
-        $years = range($anchorYear - $span + 1, $anchorYear);
+        $years = $this->yearRange($anchorYear, $span);
 
         $rows = array_map(fn (int $year): array => $this->row($year), $years);
 
         return [
             'anchor_year' => $anchorYear,
-            'span' => $span,
-            'years' => array_values($years),
+            'span' => max(1, $span),
+            'years' => $years,
             'individual_genders' => $this->individualGendersInUse($rows),
             'relay_genders' => array_keys(self::RELAY_GENDER_LABELS),
             'rows' => $rows,
         ];
+    }
+
+    /**
+     * Aufgestellte Rekorde je Jahr (nach set_date), als Zeitreihe für die
+     * Jahresvergleich-Grafik.
+     *
+     * @return array{years: list<int>, values: list<int>}
+     */
+    public function recordsPerYear(int $anchorYear, int $span = self::DEFAULT_SPAN): array
+    {
+        $years = $this->yearRange($anchorYear, $span);
+
+        return [
+            'years' => $years,
+            'values' => array_map(
+                fn (int $year): int => $this->records->overview(ReportConfiguration::forYear($year))['total'],
+                $years,
+            ),
+        ];
+    }
+
+    /**
+     * Veranstaltungen mit mindestens einem gewerteten Start je Jahr.
+     *
+     * @return array{years: list<int>, values: list<int>}
+     */
+    public function meetsPerYear(int $anchorYear, int $span = self::DEFAULT_SPAN): array
+    {
+        $years = $this->yearRange($anchorYear, $span);
+
+        return [
+            'years' => $years,
+            'values' => array_map(
+                fn (int $year): int => $this->participation->meetsWithStarts(ReportConfiguration::forYear($year)),
+                $years,
+            ),
+        ];
+    }
+
+    /**
+     * Ergebnis-Status (regulär + EXH/DSQ/DNS/DNF/SICK/WDR) je Jahr, gesamt über
+     * alle Veranstaltungen. Grundlage für die Status-Zeitreihe.
+     *
+     * @return array{years: list<int>, statuses: array<string, list<int>>}
+     */
+    public function statusTrend(int $anchorYear, int $span = self::DEFAULT_SPAN): array
+    {
+        $years = $this->yearRange($anchorYear, $span);
+
+        $statuses = array_fill_keys(array_keys(self::STATUS_LABELS), []);
+
+        foreach ($years as $year) {
+            $breakdown = $this->participation->statusBreakdown(ReportConfiguration::forYear($year));
+
+            foreach (array_keys(self::STATUS_LABELS) as $status) {
+                $statuses[$status][] = $breakdown[$status] ?? 0;
+            }
+        }
+
+        return ['years' => $years, 'statuses' => $statuses];
+    }
+
+    /**
+     * Jahresachse: das Anker-Jahr und die (span − 1) Vorjahre, aufsteigend.
+     *
+     * @return list<int>
+     */
+    private function yearRange(int $anchorYear, int $span): array
+    {
+        $span = max(1, $span);
+
+        return range($anchorYear - $span + 1, $anchorYear);
     }
 
     /**

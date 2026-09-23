@@ -35,7 +35,7 @@ function stat11_service(): StatisticsService
         new ParticipationStatisticsService(new GroupResolverService),
         new RecordStatisticsService,
         new CupStatisticsService(new OverallRankingService(new GroupResolverService)),
-        new MultiYearStatisticsService(new ParticipationStatisticsService(new GroupResolverService)),
+        new MultiYearStatisticsService(new ParticipationStatisticsService(new GroupResolverService), new RecordStatisticsService),
     );
 }
 

@@ -127,6 +127,16 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
+     * Anzahl der Veranstaltungen mit mindestens einem gewerteten (Einzel-)Start
+     * im Auswertungsumfang — dieselbe Definition wie overview()['meets'], aber
+     * ohne die übrigen Kennzahlen zu berechnen (für die Mehrjahres-Zeitreihe).
+     */
+    public function meetsWithStarts(ReportConfiguration $config): int
+    {
+        return $this->startsQuery($config)->distinct()->count('meet_id');
+    }
+
+    /**
      * Ergebnisse pro Status im Auswertungsumfang (Einzelbewerbe, gleicher
      * Umfang wie overview()). Enthält ausdrücklich auch die "nicht
      * angetreten"-Status DNS, SICK und WDR sowie reguläre Ergebnisse

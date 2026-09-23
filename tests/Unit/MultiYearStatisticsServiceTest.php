@@ -9,6 +9,7 @@ use App\Models\Nation;
 use App\Models\Result;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
+use App\Models\SwimRecord;
 use App\Services\MultiYearStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -196,4 +197,75 @@ it('begrenzt die Spanne auf mindestens ein Jahr', function () {
 
     expect($series['span'])->toBe(1)
         ->and($series['years'])->toBe([2026]);
+});
+
+// ── Weitere Jahres-Trends (Rekorde, Veranstaltungen, Status) ──────────────────
+
+/** Ein aufgestellter Rekord mit set_date im Jahr $year. */
+function multiYear_record(int $year): void
+{
+    $result = multiYear_individualStart($year, 'M');
+
+    SwimRecord::create([
+        'stroke_type_id' => multiYear_strokeType()->id,
+        'result_id' => $result->id,
+        'record_type' => 'AUT',
+        'sport_class' => 'S9',
+        'gender' => 'M',
+        'distance' => 100,
+        'swim_time' => 6000,
+        'set_date' => "$year-06-01",
+    ]);
+}
+
+/** Ein Einzelergebnis mit gegebenem Status im Jahr $year. */
+function multiYear_statusResult(int $year, ?string $status): void
+{
+    $meet = multiYear_meet($year);
+
+    Result::create([
+        'meet_id' => $meet->id,
+        'swim_event_id' => multiYear_event($meet, 1, 'A')->id,
+        'athlete_id' => multiYear_athlete()->id,
+        'club_id' => multiYear_club()->id,
+        'sport_class' => 'S9',
+        'swim_time' => 6000,
+        'status' => $status,
+    ]);
+}
+
+it('zählt aufgestellte Rekorde je Jahr', function () {
+    multiYear_record(2023);
+    multiYear_record(2023);
+    multiYear_record(2024);
+
+    $trend = multiYear_service()->recordsPerYear(2026, span: 5);
+
+    expect($trend['years'])->toBe([2022, 2023, 2024, 2025, 2026])
+        ->and($trend['values'])->toBe([0, 2, 1, 0, 0]);
+});
+
+it('zählt Veranstaltungen mit Start je Jahr', function () {
+    multiYear_individualStart(2024, 'M'); // eigene Veranstaltung
+    multiYear_individualStart(2024, 'F'); // zweite Veranstaltung
+    multiYear_individualStart(2023, 'M');
+
+    $trend = multiYear_service()->meetsPerYear(2026, span: 5);
+
+    expect($trend['values'])->toBe([0, 1, 2, 0, 0]);
+});
+
+it('bildet die Status-Zeitreihe gesamt je Jahr ab', function () {
+    multiYear_statusResult(2024, null);   // regulär
+    multiYear_statusResult(2024, 'DSQ');
+    multiYear_statusResult(2024, 'DNS');
+
+    $trend = multiYear_service()->statusTrend(2026, span: 5);
+    $i = array_search(2024, $trend['years'], true);
+
+    expect($trend['years'])->toBe([2022, 2023, 2024, 2025, 2026])
+        ->and($trend['statuses']['regular'][$i])->toBe(1)
+        ->and($trend['statuses']['DSQ'][$i])->toBe(1)
+        ->and($trend['statuses']['DNS'][$i])->toBe(1)
+        ->and($trend['statuses']['WDR'][$i])->toBe(0);
 });
