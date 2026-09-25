@@ -196,8 +196,12 @@
             <flux:navlist.group heading="Statistik" expandable
                                  :expanded="request()->routeIs('statistics.*') || request()->routeIs('wps.athletes.*')">
                 <flux:navlist.item icon="chart-bar" href="{{ route('statistics.index') }}"
-                                   :current="request()->routeIs('statistics.*')">
+                                   :current="request()->routeIs('statistics.index') || request()->routeIs('statistics.report*')">
                     Statistik
+                </flux:navlist.item>
+                <flux:navlist.item icon="arrow-trending-up" href="{{ route('statistics.comparison') }}"
+                                   :current="request()->routeIs('statistics.comparison*')">
+                    Jahresvergleich
                 </flux:navlist.item>
                 <flux:navlist.item icon="presentation-chart-line" href="{{ route('wps.athletes.picker') }}"
                                    :current="request()->routeIs('wps.athletes.*')">
