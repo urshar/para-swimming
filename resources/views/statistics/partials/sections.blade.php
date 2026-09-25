@@ -171,6 +171,8 @@
         $rowsByYear = collect($multiYear['rows'])->keyBy('year');
         $genderLabels = ['M' => 'Herren', 'F' => 'Damen', 'N' => 'Nicht binär'];
         $relayGenderLabels = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
+        // Farben für die optionalen Grafiken (identisch zur Jahresvergleich-Seite).
+        $multiYearHex = ['M' => '#3b82f6', 'F' => '#ec4899', 'N' => '#f59e0b', 'X' => '#8b5cf6'];
 
         // Die drei Vergleichstabellen: Feld-Präfix, welche Geschlechter, welche Beschriftung.
         $multiYearTables = [
@@ -186,6 +188,19 @@
 
     @foreach($multiYearTables as $myTable)
         <h3>{{ $myTable['title'] }}</h3>
+
+        @if($showCharts ?? false)
+            @php
+                $svgSeries = array_map(fn (string $g): array => [
+                    'label' => $myTable['labels'][$g],
+                    'color' => $multiYearHex[$g] ?? '#71717a',
+                    'values' => array_map(fn (int $y): int => $rowsByYear[$y][$myTable['prefix'].'_'.strtolower($g)], $years),
+                ], $myTable['genders']);
+            @endphp
+            <x-trend-chart :chart="\App\Support\TrendChart::fromSeries($years, $svgSeries)"
+                           :for-pdf="$forPdf ?? false"/>
+        @endif
+
         <table>
             <thead>
             <tr>

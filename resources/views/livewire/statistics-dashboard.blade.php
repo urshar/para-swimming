@@ -315,6 +315,13 @@
                 @endforeach
             </div>
 
+            {{-- Nur für "Bericht anzeigen" und PDF wirksam: zeigt im 5-Jahres-Vergleich
+                 zusätzlich die Grafiken (SVG). Excel/CSV enthalten weiterhin nur die Zahlen. --}}
+            <div class="mb-4">
+                <flux:checkbox name="charts" value="1"
+                               label="Grafiken im 5-Jahres-Vergleich anzeigen (Bericht &amp; PDF)"/>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 @foreach(['oebm_meet_ids' => 'Veranstaltungen als ÖBM werten', 'oejm_meet_ids' => 'Veranstaltungen als ÖJM werten'] as $field => $label)
                     <div>

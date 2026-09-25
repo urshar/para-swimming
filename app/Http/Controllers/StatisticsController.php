@@ -34,6 +34,7 @@ class StatisticsController extends Controller
             'config' => $config,
             'statistics' => $statistics->generate($config),
             'selectedMeets' => $this->selectedMeets($config),
+            'showCharts' => $request->boolean('charts'),
         ]);
     }
 
@@ -58,6 +59,7 @@ class StatisticsController extends Controller
                 'config' => $config,
                 'statistics' => $statistics->generate($config),
                 'selectedMeets' => $this->selectedMeets($config),
+                'showCharts' => $request->boolean('charts'),
             ],
             "jahresbericht-$config->year.pdf",
         );

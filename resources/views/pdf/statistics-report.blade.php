@@ -78,7 +78,7 @@
     <span class="right page-numbering"></span>
 </div>
 
-@include('statistics.partials.sections')
+@include('statistics.partials.sections', ['forPdf' => true])
 
 </body>
 </html>
