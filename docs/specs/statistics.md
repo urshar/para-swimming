@@ -18,9 +18,14 @@ Fachbegriffe: [../domain-glossary.md](../domain-glossary.md). Tabellen: [../data
 | Teilnahmen                   | `App\Services\ParticipationStatisticsService`          |
 | Rekorde                      | `App\Services\RecordStatisticsService`                 |
 | Cup                          | `App\Services\CupStatisticsService`                    |
+| Mehrjahres-Trends            | `App\Services\MultiYearStatisticsService`              |
 | Export (Excel/CSV)           | `App\Services\StatisticsExportService`                 |
 | Dashboard                    | `App\Livewire\StatisticsDashboard`                     |
+| Jahresvergleich (Livewire)   | `App\Livewire\YearComparison`                          |
+| Chart-Definitionen           | `App\Support\YearComparisonCharts`                     |
+| SVG-Mehrlinien-Chart         | `App\Support\TrendChart` + `x-trend-chart`             |
 | HTTP                         | `App\Http\Controllers\StatisticsController`            |
+| HTTP (Jahresvergleich-PDF)   | `App\Http\Controllers\YearComparisonController`        |
 | Referenzabgleich             | `App\Console\Commands\StatisticsReferenceCheckCommand` |
 
 ## Konfiguration — `ReportConfiguration`
@@ -39,8 +44,8 @@ Unveränderliches Value Object (kein Model/keine Tabelle). Es beschreibt nur, **
 Kanonische Abschnittsschlüssel (`SECTION_KEYS`, einzige Quelle der Wahrheit, zugleich Ausgabereihenfolge):
 
 ```
-overview, meets, participants, clubs, athletes, nations,
-sport_classes, records, cup, oebm, oejm
+overview, multi_year, meets, status_by_meet, participants, clubs,
+athletes, nations, sport_classes, records, cup, oebm, oejm
 ```
 
 Verhalten und Fabrikmethoden:
@@ -63,11 +68,13 @@ Verhalten und Fabrikmethoden:
 Iteriert über die aktiven Abschnitte und ordnet jeden genau einem Service zu (`match` ohne default-Zweig — ein neuer,
 nicht zugeordneter Schlüssel schlägt bewusst mit `UnhandledMatchError` fehl statt still leer zu liefern):
 
-| Abschnitt       | Inhalt / Quelle                                                                                  |
-|-----------------|--------------------------------------------------------------------------------------------------|
-| `overview`      | Basiskennzahlen + `min_participations` + Anzahl Sportler mit ≥ X Teilnahmen + `status_breakdown` |
-| `meets`         | je Veranstaltung: Teilnehmer und Starts                                                          |
-| `participants`  | `by_age_group`, `by_gender`, `by_age_group_and_gender`                                           |
+| Abschnitt        | Inhalt / Quelle                                                                                  |
+|------------------|--------------------------------------------------------------------------------------------------|
+| `overview`       | Basiskennzahlen + `min_participations` + Anzahl Sportler mit ≥ X Teilnahmen + `status_breakdown` |
+| `multi_year`     | 5-Jahres-Vergleich (Starts/Teilnehmer, Damen/Herren, Staffeln) — `MultiYearStatisticsService`    |
+| `meets`          | je Veranstaltung: Teilnehmer und Starts                                                          |
+| `status_by_meet` | je Veranstaltung: Aufschlüsselung Regulär/EXH/DSQ/DNS/DNF/SICK/WDR + Gesamt                      |
+| `participants`   | `by_age_group`, `by_gender`, `by_age_group_and_gender`                                           |
 | `clubs`         | je Verein: Teilnehmer und Starts                                                                 |
 | `athletes`      | je Sportler: Teilnahmen und Starts                                                               |
 | `nations`       | je Nation: Teilnehmer und Starts                                                                 |
@@ -100,9 +107,10 @@ Bericht auch die Nicht-Start-Fälle zeigen kann.
 
 ## Teilnahmen — `ParticipationStatisticsService`
 
-Methoden: `overview`, `statusBreakdown`, `byMeet`, `byClub`, `byAthlete`,
+Methoden: `overview`, `statusBreakdown`, `byMeet`, `statusByMeet`, `byClub`, `byAthlete`,
 `countAthletesWithMinParticipations`, `byNation`, `bySportClass`,
-`byDisabilityGroup`, `byAgeGroup`, `byAgeGroupAndGender`, `byGender`.
+`byDisabilityGroup`, `byAgeGroup`, `byAgeGroupAndGender`, `byGender`,
+`relayStartsByEventGender`.
 
 Regeln, die man kennen sollte:
 
@@ -115,6 +123,9 @@ Regeln, die man kennen sollte:
 - **Athleten ohne Geburtsdatum** erscheinen als Sammeleintrag **"Ohne Geburtsdatum"** (`by_age_group`).
 - `byAthlete` liefert eine 1-basierte Rangliste; `participations` = distinkte Meets, `starts` = Anzahl gewerteter
   Starts.
+- `statusByMeet` (Abschnitt `status_by_meet`) schlüsselt je Veranstaltung die Ergebnisstatus auf: `regular`
+  (gewertetes Ergebnis, `status = null`) plus `EXH`, `DSQ`, `DNS`, `DNF`, `SICK`, `WDR` und `total`. Nur
+  Einzelbewerbe; nach `start_date` sortiert.
 
 ## Rekorde — `RecordStatisticsService`
 
@@ -133,6 +144,29 @@ Methoden: `cupForYear`, `overallRankingForConfiguration`, `overallRanking(Cup)`.
 **Gesamtwertung** des zum Berichtsjahr gehörenden Cups; die eigentliche Wertungslogik liegt im Cup-Modul
 (`docs/specs/cup-scoring.md`, folgt in einer späteren Phase).
 
+## Mehrjahres-Trends & Jahresvergleich
+
+`MultiYearStatisticsService` liefert die jahresübergreifenden Reihen (Default-Spanne **5 Jahre**, konfigurierbar
+2–15). Es rechnet nicht selbst, sondern ruft je Jahr `ParticipationStatisticsService` und
+`RecordStatisticsService` auf:
+
+- `series(anchorYear, span)` — Starts/Teilnehmer gesamt, nach Geschlecht (Damen/Herren) und Staffelstarts nach
+  Typ (H/D/Mixed) je Jahr. Speist den Berichtsabschnitt `multi_year`.
+- `recordsPerYear`, `meetsPerYear`, `statusTrend` — Rekorde, Veranstaltungen und Status-Aufschlüsselung je Jahr.
+- `yearRange(anchorYear, span)` — volle Kalenderjahre, am Berichtsjahr verankert (unabhängig von einer
+  Meet-Auswahl).
+
+> **Staffeldaten:** Die Staffelreihen sind derzeit ein Platzhalter — es sind keine Staffelergebnisse importiert
+> (vgl. offener Punkt „Staffel-Ergebnisse importieren"). Die Zählung selbst
+> (`ParticipationStatisticsService::relayStartsByEventGender`) ist implementiert und getestet.
+
+**Jahresvergleich-Seite** (`statistics.comparison`, Livewire `YearComparison`): eigener Menüpunkt mit
+konfigurierbarem Jahr und Spanne. Auf dem Bildschirm interaktive `flux:chart`s, im PDF dieselben Reihen als
+statisches SVG (`TrendChart` → `x-trend-chart`, da dompdf kein JS ausführt). `YearComparisonCharts` baut die
+Chart-Definitionen (Farb-Slots, Serien) für beide Ausgabewege. Im Status-Diagramm sind die **regulären
+Ergebnisse standardmäßig ausgeblendet** (Schalter `show_regular`), damit die Entwicklung der Sonderstatus
+(EXH/DSQ/DNS/…) nicht von der großen Regulär-Reihe überdeckt wird.
+
 ## Meisterschaften (ÖBM / ÖJM)
 
 Kein Datenfeld kennzeichnet ein Meet als Meisterschaft — maßgeblich ist die Auswahl in `oebmMeetIds` / `oejmMeetIds`.
@@ -149,18 +183,27 @@ Jahreswechsel wird die Meet-Auswahl zurückgesetzt; `statistics()` ruft die Fass
 
 Routen (unter `auth` + `RequireAdmin` — nur Admins):
 
-| Route                         | Name                     | Zweck                      |
-|-------------------------------|--------------------------|----------------------------|
-| `GET /statistics`             | `statistics.index`       | Einstiegsseite (Dashboard) |
-| `GET /statistics/report`      | `statistics.report`      | Bericht als Ansicht        |
-| `GET /statistics/report/pdf`  | `statistics.report.pdf`  | PDF (dompdf-Stream)        |
-| `GET /statistics/report/xlsx` | `statistics.report.xlsx` | Excel-Download             |
-| `GET /statistics/report/csv`  | `statistics.report.csv`  | CSV-Download               |
+| Route                            | Name                        | Zweck                         |
+|----------------------------------|-----------------------------|-------------------------------|
+| `GET /statistics`                | `statistics.index`          | Einstiegsseite (Dashboard)    |
+| `GET /statistics/comparison`     | `statistics.comparison`     | Jahresvergleich (Trend-Seite) |
+| `GET /statistics/comparison/pdf` | `statistics.comparison.pdf` | Jahresvergleich als PDF       |
+| `GET /statistics/report`         | `statistics.report`         | Bericht als Ansicht           |
+| `GET /statistics/report/pdf`     | `statistics.report.pdf`     | PDF (dompdf-Stream)           |
+| `GET /statistics/report/xlsx`    | `statistics.report.xlsx`    | Excel-Download                |
+| `GET /statistics/report/csv`     | `statistics.report.csv`     | CSV-Download                  |
 
 `StatisticsController` baut aus dem Request eine `ReportConfiguration` (fehlende Abschnittsflags werden auf aktiv
-gesetzt) und übergibt sie der Fassade. Exporte lassen sich optional auf einen einzelnen Abschnitt einschränken
-(`section`, validiert gegen `SECTION_KEYS`). `StatisticsExportService` erzeugt `xlsx()` /
-`csv()` sowie den `downloadFilename()`; das PDF entsteht aus der Report-View via dompdf.
+gesetzt) und übergibt sie der Fassade. Der Request-Parameter `charts` (bool) steuert, ob Ansicht und PDF die
+Trend-Grafiken einblenden (`showCharts`); ohne ihn bleibt der Bericht rein tabellarisch. Die Datei-Exporte
+umfassen immer **alle** aktivierten Abschnitte (kein Einzelabschnitt-Export mehr). `StatisticsExportService`
+erzeugt `xlsx()` / `csv()` sowie den `downloadFilename()`; das PDF entsteht aus der Report-View via dompdf.
+
+**dompdf-Fallstrick (Ausrichtung):** In den PDF-Wrappern (`pdf/statistics-report`, `pdf/year-comparison`) läuft
+das Links/Rechts-Layout der laufenden Fußzeile bewusst über eine **Zwei-Zellen-Tabelle mit `text-align`**, nicht
+über `float`. Ein `float` innerhalb eines `position: fixed`-Elements verschiebt in dompdf umgebrochene
+Tabellenzellen (lange Veranstaltungsnamen) an anderer Stelle im Dokument nach rechts — siehe Fallstrick-Liste in
+`CLAUDE.md`.
 
 ## Referenzabgleich (Artisan)
 
@@ -185,6 +228,7 @@ dokumentiert.
 
 `tests/Unit/`: `ReportConfigurationTest`, `StatisticsServiceTest`,
 `ParticipationStatisticsServiceTest`, `RecordStatisticsServiceTest`,
-`CupStatisticsServiceTest`.
+`CupStatisticsServiceTest`, `MultiYearStatisticsServiceTest`, `TrendChartTest`.
 `tests/Feature/`: `StatisticsDashboardTest`, `StatisticsReportTest`,
-`StatisticsExportTest`, `StatisticsPdfExportTest`, `StatisticsReferenceCheckTest`.
+`StatisticsExportTest`, `StatisticsPdfExportTest`, `StatisticsReferenceCheckTest`,
+`YearComparisonTest`.

@@ -163,6 +163,7 @@ final readonly class StatisticsExportService
             'overview' => $this->overviewTables($data),
             'multi_year' => $this->multiYearTables($data),
             'meets' => [$this->meetTable('Veranstaltungen', $data)],
+            'status_by_meet' => [$this->statusByMeetTable($data)],
             'participants' => [
                 $this->table('Altersgruppen', ['Altersgruppe', 'Teilnehmer', 'Starts'], $data['by_age_group'],
                     fn (array $r): array => [$r['age_group_name'], $r['participants'], $r['starts']]),
@@ -348,6 +349,29 @@ final readonly class StatisticsExportService
                 $spec['genders'],
             ),
         ], $specs);
+    }
+
+    /**
+     * Status-Aufschlüsselung je Veranstaltung: eine Zeile je Meet, eine Spalte
+     * je Status plus Gesamt.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return array{title: string, headers: list<string>, rows: list<list<mixed>>}
+     */
+    private function statusByMeetTable(Collection $rows): array
+    {
+        $order = ['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'];
+
+        return $this->table(
+            'Status je Veranstaltung',
+            ['Veranstaltung', 'Regulär', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR', 'Gesamt'],
+            $rows,
+            fn (array $r): array => array_merge(
+                [$r['meet']],
+                array_map(fn (string $s): int => $r['statuses'][$s], $order),
+                [$r['total']],
+            ),
+        );
     }
 
     /**

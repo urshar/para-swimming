@@ -43,6 +43,7 @@ class StatisticsDashboard extends Component
         'overview' => 'Allgemeiner Überblick',
         'multi_year' => '5-Jahres-Vergleich',
         'meets' => 'Teilnehmer und Starts',
+        'status_by_meet' => 'Status je Veranstaltung',
         'participants' => 'Altersgruppen und Geschlecht',
         'clubs' => 'Vereinsstatistik',
         'athletes' => 'Sportlerstatistik',
@@ -67,6 +68,7 @@ class StatisticsDashboard extends Component
     private const array DISPLAYED_SECTIONS = [
         'overview',
         'meets',
+        'status_by_meet',
         'clubs',
         'athletes',
         'nations',

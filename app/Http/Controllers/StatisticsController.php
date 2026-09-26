@@ -68,9 +68,8 @@ class StatisticsController extends Controller
     /**
      * Derselbe Bericht als Excel-Datei (Spec Phase 15).
      *
-     * Mit dem Parameter "section" lässt sich ein einzelner Statistikbereich
-     * exportieren; ohne ihn enthält die Datei alle aktivierten Abschnitte,
-     * je Tabelle ein Arbeitsblatt.
+     * Die Datei enthält alle aktivierten Abschnitte, je Tabelle ein
+     * Arbeitsblatt.
      *
      * @throws SpreadsheetException
      */

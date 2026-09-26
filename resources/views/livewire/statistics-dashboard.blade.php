@@ -128,6 +128,42 @@
             </div>
         </div>
 
+        {{-- ── Status je Veranstaltung ────────────────────────────────────── --}}
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden lg:col-span-2">
+            <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Status je Veranstaltung</h2>
+                <span class="text-xs text-zinc-400">nur Einzelbewerbe</span>
+            </div>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
+                <flux:table.columns>
+                    <flux:table.column>Veranstaltung</flux:table.column>
+                    @foreach(['regular' => 'Regulär', 'EXH' => 'EXH', 'DSQ' => 'DSQ', 'DNS' => 'DNS', 'DNF' => 'DNF', 'SICK' => 'SICK', 'WDR' => 'WDR'] as $label)
+                        <flux:table.column>{{ $label }}</flux:table.column>
+                    @endforeach
+                    <flux:table.column>Gesamt</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @forelse($stats['status_by_meet'] as $row)
+                        <flux:table.row>
+                            <flux:table.cell class="font-medium">{{ $row['meet'] }}</flux:table.cell>
+                            @foreach(['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'] as $s)
+                                <flux:table.cell class="font-mono">{{ $row['statuses'][$s] }}</flux:table.cell>
+                            @endforeach
+                            <flux:table.cell class="font-mono">{{ $row['total'] }}</flux:table.cell>
+                        </flux:table.row>
+                    @empty
+                        <flux:table.row>
+                            <flux:table.cell colspan="9" class="text-center text-sm text-zinc-400 py-6">
+                                Keine Veranstaltungen mit Ergebnissen im gewählten Zeitraum.
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @endforelse
+                </flux:table.rows>
+                </flux:table>
+            </div>
+        </div>
+
         {{-- ── Top-Vereine ────────────────────────────────────────────────── --}}
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">

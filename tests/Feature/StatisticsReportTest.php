@@ -98,6 +98,7 @@ it('zeigt alle angeforderten Abschnitte an', function () {
         ->assertSee('Allgemeiner Überblick')
         ->assertSee('5-Jahres-Vergleich')
         ->assertSee('Teilnehmer und Starts pro Veranstaltung')
+        ->assertSee('Status je Veranstaltung')
         ->assertSee('Vereinsstatistik')
         ->assertSee('Sportlerstatistik')
         ->assertSee('Ausländische Teilnehmer')

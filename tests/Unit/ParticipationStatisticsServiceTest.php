@@ -1688,3 +1688,30 @@ it('trennt Einzel- und Staffelstarts: Einzelbewerbe zählen nicht als Staffelsta
     expect($service->relayStartsByEventGender(stat2_config()))->toBe(['M' => 0, 'F' => 0, 'X' => 1])
         ->and($service->byGender(stat2_config())->sum('starts'))->toBe(1); // nur der Einzelstart
 })->group('statistics-multi-year-chart');
+
+// ── Status je Veranstaltung ──────────────────────────────────────────────────
+
+it('schlüsselt den Status je Veranstaltung auf', function () {
+    $club = stat2_club();
+    $meetA = stat2_meet();
+    $meetB = stat2_meet(['name' => 'Meet B']);
+
+    // Meet A: 2 regulär, 1 DSQ, 1 DNS.
+    stat2_start(stat2_athlete(), $club, $meetA);
+    stat2_start(stat2_athlete(), $club, $meetA);
+    stat2_start(stat2_athlete(), $club, $meetA, ['status' => 'DSQ']);
+    stat2_start(stat2_athlete(), $club, $meetA, ['status' => 'DNS']);
+    // Meet B: 1 regulär.
+    stat2_start(stat2_athlete(), $club, $meetB);
+
+    $byMeet = stat2_service()->statusByMeet(stat2_config())->keyBy('meet_id');
+
+    expect($byMeet)->toHaveCount(2)
+        ->and($byMeet[$meetA->id]['statuses']['regular'])->toBe(2)
+        ->and($byMeet[$meetA->id]['statuses']['DSQ'])->toBe(1)
+        ->and($byMeet[$meetA->id]['statuses']['DNS'])->toBe(1)
+        ->and($byMeet[$meetA->id]['statuses']['WDR'])->toBe(0)
+        ->and($byMeet[$meetA->id]['total'])->toBe(4)
+        ->and($byMeet[$meetB->id]['statuses']['regular'])->toBe(1)
+        ->and($byMeet[$meetB->id]['total'])->toBe(1);
+})->group('statistics-multi-year-chart');

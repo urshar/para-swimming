@@ -34,6 +34,7 @@ final readonly class ReportConfiguration
         'overview',
         'multi_year',
         'meets',
+        'status_by_meet',
         'participants',
         'clubs',
         'athletes',

@@ -171,6 +171,24 @@ it('enthält im CSV mehrerer Tabellen deren Überschriften', function () {
         ->and($content)->toContain('Rekorde je Sportler');
 });
 
+it('exportiert die Status-Aufschlüsselung je Veranstaltung', function () {
+    exp15_seed();
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report.csv', [
+            'year' => 2024,
+            'sections' => ['status_by_meet' => '1'],
+        ]));
+
+    $response->assertOk();
+    $content = exp15_content($response);
+
+    expect($content)->toContain('Status je Veranstaltung')
+        ->and($content)->toContain('Regulär')
+        ->and($content)->toContain('DSQ')
+        ->and($content)->toContain('Gesamt');
+});
+
 it('exportiert die 5-Jahres-Vergleichstabellen mit Jahresspalten', function () {
     exp15_seed();
 

@@ -50,8 +50,17 @@
             color: #666;
         }
 
-        .page-footer .left { float: left; }
-        .page-footer .right { float: right; }
+        /*
+         * Fußzeilen-Layout bewusst über eine Tabelle statt über float: In dompdf
+         * korrumpiert ein float innerhalb eines position:fixed-Elements die
+         * horizontale Ausrichtung umgebrochener Tabellenzellen an anderer Stelle
+         * im Dokument (mehrzeilige Veranstaltungsnamen rutschten dadurch nach
+         * rechts). Eine Tabelle mit text-align vermeidet den float komplett.
+         */
+        .page-footer table { width: 100%; border-collapse: collapse; margin: 0; }
+        .page-footer td { border: 0; padding: 0; font-size: 8px; color: #666; }
+        .page-footer .left { text-align: left; }
+        .page-footer .right { text-align: right; }
 
         /*
          * Seitenzahl. Bewusst ohne Gesamtseitenzahl: dompdf erzeugt den Inhalt
@@ -74,8 +83,12 @@
 </div>
 
 <div class="page-footer">
-    <span class="left">Para Swimming NatDB · erzeugt am {{ now()->format('d.m.Y H:i') }} Uhr</span>
-    <span class="right page-numbering"></span>
+    <table>
+        <tr>
+            <td class="left">Para Swimming NatDB · erzeugt am {{ now()->format('d.m.Y H:i') }} Uhr</td>
+            <td class="right page-numbering"></td>
+        </tr>
+    </table>
 </div>
 
 @include('statistics.partials.sections', ['forPdf' => true])

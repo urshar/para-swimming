@@ -24,8 +24,15 @@
             position: fixed; bottom: -40px; left: 0; right: 0; height: 30px;
             border-top: 1px solid #ddd; padding-top: 4px; font-size: 8px; color: #666;
         }
-        .page-footer .left { float: left; }
-        .page-footer .right { float: right; }
+        /*
+         * Fußzeile über eine Tabelle statt float: In dompdf verschiebt ein float
+         * innerhalb eines position:fixed-Elements umgebrochene Tabellenzellen an
+         * anderer Stelle im Dokument nach rechts. Siehe pdf/statistics-report.
+         */
+        .page-footer table { width: 100%; border-collapse: collapse; margin: 0; }
+        .page-footer td { border: 0; padding: 0; font-size: 8px; color: #666; }
+        .page-footer .left { text-align: left; }
+        .page-footer .right { text-align: right; }
         .page-numbering:before { content: "Seite " counter(page); }
 
         h2 { font-size: 12px; margin: 14px 0 4px; }
@@ -47,8 +54,12 @@
 </div>
 
 <div class="page-footer">
-    <span class="left">Para Swimming NatDB</span>
-    <span class="right page-numbering"></span>
+    <table>
+        <tr>
+            <td class="left">Para Swimming NatDB</td>
+            <td class="right page-numbering"></td>
+        </tr>
+    </table>
 </div>
 
 @php

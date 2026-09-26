@@ -171,6 +171,56 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
+     * Status-Aufschlüsselung je Veranstaltung (Einzelbewerbe): pro Meet die
+     * Anzahl regulärer Ergebnisse sowie je Sonderstatus (EXH/DSQ/DNS/DNF/SICK/
+     * WDR). Alle Schlüssel erscheinen immer (0, falls nicht vorhanden), in
+     * derselben Reihenfolge wie statusBreakdown().
+     *
+     * Es werden nur Veranstaltungen mit mindestens einem Einzelergebnis
+     * geliefert, sortiert chronologisch (start_date, dann Name).
+     *
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    public function statusByMeet(ReportConfiguration $config): Collection
+    {
+        $rows = $this->scopedQuery($config)
+            ->toBase()
+            ->selectRaw('results.meet_id as meet_id, results.status as status, COUNT(*) as aggregate')
+            ->groupBy('results.meet_id', 'results.status')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $template = ['regular' => 0];
+        foreach (self::SPECIAL_STATUSES as $status) {
+            $template[$status] = 0;
+        }
+
+        $byMeet = [];
+        foreach ($rows as $row) {
+            $meetId = (int) $row->meet_id;
+            $byMeet[$meetId] ??= $template;
+            $byMeet[$meetId][$row->status ?? 'regular'] = (int) $row->aggregate;
+        }
+
+        return Meet::query()
+            ->whereIn('id', array_keys($byMeet))
+            ->oldest('start_date')
+            ->orderBy('name')
+            ->get(['id', 'name', 'start_date'])
+            ->map(fn (Meet $meet): array => [
+                'meet_id' => $meet->id,
+                'meet' => $meet->name,
+                'start_date' => $meet->start_date?->toDateString(),
+                'statuses' => $byMeet[$meet->id],
+                'total' => array_sum($byMeet[$meet->id]),
+            ])
+            ->values();
+    }
+
+    /**
      * Veranstaltungsstatistik (Spec Phase 3): pro Veranstaltung im Umfang die
      * Anzahl Teilnehmer (unterschiedliche Athleten) und Starts.
      *

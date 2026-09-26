@@ -70,13 +70,36 @@
         padding: 3px 5px;
     }
 
+    /*
+     * vertical-align:top hält bei mehrzeiligen Zeilen (umgebrochene lange
+     * Veranstaltungsnamen) die Zahlenspalten auf Höhe der ersten Textzeile.
+     *
+     * Hinweis zur Linksbündigkeit umgebrochener Namen: Die Folgezeilen langer
+     * Namen rutschten im PDF zeitweise nach rechts. Ursache war NICHT diese
+     * Tabelle, sondern ein float innerhalb der position:fixed-Fußzeile des
+     * PDF-Wrappers (dompdf verschiebt dadurch umgebrochene Tabellenzellen an
+     * anderer Stelle im Dokument). Behoben in pdf/statistics-report (Fußzeile
+     * über eine Tabelle statt float); die Namenszellen brauchen daher kein
+     * eigenes text-align — <td> ist ohnehin linksbündig.
+     */
     td {
         padding: 3px 5px;
         border-bottom: 1px solid #eee;
+        vertical-align: top;
     }
 
     /* Zahlenspalten schmal halten, damit die Textspalten Platz bekommen. */
     td.num, th.num { text-align: right; width: 70px; }
+
+    /*
+     * Status je Veranstaltung hat acht Zahlenspalten. Mit den Standard-70px
+     * (oder auch 40px) bleibt der Veranstaltungsspalte zu wenig Platz — lange
+     * Namen brechen auf viele Zeilen um, die Tabelle wird sehr hoch und dompdf
+     * verteilt sie über unnötig viele Seiten. Schmale Zahlenspalten (Zählwerte
+     * mit 1–4 Stellen) und normal geschriebene Kopfzeilen halten sie kompakt.
+     */
+    .status-by-meet td.num, .status-by-meet th.num { width: 28px; }
+    .status-by-meet th { text-transform: none; }
 
     .kpis { margin: 8px 0 6px; }
     .kpis th { text-align: center; }
@@ -247,9 +270,44 @@
         @empty
             <tr><td colspan="4" class="empty">Keine Veranstaltungen mit Starts im Zeitraum.</td></tr>
         @endforelse
-    
+
         </tbody>
     </table>
+@endif
+
+{{-- ── Status je Veranstaltung ──────────────────────────────────────────── --}}
+@if($number = $section('status_by_meet'))
+    @php
+        $statusOrder = ['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'];
+        $statusHead = ['regular' => 'Regulär', 'EXH' => 'EXH', 'DSQ' => 'DSQ',
+            'DNS' => 'DNS', 'DNF' => 'DNF', 'SICK' => 'SICK', 'WDR' => 'WDR'];
+    @endphp
+    <h2>{{ $number }}. Status je Veranstaltung</h2>
+    <table class="status-by-meet">
+        <thead>
+        <tr>
+            <th>Veranstaltung</th>
+            @foreach($statusOrder as $s)
+                <th class="num">{{ $statusHead[$s] }}</th>
+            @endforeach
+            <th class="num">Gesamt</th>
+        </tr>
+        </thead>
+        <tbody>
+        @forelse($statistics['status_by_meet'] as $row)
+            <tr>
+                <td>{{ $row['meet'] }}</td>
+                @foreach($statusOrder as $s)
+                    <td class="num">{{ $row['statuses'][$s] }}</td>
+                @endforeach
+                <td class="num">{{ $row['total'] }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="9" class="empty">Keine Veranstaltungen mit Ergebnissen im Zeitraum.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    <p class="note">Regulär = gewertetes Ergebnis (ohne Sonderstatus). Nur Einzelbewerbe.</p>
 @endif
 
 {{-- ── Teilnehmerstruktur ──────────────────────────────────────────────── --}}

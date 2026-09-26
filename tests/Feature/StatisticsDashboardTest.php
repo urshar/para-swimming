@@ -190,6 +190,7 @@ it('zeigt Veranstaltung, Verein, Sportler und Nation in den Tabellen', function 
         ->assertSee('Sichtbares Meet')
         ->assertSee('Sichtbarer Verein')
         ->assertSee('Sichtbar, Test')
+        ->assertSee('Status je Veranstaltung')
         ->assertSee('AUT');
 });
 
@@ -220,7 +221,7 @@ it('berechnet nur die im Dashboard dargestellten Abschnitte', function () {
         ->instance()
         ->statistics();
 
-    expect(array_keys($stats))->toBe(['overview', 'meets', 'clubs', 'athletes', 'nations', 'records']);
+    expect(array_keys($stats))->toBe(['overview', 'meets', 'status_by_meet', 'clubs', 'athletes', 'nations', 'records']);
 });
 
 it('zeigt einen Hinweis, wenn für das Jahr keine Veranstaltungen erfasst sind', function () {
