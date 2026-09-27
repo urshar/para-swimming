@@ -16,6 +16,6 @@
 <body>
 {{-- Inhalt und dessen Gestaltung kommen aus dem gemeinsamen Partial, das
      auch die PDF-Fassung einbindet. --}}
-@include('statistics.partials.sections')
+@include('statistics.partials.sections', ['forPdf' => false])
 </body>
 </html>

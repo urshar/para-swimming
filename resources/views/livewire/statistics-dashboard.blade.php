@@ -1,17 +1,6 @@
 @php
     /** @var array<string, mixed> $stats */
     $stats = $this->statistics;
-
-    /*
-     * Native <select>-Elemente erben im Dunkelmodus weder Textfarbe noch
-     * Farbschema — ohne explizite Angabe steht schwarze Schrift auf dunklem
-     * Grund. color-scheme sorgt zusätzlich dafür, dass der Browser Rahmen und
-     * Bildlaufleiste passend zeichnet.
-     */
-    $selectClasses = 'mt-1 w-full rounded-lg border p-2 text-sm '
-        .'border-zinc-200 bg-white text-zinc-900 '
-        .'dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:[color-scheme:dark]';
-    $optionClasses = 'bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100';
     $overview = $stats['overview'];
     $records = $stats['records'];
 @endphp
@@ -59,8 +48,12 @@
                          Checkbox und Label je Veranstaltung zusammen, statt mitten im Namen über
                          eine Spaltengrenze zu reißen. --}}
                     <div class="columns-1 sm:columns-2 xl:columns-3 gap-x-6 mt-2">
+                        {{-- wire:key je Veranstaltung: ohne ihn matcht Livewires DOM-Morph die
+                             Checkboxen beim Jahreswechsel positionsbasiert und übernimmt den
+                             checked-Property des alten Knotens für eine andere Veranstaltung
+                             (fälschlich angehakt, obwohl serverseitig nicht ausgewählt). --}}
                         @foreach($this->availableMeets as $meet)
-                            <div class="break-inside-avoid mb-2">
+                            <div wire:key="meet-{{ $meet->id }}" class="break-inside-avoid mb-2">
                                 <flux:checkbox
                                     wire:model.live="meetIds"
                                     value="{{ $meet->id }}"
@@ -100,6 +93,9 @@
         @endforeach
     </div>
 
+    {{-- ── 5-Jahres-Vergleich ────────────────────────────────────────────── --}}
+    @include('partials.statistics-multi-year-charts', ['series' => $this->multiYearStatistics])
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- ── Teilnehmer und Starts pro Veranstaltung ────────────────────── --}}
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden lg:col-span-2">
@@ -128,6 +124,42 @@
                         <flux:table.row>
                             <flux:table.cell colspan="4" class="text-center text-sm text-zinc-400 py-6">
                                 Keine Veranstaltungen mit Starts im gewählten Zeitraum.
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @endforelse
+                </flux:table.rows>
+                </flux:table>
+            </div>
+        </div>
+
+        {{-- ── Status je Veranstaltung ────────────────────────────────────── --}}
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden lg:col-span-2">
+            <div class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
+                <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Status je Veranstaltung</h2>
+                <span class="text-xs text-zinc-400">nur Einzelbewerbe</span>
+            </div>
+            <div class="p-4 [--flux-bleed:1rem]">
+                <flux:table bleed>
+                <flux:table.columns>
+                    <flux:table.column>Veranstaltung</flux:table.column>
+                    @foreach(['regular' => 'Regulär', 'EXH' => 'EXH', 'DSQ' => 'DSQ', 'DNS' => 'DNS', 'DNF' => 'DNF', 'SICK' => 'SICK', 'WDR' => 'WDR'] as $label)
+                        <flux:table.column>{{ $label }}</flux:table.column>
+                    @endforeach
+                    <flux:table.column>Gesamt</flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows>
+                    @forelse($stats['status_by_meet'] as $row)
+                        <flux:table.row>
+                            <flux:table.cell class="font-medium">{{ $row['meet'] }}</flux:table.cell>
+                            @foreach(['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'] as $s)
+                                <flux:table.cell class="font-mono">{{ $row['statuses'][$s] }}</flux:table.cell>
+                            @endforeach
+                            <flux:table.cell class="font-mono">{{ $row['total'] }}</flux:table.cell>
+                        </flux:table.row>
+                    @empty
+                        <flux:table.row>
+                            <flux:table.cell colspan="9" class="text-center text-sm text-zinc-400 py-6">
+                                Keine Veranstaltungen mit Ergebnissen im gewählten Zeitraum.
                             </flux:table.cell>
                         </flux:table.row>
                     @endforelse
@@ -307,7 +339,8 @@
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 mt-6">
         <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Jahresbericht</h2>
         <p class="text-xs text-zinc-400 mt-0.5 mb-4">
-            Jahr und Veranstaltungen werden aus der Auswahl oben übernommen. Jeder Abschnitt ist einzeln abwählbar.
+            Jahr und Veranstaltungen werden aus der Auswahl oben übernommen. Nur die angehakten Abschnitte
+            erscheinen in Anzeige, PDF und Export — für einen einzelnen Bereich nur diesen anhaken.
         </p>
 
         <form method="GET" action="{{ route('statistics.report') }}" target="_blank">
@@ -320,6 +353,13 @@
                 @foreach($reportSections as $key => $label)
                     <flux:checkbox name="sections[{{ $key }}]" value="1" checked label="{{ $label }}"/>
                 @endforeach
+            </div>
+
+            {{-- Nur für "Bericht anzeigen" und PDF wirksam: zeigt im 5-Jahres-Vergleich
+                 zusätzlich die Grafiken (SVG). Excel/CSV enthalten weiterhin nur die Zahlen. --}}
+            <div class="mb-4">
+                <flux:checkbox name="charts" value="1"
+                               label="Grafiken im 5-Jahres-Vergleich anzeigen (Bericht &amp; PDF)"/>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -349,15 +389,6 @@
                 @endforeach
             </div>
 
-            <div class="mb-4 max-w-md">
-                <flux:label>Nur ein Bereich exportieren (optional, für Excel und CSV)</flux:label>
-                <select name="section" class="{{ $selectClasses }}">
-                    <option value="" class="{{ $optionClasses }}">Alle gewählten Abschnitte</option>
-                    @foreach($reportSections as $sectionKey => $sectionLabel)
-                        <option value="{{ $sectionKey }}" class="{{ $optionClasses }}">{{ $sectionLabel }}</option>
-                    @endforeach
-                </select>
-            </div>
 
             <div class="flex flex-wrap gap-2">
                 <flux:button type="submit" variant="primary" icon="document-text">

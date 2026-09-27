@@ -1612,3 +1612,151 @@ it('lädt über loadAgeGroups() nur aktive Altersgruppen in Sortierreihenfolge',
 
     expect($codes)->toBe(['JUGEND', 'OFFEN']);
 })->group('statistik-p8');
+
+// ── Staffelstarts je Event-Geschlecht (5-Jahres-Vergleichsgrafik) ────────────
+
+/** Ein Staffel-Bewerb mit gegebenem Event-Geschlecht (M/F/X). */
+function stat2_relayEvent(Meet $meet, string $gender): SwimEvent
+{
+    return SwimEvent::create([
+        'meet_id' => $meet->id,
+        'stroke_type_id' => stat2_strokeType()->id,
+        'distance' => 100,
+        'gender' => $gender,
+        'relay_count' => 4,
+    ]);
+}
+
+/** Eine angetretene Staffel-Ergebniszeile (ein Schwimmer der Staffel). */
+function stat2_relayStart(Athlete $athlete, Club $club, Meet $meet, SwimEvent $event, array $attrs = []): Result
+{
+    return Result::create(array_merge([
+        'meet_id' => $meet->id,
+        'swim_event_id' => $event->id,
+        'athlete_id' => $athlete->id,
+        'club_id' => $club->id,
+        'sport_class' => 'S9',
+        'swim_time' => 24000,
+    ], $attrs));
+}
+
+it('zählt Staffelstarts pro Athlet und gruppiert nach Event-Geschlecht (M/F/X)', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+
+    $mixed = stat2_relayEvent($meet, 'X');
+    $herren = stat2_relayEvent($meet, 'M');
+
+    // Mixed-Staffel: 4 Schwimmer → 4 Starts unter 'X', unabhängig vom Geschlecht.
+    foreach (['M', 'F', 'F', 'M'] as $g) {
+        stat2_relayStart(stat2_athlete(['gender' => $g]), $club, $meet, $mixed);
+    }
+    // Herren-Staffel: 3 Schwimmer angelegt → 3 Starts unter 'M'.
+    for ($i = 0; $i < 3; $i++) {
+        stat2_relayStart(stat2_athlete(), $club, $meet, $herren);
+    }
+
+    $counts = stat2_service()->relayStartsByEventGender(stat2_config());
+
+    expect($counts)->toBe(['M' => 3, 'F' => 0, 'X' => 4]);
+})->group('statistics-multi-year-chart');
+
+it('lässt in der Staffelzählung nicht angetretene Ergebnisse (DNS/SICK/WDR) außen vor', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+    $damen = stat2_relayEvent($meet, 'F');
+
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen);                       // regulär → zählt
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'DSQ']);  // angetreten → zählt
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'DNS']);  // nicht angetreten
+    stat2_relayStart(stat2_athlete(['gender' => 'F']), $club, $meet, $damen, ['status' => 'WDR']);  // nicht angetreten
+
+    $counts = stat2_service()->relayStartsByEventGender(stat2_config());
+
+    expect($counts)->toBe(['M' => 0, 'F' => 2, 'X' => 0]);
+})->group('statistics-multi-year-chart');
+
+it('trennt Einzel- und Staffelstarts: Einzelbewerbe zählen nicht als Staffelstarts', function () {
+    $meet = stat2_meet();
+    $club = stat2_club();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['event' => stat2_relayEvent($meet, 'X')]); // Staffel
+    stat2_start(stat2_athlete(), $club, $meet);                                            // Einzel
+
+    $service = stat2_service();
+
+    expect($service->relayStartsByEventGender(stat2_config()))->toBe(['M' => 0, 'F' => 0, 'X' => 1])
+        ->and($service->byGender(stat2_config())->sum('starts'))->toBe(1); // nur der Einzelstart
+})->group('statistics-multi-year-chart');
+
+// ── Status je Veranstaltung ──────────────────────────────────────────────────
+
+it('schlüsselt den Status je Veranstaltung auf', function () {
+    $club = stat2_club();
+    $meetA = stat2_meet();
+    $meetB = stat2_meet(['name' => 'Meet B']);
+
+    // Meet A: 2 regulär, 1 DSQ, 1 DNS.
+    stat2_start(stat2_athlete(), $club, $meetA);
+    stat2_start(stat2_athlete(), $club, $meetA);
+    stat2_start(stat2_athlete(), $club, $meetA, ['status' => 'DSQ']);
+    stat2_start(stat2_athlete(), $club, $meetA, ['status' => 'DNS']);
+    // Meet B: 1 regulär.
+    stat2_start(stat2_athlete(), $club, $meetB);
+
+    $byMeet = stat2_service()->statusByMeet(stat2_config())->keyBy('meet_id');
+
+    expect($byMeet)->toHaveCount(2)
+        ->and($byMeet[$meetA->id]['statuses']['regular'])->toBe(2)
+        ->and($byMeet[$meetA->id]['statuses']['DSQ'])->toBe(1)
+        ->and($byMeet[$meetA->id]['statuses']['DNS'])->toBe(1)
+        ->and($byMeet[$meetA->id]['statuses']['WDR'])->toBe(0)
+        ->and($byMeet[$meetA->id]['total'])->toBe(4)
+        ->and($byMeet[$meetB->id]['statuses']['regular'])->toBe(1)
+        ->and($byMeet[$meetB->id]['total'])->toBe(1);
+})->group('statistics-multi-year-chart');
+
+// ── Veranstaltungs-Vergleich (statusForMeets) ────────────────────────────────
+
+it('vergleicht frei gewählte Veranstaltungen jahresübergreifend, chronologisch', function () {
+    $club = stat2_club();
+    $m2023 = stat2_meet(['name' => 'LM 2023', 'start_date' => '2023-06-01']);
+    $m2024 = stat2_meet(['name' => 'LM 2024', 'start_date' => '2024-06-01']);
+    $m2025 = stat2_meet(['name' => 'LM 2025', 'start_date' => '2025-06-01']);
+    $ignored = stat2_meet(['name' => 'Nicht gewählt', 'start_date' => '2024-07-01']);
+
+    stat2_start(stat2_athlete(), $club, $m2023, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $m2024);
+    stat2_start(stat2_athlete(), $club, $m2024, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $m2025, ['status' => 'DNS', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $ignored);
+
+    // Reihenfolge der IDs bewusst durcheinander — Ergebnis muss chronologisch sein.
+    $rows = stat2_service()->statusForMeets([$m2025->id, $m2023->id, $m2024->id]);
+
+    expect($rows->pluck('meet_id')->all())->toBe([$m2023->id, $m2024->id, $m2025->id])
+        ->and($rows->pluck('meet_id')->all())->not->toContain($ignored->id)
+        ->and($rows->firstWhere('meet_id', $m2023->id)['statuses']['DSQ'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['statuses']['regular'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['statuses']['DSQ'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['total'])->toBe(2)
+        ->and($rows->firstWhere('meet_id', $m2025->id)['statuses']['DNS'])->toBe(1);
+})->group('statistics-multi-year-chart');
+
+it('liefert ohne Auswahl eine leere Collection (statusForMeets)', function () {
+    expect(stat2_service()->statusForMeets([])->all())->toBe([]);
+})->group('statistics-multi-year-chart');
+
+it('zählt im Veranstaltungs-Vergleich nur Einzelbewerbe', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_relayStart(stat2_athlete(), $club, $meet, stat2_event($meet, relayCount: 4), ['status' => 'DSQ']);
+
+    $rows = stat2_service()->statusForMeets([$meet->id]);
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['statuses']['DSQ'])->toBe(1)
+        ->and($rows->first()['total'])->toBe(1);
+})->group('statistics-multi-year-chart');

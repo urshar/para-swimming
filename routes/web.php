@@ -43,6 +43,7 @@ use App\Http\Controllers\WpsPointVersionController;
 use App\Http\Controllers\WpsRankingController;
 use App\Http\Controllers\WpsScmFactorController;
 use App\Http\Controllers\WpsTalentReportController;
+use App\Http\Controllers\YearComparisonController;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -311,6 +312,9 @@ Route::middleware(['auth'])->group(function () {
     // ── Statistik (nur Admin) ─────────────────────────────────────────────────
     Route::middleware(RequireAdmin::class)->group(function () {
         Route::view('/statistics', 'statistics.page')->name('statistics.index');
+        Route::view('/statistics/comparison', 'statistics.comparison-page')->name('statistics.comparison');
+        Route::get('/statistics/comparison/pdf',
+            [YearComparisonController::class, 'pdf'])->name('statistics.comparison.pdf');
         Route::get('/statistics/report', [StatisticsController::class, 'report'])->name('statistics.report');
         Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
         Route::get('/statistics/report/xlsx', [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');

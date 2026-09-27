@@ -96,7 +96,9 @@ it('zeigt alle angeforderten Abschnitte an', function () {
         ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections()]))
         ->assertOk()
         ->assertSee('Allgemeiner Überblick')
+        ->assertSee('5-Jahres-Vergleich')
         ->assertSee('Teilnehmer und Starts pro Veranstaltung')
+        ->assertSee('Status je Veranstaltung')
         ->assertSee('Vereinsstatistik')
         ->assertSee('Sportlerstatistik')
         ->assertSee('Ausländische Teilnehmer')
@@ -140,6 +142,41 @@ it('weist darauf hin, wenn kein Abschnitt ausgewählt wurde', function () {
 });
 
 // ── Inhalte ──────────────────────────────────────────────────────────────────
+
+it('stellt den 5-Jahres-Vergleich mit den drei Teiltabellen und Jahresspalten dar', function () {
+    $club = Club::create(['name' => 'Testverein', 'nation_id' => rep13_nation()->id]);
+    rep13_start(rep13_meet('Meet 2024', '2024-06-01'), rep13_athlete('Muster'), $club);
+
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections()]))
+        ->assertOk()
+        ->assertSee('5-Jahres-Vergleich (2020–2024)')
+        ->assertSee('Einzelstarts nach Geschlecht')
+        ->assertSee('Teilnehmer nach Geschlecht')
+        ->assertSee('Staffelstarts nach Typ')
+        ->assertSee('Mixed')          // Staffeltyp X immer geführt
+        ->assertSee('2020')           // Jahresspalte des ältesten Jahres
+        ->assertSee('2024');          // Jahresspalte des Berichtsjahres
+});
+
+it('zeigt im 5-Jahres-Vergleich Grafiken nur, wenn angefordert', function () {
+    $club = Club::create(['name' => 'Testverein', 'nation_id' => rep13_nation()->id]);
+    rep13_start(rep13_meet('Meet 2024', '2024-06-01'), rep13_athlete('Muster'), $club);
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    // Ohne charts-Flag: nur Tabellen, kein SVG.
+    $this->actingAs($admin)
+        ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections()]))
+        ->assertOk()
+        ->assertDontSee('<polyline', escape: false);
+
+    // Mit charts-Flag: zusätzlich die SVG-Grafiken.
+    $this->actingAs($admin)
+        ->get(route('statistics.report', ['year' => 2024, 'sections' => rep13_allSections(), 'charts' => '1']))
+        ->assertOk()
+        ->assertSee('<svg', escape: false)
+        ->assertSee('<polyline', escape: false);
+});
 
 it('gibt die Kennzahlen des Berichtsjahres aus', function () {
     $meet = rep13_meet('Testmeet', '2024-06-01');

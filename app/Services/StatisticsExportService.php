@@ -36,16 +36,15 @@ final readonly class StatisticsExportService
      * absoluten Dateipfad zurück.
      *
      * @param  array<string, mixed>  $statistics
-     * @param  string|null  $section  nur diesen Abschnitt exportieren; null = alle
      *
      * @throws Exception
      */
-    public function xlsx(array $statistics, ?string $section = null): string
+    public function xlsx(array $statistics): string
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->removeSheetByIndex(0);
 
-        $tables = $this->tables($statistics, $section);
+        $tables = $this->tables($statistics);
 
         if ($tables->isEmpty()) {
             $spreadsheet->createSheet()->setTitle('Keine Daten');
@@ -94,13 +93,13 @@ final readonly class StatisticsExportService
      *
      * @throws Exception
      */
-    public function csv(array $statistics, ?string $section = null): string
+    public function csv(array $statistics): string
     {
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $row = 1;
 
-        foreach ($this->tables($statistics, $section) as $table) {
+        foreach ($this->tables($statistics) as $table) {
             $sheet->setCellValue("A$row", $table['title']);
             $sheet->getStyle("A$row")->getFont()->setBold(true);
             $row++;
@@ -126,25 +125,23 @@ final readonly class StatisticsExportService
         return $path;
     }
 
-    /** Dateiname für den Download, z.B. "jahresbericht-2024-vereine.csv". */
-    public function downloadFilename(ReportConfiguration $config, string $extension, ?string $section = null): string
+    /** Dateiname für den Download, z.B. "jahresbericht-2024.csv". */
+    public function downloadFilename(ReportConfiguration $config, string $extension): string
     {
-        $suffix = $section === null ? '' : '-'.str_replace('_', '-', $section);
-
-        return "jahresbericht-$config->year$suffix.$extension";
+        return "jahresbericht-$config->year.$extension";
     }
 
     /**
-     * Überführt die Abschnitte in exportierbare Tabellen.
+     * Überführt die aktivierten Abschnitte in exportierbare Tabellen. Welche
+     * Abschnitte enthalten sind, steuert allein die Abschnittsauswahl des
+     * Berichts (Häkchen) — es gibt keinen gesonderten Einzelabschnitt-Export.
      *
      * @param  array<string, mixed>  $statistics
      * @return Collection<int, array{title: string, headers: list<string>, rows: list<list<mixed>>}>
      */
-    private function tables(array $statistics, ?string $section = null): Collection
+    private function tables(array $statistics): Collection
     {
-        $sections = $section === null
-            ? $statistics
-            : array_intersect_key($statistics, [$section => true]);
+        $sections = $statistics;
 
         $tables = collect();
 
@@ -164,7 +161,9 @@ final readonly class StatisticsExportService
     {
         return match ($section) {
             'overview' => $this->overviewTables($data),
+            'multi_year' => $this->multiYearTables($data),
             'meets' => [$this->meetTable('Veranstaltungen', $data)],
+            'status_by_meet' => [$this->statusByMeetTable($data)],
             'participants' => [
                 $this->table('Altersgruppen', ['Altersgruppe', 'Teilnehmer', 'Starts'], $data['by_age_group'],
                     fn (array $r): array => [$r['age_group_name'], $r['participants'], $r['starts']]),
@@ -315,6 +314,64 @@ final readonly class StatisticsExportService
             $this->meetTable("$label Veranstaltungen", $championship['meets']),
             $this->athleteTable("$label Sportler", $championship['athletes']),
         ];
+    }
+
+    /**
+     * Drei Vergleichstabellen der 5-Jahres-Zeitreihe (Einzelstarts,
+     * Teilnehmer, Staffelstarts): je Geschlecht eine Zeile, je Jahr eine
+     * Spalte — dieselbe Aufteilung wie die Grafiken und die Bericht-Tabellen.
+     *
+     * @param  array<string, mixed>  $data  Rückgabe von MultiYearStatisticsService::series()
+     * @return list<array{title: string, headers: list<string>, rows: list<list<mixed>>}>
+     */
+    private function multiYearTables(array $data): array
+    {
+        $years = $data['years'];
+        $rowsByYear = collect($data['rows'])->keyBy('year');
+
+        $specs = [
+            ['title' => '5J Einzelstarts', 'prefix' => 'starts',
+                'genders' => $data['individual_genders'], 'labels' => MultiYearStatisticsService::GENDER_LABELS],
+            ['title' => '5J Teilnehmer', 'prefix' => 'participants',
+                'genders' => $data['individual_genders'], 'labels' => MultiYearStatisticsService::GENDER_LABELS],
+            ['title' => '5J Staffelstarts', 'prefix' => 'relay',
+                'genders' => $data['relay_genders'], 'labels' => MultiYearStatisticsService::RELAY_GENDER_LABELS],
+        ];
+
+        return array_map(fn (array $spec): array => [
+            'title' => $spec['title'],
+            'headers' => array_merge(['Geschlecht'], array_map(fn (int $y): string => (string) $y, $years)),
+            'rows' => array_map(
+                fn (string $gender): array => array_merge(
+                    [$spec['labels'][$gender]],
+                    array_map(fn (int $year): int => $rowsByYear[$year][$spec['prefix'].'_'.strtolower($gender)], $years),
+                ),
+                $spec['genders'],
+            ),
+        ], $specs);
+    }
+
+    /**
+     * Status-Aufschlüsselung je Veranstaltung: eine Zeile je Meet, eine Spalte
+     * je Status plus Gesamt.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @return array{title: string, headers: list<string>, rows: list<list<mixed>>}
+     */
+    private function statusByMeetTable(Collection $rows): array
+    {
+        $order = ['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'];
+
+        return $this->table(
+            'Status je Veranstaltung',
+            ['Veranstaltung', 'Regulär', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR', 'Gesamt'],
+            $rows,
+            fn (array $r): array => array_merge(
+                [$r['meet']],
+                array_map(fn (string $s): int => $r['statuses'][$s], $order),
+                [$r['total']],
+            ),
+        );
     }
 
     /**

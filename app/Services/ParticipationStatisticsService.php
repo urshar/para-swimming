@@ -67,6 +67,17 @@ final readonly class ParticipationStatisticsService
     private const array GENDER_ORDER = ['M', 'F', 'N'];
 
     /**
+     * Ausgabereihenfolge der Staffel-Geschlechter. Maßgeblich ist das
+     * Geschlecht des Staffel-Bewerbs (swim_events.gender), nicht das des
+     * einzelnen Schwimmers: Herren (M), Damen (F), Mixed (X). Der
+     * Default-Wert 'A' (all) kommt bei Staffeln nicht vor und wird daher
+     * bewusst nicht geführt.
+     *
+     * @var list<string>
+     */
+    private const array RELAY_GENDER_ORDER = ['M', 'F', 'X'];
+
+    /**
      * Gruppierungsschlüssel für den sichtbaren Sammeleintrag, unter dem
      * Datensätze ohne auflösbare Zuordnung ausgewiesen werden (statt sie
      * stillschweigend zu verwerfen). Er kann mit keiner echten ID kollidieren.
@@ -116,6 +127,16 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
+     * Anzahl der Veranstaltungen mit mindestens einem gewerteten (Einzel-)Start
+     * im Auswertungsumfang — dieselbe Definition wie overview()['meets'], aber
+     * ohne die übrigen Kennzahlen zu berechnen (für die Mehrjahres-Zeitreihe).
+     */
+    public function meetsWithStarts(ReportConfiguration $config): int
+    {
+        return $this->startsQuery($config)->distinct()->count('meet_id');
+    }
+
+    /**
      * Ergebnisse pro Status im Auswertungsumfang (Einzelbewerbe, gleicher
      * Umfang wie overview()). Enthält ausdrücklich auch die "nicht
      * angetreten"-Status DNS, SICK und WDR sowie reguläre Ergebnisse
@@ -150,6 +171,47 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
+     * Status-Aufschlüsselung je Veranstaltung (Einzelbewerbe): pro Meet die
+     * Anzahl regulärer Ergebnisse sowie je Sonderstatus (EXH/DSQ/DNS/DNF/SICK/
+     * WDR). Alle Schlüssel erscheinen immer (0, falls nicht vorhanden), in
+     * derselben Reihenfolge wie statusBreakdown().
+     *
+     * Es werden nur Veranstaltungen mit mindestens einem Einzelergebnis
+     * geliefert, sortiert chronologisch (start_date, dann Name).
+     *
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    public function statusByMeet(ReportConfiguration $config): Collection
+    {
+        return $this->aggregateStatusByMeet($this->scopedQuery($config));
+    }
+
+    /**
+     * Status-Aufschlüsselung für eine frei gewählte Menge von Veranstaltungen —
+     * jahresübergreifend, ohne Zeitraum-Scope (für den manuellen
+     * Veranstaltungs-Vergleich, Spec "Veranstaltungen vergleichen").
+     *
+     * Gleiche Struktur und Zählweise wie statusByMeet (nur Einzelbewerbe, alle
+     * Statusschlüssel immer vorhanden), aber rein über die Meet-IDs gefiltert.
+     * Nicht existierende oder ergebnislose Meets erscheinen nicht.
+     *
+     * @param  array<int>  $meetIds
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    public function statusForMeets(array $meetIds): Collection
+    {
+        if ($meetIds === []) {
+            return collect();
+        }
+
+        $query = Result::query()
+            ->whereIn('results.meet_id', $meetIds)
+            ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
+
+        return $this->aggregateStatusByMeet($query);
+    }
+
+    /**
      * Veranstaltungsstatistik (Spec Phase 3): pro Veranstaltung im Umfang die
      * Anzahl Teilnehmer (unterschiedliche Athleten) und Starts.
      *
@@ -174,7 +236,7 @@ final readonly class ParticipationStatisticsService
 
         return Meet::query()
             ->whereIn('id', $aggregates->keys())
-            ->orderBy('start_date')
+            ->oldest('start_date')
             ->orderBy('name')
             ->get(['id', 'name', 'start_date'])
             ->map(fn (Meet $meet): array => [
@@ -222,7 +284,9 @@ final readonly class ParticipationStatisticsService
                 'participants' => (int) $aggregates[$club->id]->participants,
                 'starts' => (int) $aggregates[$club->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [
+                $a['starts'], $a['participants'],
+            ]
                 ?: strcmp($a['club'], $b['club']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -264,7 +328,9 @@ final readonly class ParticipationStatisticsService
                 'participations' => (int) $aggregates[$athlete->id]->participations,
                 'starts' => (int) $aggregates[$athlete->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['participations'], $b['starts']] <=> [$a['participations'], $a['starts']]
+            ->sort(fn (array $a, array $b): int => [$b['participations'], $b['starts']] <=> [
+                $a['participations'], $a['starts'],
+            ]
                 ?: strcmp($a['athlete'], $b['athlete']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -324,7 +390,9 @@ final readonly class ParticipationStatisticsService
                 'participants' => (int) $aggregates[$nation->id]->participants,
                 'starts' => (int) $aggregates[$nation->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [
+                $a['starts'], $a['participants'],
+            ]
                 ?: strcmp($a['nation'], $b['nation']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -541,7 +609,93 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Gemeinsamer Auswertungsumfang für alle Kennzahlen:
+     * Staffelstarts je Event-Geschlecht (Herren = M, Damen = F, Mixed = X) im
+     * Auswertungsumfang, gezählt "pro Athlet": jede angetretene
+     * Staffel-Ergebniszeile (ein eingesetzter Schwimmer) zählt einzeln.
+     *
+     * Maßgeblich ist das Geschlecht des Staffel-Bewerbs (swim_events.gender),
+     * nicht das des einzelnen Schwimmers — eine Mixed-Staffel bleibt Mixed (X),
+     * unabhängig von der Zusammensetzung. Ausschließlich Staffeln
+     * (relay_count > 1); Einzelbewerbe bleiben außen vor.
+     *
+     * Als "angetreten" gilt dieselbe Definition wie bei den Einzelstarts
+     * (onlyStarted): reguläre Ergebnisse plus alle Status außer
+     * NON_START_STATUSES. Alle drei Schlüssel erscheinen immer (0, falls nicht
+     * vorhanden), in der Reihenfolge Herren, Damen, Mixed.
+     *
+     * @return array<string, int>
+     */
+    public function relayStartsByEventGender(ReportConfiguration $config): array
+    {
+        $counts = array_fill_keys(self::RELAY_GENDER_ORDER, 0);
+
+        $rows = $this->onlyStarted($this->relayScopedQuery($config))
+            ->join('swim_events', 'swim_events.id', '=', 'results.swim_event_id')
+            ->toBase()
+            ->selectRaw('swim_events.gender as gender, COUNT(*) as starts')
+            ->groupBy('swim_events.gender')
+            ->get();
+
+        foreach ($rows as $row) {
+            $gender = (string) $row->gender;
+
+            if (array_key_exists($gender, $counts)) {
+                $counts[$gender] = (int) $row->starts;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Gemeinsame Aggregation für statusByMeet() und statusForMeets(): zählt je
+     * Veranstaltung die regulären Ergebnisse und jeden Sonderstatus und reichert
+     * sie mit Name und Datum an. Erwartet eine bereits auf Einzelbewerbe
+     * eingeschränkte Result-Query.
+     *
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    private function aggregateStatusByMeet(Builder $einzelResults): Collection
+    {
+        $rows = $einzelResults
+            ->toBase()
+            ->selectRaw('results.meet_id as meet_id, results.status as status, COUNT(*) as aggregate')
+            ->groupBy('results.meet_id', 'results.status')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $template = ['regular' => 0];
+        foreach (self::SPECIAL_STATUSES as $status) {
+            $template[$status] = 0;
+        }
+
+        $byMeet = [];
+        foreach ($rows as $row) {
+            $meetId = (int) $row->meet_id;
+            $byMeet[$meetId] ??= $template;
+            $byMeet[$meetId][$row->status ?? 'regular'] = (int) $row->aggregate;
+        }
+
+        return Meet::query()
+            ->whereIn('id', array_keys($byMeet))
+            ->oldest('start_date')
+            ->orderBy('name')
+            ->get(['id', 'name', 'start_date'])
+            ->map(fn (Meet $meet): array => [
+                'meet_id' => $meet->id,
+                'meet' => $meet->name,
+                'start_date' => $meet->start_date?->toDateString(),
+                'statuses' => $byMeet[$meet->id],
+                'total' => array_sum($byMeet[$meet->id]),
+            ])
+            ->values();
+    }
+
+    /**
+     * Gemeinsamer Auswertungsumfang für alle Einzel-Kennzahlen:
      *   - Einzelbewerbe (keine Staffeln — relay_count = 1),
      *   - eingeschränkt auf die ausgewählten Veranstaltungen; ohne Auswahl auf
      *     alle Meets, deren start_date im Zeitraum liegt.
@@ -550,13 +704,37 @@ final readonly class ParticipationStatisticsService
      * (startsQuery) als auch die vollständige Status-Aufschlüsselung
      * (statusBreakdown) aufsetzen können.
      *
-     * Staffeln werden derzeit ausgeklammert (der Staffelcup ist noch nicht
-     * definiert).
+     * Staffeln werden hier ausgeklammert; sie laufen über relayScopedQuery().
      */
     private function scopedQuery(ReportConfiguration $config): Builder
     {
-        $query = Result::query()
+        return $this->periodScopedQuery($config)
             ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
+    }
+
+    /**
+     * Auswertungsumfang für Staffeln (relay_count > 1) — das Gegenstück zu
+     * scopedQuery(). Staffelergebnisse liegen pro eingesetztem Schwimmer als
+     * eigene Ergebniszeile vor (results.athlete_id ist Pflichtfeld); die
+     * Zählweise "pro Athlet" ergibt sich damit direkt aus COUNT(*).
+     *
+     * Zeitraum- und Meet-Scope sind identisch zur Einzelauswertung
+     * (periodScopedQuery); ebenfalls bewusst OHNE Status-Filter.
+     */
+    private function relayScopedQuery(ReportConfiguration $config): Builder
+    {
+        return $this->periodScopedQuery($config)
+            ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '>', 1));
+    }
+
+    /**
+     * Reiner Zeitraum-/Meet-Scope ohne Staffel-Unterscheidung — gemeinsame
+     * Grundlage von scopedQuery() (Einzel) und relayScopedQuery() (Staffel),
+     * damit die Definition des Auswertungsfensters an genau einer Stelle liegt.
+     */
+    private function periodScopedQuery(ReportConfiguration $config): Builder
+    {
+        $query = Result::query();
 
         if ($config->isMeetFiltered()) {
             $query->whereIn('results.meet_id', $config->meetIds);
@@ -575,15 +753,26 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Grundgesamtheit aller Starts: der Auswertungsumfang, eingeschränkt auf
-     * angetretene Ergebnisse (ohne NON_START_STATUSES).
+     * Grundgesamtheit aller (Einzel-)Starts: der Auswertungsumfang,
+     * eingeschränkt auf angetretene Ergebnisse (ohne NON_START_STATUSES).
      *
      * Wichtig: `status = null` (reguläres Ergebnis) muss ausdrücklich
      * eingeschlossen werden, weil `NOT IN (...)` in SQL bei NULL nicht greift.
      */
     private function startsQuery(ReportConfiguration $config): Builder
     {
-        return $this->scopedQuery($config)->where(function (Builder $q): void {
+        return $this->onlyStarted($this->scopedQuery($config));
+    }
+
+    /**
+     * Schränkt einen Ergebnis-Query auf angetretene Ergebnisse ein (reguläre
+     * Ergebnisse mit status = null sowie alle Status außer NON_START_STATUSES).
+     * Ausgelagert, damit Einzel- (startsQuery) und Staffelauswertung
+     * (relayStartsByEventGender) dieselbe Start-Definition teilen.
+     */
+    private function onlyStarted(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
             $q->whereNull('results.status')
                 ->orWhereNotIn('results.status', self::NON_START_STATUSES);
         });

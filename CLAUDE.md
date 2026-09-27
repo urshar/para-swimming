@@ -219,6 +219,22 @@ composer lint:check   # Pint nur prüfen
   `x-for="item in liste"` und den Index per Methode holen (`positionOf(item)` über
   `selectedAthletes.findIndex(...)`), nicht die Tupel-Form verwenden. Faustregel: **rot = echt, gelb an einer
   Alpine-Bindung im Partial = ignorierbar.**
+- **Ein `float` (`float: left`/`right`) innerhalb eines `position: fixed`-Elements korrumpiert in dompdf die
+  horizontale Ausrichtung umgebrochener Tabellenzellen an ANDERER Stelle im Dokument** — die Folgezeilen
+  langer, umbrechender Zellinhalte (z. B. lange Veranstaltungsnamen in einer `<td>`) rutschen nach rechts,
+  obwohl die Zelle selbst linksbündig ist. Betraf die laufende Fußzeile der PDF-Berichte
+  (`pdf/statistics-report.blade.php`, `pdf/year-comparison.blade.php`), deren Links/Rechts-Layout über
+  `.page-footer .left { float: left }` / `.right { float: right }` in einem `position: fixed`-Element lief.
+  Der Fehler tritt NUR im Zusammenspiel auf: eine mehrreihige Tabelle mit einer umbrechenden Zelle
+  (Spaltenbreite von den anderen Zeilen bestimmt) UND irgendwo im selben Dokument ein `float` in einem
+  `fixed`-Element. Ein isolierter Nachbau ohne diese Kombination reproduziert ihn nicht. **Am Symptom (der
+  Tabellenzelle) ist er NICHT zu beheben** — `text-align: left` am `<td>`, ein Block-`<div>` in der Zelle
+  oder eine explizite Spaltenbreite wirken alle nicht (das Block-`<div>` verschlimmert es sogar, weil dann
+  die ganze Spalte nach rechts rutscht). **Fix: den `float` eliminieren** — Links/Rechts-Layout in fixen
+  Kopf-/Fußzeilen über eine Zwei-Zellen-Tabelle mit `text-align` statt über `float` lösen. `position: fixed`
+  selbst (ohne float, z. B. die Kopfzeile) ist unproblematisch. Wichtig zur Diagnose: nur der ECHTE
+  Renderpfad (`Pdf::loadView(...)` mit dem vollständigen Wrapper) reproduziert das; per Bisektion des
+  gerenderten HTML eingrenzen, nicht per synthetischem Minimalbeispiel.
 
 ## Weitere Hinweise
 

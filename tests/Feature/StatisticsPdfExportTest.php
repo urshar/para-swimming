@@ -128,6 +128,20 @@ it('erzeugt auch mit nur einem Abschnitt ein PDF', function () {
     expect($response->getContent())->toStartWith('%PDF');
 });
 
+it('erzeugt ein PDF mit den 5-Jahres-Grafiken, wenn angefordert', function () {
+    pdf14_seed();
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report.pdf', [
+            'year' => 2024,
+            'sections' => pdf14_allSections(),
+            'charts' => '1',
+        ]));
+
+    $response->assertOk();
+    expect($response->getContent())->toStartWith('%PDF');
+});
+
 it('erzeugt ein PDF mit den Meisterschaftsabschnitten', function () {
     $meet = pdf14_seed();
 

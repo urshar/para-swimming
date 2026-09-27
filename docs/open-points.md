@@ -29,12 +29,14 @@ Aufwand (kleine zuerst). **Erledigt:** `feature/meets-status-column` ("Status-Sp
 `feature/form-tooltip-hints` ("Tooltip/Popover statt Info-Text" → Info-Icon + Tooltip),
 `feature/entries-best-times` ("Jahresbestzeiten im Admin-Formular" + "Absolute Bestzeit + Klick-Übernahme", PR #15 —
 beide Punkte zusammen in einem Branch) und
-`feature/relay-entry-time-suggestion` ("Meldezeit bei Staffelmeldungen aus den Athleten herleiten") — die
-zugehörigen Open Points unten wurden entfernt.
+`feature/relay-entry-time-suggestion` ("Meldezeit bei Staffelmeldungen aus den Athleten herleiten") und
+`feature/statistics-multi-year-chart` ("Statistik: 5-Jahres-Vergleichsgrafik" — deutlich über den ursprünglichen
+Umfang hinaus: eigener Jahresvergleich-Menüpunkt, Status je Veranstaltung, manueller Veranstaltungs-Vergleich;
+dokumentiert in `specs/statistics.md`; dabei sind die zwei Folge-Punkte "Staffel-Ergebnisse importieren" und
+"Weitere Statistiken" unten entstanden) — die zugehörigen Open Points unten wurden entfernt.
 
-1. `feature/statistics-multi-year-chart` — "Statistik: 5-Jahres-Vergleichsgrafik" unten
-2. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-3. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+1. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
+2. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -48,28 +50,57 @@ Erik klären, erst danach Branch anlegen/implementieren.
 3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
 
-## Statistik: 5-Jahres-Vergleichsgrafik (Starts/Teilnehmer, Damen/Herren, Staffeln)
+## Staffel-Ergebnisse importieren + Relay-Gender pflegen
 
-**Seit:** Phase-13-Planung, Design-Feedback Erik (15.09.2026): "Ich würde auch eine Grafik benötigen, um zu sehen,
-wie viele Starts im Vergleich der letzten 5 Jahre waren, Teilnehmer, getrennt nach Damen und Herren, Staffeln (Herren,
-Damen, Mixed) eventuell gehört das in die open points." — von Erik selbst als eigener Punkt vorgeschlagen,
-statt es in den Phase-13-Umfang zu mischen.
+**Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Beim Bau der Staffel-Auswertungen fiel auf,
+dass gar keine Staffelergebnisse in der Datenbank liegen.
 
-**Was fehlt:** Eine Grafik im Statistik-Dashboard, die Starts/Teilnehmer der letzten 5 Jahre nebeneinander zeigt,
-aufgeschlüsselt nach Damen/Herren sowie Staffeln getrennt nach Herren/Damen/Mixed.
+**Was fehlt:** Der LENEX-Import legt zwar die Staffel-**Bewerbe** an (`relaycount` aus dem SwimStyle →
+`swim_event.relay_count > 1`, aktuell 151 Bewerbe), aber **keine Staffel-Ergebnisse**: von 12.487 importierten
+Ergebnissen sind 0 Staffelergebnisse. Damit bleiben die bereits gebauten und getesteten Staffel-Zählungen
+(`ParticipationStatisticsService::relayStartsByEventGender`, Grafik "Staffelstarts nach Typ" im Jahresvergleich)
+leer bzw. Platzhalter.
 
-**Warum zurückgestellt:** `StatisticsDashboard`/`StatisticsService` werten aktuell immer nur **ein** gewähltes Jahr
-aus (`ReportConfiguration::fromArray(['year' => $this->year, ...])`) — ein Mehrjahresvergleich bräuchte eine neue
-Datenabfrage über mehrere Jahre hinweg, nicht nur eine neue Darstellung der bestehenden Auswertung. Dazu kommen
-offene Design-Fragen: Zeigt die Grafik feste "letzte 5 Kalenderjahre" oder ab dem gewählten Jahr rückwärts? Zählen
-Staffelstarts pro Staffel oder pro Athlet? Wo im Dashboard steht die Grafik (eigener Reiter/Abschnitt)? Das sollte
-vor der Umsetzung geklärt werden, nicht nebenbei in Phase 13 entschieden.
+Zusätzlich (**Relay-Gender**): Selbst mit Ergebnissen ließen sich 130 der 151 Staffel-Bewerbe nicht nach
+Herren/Damen/Mixed einordnen — ihr `gender` ist `A` (unspezifiziert); nur 21 haben `M`/`F`/`X`. Für die getrennte
+H/D/Mixed-Auswertung muss das Staffel-Geschlecht gepflegt oder hergeleitet werden.
 
-**Wer entscheidet:** Erik — insbesondere die Zeitraum- und Zählweise-Fragen oben.
+**Warum zurückgestellt:** Staffelergebnisse sind in LENEX anders aufgebaut als Einzelergebnisse (`<RELAY>` mit
+`<RELAYPOSITIONS>` und mehreren Athleten je Ergebnis, statt eines einzelnen `<RESULT>` je Schwimmer). Der
+`LenexParserService` verarbeitet aktuell nur Einzelergebnisse; es gibt kein `RelayResult`-Modell (nur `RelayEntry`
+für Meldungen). Das ist ein Import-Parser- **und** Datenmodell-Thema, kein Quick-Fix — bewusst getrennt von der
+Statistik-Iteration gehalten.
 
-**Zum Schließen nötig:** Neue Methode in `StatisticsService` (oder ein eigener Service) für eine
-Mehrjahres-Zeitreihe der gewünschten Kennzahlen, dann eine Grafik dafür im Dashboard (voraussichtlich
-`flux:chart`, siehe Phase 13 — dort erstmals im Projekt eingeführt).
+**Wer entscheidet:** Datenmodell-Frage — eigenes `RelayResult`-Modell vs. Staffelergebnisse als spezielle
+`results`-Zeilen (mit Staffelposition/eingesetzten Schwimmern). Und: Relay-Gender aus dem Bewerb bzw. den
+eingesetzten Athleten herleiten oder manuell pflegbar machen?
+
+**Zum Schließen nötig:** `LenexParserService` um Staffelergebnisse erweitern (`<RELAY>` → Ergebniszeilen inkl.
+eingesetzter Schwimmer/Position), das Datenmodell dafür, und die Relay-Gender-Pflege. Danach liefern die
+bestehenden Zählungen echte Zahlen und die Platzhalter-Grafik im Jahresvergleich wird automatisch belegt.
+
+## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
+
+**Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Erik hat beim Bau des Jahresvergleichs
+weitere sinnvolle Auswertungen als "für später" freigegeben — erst wenn eine belastbare Datenbasis vorhanden ist
+(vollständigere Importe, insbesondere Staffelergebnisse, s. o.), damit die Zahlen aussagekräftig sind.
+
+**Was fehlt:** Zusätzliche Trend-/Kennzahl-Auswertungen, u. a.:
+- Geschlechteranteil in Prozent (statt nur absoluter Zahlen)
+- Altersgruppen im Zeitverlauf
+- Nationen im Zeitverlauf
+- Ø Starts je Teilnehmer
+- neue vs. wiederkehrende Athleten je Jahr
+
+**Warum zurückgestellt:** Ohne vollständige/konsistente Datenbasis (v. a. fehlende Staffelergebnisse, teils
+unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann diese Auswertungen.
+
+**Wer entscheidet:** Erik — welche dieser Auswertungen tatsächlich gebraucht werden und in welcher Form
+(Dashboard-Abschnitt, Jahresvergleich, eigener Bereich).
+
+**Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
+plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
+Datenbasis steht.
 
 ## "Zurück"-Buttons kontextsensitiv statt fest auf den Index
 

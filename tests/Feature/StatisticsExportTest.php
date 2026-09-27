@@ -122,49 +122,20 @@ it('erzeugt auch ohne Daten eine gültige Excel-Datei', function () {
     expect(exp15_content($response))->toStartWith('PK');
 });
 
-it('exportiert auf Wunsch nur einen einzelnen Bereich', function () {
-    exp15_seed();
-
-    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
-        ->get(route('statistics.report.xlsx', [
-            'year' => 2024,
-            'sections' => exp15_allSections(),
-            'section' => 'clubs',
-        ]));
-
-    $response->assertOk();
-    expect($response->headers->get('Content-Disposition'))->toContain('jahresbericht-2024-clubs.xlsx')
-        ->and(exp15_content($response))->toStartWith('PK');
-});
-
-it('ignoriert einen unbekannten Bereich und exportiert vollständig', function () {
-    exp15_seed();
-
-    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
-        ->get(route('statistics.report.xlsx', [
-            'year' => 2024,
-            'sections' => exp15_allSections(),
-            'section' => 'gibtesnicht',
-        ]));
-
-    $response->assertOk();
-    expect($response->headers->get('Content-Disposition'))->toContain('jahresbericht-2024.xlsx');
-});
-
 // ── CSV ──────────────────────────────────────────────────────────────────────
 
-it('liefert eine CSV-Datei mit den Daten des Berichts', function () {
+it('liefert eine CSV-Datei mit den Daten des gewählten Abschnitts', function () {
     exp15_seed();
 
+    // Nur der Vereinsabschnitt angehakt → nur dessen Daten im Export.
     $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.report.csv', [
             'year' => 2024,
-            'sections' => exp15_allSections(),
-            'section' => 'clubs',
+            'sections' => ['clubs' => '1'],
         ]));
 
     $response->assertOk();
-    expect($response->headers->get('Content-Disposition'))->toContain('jahresbericht-2024-clubs.csv');
+    expect($response->headers->get('Content-Disposition'))->toContain('jahresbericht-2024.csv');
 
     $content = exp15_content($response);
 
@@ -190,7 +161,6 @@ it('enthält im CSV mehrerer Tabellen deren Überschriften', function () {
         ->get(route('statistics.report.csv', [
             'year' => 2024,
             'sections' => ['records' => '1'],
-            'section' => 'records',
         ]));
 
     $response->assertOk();
@@ -199,6 +169,43 @@ it('enthält im CSV mehrerer Tabellen deren Überschriften', function () {
     expect($content)->toContain('Rekorde')
         ->and($content)->toContain('Rekordarten')
         ->and($content)->toContain('Rekorde je Sportler');
+});
+
+it('exportiert die Status-Aufschlüsselung je Veranstaltung', function () {
+    exp15_seed();
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report.csv', [
+            'year' => 2024,
+            'sections' => ['status_by_meet' => '1'],
+        ]));
+
+    $response->assertOk();
+    $content = exp15_content($response);
+
+    expect($content)->toContain('Status je Veranstaltung')
+        ->and($content)->toContain('Regulär')
+        ->and($content)->toContain('DSQ')
+        ->and($content)->toContain('Gesamt');
+});
+
+it('exportiert die 5-Jahres-Vergleichstabellen mit Jahresspalten', function () {
+    exp15_seed();
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.report.csv', [
+            'year' => 2024,
+            'sections' => ['multi_year' => '1'],
+        ]));
+
+    $response->assertOk();
+    $content = exp15_content($response);
+
+    expect($content)->toContain('5J Einzelstarts')
+        ->and($content)->toContain('5J Teilnehmer')
+        ->and($content)->toContain('5J Staffelstarts')
+        ->and($content)->toContain('2020')
+        ->and($content)->toContain('2024');
 });
 
 it('berücksichtigt die Einschränkung auf ausgewählte Veranstaltungen', function () {
@@ -215,7 +222,6 @@ it('berücksichtigt die Einschränkung auf ausgewählte Veranstaltungen', functi
             'year' => 2024,
             'meet_ids' => [$meet->id],
             'sections' => ['meets' => '1'],
-            'section' => 'meets',
         ]));
 
     $response->assertOk();

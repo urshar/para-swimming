@@ -70,13 +70,36 @@
         padding: 3px 5px;
     }
 
+    /*
+     * vertical-align:top hält bei mehrzeiligen Zeilen (umgebrochene lange
+     * Veranstaltungsnamen) die Zahlenspalten auf Höhe der ersten Textzeile.
+     *
+     * Hinweis zur Linksbündigkeit umgebrochener Namen: Die Folgezeilen langer
+     * Namen rutschten im PDF zeitweise nach rechts. Ursache war NICHT diese
+     * Tabelle, sondern ein float innerhalb der position:fixed-Fußzeile des
+     * PDF-Wrappers (dompdf verschiebt dadurch umgebrochene Tabellenzellen an
+     * anderer Stelle im Dokument). Behoben in pdf/statistics-report (Fußzeile
+     * über eine Tabelle statt float); die Namenszellen brauchen daher kein
+     * eigenes text-align — <td> ist ohnehin linksbündig.
+     */
     td {
         padding: 3px 5px;
         border-bottom: 1px solid #eee;
+        vertical-align: top;
     }
 
     /* Zahlenspalten schmal halten, damit die Textspalten Platz bekommen. */
     td.num, th.num { text-align: right; width: 70px; }
+
+    /*
+     * Status je Veranstaltung hat acht Zahlenspalten. Mit den Standard-70px
+     * (oder auch 40px) bleibt der Veranstaltungsspalte zu wenig Platz — lange
+     * Namen brechen auf viele Zeilen um, die Tabelle wird sehr hoch und dompdf
+     * verteilt sie über unnötig viele Seiten. Schmale Zahlenspalten (Zählwerte
+     * mit 1–4 Stellen) und normal geschriebene Kopfzeilen halten sie kompakt.
+     */
+    .status-by-meet td.num, .status-by-meet th.num { width: 28px; }
+    .status-by-meet th { text-transform: none; }
 
     .kpis { margin: 8px 0 6px; }
     .kpis th { text-align: center; }
@@ -163,6 +186,72 @@
     <p class="note">Als Start zählen reguläre Ergebnisse sowie EXH, DSQ und DNF.</p>
 @endif
 
+{{-- ── 5-Jahres-Vergleich ──────────────────────────────────────────────── --}}
+@if($number = $section('multi_year'))
+    @php
+        $multiYear = $statistics['multi_year'];
+        $years = $multiYear['years'];
+        $rowsByYear = collect($multiYear['rows'])->keyBy('year');
+        $genderLabels = ['M' => 'Herren', 'F' => 'Damen', 'N' => 'Nicht binär'];
+        $relayGenderLabels = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
+        // Farben für die optionalen Grafiken (identisch zur Jahresvergleich-Seite).
+        $multiYearHex = ['M' => '#3b82f6', 'F' => '#ec4899', 'N' => '#f59e0b', 'X' => '#8b5cf6'];
+
+        // Die drei Vergleichstabellen: Feld-Präfix, welche Geschlechter, welche Beschriftung.
+        $multiYearTables = [
+            ['title' => 'Einzelstarts nach Geschlecht', 'prefix' => 'starts',
+                'genders' => $multiYear['individual_genders'], 'labels' => $genderLabels],
+            ['title' => 'Teilnehmer nach Geschlecht', 'prefix' => 'participants',
+                'genders' => $multiYear['individual_genders'], 'labels' => $genderLabels],
+            ['title' => 'Staffelstarts nach Typ', 'prefix' => 'relay',
+                'genders' => $multiYear['relay_genders'], 'labels' => $relayGenderLabels],
+        ];
+    @endphp
+    <h2>{{ $number }}. 5-Jahres-Vergleich ({{ $years[0] }}–{{ $years[count($years) - 1] }})</h2>
+
+    @foreach($multiYearTables as $myTable)
+        <h3>{{ $myTable['title'] }}</h3>
+
+        @if($showCharts ?? false)
+            @php
+                $svgSeries = array_map(fn (string $g): array => [
+                    'label' => $myTable['labels'][$g],
+                    'color' => $multiYearHex[$g] ?? '#71717a',
+                    'values' => array_map(fn (int $y): int => $rowsByYear[$y][$myTable['prefix'].'_'.strtolower($g)], $years),
+                ], $myTable['genders']);
+            @endphp
+            <x-trend-chart :chart="\App\Support\TrendChart::fromSeries($years, $svgSeries)"
+                           :for-pdf="$forPdf ?? false"/>
+        @endif
+
+        <table>
+            <thead>
+            <tr>
+                <th>Geschlecht</th>
+                @foreach($years as $y)
+                    <th class="num">{{ $y }}</th>
+                @endforeach
+            </tr>
+            </thead>
+            <tbody>
+            @foreach($myTable['genders'] as $g)
+                <tr>
+                    <td>{{ $myTable['labels'][$g] }}</td>
+                    @foreach($years as $y)
+                        <td class="num">{{ $rowsByYear[$y][$myTable['prefix'].'_'.strtolower($g)] }}</td>
+                    @endforeach
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @endforeach
+
+    <p class="note">
+        Volle Kalenderjahre, verankert am Berichtsjahr; unabhängig von einer Veranstaltungsauswahl.
+        Staffelstarts pro eingesetztem Schwimmer.
+    </p>
+@endif
+
 {{-- ── Teilnehmer und Starts pro Veranstaltung ─────────────────────────── --}}
 @if($number = $section('meets'))
     <h2>{{ $number }}. Teilnehmer und Starts pro Veranstaltung</h2>
@@ -181,9 +270,44 @@
         @empty
             <tr><td colspan="4" class="empty">Keine Veranstaltungen mit Starts im Zeitraum.</td></tr>
         @endforelse
-    
+
         </tbody>
     </table>
+@endif
+
+{{-- ── Status je Veranstaltung ──────────────────────────────────────────── --}}
+@if($number = $section('status_by_meet'))
+    @php
+        $statusOrder = ['regular', 'EXH', 'DSQ', 'DNS', 'DNF', 'SICK', 'WDR'];
+        $statusHead = ['regular' => 'Regulär', 'EXH' => 'EXH', 'DSQ' => 'DSQ',
+            'DNS' => 'DNS', 'DNF' => 'DNF', 'SICK' => 'SICK', 'WDR' => 'WDR'];
+    @endphp
+    <h2>{{ $number }}. Status je Veranstaltung</h2>
+    <table class="status-by-meet">
+        <thead>
+        <tr>
+            <th>Veranstaltung</th>
+            @foreach($statusOrder as $s)
+                <th class="num">{{ $statusHead[$s] }}</th>
+            @endforeach
+            <th class="num">Gesamt</th>
+        </tr>
+        </thead>
+        <tbody>
+        @forelse($statistics['status_by_meet'] as $row)
+            <tr>
+                <td>{{ $row['meet'] }}</td>
+                @foreach($statusOrder as $s)
+                    <td class="num">{{ $row['statuses'][$s] }}</td>
+                @endforeach
+                <td class="num">{{ $row['total'] }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="9" class="empty">Keine Veranstaltungen mit Ergebnissen im Zeitraum.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    <p class="note">Regulär = gewertetes Ergebnis (ohne Sonderstatus). Nur Einzelbewerbe.</p>
 @endif
 
 {{-- ── Teilnehmerstruktur ──────────────────────────────────────────────── --}}
