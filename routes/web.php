@@ -24,6 +24,7 @@ use App\Http\Controllers\KaderTypeController;
 use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
+use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
 use App\Http\Controllers\QualifyingTimeListController;
@@ -352,6 +353,12 @@ Route::middleware(['auth'])->group(function () {
         ->shallow()
         ->except(['index', 'show'])
         ->parameters(['entries' => 'entry']);
+
+    // Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine),
+    // nach Disziplin gruppiert — nur Admin.
+    Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
+        ->middleware(RequireAdmin::class)
+        ->name('meets.entries-overview');
 
     // Ergebnisse
     Route::resource('results', ResultController::class)->only(['index']);

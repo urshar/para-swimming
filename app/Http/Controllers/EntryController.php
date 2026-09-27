@@ -80,7 +80,7 @@ class EntryController extends Controller
         return response()->json($service->bestTimesForPanel($athlete, $event, $meet));
     }
 
-    public function store(Request $request, Meet $meet): RedirectResponse
+    public function store(Request $request, Meet $meet, ClubEntryService $service): RedirectResponse
     {
         $data = $request->validate(array_merge(
             [
@@ -91,8 +91,8 @@ class EntryController extends Controller
             $this->sharedEntryRules()
         ));
 
-        // Prüfen ob SwimEvent zum Meet gehört
-        $swimEvent = SwimEvent::findOrFail($data['swim_event_id']);
+        // Prüfen ob SwimEvent zum Meet gehört (strokeType für die Sportklassen-Ableitung mitladen)
+        $swimEvent = SwimEvent::with('strokeType')->findOrFail($data['swim_event_id']);
         if ($swimEvent->meet_id !== $meet->id) {
             return back()->withErrors([
                 'swim_event_id' => 'Diese Disziplin gehört nicht zu diesem Wettkampf.',
@@ -111,6 +111,12 @@ class EntryController extends Controller
             ]);
         }
 
+        // Sportklasse: leeres Feld = aus dem Athleten ableiten (wie im Club-Flow);
+        // ein ausgefülltes Feld bleibt als bewusste Abweichung erhalten.
+        if (empty($data['sport_class'])) {
+            $data['sport_class'] = $service->resolveSportClass((int) $data['athlete_id'], $swimEvent);
+        }
+
         [$entryTime, $entryTimeCode] = $this->parseEntryTime($data['entry_time'] ?? null);
         unset($data['entry_time']);
 
@@ -120,8 +126,7 @@ class EntryController extends Controller
             'entry_time_code' => $entryTimeCode,
         ]));
 
-        return redirect()
-            ->route('meets.show', $meet)
+        return $this->redirectAfterSave($request, $meet)
             ->with('success', 'Meldung erfolgreich angelegt.');
     }
 
@@ -197,5 +202,22 @@ class EntryController extends Controller
         }
 
         return [TimeParser::parse($raw), null];
+    }
+
+    /**
+     * Nach dem Speichern zurück zur Herkunftsseite, wenn ein internes return_to
+     * mitgegeben wurde (z. B. die "Alle Meldungen"-Übersicht mit gesetztem
+     * Filter), sonst zur Wettkampf-Detailseite. Nur gleiche Origin, um
+     * Open-Redirects auszuschließen.
+     */
+    private function redirectAfterSave(Request $request, Meet $meet): RedirectResponse
+    {
+        $returnTo = $request->input('return_to');
+
+        if (is_string($returnTo) && $returnTo !== '' && str_starts_with($returnTo, url('/'))) {
+            return redirect($returnTo);
+        }
+
+        return redirect()->route('meets.show', $meet);
     }
 }

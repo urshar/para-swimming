@@ -39,6 +39,10 @@ composer lint:check   # Pint nur prüfen
 - Services als `final readonly class` mit Constructor-Injection (siehe
   [docs/architecture.md](docs/architecture.md)).
 - Keine Default-Argumente an Aufrufstellen.
+- **In Kommentaren** (PHP, Blade `{{-- --}}`, JS) ausschließlich **gerade** Anführungszeichen (`"..."` bzw.
+  `'...'`) verwenden, keine typografischen (`„..."`). Das vermeidet die PhpStorm-Inspection zu unbalancierten
+  typografischen Anführungszeichen. Für **benutzersichtbare Texte** in Views/Strings sind typografische Zeichen
+  weiterhin in Ordnung — die Regel gilt nur für Kommentare.
 
 ### Datenbank-Portabilität (kritisch)
 

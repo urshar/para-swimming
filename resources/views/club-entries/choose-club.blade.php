@@ -20,6 +20,11 @@
             </p>
 
             <form method="GET" action="{{ route($routeName, $meet) }}" class="space-y-4">
+                {{-- Herkunftsseite über die Vereinsauswahl hinweg mitnehmen (z. B. "Alle
+                     Meldungen"), damit das Zielformular danach dorthin zurückkehren kann. --}}
+                @if(request('return_to'))
+                    <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                @endif
                 <flux:field>
                     <flux:label>Verein</flux:label>
                     <flux:select variant="listbox" searchable name="club_id" placeholder="Verein wählen…" required>

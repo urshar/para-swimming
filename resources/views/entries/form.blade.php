@@ -1,3 +1,5 @@
+@php use App\Support\SportClassRanges; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Meldung anlegen – ' . $meet->name)
@@ -44,6 +46,9 @@
             <form method="POST" action="{{ route('meets.entries.store', $meet) }}" class="space-y-4"
                   x-data='entryBestTimes(@json($entryBestTimesConfig))'>
                 @csrf
+                {{-- Herkunftsseite (z. B. "Alle Meldungen") — store() kehrt nach dem
+                     Speichern dorthin zurück statt zur Wettkampf-Detailseite. --}}
+                <input type="hidden" name="return_to" value="{{ request('return_to') }}">
 
                 <flux:field>
                     <flux:label>Disziplin<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
@@ -54,7 +59,7 @@
                                     <flux:select.option value="{{ $event->id }}" :selected="old('swim_event_id') == $event->id">
                                         {{ $event->display_name }}
                                         {{ $event->gender !== 'A' ? '(' . $event->gender . ')' : '' }}
-                                        {{ $event->sport_classes ? '– ' . $event->sport_classes : '' }}
+                                        {{ $event->sport_classes ? '– ' . SportClassRanges::format($event->sport_classes) : '' }}
                                     </flux:select.option>
                                 @endforeach
                             </flux:select.group>
@@ -65,9 +70,12 @@
 
                 <flux:field>
                     <flux:label>Athlet<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                    {{-- Ist ein Verein gewählt, werden nur dessen Athleten angezeigt
+                         (clientseitig über den Alpine-clubId-State). Ohne Verein: alle. --}}
                     <flux:select variant="listbox" searchable name="athlete_id" x-model="athleteId" required>
                         @foreach($athletes as $athlete)
-                            <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
+                            <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id"
+                                                x-show="! clubId || String(clubId) === '{{ $athlete->club_id }}'">
                                 {{ $athlete->display_name }}
                                 {{ $athlete->sport_classes_display ? '– ' . $athlete->sport_classes_display : '' }}
                                 ({{ $athlete->nation?->code }})
