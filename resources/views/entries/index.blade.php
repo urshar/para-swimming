@@ -71,13 +71,17 @@
                             @endif
                         </flux:table.cell>
                         <flux:table.cell class="text-right">
-                            <flux:button href="{{ route('entries.edit', $entry) }}" size="xs" variant="ghost"
-                                         icon="pencil" class="text-amber-500!"/>
-                            <form method="POST" action="{{ route('entries.destroy', $entry) }}" class="inline">
-                                @csrf @method('DELETE')
-                                <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500!"
-                                             onclick="return confirm('Meldung löschen?')"/>
-                            </form>
+                            {{-- Bearbeiten/Löschen ist Admin-Sache; Vereine sehen die Liste
+                                 nur lesend und verwalten ihre Meldungen über "Vereinsmeldungen". --}}
+                            @if(auth()->user()?->is_admin)
+                                <flux:button href="{{ route('entries.edit', $entry) }}" size="xs" variant="ghost"
+                                             icon="pencil" class="text-amber-500!"/>
+                                <form method="POST" action="{{ route('entries.destroy', $entry) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500!"
+                                                 onclick="return confirm('Meldung löschen?')"/>
+                                </form>
+                            @endif
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

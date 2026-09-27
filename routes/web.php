@@ -345,20 +345,26 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['events' => 'event']);
 
     // Meldungen
-    // Bestzeiten-AJAX fürs Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
-    Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])
-        ->name('meets.entries.best-times');
+    // Verbandsweite Meldungsliste — nur Ansicht. Fuer Vereine auf die eigenen
+    // Meldungen gescoped (EntryController::index).
     Route::resource('entries', EntryController::class)->only(['index']);
-    Route::resource('meets.entries', EntryController::class)
-        ->shallow()
-        ->except(['index', 'show'])
-        ->parameters(['entries' => 'entry']);
 
-    // Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine),
-    // nach Disziplin gruppiert — nur Admin.
-    Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
-        ->middleware(RequireAdmin::class)
-        ->name('meets.entries-overview');
+    // Anlegen/Bearbeiten/Loeschen von Meldungen sowie die meet-weite Gesamtuebersicht
+    // sind Admin-Sache; Vereine nutzen den eigenen, autorisierten club-entries-Weg.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        // Bestzeiten-AJAX fuers Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
+        Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])
+            ->name('meets.entries.best-times');
+        Route::resource('meets.entries', EntryController::class)
+            ->shallow()
+            ->except(['index', 'show'])
+            ->parameters(['entries' => 'entry']);
+
+        // Meet-weite Gesamtuebersicht aller Meldungen (Einzel + Staffel, alle Vereine),
+        // nach Disziplin gruppiert.
+        Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
+            ->name('meets.entries-overview');
+    });
 
     // Ergebnisse
     Route::resource('results', ResultController::class)->only(['index']);
