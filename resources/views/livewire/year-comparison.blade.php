@@ -31,7 +31,7 @@
             </div>
 
             <flux:button variant="filled" icon="arrow-down-tray" class="shrink-0"
-                         href="{{ route('statistics.comparison.pdf', ['year' => $year, 'span' => $span, 'show_regular' => $showRegularStatus ? 1 : 0]) }}">
+                         href="{{ route('statistics.comparison.pdf', ['year' => $year, 'span' => $span, 'show_regular' => $showRegularStatus ? 1 : 0, 'meets' => $selectedMeetIds]) }}">
                 Als PDF
             </flux:button>
         </div>
@@ -42,4 +42,7 @@
             @include('partials.year-comparison-chart', ['chart' => $chart])
         @endforeach
     </div>
+
+    {{-- Manueller Veranstaltungs-Vergleich (Status über Jahre, freie Meet-Auswahl). --}}
+    @include('partials.year-comparison-meets')
 </div>

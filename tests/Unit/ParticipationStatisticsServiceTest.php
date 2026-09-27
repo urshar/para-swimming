@@ -1715,3 +1715,48 @@ it('schlüsselt den Status je Veranstaltung auf', function () {
         ->and($byMeet[$meetB->id]['statuses']['regular'])->toBe(1)
         ->and($byMeet[$meetB->id]['total'])->toBe(1);
 })->group('statistics-multi-year-chart');
+
+// ── Veranstaltungs-Vergleich (statusForMeets) ────────────────────────────────
+
+it('vergleicht frei gewählte Veranstaltungen jahresübergreifend, chronologisch', function () {
+    $club = stat2_club();
+    $m2023 = stat2_meet(['name' => 'LM 2023', 'start_date' => '2023-06-01']);
+    $m2024 = stat2_meet(['name' => 'LM 2024', 'start_date' => '2024-06-01']);
+    $m2025 = stat2_meet(['name' => 'LM 2025', 'start_date' => '2025-06-01']);
+    $ignored = stat2_meet(['name' => 'Nicht gewählt', 'start_date' => '2024-07-01']);
+
+    stat2_start(stat2_athlete(), $club, $m2023, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $m2024);
+    stat2_start(stat2_athlete(), $club, $m2024, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $m2025, ['status' => 'DNS', 'swim_time' => null]);
+    stat2_start(stat2_athlete(), $club, $ignored);
+
+    // Reihenfolge der IDs bewusst durcheinander — Ergebnis muss chronologisch sein.
+    $rows = stat2_service()->statusForMeets([$m2025->id, $m2023->id, $m2024->id]);
+
+    expect($rows->pluck('meet_id')->all())->toBe([$m2023->id, $m2024->id, $m2025->id])
+        ->and($rows->pluck('meet_id')->all())->not->toContain($ignored->id)
+        ->and($rows->firstWhere('meet_id', $m2023->id)['statuses']['DSQ'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['statuses']['regular'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['statuses']['DSQ'])->toBe(1)
+        ->and($rows->firstWhere('meet_id', $m2024->id)['total'])->toBe(2)
+        ->and($rows->firstWhere('meet_id', $m2025->id)['statuses']['DNS'])->toBe(1);
+})->group('statistics-multi-year-chart');
+
+it('liefert ohne Auswahl eine leere Collection (statusForMeets)', function () {
+    expect(stat2_service()->statusForMeets([])->all())->toBe([]);
+})->group('statistics-multi-year-chart');
+
+it('zählt im Veranstaltungs-Vergleich nur Einzelbewerbe', function () {
+    $club = stat2_club();
+    $meet = stat2_meet();
+
+    stat2_start(stat2_athlete(), $club, $meet, ['status' => 'DSQ', 'swim_time' => null]);
+    stat2_relayStart(stat2_athlete(), $club, $meet, stat2_event($meet, relayCount: 4), ['status' => 'DSQ']);
+
+    $rows = stat2_service()->statusForMeets([$meet->id]);
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()['statuses']['DSQ'])->toBe(1)
+        ->and($rows->first()['total'])->toBe(1);
+})->group('statistics-multi-year-chart');

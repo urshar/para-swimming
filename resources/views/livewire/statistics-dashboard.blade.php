@@ -48,8 +48,12 @@
                          Checkbox und Label je Veranstaltung zusammen, statt mitten im Namen über
                          eine Spaltengrenze zu reißen. --}}
                     <div class="columns-1 sm:columns-2 xl:columns-3 gap-x-6 mt-2">
+                        {{-- wire:key je Veranstaltung: ohne ihn matcht Livewires DOM-Morph die
+                             Checkboxen beim Jahreswechsel positionsbasiert und übernimmt den
+                             checked-Property des alten Knotens für eine andere Veranstaltung
+                             (fälschlich angehakt, obwohl serverseitig nicht ausgewählt). --}}
                         @foreach($this->availableMeets as $meet)
-                            <div class="break-inside-avoid mb-2">
+                            <div wire:key="meet-{{ $meet->id }}" class="break-inside-avoid mb-2">
                                 <flux:checkbox
                                     wire:model.live="meetIds"
                                     value="{{ $meet->id }}"

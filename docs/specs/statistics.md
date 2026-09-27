@@ -75,13 +75,13 @@ nicht zugeordneter Schlüssel schlägt bewusst mit `UnhandledMatchError` fehl st
 | `meets`          | je Veranstaltung: Teilnehmer und Starts                                                          |
 | `status_by_meet` | je Veranstaltung: Aufschlüsselung Regulär/EXH/DSQ/DNS/DNF/SICK/WDR + Gesamt                      |
 | `participants`   | `by_age_group`, `by_gender`, `by_age_group_and_gender`                                           |
-| `clubs`         | je Verein: Teilnehmer und Starts                                                                 |
-| `athletes`      | je Sportler: Teilnahmen und Starts                                                               |
-| `nations`       | je Nation: Teilnehmer und Starts                                                                 |
-| `sport_classes` | `by_sport_class`, `by_disability_group`                                                          |
-| `records`       | `overview`, `by_athlete`, `by_record_type`                                                       |
-| `cup`           | ÖBSV-Cup-Gesamtwertung                                                                           |
-| `oebm` / `oejm` | Meisterschaftsauswertung (siehe unten)                                                           |
+| `clubs`          | je Verein: Teilnehmer und Starts                                                                 |
+| `athletes`       | je Sportler: Teilnahmen und Starts                                                               |
+| `nations`        | je Nation: Teilnehmer und Starts                                                                 |
+| `sport_classes`  | `by_sport_class`, `by_disability_group`                                                          |
+| `records`        | `overview`, `by_athlete`, `by_record_type`                                                       |
+| `cup`            | ÖBSV-Cup-Gesamtwertung                                                                           |
+| `oebm` / `oejm`  | Meisterschaftsauswertung (siehe unten)                                                           |
 
 `generate()` liefert nur die **aktivierten** Abschnitte, immer in
 `SECTION_KEYS`-Reihenfolge — Ansicht und PDF können ohne eigene Sortierung darüber iterieren.
@@ -107,7 +107,7 @@ Bericht auch die Nicht-Start-Fälle zeigen kann.
 
 ## Teilnahmen — `ParticipationStatisticsService`
 
-Methoden: `overview`, `statusBreakdown`, `byMeet`, `statusByMeet`, `byClub`, `byAthlete`,
+Methoden: `overview`, `statusBreakdown`, `byMeet`, `statusByMeet`, `statusForMeets`, `byClub`, `byAthlete`,
 `countAthletesWithMinParticipations`, `byNation`, `bySportClass`,
 `byDisabilityGroup`, `byAgeGroup`, `byAgeGroupAndGender`, `byGender`,
 `relayStartsByEventGender`.
@@ -126,6 +126,9 @@ Regeln, die man kennen sollte:
 - `statusByMeet` (Abschnitt `status_by_meet`) schlüsselt je Veranstaltung die Ergebnisstatus auf: `regular`
   (gewertetes Ergebnis, `status = null`) plus `EXH`, `DSQ`, `DNS`, `DNF`, `SICK`, `WDR` und `total`. Nur
   Einzelbewerbe; nach `start_date` sortiert.
+- `statusForMeets(array $meetIds)` liefert dieselbe Aufschlüsselung für eine **frei gewählte** Menge von
+  Veranstaltungen, rein über die Meet-IDs (kein Zeitraum-Scope, jahresübergreifend) — für den manuellen
+  Veranstaltungs-Vergleich. Teilt sich die Aggregation mit `statusByMeet` (`aggregateStatusByMeet`).
 
 ## Rekorde — `RecordStatisticsService`
 
@@ -157,7 +160,7 @@ Methoden: `cupForYear`, `overallRankingForConfiguration`, `overallRanking(Cup)`.
   Meet-Auswahl).
 
 > **Staffeldaten:** Die Staffelreihen sind derzeit ein Platzhalter — es sind keine Staffelergebnisse importiert
-> (vgl. offener Punkt „Staffel-Ergebnisse importieren"). Die Zählung selbst
+> (vgl. offener Punkt „Staffel-Ergebnisse importieren“). Die Zählung selbst
 > (`ParticipationStatisticsService::relayStartsByEventGender`) ist implementiert und getestet.
 
 **Jahresvergleich-Seite** (`statistics.comparison`, Livewire `YearComparison`): eigener Menüpunkt mit
@@ -166,6 +169,17 @@ statisches SVG (`TrendChart` → `x-trend-chart`, da dompdf kein JS ausführt). 
 Chart-Definitionen (Farb-Slots, Serien) für beide Ausgabewege. Im Status-Diagramm sind die **regulären
 Ergebnisse standardmäßig ausgeblendet** (Schalter `show_regular`), damit die Entwicklung der Sonderstatus
 (EXH/DSQ/DNS/…) nicht von der großen Regulär-Reihe überdeckt wird.
+
+**Veranstaltungen vergleichen** (Abschnitt derselben Seite): manuell gewählte Veranstaltungen — bewusst per
+Auswahl, **nicht** über Namensabgleich, da Namen je Jahr variieren — jahresübergreifend nebeneinander. Speist
+sich aus `statusForMeets()`. Die Auswahl läuft über eine Kaskade **Jahr → Monat → gefilterte Liste** (der
+Monatsfilter listet statisch alle zwölf Monate plus „Alle Monate“, damit die x-model-Auswahl beim Jahreswechsel
+nicht mit dem Server auseinanderläuft); die gewählten Veranstaltungen sammeln sich filterübergreifend an und
+stehen als entfernbare Chips darunter. Darstellung: **Vergleichstabelle** (Status als Zeilen, je Veranstaltung eine
+Spalte) plus auf dem Bildschirm ein gruppiertes Balkendiagramm (`flux:chart.bar`) über die Sonderstatus
+(Regulär bleibt dort außen vor, dominiert sonst die Skala — die vollständigen Zahlen stehen in der Tabelle).
+Das Jahresvergleich-PDF (`statistics.comparison.pdf`) enthält die gewählten Veranstaltungen (Parameter
+`meets[]`) als Tabelle.
 
 ## Meisterschaften (ÖBM / ÖJM)
 

@@ -50,6 +50,36 @@ function yc_start(int $year, string $gender = 'M'): Result
     ]);
 }
 
+/** Eine Veranstaltung mit einem Einzelergebnis im gegebenen Status; gibt das Meet zurück. */
+function yc_meet_with_status(int $year, string $status, string $name): Meet
+{
+    $meet = Meet::create([
+        'name' => $name, 'nation_id' => yc_nation()->id,
+        'course' => 'LCM', 'start_date' => "$year-06-01",
+    ]);
+    $event = SwimEvent::create([
+        'meet_id' => $meet->id,
+        'stroke_type_id' => StrokeType::firstOrCreate(
+            ['code' => 'FREE'],
+            ['lenex_code' => 'FREE', 'name_de' => 'Freistil', 'name_en' => 'Freestyle', 'category' => 'standard', 'is_active' => true],
+        )->id,
+        'distance' => 100, 'gender' => 'A', 'relay_count' => 1,
+    ]);
+    $athlete = Athlete::create([
+        'first_name' => 'Max', 'last_name' => 'Muster '.uniqid(),
+        'gender' => 'M', 'nation_id' => yc_nation()->id, 'is_active' => true,
+    ]);
+    $club = Club::create(['name' => 'Club '.uniqid(), 'nation_id' => yc_nation()->id]);
+
+    Result::create([
+        'meet_id' => $meet->id, 'swim_event_id' => $event->id,
+        'athlete_id' => $athlete->id, 'club_id' => $club->id,
+        'sport_class' => 'S9', 'status' => $status, 'swim_time' => $status === 'DSQ' ? null : 6000,
+    ]);
+
+    return $meet;
+}
+
 // ── Zugriff ──────────────────────────────────────────────────────────────────
 
 it('leitet nicht angemeldete Besucher auf die Login-Seite', function () {
@@ -167,4 +197,71 @@ it('erzeugt das PDF auch mit eingeblendeten regulären Ergebnissen', function ()
     $this->actingAs(User::factory()->create(['is_admin' => true]))
         ->get(route('statistics.comparison.pdf', ['year' => 2024, 'span' => 5, 'show_regular' => 1]))
         ->assertOk();
+});
+
+// ── Veranstaltungs-Vergleich (manuelle Auswahl) ──────────────────────────────
+
+it('zeigt den Veranstaltungs-Vergleich erst nach Auswahl von Meets', function () {
+    $m2023 = yc_meet_with_status(2023, 'DSQ', 'LM 2023');
+    $m2024 = yc_meet_with_status(2024, 'DNS', 'LM 2024');
+
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(YearComparison::class)
+        ->assertSee('Veranstaltungen vergleichen')
+        ->assertSee('Mindestens eine Veranstaltung auswählen')
+        ->set('selectedMeetIds', [$m2023->id, $m2024->id])
+        ->assertDontSee('Mindestens eine Veranstaltung auswählen')
+        ->assertSee('LM 2023')
+        ->assertSee('LM 2024');
+});
+
+it('filtert die Auswahlliste nach Jahr und Monat', function () {
+    $nation = yc_nation();
+    $make = fn (string $date, string $name): Meet => Meet::create([
+        'name' => $name, 'nation_id' => $nation->id, 'course' => 'LCM', 'start_date' => $date,
+    ]);
+
+    $juni2024 = $make('2024-06-15', 'Juni 2024');
+    $maerz2024 = $make('2024-03-10', 'März 2024');
+    $juni2023 = $make('2023-06-15', 'Juni 2023');
+
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    // Jahr 2024, alle Monate: beide 2024er, nicht der 2023er.
+    $alle2024 = Livewire::actingAs($admin)->test(YearComparison::class)
+        ->set('cmpYear', 2024)->set('cmpMonth', 0)
+        ->instance()->pickableMeets()->pluck('id')->all();
+    expect($alle2024)->toContain($juni2024->id, $maerz2024->id)
+        ->and($alle2024)->not->toContain($juni2023->id);
+
+    // Jahr 2024, nur Juni: nur der Juni-Termin.
+    $nurJuni = Livewire::actingAs($admin)->test(YearComparison::class)
+        ->set('cmpYear', 2024)->set('cmpMonth', 6)
+        ->instance()->pickableMeets()->pluck('id')->all();
+    expect($nurJuni)->toContain($juni2024->id)
+        ->and($nurJuni)->not->toContain($maerz2024->id, $juni2023->id);
+});
+
+it('setzt die Vergleichsauswahl zurück', function () {
+    $meet = yc_meet_with_status(2024, 'DSQ', 'LM 2024');
+
+    Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+        ->test(YearComparison::class)
+        ->set('selectedMeetIds', [$meet->id])
+        ->call('resetMeetComparison')
+        ->assertSet('selectedMeetIds', [])
+        ->assertSee('Mindestens eine Veranstaltung auswählen');
+});
+
+it('nimmt die gewählten Veranstaltungen in das Vergleichs-PDF auf', function () {
+    $m2023 = yc_meet_with_status(2023, 'DSQ', 'Vergleich 2023');
+    $m2024 = yc_meet_with_status(2024, 'DNS', 'Vergleich 2024');
+
+    $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->get(route('statistics.comparison.pdf', [
+            'year' => 2024, 'span' => 5, 'meets' => [$m2023->id, $m2024->id],
+        ]));
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toContain('application/pdf');
 });

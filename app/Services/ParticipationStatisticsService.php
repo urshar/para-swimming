@@ -183,41 +183,32 @@ final readonly class ParticipationStatisticsService
      */
     public function statusByMeet(ReportConfiguration $config): Collection
     {
-        $rows = $this->scopedQuery($config)
-            ->toBase()
-            ->selectRaw('results.meet_id as meet_id, results.status as status, COUNT(*) as aggregate')
-            ->groupBy('results.meet_id', 'results.status')
-            ->get();
+        return $this->aggregateStatusByMeet($this->scopedQuery($config));
+    }
 
-        if ($rows->isEmpty()) {
+    /**
+     * Status-Aufschlüsselung für eine frei gewählte Menge von Veranstaltungen —
+     * jahresübergreifend, ohne Zeitraum-Scope (für den manuellen
+     * Veranstaltungs-Vergleich, Spec "Veranstaltungen vergleichen").
+     *
+     * Gleiche Struktur und Zählweise wie statusByMeet (nur Einzelbewerbe, alle
+     * Statusschlüssel immer vorhanden), aber rein über die Meet-IDs gefiltert.
+     * Nicht existierende oder ergebnislose Meets erscheinen nicht.
+     *
+     * @param  array<int>  $meetIds
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    public function statusForMeets(array $meetIds): Collection
+    {
+        if ($meetIds === []) {
             return collect();
         }
 
-        $template = ['regular' => 0];
-        foreach (self::SPECIAL_STATUSES as $status) {
-            $template[$status] = 0;
-        }
+        $query = Result::query()
+            ->whereIn('results.meet_id', $meetIds)
+            ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
 
-        $byMeet = [];
-        foreach ($rows as $row) {
-            $meetId = (int) $row->meet_id;
-            $byMeet[$meetId] ??= $template;
-            $byMeet[$meetId][$row->status ?? 'regular'] = (int) $row->aggregate;
-        }
-
-        return Meet::query()
-            ->whereIn('id', array_keys($byMeet))
-            ->oldest('start_date')
-            ->orderBy('name')
-            ->get(['id', 'name', 'start_date'])
-            ->map(fn (Meet $meet): array => [
-                'meet_id' => $meet->id,
-                'meet' => $meet->name,
-                'start_date' => $meet->start_date?->toDateString(),
-                'statuses' => $byMeet[$meet->id],
-                'total' => array_sum($byMeet[$meet->id]),
-            ])
-            ->values();
+        return $this->aggregateStatusByMeet($query);
     }
 
     /**
@@ -293,7 +284,9 @@ final readonly class ParticipationStatisticsService
                 'participants' => (int) $aggregates[$club->id]->participants,
                 'starts' => (int) $aggregates[$club->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [
+                $a['starts'], $a['participants'],
+            ]
                 ?: strcmp($a['club'], $b['club']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -335,7 +328,9 @@ final readonly class ParticipationStatisticsService
                 'participations' => (int) $aggregates[$athlete->id]->participations,
                 'starts' => (int) $aggregates[$athlete->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['participations'], $b['starts']] <=> [$a['participations'], $a['starts']]
+            ->sort(fn (array $a, array $b): int => [$b['participations'], $b['starts']] <=> [
+                $a['participations'], $a['starts'],
+            ]
                 ?: strcmp($a['athlete'], $b['athlete']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -395,7 +390,9 @@ final readonly class ParticipationStatisticsService
                 'participants' => (int) $aggregates[$nation->id]->participants,
                 'starts' => (int) $aggregates[$nation->id]->starts,
             ])
-            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [$a['starts'], $a['participants']]
+            ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [
+                $a['starts'], $a['participants'],
+            ]
                 ?: strcmp($a['nation'], $b['nation']))
             ->values()
             ->map(fn (array $row, int $index): array => ['rank' => $index + 1] + $row);
@@ -648,6 +645,53 @@ final readonly class ParticipationStatisticsService
         }
 
         return $counts;
+    }
+
+    /**
+     * Gemeinsame Aggregation für statusByMeet() und statusForMeets(): zählt je
+     * Veranstaltung die regulären Ergebnisse und jeden Sonderstatus und reichert
+     * sie mit Name und Datum an. Erwartet eine bereits auf Einzelbewerbe
+     * eingeschränkte Result-Query.
+     *
+     * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
+     */
+    private function aggregateStatusByMeet(Builder $einzelResults): Collection
+    {
+        $rows = $einzelResults
+            ->toBase()
+            ->selectRaw('results.meet_id as meet_id, results.status as status, COUNT(*) as aggregate')
+            ->groupBy('results.meet_id', 'results.status')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        $template = ['regular' => 0];
+        foreach (self::SPECIAL_STATUSES as $status) {
+            $template[$status] = 0;
+        }
+
+        $byMeet = [];
+        foreach ($rows as $row) {
+            $meetId = (int) $row->meet_id;
+            $byMeet[$meetId] ??= $template;
+            $byMeet[$meetId][$row->status ?? 'regular'] = (int) $row->aggregate;
+        }
+
+        return Meet::query()
+            ->whereIn('id', array_keys($byMeet))
+            ->oldest('start_date')
+            ->orderBy('name')
+            ->get(['id', 'name', 'start_date'])
+            ->map(fn (Meet $meet): array => [
+                'meet_id' => $meet->id,
+                'meet' => $meet->name,
+                'start_date' => $meet->start_date?->toDateString(),
+                'statuses' => $byMeet[$meet->id],
+                'total' => array_sum($byMeet[$meet->id]),
+            ])
+            ->values();
     }
 
     /**

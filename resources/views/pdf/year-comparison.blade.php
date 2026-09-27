@@ -113,5 +113,41 @@
     </div>
 @endforeach
 
+@if(isset($comparisonMeets) && $comparisonMeets->isNotEmpty())
+    <div class="chart">
+        <h2>Veranstaltungen im Vergleich</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th class="lbl">Status</th>
+                    @foreach($comparisonMeets as $meet)
+                        <th>
+                            {{ $meet['meet'] }}<br>
+                            {{ $meet['start_date'] ? \Illuminate\Support\Carbon::parse($meet['start_date'])->format('d.m.Y') : '—' }}
+                        </th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($statusLabels as $key => $label)
+                    <tr>
+                        <td class="lbl">{{ $label }}</td>
+                        @foreach($comparisonMeets as $meet)
+                            <td class="num">{{ $meet['statuses'][$key] }}</td>
+                        @endforeach
+                    </tr>
+                @endforeach
+                <tr>
+                    <td class="lbl"><strong>Gesamt</strong></td>
+                    @foreach($comparisonMeets as $meet)
+                        <td class="num"><strong>{{ $meet['total'] }}</strong></td>
+                    @endforeach
+                </tr>
+            </tbody>
+        </table>
+        <p class="empty">Nur Einzelbewerbe.</p>
+    </div>
+@endif
+
 </body>
 </html>
