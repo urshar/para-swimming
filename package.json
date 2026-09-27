@@ -8,7 +8,7 @@
     },
     "dependencies": {
         "@tailwindcss/vite": "^4.3.3",
-        "alpinejs": "^3.17.3",
+        "alpinejs": "^3.17.4",
         "autoprefixer": "^10.6.1",
         "axios": "^1.20.0",
         "concurrently": "^10.0.5",
@@ -18,7 +18,7 @@
         "laravel-vite-plugin": "^3.2.0",
         "npm-check-updates": "^23.1.0",
         "tailwindcss": "^4.3.3",
-        "vite": "^8.3.0"
+        "vite": "^8.3.1"
     },
     "optionalDependencies": {
         "@rollup/rollup-linux-x64-gnu": "4.63.4",
@@ -29,6 +29,6 @@
         "core-js-pure@3.49.0": true
     },
     "devDependencies": {
-        "@types/alpinejs": "^3.13.11"
+        "@types/alpinejs": "^3.17.0"
     }
 }
