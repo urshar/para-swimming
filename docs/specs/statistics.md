@@ -181,6 +181,11 @@ Spalte) plus auf dem Bildschirm ein gruppiertes Balkendiagramm (`flux:chart.bar`
 Das Jahresvergleich-PDF (`statistics.comparison.pdf`) enthält die gewählten Veranstaltungen (Parameter
 `meets[]`) als Tabelle.
 
+> **Ausblick:** Weitere Auswertungen (Geschlechteranteil in %, Altersgruppen/Nationen im Zeitverlauf, Ø Starts je
+> Teilnehmer, neue vs. wiederkehrende Athleten) sind bewusst zurückgestellt, bis eine belastbare Datenbasis
+> vorliegt (insbesondere importierte Staffelergebnisse) — festgehalten in `docs/open-points.md`
+> ("Weitere Statistiken" und "Staffel-Ergebnisse importieren").
+
 ## Meisterschaften (ÖBM / ÖJM)
 
 Kein Datenfeld kennzeichnet ein Meet als Meisterschaft — maßgeblich ist die Auswahl in `oebmMeetIds` / `oejmMeetIds`.
