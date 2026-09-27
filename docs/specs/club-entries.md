@@ -189,7 +189,33 @@ Stil).
 Beim Anlegen einer Einzelmeldung wird `Entry::updateOrCreate` auf
 `(meet_id, swim_event_id, athlete_id)` verwendet; eine erneute Meldung aktualisiert also den bestehenden Datensatz.
 `entry_course` fällt auf
-`meet.course` zurück; `sport_class` wird aus dem Athleten passend zum Event aufgelöst.
+`meet.course` zurück; `sport_class` wird aus dem Athleten passend zum Event aufgelöst
+(`ClubEntryService::resolveSportClass(athleteId, event)`, Lage → Kategorie S/SB/SM). Diese Ableitung teilen sich
+Club- und Admin-Flow (s. u.).
+
+## Admin: meet-weite Gesamtübersicht ("Alle Meldungen")
+
+Neben den club-gescopten Ansichten gibt es für Admins eine **meet-weite** Übersicht aller Meldungen einer
+Veranstaltung — Einzel- UND Staffelmeldungen, über alle Vereine hinweg, nach Disziplin gruppiert
+(`MeetEntriesOverviewController@index`, Route `meets.entries-overview`, nur Admin via `RequireAdmin`; verlinkt von
+`meets/show`). Rein lesend/gruppierend: Bearbeiten und Löschen laufen über die bestehenden Formulare
+(`entries.edit`/`entries.destroy` bzw. `club-entries.relay.edit`/`.destroy` mit `club_id`). Ein optionaler
+Disziplin-Filter (`event_id`) blendet den jeweils unpassenden Abschnitt aus.
+
+**Anlegen aus der Übersicht:**
+
+- *Neue Einzelmeldung* → Admin-Formular (`meets.entries.create`, `EntryController`). Die Sportklassen der Disziplin
+  werden über `App\Support\SportClassRanges` zu Bereichen zusammengefasst (`S1 S2 … S15 S21` → `S1-S7, S9-S15, S21`;
+  Lücken brechen einen Bereich, kein Null-Padding), und die Athletenauswahl wird bei gewähltem Verein client-seitig
+  auf dessen Athleten eingeschränkt.
+- *Neue Staffelmeldung* → `club-entries.relay.create`; für Admins ohne gewählten Verein erscheint zuerst die
+  Vereinsauswahl (`clubChooserView`), die **direkt** ins Anlege-Formular führt (nicht mehr über die Staffelliste).
+- Beide Wege geben eine `return_to`-URL mit; nach dem Speichern kehrt der Flow zur Übersicht zurück (nur interne
+  Ziele, Open-Redirect-Schutz), sonst wie bisher zur Detailseite bzw. zur Staffelliste des Vereins.
+
+**Sportklasse (Admin-Einzelmeldung):** `EntryController@store` leitet die Sportklasse bei leerem Feld aus dem
+Athleten ab — dieselbe Logik wie im Club-Flow, gemeinsam in `ClubEntryService::resolveSportClass`. Ein
+ausgefülltes Feld bleibt als bewusste Abweichung erhalten.
 
 ## Validierung
 
@@ -242,3 +268,6 @@ Phase).
 - `tests/Feature/RelayBestTimeTest.php` — Staffel-Summe (FREE/MEDLEY-Position/IMRELAY), `legs`,
   Teilsumme/Missing, Panel-/Filter-Rendering.
 - `tests/Feature/EntryPolicyTest.php` — Meldeschluss/Autorisierung.
+- `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
+  Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
+- `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.

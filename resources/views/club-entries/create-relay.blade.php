@@ -41,6 +41,11 @@
                 @if(auth()->user()->is_admin && request('club_id'))
                     <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
                 @endif
+                {{-- storeRelay kehrt nach dem Speichern hierher zurück, wenn gesetzt
+                     (z. B. "Alle Meldungen"-Übersicht) statt zur Staffelliste. --}}
+                @if(request('return_to'))
+                    <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                @endif
 
                 @if($errors->any())
                     <div class="mb-5 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800

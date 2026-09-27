@@ -23,6 +23,32 @@ use Illuminate\Support\Collection;
  */
 readonly class ClubEntryService
 {
+    // ── Sportklasse ───────────────────────────────────────────────────────────
+
+    /**
+     * Ermittelt die zum Bewerb passende Sportklasse eines Athleten: Die Kategorie
+     * ergibt sich aus der Lage (Brust → SB, Lagen → SM, sonst S); zurückgegeben
+     * wird die Sportklasse des Athleten in dieser Kategorie (oder null).
+     *
+     * Gemeinsame Grundlage für die Club- und die Admin-Meldung, damit die
+     * Sportklasse in beiden Wegen identisch aus dem Athleten abgeleitet wird.
+     */
+    public function resolveSportClass(int $athleteId, SwimEvent $event): ?string
+    {
+        $athlete = Athlete::with('sportClasses')->find($athleteId);
+        if (! $athlete) {
+            return null;
+        }
+
+        $category = match ($event->strokeType?->lenex_code) {
+            'BREAST' => 'SB',
+            'MEDLEY', 'IMRELAY' => 'SM',
+            default => 'S',
+        };
+
+        return $athlete->sportClasses->firstWhere('category', $category)?->sport_class;
+    }
+
     // ── Athleten-Eignung ──────────────────────────────────────────────────────
 
     /**

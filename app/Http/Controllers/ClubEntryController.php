@@ -244,6 +244,13 @@ class ClubEntryController extends Controller
     {
         $this->authorize('manageEntries', $meet);
 
+        // Admin ohne gewählten Verein: direkt die Vereinsauswahl zeigen, die dann
+        // wieder hierher (ins Anlege-Formular) führt — statt über die Staffelliste
+        // und einen zweiten "+ neue Staffelmeldung"-Klick.
+        if ($chooser = $this->clubChooserView($meet, 'club-entries.relay.create')) {
+            return $chooser;
+        }
+
         $club = $this->userClub();
 
         $events = SwimEvent::query()
@@ -316,9 +323,15 @@ class ClubEntryController extends Controller
             ]);
         }
 
-        return redirect()
-            ->route('club-entries.relay.index', array_merge(['meet' => $meet], $this->clubParam()))
-            ->with('success', 'Staffelmeldung gespeichert.');
+        // Kam die Meldung aus der meet-weiten "Alle Meldungen"-Übersicht (return_to),
+        // dorthin zurück — sonst wie gehabt zur Staffelliste des Vereins. Nur interne
+        // Ziele (Open-Redirect-Schutz).
+        $returnTo = $request->input('return_to');
+        $redirect = (is_string($returnTo) && $returnTo !== '' && str_starts_with($returnTo, url('/')))
+            ? redirect($returnTo)
+            : redirect()->route('club-entries.relay.index', array_merge(['meet' => $meet], $this->clubParam()));
+
+        return $redirect->with('success', 'Staffelmeldung gespeichert.');
     }
 
     // ── Destroy ───────────────────────────────────────────────────────────────
@@ -672,26 +685,13 @@ class ClubEntryController extends Controller
     // ── Store Relay ───────────────────────────────────────────────────────────────
 
     /**
-     * Leitet die passende Sportklasse eines Athleten für ein Event ab.
-     * Nutzt die stroke-basierte Kategorie-Logik (S/SB/SM).
+     * Leitet die passende Sportklasse eines Athleten für ein Event ab
+     * (stroke-basierte Kategorie-Logik S/SB/SM). Liegt in ClubEntryService,
+     * damit die Admin-Meldung (EntryController) dieselbe Ableitung nutzt.
      */
     private function resolveSportClass(int $athleteId, SwimEvent $event): ?string
     {
-        $athlete = Athlete::with('sportClasses')->find($athleteId);
-        if (! $athlete) {
-            return null;
-        }
-
-        // Kategorie aus Stroke ableiten
-        $category = match ($event->strokeType?->lenex_code) {
-            'BREAST' => 'SB',
-            'MEDLEY', 'IMRELAY' => 'SM',
-            default => 'S',
-        };
-
-        $sc = $athlete->sportClasses->firstWhere('category', $category);
-
-        return $sc?->sport_class;
+        return $this->entryService->resolveSportClass($athleteId, $event);
     }
 
     // ── Edit Relay ────────────────────────────────────────────────────────────────

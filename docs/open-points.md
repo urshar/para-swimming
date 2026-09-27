@@ -203,6 +203,57 @@ ob Staffeln von Anfang an mit reinsollen oder eine eigene Folge-Iteration werden
 `RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder ergänzt
 den bestehenden "Meldungen"-Button).
 
+## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
+
+**Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
+
+**Was fehlt:** Staffeln haben keinen eigenen Namen. In Listen (Meldeliste, Startliste) und im Datenmodell
+erscheinen mehrere Staffeln desselben Vereins in einem Bewerb alle nur als Vereinsname (z. B. "BSV Spittal") —
+in den Auswertungsprogrammen von Schwimmveranstaltungen und in Startlisten nicht unterscheidbar.
+
+Gewünscht: Der Verein kann einen Staffelnamen **frei** vergeben. Ist keiner gesetzt, wird der Vereinsname genommen
+und bei **mehreren Staffeln desselben Vereins im selben Bewerb** eine laufende Nummer angehängt (z. B.
+"BSV Spittal 1", "BSV Spittal 2").
+
+**Warum zurückgestellt:** Querschnittlich — ein optionales Namensfeld an `RelayEntry` (Migration) + Eingabe im
+Staffel-Formular + Anzeige in Meldeliste/Startlisten + LENEX-Export. Der LENEX-Export vergibt Staffeln bereits eine
+laufende `number` (`LenexExportService::buildRelay`), aber es gibt kein Namensfeld und die App-Anzeige nutzt nur den
+Vereinsnamen. Eigenes Thema, nicht Teil der Meldelisten-Übersicht.
+
+**Wer entscheidet:** Erik — ob nur die laufende Nummerierung (Fallback) reicht oder auch der frei vergebbare Name
+gebraucht wird (Letzteres braucht Feld + Formularfeld).
+
+**Zum Schließen nötig:** `name`/Bezeichnung an `RelayEntry` (nullable) + Formularfeld; eine Anzeige-Logik "Name,
+sonst Vereinsname (+ laufende Nummer bei mehreren im selben Bewerb)" als Accessor, überall genutzt (Meldeliste,
+Startlisten, LENEX-`name`).
+
+## Meldebasierte Listen & Meldegelder (Teilnehmerliste, Sportpasskontrolle, Gebühren) — PDF + online
+
+**Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
+
+**Was fehlt:** Aus den Meldungen einer Veranstaltung sollen zusätzliche Auswertungen als PDF **und** online erzeugt
+werden — jeweils Admin = ganze Veranstaltung, Verein = nur die eigenen Meldungen:
+
+- **Meldeliste** nach Namen und nach Bewerben (die naheliegendste, direkt aus `Entry`/`RelayEntry`),
+- **Teilnehmerliste** (wer ist gemeldet),
+- **Sportpasskontrollliste** (Athlet + Sportklasse + Verein zum Abhaken der Sportpässe),
+- **Meldegelder** (Gebühren je Verein/Athlet, Summe).
+
+**Warum zurückgestellt:** Meldeliste, Teilnehmer- und Sportpasskontrollliste sind im Kern formatierte Listen der
+bereits vorhandenen Melde-Daten und lassen sich mit einem gemeinsamen PDF-/Online-Mechanismus umsetzen (siehe
+zugehörigen Umsetzungsplan). **Meldegelder brauchen dagegen ein neues Datenmodell:** aktuell gibt es kein
+Gebühren-Feld (kein `entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je
+Bewerb/Staffel, evtl. Grundgebühr je Verein), eine Berechnung über die Meldungen und die PDF-/Online-Darstellung —
+ein eigenes Thema mit Design-Entscheidungen.
+
+**Wer entscheidet:** Erik — Gebührenmodell (Pauschale vs. je Start vs. je Bewerb; Staffel-Gebühren; Grundgebühr je
+Verein; wer legt die Beträge fest und wo). Für die reinen Listen: welche Spalten/Sortierungen genau gebraucht werden.
+
+**Zum Schließen nötig:** (1) gemeinsamer Meldelisten-Export (PDF + online) inkl. Teilnehmer- und
+Sportpasskontrollliste, Admin- vs. club-gescoped. (2) Für Meldegelder zusätzlich: Gebühren-Datenmodell + Berechnung
++ Darstellung. Setzt voraus, dass die club-gescopte Sicht auf Meldungen sauber ist (siehe Hinweis unten zum
+ungeschützten `entries.index`).
+
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 
 **Seit:** Phase 9 (`/de/barrierefreiheit`, `docs/accessibility.md` §Erklärung zur Barrierefreiheit).

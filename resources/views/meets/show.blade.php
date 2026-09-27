@@ -29,6 +29,14 @@
                 </flux:button>
             @endif
 
+            {{-- Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine) — nur Admin --}}
+            @if(auth()->user()?->is_admin)
+                <flux:button href="{{ route('meets.entries-overview', $meet) }}" variant="filled"
+                             icon="list-bullet" size="sm" class="text-blue-500!">
+                    Alle Meldungen
+                </flux:button>
+            @endif
+
             @if(auth()->user()?->is_admin)
                 <flux:button href="{{ route('meets.results.create', $meet) }}" variant="filled"
                              icon="plus" size="sm" class="text-blue-500!">
