@@ -227,32 +227,50 @@ gebraucht wird (Letzteres braucht Feld + Formularfeld).
 sonst Vereinsname (+ laufende Nummer bei mehreren im selben Bewerb)" als Accessor, überall genutzt (Meldeliste,
 Startlisten, LENEX-`name`).
 
-## Meldebasierte Listen & Meldegelder (Teilnehmerliste, Sportpasskontrolle, Gebühren) — PDF + online
+## Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online
 
 **Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
 
-**Was fehlt:** Aus den Meldungen einer Veranstaltung sollen zusätzliche Auswertungen als PDF **und** online erzeugt
-werden — jeweils Admin = ganze Veranstaltung, Verein = nur die eigenen Meldungen:
+**Erledigt (28.09.2026, `feature/entry-lists`):** Die vier **Melde-Listen** sind umgesetzt und in
+`docs/specs/club-entries.md` (Abschnitt „Meldebasierte Listen") dokumentiert: **Teilnehmerliste** (pro Verein,
+PDF + Excel, Sport-Austria-Vorlage), **Sportpasskontrolle** (alle Vereine, admin-only, PDF + Excel, ÖBSV-Vorlage),
+**Meldeliste nach Namen** und **Meldeliste nach Bewerben** (je PDF, Admin = ganze Veranstaltung, Verein = nur eigene).
+Ebenfalls erledigt: das Club-Scoping der linksseitigen Meldungsliste (`entries.index`), auf das dieser Punkt früher
+verwies.
 
-- **Meldeliste** nach Namen und nach Bewerben (die naheliegendste, direkt aus `Entry`/`RelayEntry`),
-- **Teilnehmerliste** (wer ist gemeldet),
-- **Sportpasskontrollliste** (Athlet + Sportklasse + Verein zum Abhaken der Sportpässe),
-- **Meldegelder** (Gebühren je Verein/Athlet, Summe).
+**Was noch fehlt — Meldegelder:** Aus den Meldungen die Gebühren je Verein/Athlet samt Summe erzeugen (PDF + online).
 
-**Warum zurückgestellt:** Meldeliste, Teilnehmer- und Sportpasskontrollliste sind im Kern formatierte Listen der
-bereits vorhandenen Melde-Daten und lassen sich mit einem gemeinsamen PDF-/Online-Mechanismus umsetzen (siehe
-zugehörigen Umsetzungsplan). **Meldegelder brauchen dagegen ein neues Datenmodell:** aktuell gibt es kein
-Gebühren-Feld (kein `entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je
-Bewerb/Staffel, evtl. Grundgebühr je Verein), eine Berechnung über die Meldungen und die PDF-/Online-Darstellung —
-ein eigenes Thema mit Design-Entscheidungen.
+**Warum zurückgestellt:** **Meldegelder brauchen ein neues Datenmodell:** aktuell gibt es kein Gebühren-Feld
+(kein `entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je Bewerb/Staffel,
+evtl. Grundgebühr je Verein), eine Berechnung über die Meldungen und die PDF-/Online-Darstellung — ein eigenes
+Thema mit Design-Entscheidungen. Die vorhandene Melde-Listen-Infrastruktur (`MeetEntryListService`/
+`MeetEntryListController`) kann als Vorbild/Anschlusspunkt dienen.
 
 **Wer entscheidet:** Erik — Gebührenmodell (Pauschale vs. je Start vs. je Bewerb; Staffel-Gebühren; Grundgebühr je
-Verein; wer legt die Beträge fest und wo). Für die reinen Listen: welche Spalten/Sortierungen genau gebraucht werden.
+Verein; wer legt die Beträge fest und wo).
 
-**Zum Schließen nötig:** (1) gemeinsamer Meldelisten-Export (PDF + online) inkl. Teilnehmer- und
-Sportpasskontrollliste, Admin- vs. club-gescoped. (2) Für Meldegelder zusätzlich: Gebühren-Datenmodell + Berechnung
-+ Darstellung. Setzt voraus, dass die club-gescopte Sicht auf Meldungen sauber ist (siehe Hinweis unten zum
-ungeschützten `entries.index`).
+**Zum Schließen nötig:** Gebühren-Datenmodell (Konfiguration je Meet/Bewerb) + Berechnung über die Meldungen +
+Darstellung (PDF + online), analog zu den bestehenden Melde-Listen.
+
+## Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt
+
+**Seit:** `feature/entry-lists` (28.09.2026), beim Bau der Meldeliste nach Bewerben.
+
+**Was fehlt:** Die „Übersichtsliste nach Wettkämpfen" gruppiert nach **Abschnitt** (Session, `swim_events.session_number`)
+und zeigt in der swimify-Vorlage je Abschnitt den konkreten **Wochentag + Datum** („Abschnitt 1 - Samstag, 17. Oktober
+2026"). Unser Datenmodell kennt aber **keine Zuordnung Session → Kalendertag** — nur `meet.start_date`/`end_date`.
+Daher zeigt die Liste den Wochentag/das Datum nur bei **eintägigen** Veranstaltungen; bei mehrtägigen steht lediglich
+„Abschnitt N" (siehe `MeetEntryListService::sessionLabel`).
+
+**Warum zurückgestellt:** Braucht ein neues Feld/Datenmodell (Datum bzw. Datum+Startzeit je Session) plus Pflege
+(manuell im Meet-/Session-Formular und/oder aus dem LENEX-Import, wo `<SESSION date=…>` vorhanden ist). Eigenes
+kleines Thema, nicht Teil der Listen-Formatierung.
+
+**Wer entscheidet:** Erik — ob die Session-Datumsangabe gebraucht wird und woher sie kommt (manuell pflegen vs. aus
+LENEX übernehmen).
+
+**Zum Schließen nötig:** Session-Datum am Datenmodell (z. B. `session_date` je `swim_event` bzw. eine eigene
+Session-Struktur), Pflege/Import, dann `sessionLabel` das echte Datum je Abschnitt nutzen lassen.
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 

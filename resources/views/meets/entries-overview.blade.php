@@ -15,18 +15,58 @@
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Alle Meldungen</h1>
             </div>
 
-            {{-- Anlegen direkt von hier (nur bei offenem Meet). Einzel führt ins
-                 Admin-Formular; Staffel über die Relay-Liste mit Vereinsauswahl, da es
-                 keinen direkten Admin-Weg gibt, eine Staffel ohne gewählten Verein
-                 anzulegen (createRelay bricht ohne club_id mit 400 ab). --}}
-            @if($meet->is_open)
-                <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2">
+                {{-- Meldebasierte Listen (Teilnehmerliste alle Vereine, Sportpasskontrolle) --}}
+                <flux:dropdown>
+                    <flux:button variant="filled" size="sm" icon="document-arrow-down"
+                                 icon:trailing="chevron-down" class="text-blue-500!">Listen</flux:button>
+                    {{-- Listen in einem eigenen Tab öffnen (target=_blank), damit die
+                         "Alle Meldungen"-Ansicht erhalten bleibt. --}}
+                    <flux:menu>
+                        <flux:menu.item icon="document-text" target="_blank"
+                                        href="{{ route('meets.entry-lists.teilnehmer.pdf', $meet) }}">
+                            Teilnehmerliste (PDF)
+                        </flux:menu.item>
+                        <flux:menu.item icon="table-cells" target="_blank"
+                                        href="{{ route('meets.entry-lists.teilnehmer.xlsx', $meet) }}">
+                            Teilnehmerliste (Excel)
+                        </flux:menu.item>
+                        <flux:menu.separator/>
+                        <flux:menu.item icon="document-text" target="_blank"
+                                        href="{{ route('meets.entry-lists.nach-namen.pdf', $meet) }}">
+                            Meldeliste nach Namen (PDF)
+                        </flux:menu.item>
+                        <flux:menu.item icon="document-text" target="_blank"
+                                        href="{{ route('meets.entry-lists.nach-bewerben.pdf', $meet) }}">
+                            Meldeliste nach Bewerben – 2-spaltig (PDF)
+                        </flux:menu.item>
+                        <flux:menu.item icon="document-text" target="_blank"
+                                        href="{{ route('meets.entry-lists.nach-bewerben.pdf', ['meet' => $meet, 'columns' => 1]) }}">
+                            Meldeliste nach Bewerben – 1-spaltig (PDF)
+                        </flux:menu.item>
+                        <flux:menu.separator/>
+                        <flux:menu.item icon="document-text" target="_blank"
+                                        href="{{ route('meets.entry-lists.sportpass.pdf', $meet) }}">
+                            Sportpasskontrolle (PDF)
+                        </flux:menu.item>
+                        <flux:menu.item icon="table-cells" target="_blank"
+                                        href="{{ route('meets.entry-lists.sportpass.xlsx', $meet) }}">
+                            Sportpasskontrolle (Excel)
+                        </flux:menu.item>
+                    </flux:menu>
+                </flux:dropdown>
+
+                {{-- Anlegen direkt von hier (nur bei offenem Meet). Einzel führt ins
+                     Admin-Formular; Staffel über die Relay-Liste mit Vereinsauswahl, da es
+                     keinen direkten Admin-Weg gibt, eine Staffel ohne gewählten Verein
+                     anzulegen (createRelay bricht ohne club_id mit 400 ab). --}}
+                @if($meet->is_open)
                     <flux:button href="{{ route('meets.entries.create', ['meet' => $meet, 'return_to' => url()->full()]) }}"
                                  variant="primary" icon="plus" size="sm">Neue Einzelmeldung</flux:button>
                     <flux:button href="{{ route('club-entries.relay.create', ['meet' => $meet, 'return_to' => url()->full()]) }}"
                                  variant="filled" icon="plus" size="sm" class="text-blue-500!">Neue Staffelmeldung</flux:button>
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ $meet->name }} · {{ $meet->start_date?->format('d.m.Y') }}

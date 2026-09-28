@@ -24,6 +24,39 @@
             </p>
 
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                {{-- Teilnehmerliste des eigenen Vereins (PDF/Excel). Nur für Vereinsnutzer;
+                     Admins nutzen die meet-weiten Listen auf "Alle Meldungen". --}}
+                @unless(auth()->user()->is_admin)
+                    <flux:dropdown>
+                        <flux:button variant="filled" size="sm" icon="document-arrow-down"
+                                     icon:trailing="chevron-down" class="text-blue-500!">Listen</flux:button>
+                        {{-- Listen in einem eigenen Tab öffnen (target=_blank). --}}
+                        <flux:menu>
+                            <flux:menu.item icon="document-text" target="_blank"
+                                            href="{{ route('meets.entry-lists.teilnehmer.pdf', $meet) }}">
+                                Teilnehmerliste (PDF)
+                            </flux:menu.item>
+                            <flux:menu.item icon="table-cells" target="_blank"
+                                            href="{{ route('meets.entry-lists.teilnehmer.xlsx', $meet) }}">
+                                Teilnehmerliste (Excel)
+                            </flux:menu.item>
+                            <flux:menu.separator/>
+                            <flux:menu.item icon="document-text" target="_blank"
+                                            href="{{ route('meets.entry-lists.nach-namen.pdf', $meet) }}">
+                                Meldeliste nach Namen (PDF)
+                            </flux:menu.item>
+                            <flux:menu.item icon="document-text" target="_blank"
+                                            href="{{ route('meets.entry-lists.nach-bewerben.pdf', $meet) }}">
+                                Meldeliste nach Bewerben – 2-spaltig (PDF)
+                            </flux:menu.item>
+                            <flux:menu.item icon="document-text" target="_blank"
+                                            href="{{ route('meets.entry-lists.nach-bewerben.pdf', ['meet' => $meet, 'columns' => 1]) }}">
+                                Meldeliste nach Bewerben – 1-spaltig (PDF)
+                            </flux:menu.item>
+                        </flux:menu>
+                    </flux:dropdown>
+                @endunless
+
                 <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParam)) }}"
                              variant="filled" size="sm" class="text-blue-500!">
                     Staffelmeldungen
