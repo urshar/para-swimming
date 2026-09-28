@@ -43,6 +43,9 @@ composer lint:check   # Pint nur prüfen
   `'...'`) verwenden, keine typografischen (`„..."`). Das vermeidet die PhpStorm-Inspection zu unbalancierten
   typografischen Anführungszeichen. Für **benutzersichtbare Texte** in Views/Strings sind typografische Zeichen
   weiterhin in Ordnung — die Regel gilt nur für Kommentare.
+- **Echte deutsche Umlaute** (ä/ö/ü/ß) in Kommentaren verwenden, wo möglich — keine ae/oe/ue/ss-Umschreibungen
+  (also `für`, `über`, `löscht`, `Überschriften`, nicht `fuer`, `ueber`, `loescht`, `Ueberschriften`). PhpStorm
+  meldet die Umschreibungen sonst als Tippfehler. Gilt für Kommentare und benutzersichtbare Texte gleichermaßen.
 
 ### Datenbank-Portabilität (kritisch)
 

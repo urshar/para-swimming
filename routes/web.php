@@ -25,6 +25,7 @@ use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\MeetEntriesOverviewController;
+use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
 use App\Http\Controllers\QualifyingTimeListController;
@@ -194,7 +195,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
         [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
     Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',
-        [QualifyingTimeListController::class, 'destroyTargetPoint'])->name('qualifying-time-lists.target-points.destroy');
+        [
+            QualifyingTimeListController::class, 'destroyTargetPoint',
+        ])->name('qualifying-time-lists.target-points.destroy');
     Route::post('qualifying-time-lists/{qualifyingTimeList}/times',
         [QualifyingTimeListController::class, 'storeTime'])->name('qualifying-time-lists.times.store');
     Route::delete('qualifying-time-lists/{qualifyingTimeList}/times/{time}',
@@ -202,7 +205,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('qualifying-time-lists/{qualifyingTimeList}/calculate',
         [QualifyingTimeListController::class, 'calculate'])->name('qualifying-time-lists.calculate');
     Route::post('qualifying-time-lists/{qualifyingTimeList}/qualifications/calculate',
-        [QualifyingTimeListController::class, 'calculateQualifications'])->name('qualifying-time-lists.qualifications.calculate');
+        [
+            QualifyingTimeListController::class, 'calculateQualifications',
+        ])->name('qualifying-time-lists.qualifications.calculate');
 
     // ── Richtzeiten ÖSTM & ÖM: Ausgeschlossene Bewerbe (z.B. 25m, 800m/1500m Frei) ──
     Route::get('qualifying-excluded-disciplines',
@@ -318,7 +323,8 @@ Route::middleware(['auth'])->group(function () {
             [YearComparisonController::class, 'pdf'])->name('statistics.comparison.pdf');
         Route::get('/statistics/report', [StatisticsController::class, 'report'])->name('statistics.report');
         Route::get('/statistics/report/pdf', [StatisticsController::class, 'reportPdf'])->name('statistics.report.pdf');
-        Route::get('/statistics/report/xlsx', [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');
+        Route::get('/statistics/report/xlsx',
+            [StatisticsController::class, 'reportXlsx'])->name('statistics.report.xlsx');
         Route::get('/statistics/report/csv', [StatisticsController::class, 'reportCsv'])->name('statistics.report.csv');
 
         // WPS-Analyse ist selbst nicht admin-only (siehe wps.athletes.show weiter oben) - dieser
@@ -345,14 +351,14 @@ Route::middleware(['auth'])->group(function () {
         ->parameters(['events' => 'event']);
 
     // Meldungen
-    // Verbandsweite Meldungsliste — nur Ansicht. Fuer Vereine auf die eigenen
+    // Verbandsweite Meldungsliste — nur Ansicht. Für Vereine auf die eigenen
     // Meldungen gescoped (EntryController::index).
     Route::resource('entries', EntryController::class)->only(['index']);
 
-    // Anlegen/Bearbeiten/Loeschen von Meldungen sowie die meet-weite Gesamtuebersicht
+    // Anlegen/Bearbeiten/Löschen von Meldungen sowie die meet-weite Gesamtübersicht
     // sind Admin-Sache; Vereine nutzen den eigenen, autorisierten club-entries-Weg.
     Route::middleware(RequireAdmin::class)->group(function () {
-        // Bestzeiten-AJAX fuers Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
+        // Bestzeiten-AJAX fürs Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
         Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])
             ->name('meets.entries.best-times');
         Route::resource('meets.entries', EntryController::class)
@@ -360,10 +366,28 @@ Route::middleware(['auth'])->group(function () {
             ->except(['index', 'show'])
             ->parameters(['entries' => 'entry']);
 
-        // Meet-weite Gesamtuebersicht aller Meldungen (Einzel + Staffel, alle Vereine),
+        // Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine),
         // nach Disziplin gruppiert.
         Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
             ->name('meets.entries-overview');
+    });
+
+    // ── Meldebasierte Listen (PDF + Excel) ─────────────────────────────────────
+    // Teilnehmerliste: pro Verein — Admin bekommt alle Vereine, ein Vereinsnutzer
+    // nur den eigenen (Scope im Controller). Sportpasskontrolle: über alle
+    // Vereine, deshalb admin-only (Route-Middleware).
+    Route::prefix('meets/{meet}/entry-lists')->name('meets.entry-lists.')->group(function () {
+        Route::get('teilnehmer/pdf', [MeetEntryListController::class, 'teilnehmerPdf'])->name('teilnehmer.pdf');
+        Route::get('teilnehmer/xlsx', [MeetEntryListController::class, 'teilnehmerXlsx'])->name('teilnehmer.xlsx');
+
+        // Meldelisten (PDF). Admin: alle Vereine; Verein: nur eigener.
+        Route::get('nach-namen/pdf', [MeetEntryListController::class, 'nachNamenPdf'])->name('nach-namen.pdf');
+        Route::get('nach-bewerben/pdf', [MeetEntryListController::class, 'nachBewerbenPdf'])->name('nach-bewerben.pdf');
+
+        Route::middleware(RequireAdmin::class)->group(function () {
+            Route::get('sportpass/pdf', [MeetEntryListController::class, 'sportpassPdf'])->name('sportpass.pdf');
+            Route::get('sportpass/xlsx', [MeetEntryListController::class, 'sportpassXlsx'])->name('sportpass.xlsx');
+        });
     });
 
     // Ergebnisse

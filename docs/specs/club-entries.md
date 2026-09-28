@@ -217,6 +217,53 @@ Disziplin-Filter (`event_id`) blendet den jeweils unpassenden Abschnitt aus.
 Athleten ab — dieselbe Logik wie im Club-Flow, gemeinsam in `ClubEntryService::resolveSportClass`. Ein
 ausgefülltes Feld bleibt als bewusste Abweichung erhalten.
 
+Die linksseitige „Meldungen"-Liste (`entries.index`, `EntryController@index`) ist für Vereine auf die eigenen
+Meldungen gescoped; Anlegen/Bearbeiten/Löschen dort ist admin-only.
+
+## Meldebasierte Listen (PDF/Excel)
+
+Aus den Meldungen einer Veranstaltung lassen sich vier Listen erzeugen — Aufbereitung in
+`MeetEntryListService`, Excel in `MeetEntryListExportService`, PDF über
+`resources/views/pdf/entry-lists/*`, ausgeliefert von `MeetEntryListController`. Zugang über ein
+„Listen"-Dropdown auf „Alle Meldungen" (Admin) bzw. der Vereins-Meldungsansicht (`club-entries/index`,
+nur für Vereinsnutzer); die Links öffnen in einem **neuen Tab** (`target="_blank"`).
+
+**Scope:** Admin = ganze Veranstaltung (alle Vereine), Vereinsnutzer = nur die eigenen Meldungen
+(`scopeClubId`: Admin → `null` = alle, sonst `user.club_id`; ein Nicht-Admin ohne Verein bekommt `0` →
+leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middleware `RequireAdmin`).
+
+**Kopf aller Listen:** ÖBSV (nicht der swimify-Registrierungsverein „SC Diana Wien" aus den Vorlagen).
+ÖBSV- und Sport-Austria-Logo liegen in `resources/images/`, werden in den PDFs als base64 eingebettet
+(dompdf-Muster wie `wps-athlete-analysis`), im Excel als `Drawing`.
+
+| Liste | Route (`meets.entry-lists.*`) | Umfang | Format |
+|-------|-------------------------------|--------|--------|
+| Teilnehmerliste     | `teilnehmer.pdf` / `.xlsx`   | pro Verein            | PDF + Excel |
+| Sportpasskontrolle  | `sportpass.pdf` / `.xlsx`    | alle Vereine (Admin)  | PDF + Excel |
+| Meldeliste nach Namen    | `nach-namen.pdf`        | Admin alle / Verein eigene | PDF |
+| Meldeliste nach Bewerben | `nach-bewerben.pdf`     | Admin alle / Verein eigene | PDF |
+
+- **Teilnehmerliste** — offizielle Sport-Austria-Vorlage (Logo oben rechts): Titel „TEILNEHMER(INNEN)LISTE",
+  BETRIFFT/ORT, ZEITRAUM + TAGE (Meet-Dauer), ANZAHL DER PERSONEN; Spalten `lfd. Nr | FAMILIEN- und VORNAME |
+  WOHNORT (leer, Handausfüllen) | TAGE | UNTERSCHRIFT (leer)`. Ein ergänztes **VEREIN**-Feld (nicht im
+  Original-Vordruck) macht den Ausdruck zuordenbar. Excel: ein Arbeitsblatt je Verein.
+- **Sportpasskontrolle** — offizielle ÖBSV-Vorlage (Logo + Briefkopf, „Die Kontrolle wurde durchgeführt von"):
+  Spalten `lfd. Nr | ZU- und VORNAME (+ Verein als kleine zweite Zeile) | DATUM der letzten UNTERSUCHUNG (leer) |
+  SPORTPASS Nummer (= `athlete.license`) | ANMERKUNG (leer) | FAUS (leer)`. Sortiert nach Verein, dann Name.
+- **Meldeliste nach Namen** — Geschlecht (Herren/Damen/Mixed) → Verein (Name + Codezeile
+  „CODE / Regionalverband / NATION") → Athlet (Lizenz, „Nachname, Vorname", Jahrgang) mit seinen Bewerben
+  (Bewerb | Meldezeit | Sportklasse — Einzel und Staffel in derselben Spalte); Staffeln je Verein mit ihren
+  Schwimmern in Positionsreihenfolge.
+- **Meldeliste nach Bewerben** — Abschnitt (Session; Wochentag + Datum nur bei **eintägiger** Veranstaltung,
+  sonst nur „Abschnitt N" — siehe Open Point) → Bewerb („Nr. X  Bewerb [Herren/Damen/Mixed/Alle]") →
+  Teilnehmer alphabetisch, wahlweise **ein- oder zweispaltig** (`?columns=1`, Default 2). Im **einspaltigen
+  Admin-Modus** zusätzlich der Verein je Einzelsportler (Name · Jahrgang · Meldezeit · Sportklasse · Verein);
+  feste, über alle Bewerbe identische Spaltenbreiten, damit die Spalten untereinander stehen. Staffeln mit
+  Schwimmern in Reihenfolge.
+
+Staffelname in den Meldelisten: aktuell Vereinsname + laufende Nummer (Platzhalter, bis das
+Staffelnamen-Feature umgesetzt ist — siehe `docs/open-points.md`).
+
 ## Validierung
 
 **Einzelmeldung (`store`)**
@@ -271,3 +318,7 @@ Phase).
 - `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
   Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
 - `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.
+- `tests/Feature/EntriesIndexScopeTest.php` — Club-Scoping der Meldungsliste (`entries.index`) und Admin-only-CRUD.
+- `tests/Feature/MeetEntryListsTest.php` — meldebasierte Listen: Gruppierung/Sortierung (Teilnehmer je Verein,
+  Sportpass nach Verein+Name, nach Namen, nach Bewerben), Excel-Aufbau (Blätter, Logos, Zellen), Vereins-Scope
+  und Zugriff (PDF/Excel, Sportpass admin-only, Spaltenwahl).
