@@ -80,7 +80,7 @@
         --}}
         <form method="GET" action="{{ route('qualifying-time-lists.qualifications', $list) }}"
               class="flex flex-wrap items-center gap-3 mb-6"
-              x-data="qualificationFilters(@js($filterConfig))">
+              x-data='qualificationFilters(@json($filterConfig))'>
             <flux:select variant="listbox" name="stroke_type_id_distance" x-model="strokeDistance"
                 placeholder="Alle Bewerbe" clearable class="w-56">
                 @foreach($events as $event)
