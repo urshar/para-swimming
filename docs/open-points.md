@@ -39,18 +39,35 @@ wettkampfübergreifende Admin-Cockpit "Meldungen" mit Einzel-/Staffel-Tabs, Stat
 Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit")
 — die zugehörigen Open Points unten wurden entfernt.
 
+Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
+Punkt als Nächstes drankommt, entscheidet Erik:
+
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+2. "Index-Filter einheitlich: sofort filtern bei Feldänderung" unten — das Auto-Submit-Muster aus dem
+   Meldungen-Cockpit auf die sechs Index-Seiten (athletes, clubs, classifiers, results, meets, entries) übertragen
+3. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
+4. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
+5. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
+6. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+7. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+8. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+9. "Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)" unten
+10. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+11. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+12. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+13. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+14. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+15. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+16. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #15
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-1. "LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
-   wie geöffnet)
-2. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+1. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
 
 ## Staffel-Ergebnisse importieren + Relay-Gender pflegen
@@ -393,40 +410,6 @@ vorbelegt oder nur als Option angezeigt wird.
 `RecordImportService`/`RecordImportController` ergänzen (Club-Vergleich je Rekord + Jahres-Fallback in
 `findAthlete()`), Checkbox/Markierung in `import-preview.blade.php`, neue Review-Seite/-Route zum Abarbeiten der offenen
 Fälle — beide Teile in einem Arbeitsschritt, da sie dieselbe Review-Infrastruktur teilen.
-
-## LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert — vermutlich kein Bug, Rückmeldung von Erik nötig
-
-**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach LENEX-Export-Formular-Anpassung (31.08.2026).
-
-**Was gemeldet wurde:** Beim Export werden `"` zu `&quot;` und `&` zu `&amp;` — Erik berichtet, dass Programme, die
-diese LENEX-Datei einlesen, diese Zeichen nicht zurückwandeln, sondern buchstäblich `&quot;`/`&amp;`
-anzeigen.
-
-**Befund (gegen den echten Export getestet, Änderung in einer Transaktion zurückgerollt, nicht persistiert):**
-`LenexExportService` baut die Datei über PHPs `DOMDocument`/`setAttribute()` — das ist Standard-XML-Verhalten, kein Bug
-in unserem Code. `"` und `&` **müssen** laut XML-Spezifikation innerhalb eines Attributwerts als Entity kodiert werden,
-ein rohes `"` oder `&` würde die Datei ungültig machen. Rückprobe mit
-`Test "Anführungszeichen" & Kaufmanns-Und Meisterschaft` als Meet-Name: Export liefert
-`Test &quot;Anführungszeichen&quot; &amp; Kaufmanns-Und Meisterschaft` in der Rohdatei — beim Zurücklesen über
-`SimpleXMLElement` (derselbe Mechanismus, den jedes echte XML-basierte LENEX-Programm nutzt, auch unser eigener Import
-in `RecordImportService`) kommt exakt wieder `Test "Anführungszeichen" & Kaufmanns-Und Meisterschaft`
-heraus — 1:1 identisch mit dem Original. Ein Entfernen der Kodierung würde die Datei ungültig machen und wäre selbst der
-Bug.
-
-**Warum (noch) nicht als Fix umgesetzt:** Wenn ein reales Programm die Entities nicht zurückwandelt, ist das nur über
-zwei Wege erklärbar, die beide von uns aus nicht behebbar wären, ohne selbst ungültiges XML zu erzeugen:
-(a) das Programm zeigt/parsed die Datei nicht als XML (z. B. Ansicht der Rohdatei in einem Texteditor statt Import über
-die eigentliche Programmfunktion), oder (b) das andere Programm hat selbst einen XML-Parsing-Bug. Bevor hier etwas
-geändert wird, braucht es die konkrete Gegenprobe: welches Programm genau, und wie wurde die Datei dort betrachtet
-(echter Import vs. Datei/Rohtext geöffnet)?
-
-**Wer entscheidet:** Erik — welches Programm betroffen ist und wie die Datei dort geöffnet wurde. Falls sich
-herausstellt, dass es sich tatsächlich um einen waschechten XML-Import in einem Fremdprogramm handelt, das die Entities
-nicht dekodiert, wäre das ein Bug in diesem Fremdprogramm, kein Anpassungsbedarf bei uns — außer als pragmatischer
-Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
-
-**Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
-dann ggf. erneute Prüfung mit genau diesem Programm.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 
