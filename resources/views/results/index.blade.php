@@ -69,29 +69,40 @@
     @endif
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
-        <form method="GET" class="flex flex-wrap gap-3">
-            <flux:select variant="listbox" searchable name="meet_id" placeholder="Alle Wettkämpfe" clearable class="flex-1 min-w-48">
+        @php
+            // Startwerte der Filter fürs Alpine-x-data (indexFilters, siehe clubs/index.blade.php).
+            $filterConfig = [
+                'meet_id' => (string) request('meet_id', ''),
+                'search' => (string) request('search', ''),
+                'status' => (string) request('status', ''),
+            ];
+        @endphp
+        {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus. Selects über
+             x-model + $watch, Suche als natives Feld über x-model.debounce. Generische Alpine-Komponente
+             in resources/js/index-filters.js. --}}
+        <form method="GET" class="flex flex-wrap gap-3"
+              x-data='indexFilters(@json($filterConfig))'>
+            <flux:select variant="listbox" searchable name="meet_id" x-model="meet_id" placeholder="Alle Wettkämpfe" clearable class="flex-1 min-w-48">
                 @foreach($meets as $meet)
-                    <flux:select.option value="{{ $meet->id }}" :selected="request('meet_id') == $meet->id">
+                    <flux:select.option value="{{ $meet->id }}">
                         {{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})
                     </flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:input name="search" placeholder="Athlet suchen…" value="{{ request('search') }}"
+            <flux:input name="search" x-model.debounce.500ms="search" placeholder="Athlet suchen…"
                         class="flex-1 min-w-48"/>
-            <flux:select variant="listbox" name="status" placeholder="Alle Status" clearable class="w-40">
-                <flux:select.option value="valid" :selected="request('status') === 'valid'">Nur gültige</flux:select.option>
-                <flux:select.option value="DSQ" :selected="request('status') === 'DSQ'">DSQ</flux:select.option>
-                <flux:select.option value="DNS" :selected="request('status') === 'DNS'">DNS</flux:select.option>
-                <flux:select.option value="DNF" :selected="request('status') === 'DNF'">DNF</flux:select.option>
+            <flux:select variant="listbox" name="status" x-model="status" placeholder="Alle Status" clearable class="w-40">
+                <flux:select.option value="valid">Nur gültige</flux:select.option>
+                <flux:select.option value="DSQ">DSQ</flux:select.option>
+                <flux:select.option value="DNS">DNS</flux:select.option>
+                <flux:select.option value="DNF">DNF</flux:select.option>
             </flux:select>
-            <div class="ml-auto flex items-center gap-3">
-                @if(request()->hasAny(['meet_id', 'search', 'status']))
+            @if(request()->hasAny(['meet_id', 'search', 'status']))
+                <div class="ml-auto flex items-center">
                     <flux:button href="{{ route('results.index') }}" variant="filled" icon="x-mark"
                                  class="text-red-500!">Zurücksetzen</flux:button>
-                @endif
-                <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
-            </div>
+                </div>
+            @endif
         </form>
     </div>
 

@@ -36,36 +36,47 @@
     </div>
 
     {{-- Filter --}}
-    <form method="GET" class="flex flex-wrap gap-3 mb-4">
+    @php
+        // Startwerte der Filter fürs Alpine-x-data (indexFilters, siehe clubs/index.blade.php).
+        $filterConfig = [
+            'search' => (string) request('search', ''),
+            'course' => (string) request('course', ''),
+            'year' => (string) request('year', ''),
+        ];
+    @endphp
+    {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus. Select über
+         x-model + $watch, Suche und Jahr als native Felder über x-model.debounce. Generische
+         Alpine-Komponente in resources/js/index-filters.js. --}}
+    <form method="GET" class="flex flex-wrap gap-3 mb-4"
+          x-data='indexFilters(@json($filterConfig))'>
         <div class="w-72 shrink-0">
             <flux:input
                 name="search"
-                value="{{ request('search') }}"
+                x-model.debounce.500ms="search"
                 placeholder="Name oder Stadt…"
                 icon="magnifying-glass"
             />
         </div>
-        <flux:select variant="listbox" name="course" placeholder="Alle Bahnen" clearable class="w-36">
-            <flux:select.option value="SCM" :selected="request('course') === 'SCM'">SCM (25m)</flux:select.option>
-            <flux:select.option value="LCM" :selected="request('course') === 'LCM'">LCM (50m)</flux:select.option>
-            <flux:select.option value="SCY" :selected="request('course') === 'SCY'">SCY (Yards)</flux:select.option>
-            <flux:select.option value="OPEN" :selected="request('course') === 'OPEN'">Freiwasser</flux:select.option>
+        <flux:select variant="listbox" name="course" x-model="course" placeholder="Alle Bahnen" clearable class="w-36">
+            <flux:select.option value="SCM">SCM (25m)</flux:select.option>
+            <flux:select.option value="LCM">LCM (50m)</flux:select.option>
+            <flux:select.option value="SCY">SCY (Yards)</flux:select.option>
+            <flux:select.option value="OPEN">Freiwasser</flux:select.option>
         </flux:select>
         <div class="w-24 shrink-0">
             <flux:input
                 name="year"
-                value="{{ request('year') }}"
+                x-model.debounce.500ms="year"
                 placeholder="Jahr"
                 type="number"
             />
         </div>
-        <div class="ml-auto flex items-center gap-3">
-            @if(request()->hasAny(['search', 'course', 'year']))
+        @if(request()->hasAny(['search', 'course', 'year']))
+            <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('meets.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
-            @endif
-            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
-        </div>
+            </div>
+        @endif
     </form>
 
     {{-- Table --}}

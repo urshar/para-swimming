@@ -3194,3 +3194,53 @@ statt letzter Ansicht), Vereinheitlichung des Index-Filter-Auto-Submit inkl. der
 **Tests**: volle Suite (1444) grün, `composer lint:check` grün, `php artisan view:cache` fehlerfrei. Visuelle
 Verifikation lief über den eigenen Browser (der In-App-Browser lädt die Vite-Assets von `:5173` wegen des
 selbstsignierten Zertifikats nicht — Tailwind fehlt dort, daher keine belastbare Optik-Prüfung im Pane).
+
+## Index-Filter-Auto-Submit vereinheitlicht — **abgeschlossen**
+
+`feature/index-filter-autosubmit` (29.09.2026). Setzt den in der Header-Rework-Sektion oben als "bewusst NICHT
+angefasst" dokumentierten Open Point um: Die Admin-Index-Filter lösen jetzt einheitlich **sofort bei Feldänderung**
+aus, ohne "Filtern"-Button — dasselbe Verhalten, das `records/index.blade.php` (inline) und das Meldungen-Cockpit
+(`entriesCockpitFilters`) bereits hatten.
+
+**Umfang — fünf GET-Formular-Index-Filter:** `athletes`, `clubs`, `classifiers`, `results`, `meets`.
+`entries.index` war durch das Meldungen-Cockpit bereits auf Auto-Submit umgestellt (siehe `club-entries.md`) und ist
+daher nicht Teil dieses Branches — die im Open Point genannten "sechs Seiten" sind also fünf.
+
+**Umsetzung:**
+- Neues generisches Alpine-Modul `resources/js/index-filters.js` (`indexFilters(config)`): spreizt die Config-Keys
+  als reaktive Felder und registriert je Key ein `$watch → this.$el.submit()`. Anders als das feste
+  `entriesCockpitFilters` (feste Feldnamen meet/search/status/problem) ist es feldunabhängig, sodass sich alle fünf
+  Seiten trotz unterschiedlicher Filter dieselbe Komponente teilen. Registrierung in `resources/js/app.js` via
+  `Alpine.data('indexFilters', …)`.
+- Je View: `<form … x-data='indexFilters(@json($filterConfig))'>` (einfach anführen + `@json`, siehe CLAUDE.md;
+  das "Missing import"-PhpStorm-Warnung ist der dokumentierte projektweite Fehlalarm). Selects über `x-model`,
+  Text-/Number-/Suchfelder über `x-model.debounce.500ms`. Das `:selected` an den Optionen entfällt — `x-model`
+  übernimmt die Vorbelegung aus der `$filterConfig`.
+- Kein Server-/Controller-Teil: Die Controller lesen unverändert dieselben Query-Parameter. Nur die *Auslösung*
+  ändert sich (Auto-Submit statt Button), das Filterergebnis ist identisch — daher keine neuen Tests, die
+  bestehenden Filter-Tests bleiben gültig.
+
+**Entscheidungen (Erik, 29.09.2026):** Suchfelder mit **Debounce 500 ms** (wie im Cockpit); "Filtern"-Button
+**ganz entfernt** (nicht als No-JS-Fallback behalten); "Zurücksetzen" bleibt (per `ml-auto` rechtsbündig, nur wenn
+ein Filter aktiv ist).
+
+**Sonderfall `athletes/index`:** Der A–Z-Buchstabenfilter darunter besteht aus eigenen Links (navigieren sofort).
+Damit ein Dropdown-/Suchwechsel die aktive Buchstabenauswahl nicht verwirft, wird `letter` als
+`<input type="hidden">` im Formular mitgeführt und so beim Auto-Submit erhalten (vorher ging der Buchstabe beim
+"Filtern" verloren). `active_only` trägt seinen Default `"1"` ("nur aktive") in der `$filterConfig`, damit `x-model`
+die richtige Option vorbelegt.
+
+**Tests:** volle Suite (1556) grün, `composer lint:check` grün, `php artisan view:cache` fehlerfrei.
+
+**Live verifiziert gegen den Produktions-Build** (`public/build`), **nicht** gegen den Dev-Server: Der In-App-Browser
+blockiert den Vite-Port `:5173` (`ERR_BLOCKED_BY_CLIENT`), sodass im Dev-Modus `app.js` in der Pane gar nicht lädt
+(`window.IMask` undefined, keine `Alpine.data`-Registrierung greift) — dieselbe :5173-Einschränkung wie in den
+früheren Phasen. Verfahren: `npm run dev` gestoppt (Vite entfernt `public/hot`, `@vite` fällt auf das Manifest
+zurück), dann aus dem gebauten Bundle geprüft — `clubs` (Nation-Select löst sofort aus, Suche nach 500 ms, bestehender
+Filter bleibt erhalten, beide Felder nach Reload korrekt vorbelegt), `athletes` (`letter=B` bleibt beim
+`gender`-Wechsel erhalten), `classifiers`/`results`/`meets` (Komponente initialisiert, `year`-Number-Feld löst aus).
+
+**Bewusst NICHT in diesem Branch** (bleibt eigener Open Point): die **Livewire-Meisterschafts-Unterseiten**
+(Qualifikanten/Förderansicht/Auswahl-Rangliste + `championships.show`). Deren Filter laufen über `wire:model`, nicht
+über die GET-Form — dort greift das Alpine-`$watch`-Auto-Submit nicht; passender wäre `wire:model.live`. Bewusst als
+getrennter Branch belassen (gemischter Umfang: Alpine-Auto-Submit + Livewire-Umbau).

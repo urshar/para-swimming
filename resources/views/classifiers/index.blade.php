@@ -11,33 +11,45 @@
         </flux:button>
     </div>
 
-    {{-- Filter: alle Felder in einer Zeile (schmalere Breiten als vorher), Filtern-Button per
-         ml-auto an den rechten Rand — wie im öffentlichen Bereich (siehe clubs/index.blade.php). --}}
-    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4">
+    @php
+        // Startwerte der Filter fürs Alpine-x-data (indexFilters, siehe clubs/index.blade.php).
+        // active_only fällt ohne Parameter auf "1" (nur aktive) zurück — dieser Default muss in der
+        // Config stehen, damit x-model die richtige Option vorbelegt.
+        $filterConfig = [
+            'search' => (string) request('search', ''),
+            'type' => (string) request('type', ''),
+            'nation_id' => (string) request('nation_id', ''),
+            'active_only' => (string) request('active_only', '1'),
+        ];
+    @endphp
+    {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus. Selects über
+         x-model + $watch, Suche als natives Feld über x-model.debounce. Generische Alpine-Komponente
+         in resources/js/index-filters.js. --}}
+    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4"
+          x-data='indexFilters(@json($filterConfig))'>
         <div class="w-44 shrink-0">
-            <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder E-Mail…"
+            <flux:input name="search" x-model.debounce.500ms="search" placeholder="Name oder E-Mail…"
                         icon="magnifying-glass"/>
         </div>
-        <flux:select variant="listbox" name="type" placeholder="Typ" clearable class="w-36">
-            <flux:select.option value="MED" :selected="request('type') === 'MED'">Medizinisch</flux:select.option>
-            <flux:select.option value="TECH" :selected="request('type') === 'TECH'">Technisch</flux:select.option>
+        <flux:select variant="listbox" name="type" x-model="type" placeholder="Typ" clearable class="w-36">
+            <flux:select.option value="MED">Medizinisch</flux:select.option>
+            <flux:select.option value="TECH">Technisch</flux:select.option>
         </flux:select>
-        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-44">
+        <flux:select variant="listbox" searchable name="nation_id" x-model="nation_id" placeholder="Nation" clearable class="w-44">
             @foreach($nations as $nation)
-                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
+                <flux:select.option value="{{ $nation->id }}">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:select variant="listbox" name="active_only" class="w-36">
-            <flux:select.option value="1" :selected="request('active_only', '1') === '1'">Nur aktive</flux:select.option>
-            <flux:select.option value="0" :selected="request('active_only') === '0'">Alle</flux:select.option>
+        <flux:select variant="listbox" name="active_only" x-model="active_only" class="w-36">
+            <flux:select.option value="1">Nur aktive</flux:select.option>
+            <flux:select.option value="0">Alle</flux:select.option>
         </flux:select>
-        <div class="ml-auto flex items-center gap-3">
-            @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
+        @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
+            <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('classifiers.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
-            @endif
-            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
-        </div>
+            </div>
+        @endif
     </form>
 
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
