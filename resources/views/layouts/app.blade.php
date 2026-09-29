@@ -146,10 +146,14 @@
                                :current="request()->routeIs('meets.*')">
                 Wettkämpfe
             </flux:navlist.item>
-            <flux:navlist.item icon="list-bullet" href="{{ route('entries.index') }}"
-                               :current="request()->routeIs('entries.*')">
-                Meldungen
-            </flux:navlist.item>
+            @if(auth()->user()?->is_admin)
+                {{-- Admin-Cockpit "Was ist zu tun" — wettkampfübergreifende Meldungsliste
+                     mit Status- und Problemfiltern. Vereine nutzen "Vereinsmeldungen". --}}
+                <flux:navlist.item icon="list-bullet" href="{{ route('entries.index') }}"
+                                   :current="request()->routeIs('entries.*')">
+                    Meldungen
+                </flux:navlist.item>
+            @endif
             <flux:navlist.item icon="chart-bar" href="{{ route('results.index') }}"
                                :current="request()->routeIs('results.*')">
                 Ergebnisse

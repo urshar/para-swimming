@@ -21,15 +21,9 @@ class EntryController extends Controller
 
     public function index(Request $request): View
     {
-        $user = $request->user();
-
+        // Route ist admin-only (RequireAdmin) — das Cockpit zeigt immer alle Meldungen.
         $query = Entry::with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])
             ->latest();
-
-        // Vereine sehen hier nur ihre eigenen Meldungen; Admins alle.
-        if (! $user->is_admin) {
-            $query->where('club_id', $user->club_id);
-        }
 
         if ($meetId = $request->query('meet_id')) {
             $query->where('meet_id', $meetId);

@@ -350,14 +350,13 @@ Route::middleware(['auth'])->group(function () {
         ->except(['index', 'show'])
         ->parameters(['events' => 'event']);
 
-    // Meldungen
-    // Verbandsweite Meldungsliste — nur Ansicht. Für Vereine auf die eigenen
-    // Meldungen gescoped (EntryController::index).
-    Route::resource('entries', EntryController::class)->only(['index']);
-
-    // Anlegen/Bearbeiten/Löschen von Meldungen sowie die meet-weite Gesamtübersicht
-    // sind Admin-Sache; Vereine nutzen den eigenen, autorisierten club-entries-Weg.
+    // Meldungen — die verbandsweite Meldungsliste (Admin-Cockpit "Was ist zu tun"),
+    // Anlegen/Bearbeiten/Löschen sowie die meet-weite Gesamtübersicht sind Admin-Sache;
+    // Vereine nutzen den eigenen, autorisierten club-entries-Weg.
     Route::middleware(RequireAdmin::class)->group(function () {
+        // Verbandsweite Meldungsliste — nur Ansicht (Cockpit mit Status-/Problemfiltern).
+        Route::resource('entries', EntryController::class)->only(['index']);
+
         // Bestzeiten-AJAX fürs Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
         Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])
             ->name('meets.entries.best-times');
