@@ -16,7 +16,45 @@
             'status' => (string) request('status', ''),
             'problem' => (string) request('problem', ''),
         ];
+
+        // Kennzahlen-Kacheln: klickbare Schnellfilter. Jede Kachel behält den aktuellen
+        // Wettkampf-/Suchkontext bei und setzt genau einen Status-/Problemfilter (bzw.
+        // "Gesamt" löscht beide). $counts kommt aus dem EntryController.
+        $baseParams = array_filter([
+            'meet_id' => request('meet_id'),
+            'search' => request('search'),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        $activeStatus = request('status');
+        $activeProblem = request('problem');
+
+        $tiles = [
+            ['label' => 'Gesamt', 'count' => $counts['total'], 'params' => [],
+                'active' => ! $activeStatus && ! $activeProblem, 'accent' => 'text-zinc-900 dark:text-white'],
+            ['label' => 'Zurückgezogen', 'count' => $counts['wdr'], 'params' => ['status' => 'WDR'],
+                'active' => $activeStatus === 'WDR', 'accent' => 'text-zinc-500 dark:text-zinc-400'],
+            ['label' => 'Krank', 'count' => $counts['sick'], 'params' => ['status' => 'SICK'],
+                'active' => $activeStatus === 'SICK', 'accent' => 'text-amber-600 dark:text-amber-400'],
+            ['label' => 'Außer Konkurrenz', 'count' => $counts['exh'], 'params' => ['status' => 'EXH'],
+                'active' => $activeStatus === 'EXH', 'accent' => 'text-blue-600 dark:text-blue-400'],
+            ['label' => 'Ohne Meldezeit', 'count' => $counts['no_time'], 'params' => ['problem' => 'no_time'],
+                'active' => $activeProblem === 'no_time', 'accent' => 'text-orange-600 dark:text-orange-400'],
+            ['label' => 'Ohne Sportklasse', 'count' => $counts['no_class'], 'params' => ['problem' => 'no_class'],
+                'active' => $activeProblem === 'no_class', 'accent' => 'text-orange-600 dark:text-orange-400'],
+        ];
     @endphp
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        @foreach($tiles as $tile)
+            <a href="{{ route('entries.index', array_merge($baseParams, $tile['params'])) }}"
+               class="rounded-xl border p-4 transition {{ $tile['active']
+                   ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                   : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700' }}">
+                <div class="text-2xl font-bold {{ $tile['accent'] }}">{{ $tile['count'] }}</div>
+                <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ $tile['label'] }}</div>
+            </a>
+        @endforeach
+    </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus.

@@ -94,3 +94,44 @@ it('zeigt ohne Filter alle Meldungen', function () {
         ->assertSee($a->athlete->display_name)
         ->assertSee($b->athlete->display_name);
 });
+
+it('berechnet die Kennzahlen für die Kacheln', function () {
+    $meet = makeMeet_p5();
+    $club = makeClub_p5();
+    // je eine Meldung pro Kategorie; Zeit+Klasse gesetzt, außer wo die Kategorie es verlangt.
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => 6000, 'sport_class' => 'S10']);
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => 6000, 'sport_class' => 'S10', 'status' => 'WDR']);
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => 6000, 'sport_class' => 'S10', 'status' => 'SICK']);
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => 6000, 'sport_class' => 'S10', 'status' => 'EXH']);
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => null, 'sport_class' => 'S10']);
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['entry_time' => 6000, 'sport_class' => null]);
+
+    $this->actingAs(ecf_admin())->get(route('entries.index'))
+        ->assertOk()
+        ->assertViewHas('counts', fn ($c) => $c['total'] === 6 && $c['wdr'] === 1 && $c['sick'] === 1
+            && $c['exh'] === 1 && $c['no_time'] === 1 && $c['no_class'] === 1);
+});
+
+it('zählt die Kacheln im Wettkampf-Kontext', function () {
+    $club = makeClub_p5();
+    $meetA = makeMeet_p5();
+    $meetB = makeMeet_p5();
+    ecf_entry($meetA, makeEvent_p5($meetA), $club, ['entry_time' => 6000, 'sport_class' => 'S10']);
+    ecf_entry($meetA, makeEvent_p5($meetA), $club, ['entry_time' => 6000, 'sport_class' => 'S10']);
+    ecf_entry($meetB, makeEvent_p5($meetB), $club, ['entry_time' => 6000, 'sport_class' => 'S10']);
+
+    $this->actingAs(ecf_admin())->get(route('entries.index', ['meet_id' => $meetA->id]))
+        ->assertOk()
+        ->assertViewHas('counts', fn ($c) => $c['total'] === 2);
+});
+
+it('verlinkt die Kacheln auf den passenden Filter', function () {
+    $meet = makeMeet_p5();
+    $club = makeClub_p5();
+    ecf_entry($meet, makeEvent_p5($meet), $club, ['status' => 'WDR']);
+
+    $this->actingAs(ecf_admin())->get(route('entries.index'))
+        ->assertOk()
+        ->assertSee(route('entries.index', ['status' => 'WDR']), false)
+        ->assertSee(route('entries.index', ['problem' => 'no_time']), false);
+});

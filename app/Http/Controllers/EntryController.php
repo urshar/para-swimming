@@ -23,24 +23,39 @@ class EntryController extends Controller
     public function index(Request $request): View
     {
         // Route ist admin-only (RequireAdmin) — das Cockpit zeigt immer alle Meldungen.
-        $query = Entry::with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])
-            ->latest();
+        // Basis-Query (Wettkampf + Suche) als gemeinsame Grundlage für Kennzahlen und Liste.
+        $base = Entry::query();
 
         if ($meetId = $request->query('meet_id')) {
-            $query->where('meet_id', $meetId);
+            $base->where('meet_id', $meetId);
         }
 
         if ($search = $request->query('search')) {
-            $this->applyAthleteSearch($query, $search);
+            $this->applyAthleteSearch($base, $search);
         }
 
+        // Kennzahlen-Kacheln: zählen im aktuellen Wettkampf-/Such-Kontext, aber unabhängig
+        // vom gewählten Status-/Problemfilter (damit die Aufschlüsselung immer vollständig
+        // bleibt). Wiederverwendung der Filter-Methoden über countFiltered(), damit die Zähl-
+        // und die Filterlogik nicht auseinanderlaufen.
+        $counts = [
+            'total' => (clone $base)->count(),
+            'wdr' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'WDR')),
+            'sick' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'SICK')),
+            'exh' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'EXH')),
+            'no_time' => $this->countFiltered($base, fn (Builder $q) => $this->applyProblemFilter($q, 'no_time')),
+            'no_class' => $this->countFiltered($base, fn (Builder $q) => $this->applyProblemFilter($q, 'no_class')),
+        ];
+
+        // Liste zusätzlich nach Status/Problem filtern.
+        $query = (clone $base)->with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])->latest();
         $this->applyStatusFilter($query, $request->query('status'));
         $this->applyProblemFilter($query, $request->query('problem'));
 
         $entries = $query->paginate(25)->withQueryString();
         $meets = Meet::orderByDesc('start_date')->get();
 
-        return view('entries.index', compact('entries', 'meets'));
+        return view('entries.index', compact('entries', 'meets', 'counts'));
     }
 
     public function create(Meet $meet): RedirectResponse|View
@@ -213,6 +228,21 @@ class EntryController extends Controller
                 $q->whereNull('sport_class')->orWhere('sport_class', '');
             });
         }
+    }
+
+    /**
+     * Zählt die Meldungen einer Klon-Basis-Query nach Anwenden eines Filter-Callbacks.
+     * Eigene Methode statt tap()->count(), damit PhpStorms Generics-Resolver nicht auf
+     * HigherOrderTapProxy zurückfällt ("Method 'count' not found").
+     *
+     * @param  callable(Builder): void  $filter
+     */
+    private function countFiltered(Builder $base, callable $filter): int
+    {
+        $query = clone $base;
+        $filter($query);
+
+        return $query->count();
     }
 
     private function sharedEntryRules(): array
