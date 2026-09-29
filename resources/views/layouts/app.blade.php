@@ -141,7 +141,7 @@
     <flux:navlist>
 
         <flux:navlist.group heading="Wettkämpfe" expandable
-                            :expanded="request()->routeIs('meets.*') || request()->routeIs('entries.*') || request()->routeIs('results.*')">
+                            :expanded="request()->routeIs('meets.*') || request()->routeIs('entries.*') || request()->routeIs('relay-entries.*') || request()->routeIs('results.*')">
             <flux:navlist.item icon="trophy" href="{{ route('meets.index') }}"
                                :current="request()->routeIs('meets.*')">
                 Wettkämpfe
@@ -150,7 +150,7 @@
                 {{-- Admin-Cockpit "Was ist zu tun" — wettkampfübergreifende Meldungsliste
                      mit Status- und Problemfiltern. Vereine nutzen "Vereinsmeldungen". --}}
                 <flux:navlist.item icon="list-bullet" href="{{ route('entries.index') }}"
-                                   :current="request()->routeIs('entries.*')">
+                                   :current="request()->routeIs('entries.*') || request()->routeIs('relay-entries.*')">
                     Meldungen
                 </flux:navlist.item>
             @endif

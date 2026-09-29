@@ -4,6 +4,8 @@
 
 @section('content')
 
+    @include('entries._tabs')
+
     @php
         // Startwerte der Filter fürs Alpine-x-data. Die Selects werden darüber via x-model
         // vorbelegt (kein :selected). Einbindung unten über x-data='...(@json(...))' — einfach

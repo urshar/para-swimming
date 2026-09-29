@@ -217,8 +217,28 @@ Disziplin-Filter (`event_id`) blendet den jeweils unpassenden Abschnitt aus.
 Athleten ab — dieselbe Logik wie im Club-Flow, gemeinsam in `ClubEntryService::resolveSportClass`. Ein
 ausgefülltes Feld bleibt als bewusste Abweichung erhalten.
 
-Die linksseitige „Meldungen"-Liste (`entries.index`, `EntryController@index`) ist für Vereine auf die eigenen
-Meldungen gescoped; Anlegen/Bearbeiten/Löschen dort ist admin-only.
+### Meldungen-Cockpit (Admin)
+
+Die linksseitige „Meldungen"-Liste (`entries.index`, `EntryController@index`) ist ein **admin-only Cockpit**
+„Was ist zu tun" — der Menüpunkt ist für Vereine ausgeblendet, die Route liegt hinter `RequireAdmin` (Vereine
+nutzen weiterhin den eigenen `club-entries`-Weg). Zwei Tabs (`entries/_tabs.blade.php`):
+
+- **Einzel** (`entries.index`): alle Einzelmeldungen wettkampfübergreifend, mit Bearbeiten/Löschen (admin).
+- **Staffel** (`relay-entries.index`, `RelayEntryController@index`): alle Staffelmeldungen, rein lesend.
+
+Beide Tabs haben oben **klickbare Kennzahlen-Kacheln** (Schnellfilter, behalten Wettkampf-/Suchkontext und setzen
+genau einen Status-/Problemfilter) und eine **Filterleiste ohne Filtern-Button** — jedes Feld löst über die
+generische Alpine-Komponente `entriesCockpitFilters` (`resources/js/entries-cockpit-filters.js`, `x-model`+`$watch`,
+Suche via `x-model.debounce`) sofort eine neue Suche aus. Die Kachelzahlen zählen im Wettkampf-/Suchkontext, aber
+unabhängig vom Status-/Problemfilter (`countFiltered()` nutzt dieselben Filter-Methoden wie die Liste).
+
+| Tab | Statusfilter / Kacheln | Problemfilter | Suche |
+| --- | --- | --- | --- |
+| Einzel | Normal · WDR · SICK · EXH · RJC | Ohne Meldezeit · Ohne Sportklasse | Athlet |
+| Staffel | Ausstehend · Bestätigt | Unvollständig (`members < swim_events.relay_count`, korrelierte Subquery) · Ohne Meldezeit | Verein |
+
+Eine **Doppelmeldung** (gleicher Athlet, gleiche Disziplin) gibt es als Problemfilter bewusst nicht — der
+Unique-Constraint `[meet_id, swim_event_id, athlete_id]` auf `entries` verhindert sie bereits auf DB-Ebene.
 
 ## Meldebasierte Listen (PDF/Excel)
 
@@ -318,7 +338,12 @@ Phase).
 - `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
   Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
 - `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.
-- `tests/Feature/EntriesIndexScopeTest.php` — Club-Scoping der Meldungsliste (`entries.index`) und Admin-only-CRUD.
+- `tests/Feature/EntriesIndexScopeTest.php` — Meldungs-Cockpit ist admin-only (Verein → 403), Admin sieht alle
+  Meldungen samt Bearbeiten-Aktion; Anlegen/Bearbeiten/Löschen admin-only.
+- `tests/Feature/EntriesCockpitFilterTest.php` — Einzel-Cockpit: Status-/Problemfilter und Kennzahlen-Kacheln
+  (Zahlen, Wettkampf-Kontext, Kachel-Links).
+- `tests/Feature/RelayCockpitTest.php` — Staffel-Cockpit (`relay-entries.index`): admin-only + Tabs, Status-/
+  Problemfilter (Unvollständig/Ohne Meldezeit), Kennzahlen, Vereins-Suche.
 - `tests/Feature/MeetEntryListsTest.php` — meldebasierte Listen: Gruppierung/Sortierung (Teilnehmer je Verein,
   Sportpass nach Verein+Name, nach Namen, nach Bewerben), Excel-Aufbau (Blätter, Logos, Zellen), Vereins-Scope
   und Zugriff (PDF/Excel, Sportpass admin-only, Spaltenwahl).

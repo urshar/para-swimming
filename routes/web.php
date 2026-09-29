@@ -32,6 +32,7 @@ use App\Http\Controllers\QualifyingTimeListController;
 use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
+use App\Http\Controllers\RelayEntryController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
@@ -356,6 +357,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(RequireAdmin::class)->group(function () {
         // Verbandsweite Meldungsliste — nur Ansicht (Cockpit mit Status-/Problemfiltern).
         Route::resource('entries', EntryController::class)->only(['index']);
+
+        // Staffel-Cockpit (Tab neben dem Einzel-Cockpit) — nur Ansicht.
+        Route::get('relay-entries', [RelayEntryController::class, 'index'])->name('relay-entries.index');
 
         // Bestzeiten-AJAX fürs Admin-Melde-Formular (vor der Resource, kollidiert nicht mit {entry})
         Route::get('meets/{meet}/entries/best-times', [EntryController::class, 'bestTimes'])

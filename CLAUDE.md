@@ -226,6 +226,19 @@ composer lint:check   # Pint nur prüfen
   `x-for="item in liste"` und den Index per Methode holen (`positionOf(item)` über
   `selectedAthletes.findIndex(...)`), nicht die Tupel-Form verwenden. Faustregel: **rot = echt, gelb an einer
   Alpine-Bindung im Partial = ignorierbar.**
+- **PhpStorms Inspection "Missing import statement" auf einem `x-data='komponente(@json($config))'`-Attribut ist
+  ein projektweiter FEHLALARM — ignorieren.** Das ist das Standardmuster, um Server-Daten an eine per
+  `Alpine.data()` registrierte Komponente zu übergeben (einfach anführen + `@json`, siehe den `@json`-Hinweis
+  oben), und steckt in ~10 Views (`documentForm`, `relayEntryForm`, `entryBestTimes`, `meetPointSystems`,
+  `entriesCockpitFilters` u. a.). Ursache: PhpStorm sieht die `@json`-PHP-Direktive im Attribut, schaltet das
+  Attribut in den PHP-Kontext und hält dann den JS-Aufruf `komponente(...)` für eine nicht importierte
+  PHP-Funktion. Zur Laufzeit ist die Komponente über `Alpine.data()` registriert; es fehlt nichts. **Nicht
+  umbauen** — `@json` aus dem Attribut zu ziehen (z. B. via `data-config` + `x-data="komponente"`) tauscht den
+  PHP-Fehlalarm nur gegen einen JS-Fehlalarm ("Unresolved variable `komponente`") und macht die View
+  inkonsistent zu den anderen. Eine `@noinspection`-Unterdrückung geht bei Blade-Attributen nur über die
+  PhpStorm-UI, nicht im Code. **Abgrenzung:** Ein `x-data`, das mit `@js` statt `@json` arbeitet, löst zusätzlich
+  echte Folgefehler aus (falsche Directive-Paarung, "Missing opening directive" an den nächsten
+  `@foreach`/`@endforeach`), weil PhpStorm `@js` nicht als Directive kennt — deshalb konsequent `@json` verwenden.
 - **Ein `float` (`float: left`/`right`) innerhalb eines `position: fixed`-Elements korrumpiert in dompdf die
   horizontale Ausrichtung umgebrochener Tabellenzellen an ANDERER Stelle im Dokument** — die Folgezeilen
   langer, umbrechender Zellinhalte (z. B. lange Veranstaltungsnamen in einer `<td>`) rutschen nach rechts,

@@ -203,6 +203,13 @@ ob Staffeln von Anfang an mit reinsollen oder eine eigene Folge-Iteration werden
 `RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder ergänzt
 den bestehenden "Meldungen"-Button).
 
+**Update (29.09.2026):** Teilweise überholt. Die **meet-weite** Gesamtübersicht deckt „Alle Meldungen"
+(`meets.entries-overview`, Einzel + Staffel, alle Vereine) ab. Zusätzlich ist `entries.index` jetzt das
+**wettkampfübergreifende Admin-Cockpit** „Was ist zu tun" mit Tabs Einzel/Staffel (`relay-entries.index`),
+Status-/Problemfiltern und Kennzahlen-Kacheln (siehe `specs/club-entries.md` „Meldungen-Cockpit") — Punkt 1
+oben („entries/index zeigt nur Einzel, Staffeln fehlen") ist damit hinfällig. Offen bleibt nur noch die
+**inline-editierbare, nach Disziplin gruppierte** meet-weite Variante, falls gewünscht.
+
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 
 **Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
