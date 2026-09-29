@@ -1,6 +1,7 @@
 import Precognition from 'laravel-precognition-alpine';
 import IMask from 'imask';
 import documentForm from './document-form';
+import entriesCockpitFilters from './entries-cockpit-filters';
 import entryBestTimes from './entry-best-times';
 import fileUploadField from './file-upload-field';
 import initFluxFileUploadSync from './flux-file-upload-sync';
@@ -29,6 +30,7 @@ initFluxFileUploadSync();
 document.addEventListener('alpine:init', () => {
     window.Alpine.plugin(Precognition);
     window.Alpine.data('documentForm', documentForm);
+    window.Alpine.data('entriesCockpitFilters', entriesCockpitFilters);
     window.Alpine.data('entryBestTimes', entryBestTimes);
     window.Alpine.data('fileUploadField', fileUploadField);
     window.Alpine.data('maskedTimeField', maskedTimeField);

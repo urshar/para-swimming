@@ -33,21 +33,41 @@ beide Punkte zusammen in einem Branch) und
 `feature/statistics-multi-year-chart` ("Statistik: 5-Jahres-Vergleichsgrafik" — deutlich über den ursprünglichen
 Umfang hinaus: eigener Jahresvergleich-Menüpunkt, Status je Veranstaltung, manueller Veranstaltungs-Vergleich;
 dokumentiert in `specs/statistics.md`; dabei sind die zwei Folge-Punkte "Staffel-Ergebnisse importieren" und
-"Weitere Statistiken" unten entstanden) — die zugehörigen Open Points unten wurden entfernt.
+"Weitere Statistiken" unten entstanden) und `feature/meet-entries-overview` ("Gesamte, editierbare Meldeliste einer
+Veranstaltung" → meet-weite "Alle Meldungen", Einzel + Staffel, alle Vereine, PR #18; erweitert um das
+wettkampfübergreifende Admin-Cockpit "Meldungen" mit Einzel-/Staffel-Tabs, Status-/Problemfiltern und
+Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit")
+— die zugehörigen Open Points unten wurden entfernt.
 
-1. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-2. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
+Punkt als Nächstes drankommt, entscheidet Erik:
+
+1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+2. "Index-Filter einheitlich: sofort filtern bei Feldänderung" unten — das Auto-Submit-Muster aus dem
+   Meldungen-Cockpit auf die sechs Index-Seiten (athletes, clubs, classifiers, results, meets, entries) übertragen
+3. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
+4. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
+5. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
+6. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+7. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+8. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+9. "Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)" unten
+10. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+11. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+12. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+13. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+14. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+15. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+16. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #15
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
-1. "LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert" unten — wartet auf Eriks Rückmeldung (welches Programm,
-   wie geöffnet)
-2. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
+1. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
 
 ## Staffel-Ergebnisse importieren + Relay-Gender pflegen
@@ -168,40 +188,6 @@ Suchfeld, oder Text erst bei "Enter"/Blur, Selects sofort. Außerdem: "Filtern"-
 **Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
 Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
 sofort, Suchfeld entprellt —, danach je Seite live verifizieren.
-
-## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
-
-**Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).
-
-**Was fehlt:** Der Admin hat aktuell keine einzige Ansicht, die alle Meldungen einer Veranstaltung — Einzel- UND
-Staffelmeldungen, über alle Vereine hinweg — auf einen Blick zeigt und bearbeitbar macht. Stattdessen gibt es zwei
-getrennte, unvollständige Wege:
-
-1. `entries/index.blade.php` (globale Meldungsliste, `EntryController`) — nach `meet_id` filterbar, mit
-   Bearbeiten/Löschen, aber **nur Einzelmeldungen** (`Entry`-Modell); Staffelmeldungen (`RelayEntry`) tauchen dort gar
-   nicht auf.
-2. Der "Meldungen"-Button auf `meets/show.blade.php` führt zu `club-entries.index` — das verlangt von einem Admin erst
-   die Auswahl **eines** Vereins (`club-entries/choose-club.blade.php`) und zeigt danach auch nur dessen
-   Einzelmeldungen; Staffelmeldungen liegen nochmal getrennt unter `club-entries.relay.index`, ebenfalls je Verein
-   einzeln.
-
-Um sich einen Überblick über eine ganze Veranstaltung zu verschaffen, müsste ein Admin aktuell jeden Verein einzeln
-anklicken (bei größeren Meisterschaften z. B. 50+ Vereine).
-
-**Warum zurückgestellt:** Keine Bugfix-Zeile, sondern eine neue View/Route mit mehreren offenen Design-Fragen:
-Einzel- und Staffelmeldungen in einer Tabelle oder zwei Abschnitten? Gruppierung nach Disziplin, nach Verein, oder
-beides wählbar? Inline-bearbeitbar oder Klick auf Zeile → bestehendes Formular (`entries.edit`/
-`club-entries.relay.edit`)? Bei ggf. hunderten Meldungen (siehe z. B. "72. Österr. Staats- & Österr. Meisterschaften")
-Paginierung nötig, vermutlich pro Disziplin statt pro feste Seitengröße. Berechtigung: nur Admins, oder auch
-Vereinsvertreter (dann aber nur auf den eigenen Verein eingeschränkt — überschneidet sich mit dem bestehenden
-`club-entries`-Zugriff und dessen Meldeschluss-Sperre)?
-
-**Wer entscheidet:** Erik — Layout (eine Tabelle vs. Sektionen), Gruppierung/Sortierung, Inline-Edit vs. Formular-Link,
-ob Staffeln von Anfang an mit reinsollen oder eine eigene Folge-Iteration werden.
-
-**Zum Schließen nötig:** Entscheidung zu obigen Punkten, dann neue Route + Controller-Methode (liest `Entry` und
-`RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder ergänzt
-den bestehenden "Meldungen"-Button).
 
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 
@@ -425,40 +411,6 @@ vorbelegt oder nur als Option angezeigt wird.
 `findAthlete()`), Checkbox/Markierung in `import-preview.blade.php`, neue Review-Seite/-Route zum Abarbeiten der offenen
 Fälle — beide Teile in einem Arbeitsschritt, da sie dieselbe Review-Infrastruktur teilen.
 
-## LENEX-Export: `"`/`&` als `&quot;`/`&amp;` kodiert — vermutlich kein Bug, Rückmeldung von Erik nötig
-
-**Seit:** Admin-UI-Rework Phase 10, Rückmeldung nach LENEX-Export-Formular-Anpassung (31.08.2026).
-
-**Was gemeldet wurde:** Beim Export werden `"` zu `&quot;` und `&` zu `&amp;` — Erik berichtet, dass Programme, die
-diese LENEX-Datei einlesen, diese Zeichen nicht zurückwandeln, sondern buchstäblich `&quot;`/`&amp;`
-anzeigen.
-
-**Befund (gegen den echten Export getestet, Änderung in einer Transaktion zurückgerollt, nicht persistiert):**
-`LenexExportService` baut die Datei über PHPs `DOMDocument`/`setAttribute()` — das ist Standard-XML-Verhalten, kein Bug
-in unserem Code. `"` und `&` **müssen** laut XML-Spezifikation innerhalb eines Attributwerts als Entity kodiert werden,
-ein rohes `"` oder `&` würde die Datei ungültig machen. Rückprobe mit
-`Test "Anführungszeichen" & Kaufmanns-Und Meisterschaft` als Meet-Name: Export liefert
-`Test &quot;Anführungszeichen&quot; &amp; Kaufmanns-Und Meisterschaft` in der Rohdatei — beim Zurücklesen über
-`SimpleXMLElement` (derselbe Mechanismus, den jedes echte XML-basierte LENEX-Programm nutzt, auch unser eigener Import
-in `RecordImportService`) kommt exakt wieder `Test "Anführungszeichen" & Kaufmanns-Und Meisterschaft`
-heraus — 1:1 identisch mit dem Original. Ein Entfernen der Kodierung würde die Datei ungültig machen und wäre selbst der
-Bug.
-
-**Warum (noch) nicht als Fix umgesetzt:** Wenn ein reales Programm die Entities nicht zurückwandelt, ist das nur über
-zwei Wege erklärbar, die beide von uns aus nicht behebbar wären, ohne selbst ungültiges XML zu erzeugen:
-(a) das Programm zeigt/parsed die Datei nicht als XML (z. B. Ansicht der Rohdatei in einem Texteditor statt Import über
-die eigentliche Programmfunktion), oder (b) das andere Programm hat selbst einen XML-Parsing-Bug. Bevor hier etwas
-geändert wird, braucht es die konkrete Gegenprobe: welches Programm genau, und wie wurde die Datei dort betrachtet
-(echter Import vs. Datei/Rohtext geöffnet)?
-
-**Wer entscheidet:** Erik — welches Programm betroffen ist und wie die Datei dort geöffnet wurde. Falls sich
-herausstellt, dass es sich tatsächlich um einen waschechten XML-Import in einem Fremdprogramm handelt, das die Entities
-nicht dekodiert, wäre das ein Bug in diesem Fremdprogramm, kein Anpassungsbedarf bei uns — außer als pragmatischer
-Workaround, falls dieses konkrete Programm für den ÖBSV wichtig genug ist.
-
-**Zum Schließen nötig:** Rückmeldung von Erik (Programmname + exportierte Beispieldatei mit dem beanstandeten Feld),
-dann ggf. erneute Prüfung mit genau diesem Programm.
-
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 
 **Seit:** Admin-UI-Rework Phase 10 (03.09.2026) bzw. WPS-Design-Feedback-Runde (04.09.2026, Abstands-Bug entdeckt);
@@ -595,9 +547,10 @@ nach Meet filterbar). Gewünscht ist aber eine **auf eine ausgewählte Veranstal
 Ergebnisse **manuell zu erfassen und zu löschen** — vermutlich eine meet-gebundene Ergebnis-Sammelansicht (alle
 Ergebnisse des Meets auf einen Blick, mit Anlegen/Löschen), statt des globalen `results/index` mit Filter.
 
-**Warum zurückgestellt:** Überschneidet sich teils mit dem bestehenden Punkt "Gesamte, editierbare Meldeliste einer
-Veranstaltung" (der betrifft aber **Meldungen**, nicht **Ergebnisse**) — zu klären, ob das eine gemeinsame
-Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll oder zwei getrennte Ansichten.
+**Warum zurückgestellt:** Überschneidet sich teils mit der bereits umgesetzten Meldungs-Übersicht (meet-weite
+"Alle Meldungen" + das wettkampfübergreifende Meldungen-Cockpit) — die betrifft aber **Meldungen**, nicht
+**Ergebnisse**; zu klären, ob das eine gemeinsame Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll
+oder zwei getrennte Ansichten.
 
 **Wer entscheidet:** Erik — konkret was heute fehlt (nur ein schnellerer Zugang zum vorhandenen Erfassen/Löschen,
 oder eine echte neue Sammelansicht pro Meet?) und ob Ergebnis- und Meldungsverwaltung zusammengelegt werden.
@@ -690,9 +643,9 @@ Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll d
 
 - **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
   kontextsensitive Rücksprung. Überschneidet sich mit "Ergebnisse einer Veranstaltung manuell erfassen & löschen".
-- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es noch nicht — das ist
-  genau der bestehende Punkt "Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
-  Einstieg dorthin.
+- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen
+  ("Alle Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
+  Wettkampfübergreifend zusätzlich das Meldungen-Cockpit (`entries.index`).
 - **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
   statt eine eigene Seite zu öffnen.
 - **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.

@@ -10,6 +10,7 @@ use App\Models\Meet;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
 use App\Support\TimeParser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,28 +22,40 @@ class EntryController extends Controller
 
     public function index(Request $request): View
     {
-        $user = $request->user();
-
-        $query = Entry::with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])
-            ->latest();
-
-        // Vereine sehen hier nur ihre eigenen Meldungen; Admins alle.
-        if (! $user->is_admin) {
-            $query->where('club_id', $user->club_id);
-        }
+        // Route ist admin-only (RequireAdmin) — das Cockpit zeigt immer alle Meldungen.
+        // Basis-Query (Wettkampf + Suche) als gemeinsame Grundlage für Kennzahlen und Liste.
+        $base = Entry::query();
 
         if ($meetId = $request->query('meet_id')) {
-            $query->where('meet_id', $meetId);
+            $base->where('meet_id', $meetId);
         }
 
         if ($search = $request->query('search')) {
-            $this->applyAthleteSearch($query, $search);
+            $this->applyAthleteSearch($base, $search);
         }
+
+        // Kennzahlen-Kacheln: zählen im aktuellen Wettkampf-/Such-Kontext, aber unabhängig
+        // vom gewählten Status-/Problemfilter (damit die Aufschlüsselung immer vollständig
+        // bleibt). Wiederverwendung der Filter-Methoden über countFiltered(), damit die Zähl-
+        // und die Filterlogik nicht auseinanderlaufen.
+        $counts = [
+            'total' => (clone $base)->count(),
+            'wdr' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'WDR')),
+            'sick' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'SICK')),
+            'exh' => $this->countFiltered($base, fn (Builder $q) => $this->applyStatusFilter($q, 'EXH')),
+            'no_time' => $this->countFiltered($base, fn (Builder $q) => $this->applyProblemFilter($q, 'no_time')),
+            'no_class' => $this->countFiltered($base, fn (Builder $q) => $this->applyProblemFilter($q, 'no_class')),
+        ];
+
+        // Liste zusätzlich nach Status/Problem filtern.
+        $query = (clone $base)->with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])->latest();
+        $this->applyStatusFilter($query, $request->query('status'));
+        $this->applyProblemFilter($query, $request->query('problem'));
 
         $entries = $query->paginate(25)->withQueryString();
         $meets = Meet::orderByDesc('start_date')->get();
 
-        return view('entries.index', compact('entries', 'meets'));
+        return view('entries.index', compact('entries', 'meets', 'counts'));
     }
 
     public function create(Meet $meet): RedirectResponse|View
@@ -179,6 +192,58 @@ class EntryController extends Controller
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Statusfilter des Cockpits. "NORMAL" meint Meldungen ohne besonderen Status
+     * (weder noch WDR/SICK/EXH/RJC); ein leerer/null-Wert (geleertes clearable-Select)
+     * lässt die Liste ungefiltert.
+     */
+    private function applyStatusFilter(Builder $query, ?string $status): void
+    {
+        if ($status === 'NORMAL') {
+            $query->where(function (Builder $q) {
+                $q->whereNull('status')->orWhere('status', '');
+            });
+
+            return;
+        }
+
+        if (in_array($status, ['WDR', 'SICK', 'EXH', 'RJC'], true)) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * Problemfilter des Cockpits: Meldungen, die vor dem Wettkampf noch Handlung
+     * brauchen — ohne Meldezeit oder ohne Sportklasse. (Eine echte Doppelmeldung
+     * kann es nicht geben — der Unique-Constraint [meet_id, swim_event_id,
+     * athlete_id] auf entries verhindert sie bereits auf DB-Ebene.)
+     */
+    private function applyProblemFilter(Builder $query, ?string $problem): void
+    {
+        if ($problem === 'no_time') {
+            $query->whereNull('entry_time');
+        } elseif ($problem === 'no_class') {
+            $query->where(function (Builder $q) {
+                $q->whereNull('sport_class')->orWhere('sport_class', '');
+            });
+        }
+    }
+
+    /**
+     * Zählt die Meldungen einer Klon-Basis-Query nach Anwenden eines Filter-Callbacks.
+     * Eigene Methode statt tap()->count(), damit PhpStorms Generics-Resolver nicht auf
+     * HigherOrderTapProxy zurückfällt ("Method 'count' not found").
+     *
+     * @param  callable(Builder): void  $filter
+     */
+    private function countFiltered(Builder $base, callable $filter): int
+    {
+        $query = clone $base;
+        $filter($query);
+
+        return $query->count();
+    }
 
     private function sharedEntryRules(): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -71,6 +72,19 @@ class RelayEntry extends Model
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
+    /**
+     * Meldezeit formatiert (wie Entry): numerische Zeit als "MM:SS.hh", sonst der
+     * Code (NT/NS/WO) bzw. "NT", wenn keine Zeit hinterlegt ist.
+     */
+    public function getFormattedEntryTimeAttribute(): string
+    {
+        if (! $this->entry_time) {
+            return $this->entry_time_code ?? 'NT';
+        }
+
+        return TimeParser::display($this->entry_time);
+    }
 
     public function members(): HasMany
     {

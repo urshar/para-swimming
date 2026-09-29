@@ -43,7 +43,7 @@ function eis_entry(object $meet, object $event, Club $club): Entry
     ]);
 }
 
-it('zeigt Admins alle Meldungen, Vereinen nur die eigenen', function () {
+it('zeigt Admins alle Meldungen samt Bearbeiten-Aktion', function () {
     $meet = makeMeet_p5();
     $event = makeEvent_p5($meet);
     $clubA = makeClub_p5();
@@ -51,18 +51,21 @@ it('zeigt Admins alle Meldungen, Vereinen nur die eigenen', function () {
     $entryA = eis_entry($meet, $event, $clubA);
     $entryB = eis_entry($meet, $event, $clubB);
 
-    $nameA = $entryA->athlete->display_name;
-    $nameB = $entryB->athlete->display_name;
-
     $this->actingAs(eis_admin())->get(route('entries.index'))
         ->assertOk()
-        ->assertSee($nameA)
-        ->assertSee($nameB);
+        ->assertSee($entryA->athlete->display_name)
+        ->assertSee($entryB->athlete->display_name)
+        ->assertSee(route('entries.edit', $entryA), false);
+});
 
-    $this->actingAs(eis_clubUser($clubA))->get(route('entries.index'))
-        ->assertOk()
-        ->assertSee($nameA)
-        ->assertDontSee($nameB);
+it('sperrt die Meldungsliste für Vereine (Cockpit ist admin-only)', function () {
+    $meet = makeMeet_p5();
+    $event = makeEvent_p5($meet);
+    $club = makeClub_p5();
+    eis_entry($meet, $event, $club);
+
+    $this->actingAs(eis_clubUser($club))->get(route('entries.index'))
+        ->assertForbidden();
 });
 
 it('macht Anlegen/Bearbeiten/Löschen von Meldungen admin-only', function () {
@@ -81,19 +84,4 @@ it('macht Anlegen/Bearbeiten/Löschen von Meldungen admin-only', function () {
     // Admin darf.
     $this->actingAs(eis_admin())->get(route('meets.entries.create', $meet))->assertOk();
     $this->actingAs(eis_admin())->get(route('entries.edit', $entry))->assertOk();
-});
-
-it('blendet für Vereine die Bearbeiten-/Löschen-Aktionen in der Liste aus', function () {
-    $meet = makeMeet_p5();
-    $event = makeEvent_p5($meet);
-    $club = makeClub_p5();
-    $entry = eis_entry($meet, $event, $club);
-
-    $this->actingAs(eis_clubUser($club))->get(route('entries.index'))
-        ->assertOk()
-        ->assertDontSee(route('entries.edit', $entry), false);
-
-    $this->actingAs(eis_admin())->get(route('entries.index'))
-        ->assertOk()
-        ->assertSee(route('entries.edit', $entry), false);
 });
