@@ -33,10 +33,13 @@ beide Punkte zusammen in einem Branch) und
 `feature/statistics-multi-year-chart` ("Statistik: 5-Jahres-Vergleichsgrafik" — deutlich über den ursprünglichen
 Umfang hinaus: eigener Jahresvergleich-Menüpunkt, Status je Veranstaltung, manueller Veranstaltungs-Vergleich;
 dokumentiert in `specs/statistics.md`; dabei sind die zwei Folge-Punkte "Staffel-Ergebnisse importieren" und
-"Weitere Statistiken" unten entstanden) — die zugehörigen Open Points unten wurden entfernt.
+"Weitere Statistiken" unten entstanden) und `feature/meet-entries-overview` ("Gesamte, editierbare Meldeliste einer
+Veranstaltung" → meet-weite "Alle Meldungen", Einzel + Staffel, alle Vereine, PR #18; erweitert um das
+wettkampfübergreifende Admin-Cockpit "Meldungen" mit Einzel-/Staffel-Tabs, Status-/Problemfiltern und
+Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit")
+— die zugehörigen Open Points unten wurden entfernt.
 
-1. `feature/meet-entries-overview` — "Gesamte, editierbare Meldeliste einer Veranstaltung" unten
-2. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
+1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -168,47 +171,6 @@ Suchfeld, oder Text erst bei "Enter"/Blur, Selects sofort. Außerdem: "Filtern"-
 **Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
 Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
 sofort, Suchfeld entprellt —, danach je Seite live verifizieren.
-
-## Gesamte, editierbare Meldeliste einer Veranstaltung (Admin)
-
-**Seit:** Design-Feedback nach Admin-UI-Rework Phase 9, zweite Session-Fortsetzung (30.08.2026).
-
-**Was fehlt:** Der Admin hat aktuell keine einzige Ansicht, die alle Meldungen einer Veranstaltung — Einzel- UND
-Staffelmeldungen, über alle Vereine hinweg — auf einen Blick zeigt und bearbeitbar macht. Stattdessen gibt es zwei
-getrennte, unvollständige Wege:
-
-1. `entries/index.blade.php` (globale Meldungsliste, `EntryController`) — nach `meet_id` filterbar, mit
-   Bearbeiten/Löschen, aber **nur Einzelmeldungen** (`Entry`-Modell); Staffelmeldungen (`RelayEntry`) tauchen dort gar
-   nicht auf.
-2. Der "Meldungen"-Button auf `meets/show.blade.php` führt zu `club-entries.index` — das verlangt von einem Admin erst
-   die Auswahl **eines** Vereins (`club-entries/choose-club.blade.php`) und zeigt danach auch nur dessen
-   Einzelmeldungen; Staffelmeldungen liegen nochmal getrennt unter `club-entries.relay.index`, ebenfalls je Verein
-   einzeln.
-
-Um sich einen Überblick über eine ganze Veranstaltung zu verschaffen, müsste ein Admin aktuell jeden Verein einzeln
-anklicken (bei größeren Meisterschaften z. B. 50+ Vereine).
-
-**Warum zurückgestellt:** Keine Bugfix-Zeile, sondern eine neue View/Route mit mehreren offenen Design-Fragen:
-Einzel- und Staffelmeldungen in einer Tabelle oder zwei Abschnitten? Gruppierung nach Disziplin, nach Verein, oder
-beides wählbar? Inline-bearbeitbar oder Klick auf Zeile → bestehendes Formular (`entries.edit`/
-`club-entries.relay.edit`)? Bei ggf. hunderten Meldungen (siehe z. B. "72. Österr. Staats- & Österr. Meisterschaften")
-Paginierung nötig, vermutlich pro Disziplin statt pro feste Seitengröße. Berechtigung: nur Admins, oder auch
-Vereinsvertreter (dann aber nur auf den eigenen Verein eingeschränkt — überschneidet sich mit dem bestehenden
-`club-entries`-Zugriff und dessen Meldeschluss-Sperre)?
-
-**Wer entscheidet:** Erik — Layout (eine Tabelle vs. Sektionen), Gruppierung/Sortierung, Inline-Edit vs. Formular-Link,
-ob Staffeln von Anfang an mit reinsollen oder eine eigene Folge-Iteration werden.
-
-**Zum Schließen nötig:** Entscheidung zu obigen Punkten, dann neue Route + Controller-Methode (liest `Entry` und
-`RelayEntry` meet-weit statt club-gescoped), neue View, Verlinkung von `meets/show.blade.php` aus (ersetzt oder ergänzt
-den bestehenden "Meldungen"-Button).
-
-**Update (29.09.2026):** Teilweise überholt. Die **meet-weite** Gesamtübersicht deckt „Alle Meldungen"
-(`meets.entries-overview`, Einzel + Staffel, alle Vereine) ab. Zusätzlich ist `entries.index` jetzt das
-**wettkampfübergreifende Admin-Cockpit** „Was ist zu tun" mit Tabs Einzel/Staffel (`relay-entries.index`),
-Status-/Problemfiltern und Kennzahlen-Kacheln (siehe `specs/club-entries.md` „Meldungen-Cockpit") — Punkt 1
-oben („entries/index zeigt nur Einzel, Staffeln fehlen") ist damit hinfällig. Offen bleibt nur noch die
-**inline-editierbare, nach Disziplin gruppierte** meet-weite Variante, falls gewünscht.
 
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 
@@ -602,9 +564,10 @@ nach Meet filterbar). Gewünscht ist aber eine **auf eine ausgewählte Veranstal
 Ergebnisse **manuell zu erfassen und zu löschen** — vermutlich eine meet-gebundene Ergebnis-Sammelansicht (alle
 Ergebnisse des Meets auf einen Blick, mit Anlegen/Löschen), statt des globalen `results/index` mit Filter.
 
-**Warum zurückgestellt:** Überschneidet sich teils mit dem bestehenden Punkt "Gesamte, editierbare Meldeliste einer
-Veranstaltung" (der betrifft aber **Meldungen**, nicht **Ergebnisse**) — zu klären, ob das eine gemeinsame
-Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll oder zwei getrennte Ansichten.
+**Warum zurückgestellt:** Überschneidet sich teils mit der bereits umgesetzten Meldungs-Übersicht (meet-weite
+"Alle Meldungen" + das wettkampfübergreifende Meldungen-Cockpit) — die betrifft aber **Meldungen**, nicht
+**Ergebnisse**; zu klären, ob das eine gemeinsame Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll
+oder zwei getrennte Ansichten.
 
 **Wer entscheidet:** Erik — konkret was heute fehlt (nur ein schnellerer Zugang zum vorhandenen Erfassen/Löschen,
 oder eine echte neue Sammelansicht pro Meet?) und ob Ergebnis- und Meldungsverwaltung zusammengelegt werden.
@@ -697,9 +660,9 @@ Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll d
 
 - **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
   kontextsensitive Rücksprung. Überschneidet sich mit "Ergebnisse einer Veranstaltung manuell erfassen & löschen".
-- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es noch nicht — das ist
-  genau der bestehende Punkt "Gesamte, editierbare Meldeliste einer Veranstaltung". Der Kachel-Klick wäre der
-  Einstieg dorthin.
+- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen
+  ("Alle Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
+  Wettkampfübergreifend zusätzlich das Meldungen-Cockpit (`entries.index`).
 - **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
   statt eine eigene Seite zu öffnen.
 - **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.
