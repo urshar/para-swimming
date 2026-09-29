@@ -10,6 +10,7 @@ use App\Models\Meet;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
 use App\Support\TimeParser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,9 @@ class EntryController extends Controller
         if ($search = $request->query('search')) {
             $this->applyAthleteSearch($query, $search);
         }
+
+        $this->applyStatusFilter($query, $request->query('status'));
+        $this->applyProblemFilter($query, $request->query('problem'));
 
         $entries = $query->paginate(25)->withQueryString();
         $meets = Meet::orderByDesc('start_date')->get();
@@ -173,6 +177,43 @@ class EntryController extends Controller
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Statusfilter des Cockpits. "NORMAL" meint Meldungen ohne besonderen Status
+     * (weder noch WDR/SICK/EXH/RJC); ein leerer/null-Wert (geleertes clearable-Select)
+     * lässt die Liste ungefiltert.
+     */
+    private function applyStatusFilter(Builder $query, ?string $status): void
+    {
+        if ($status === 'NORMAL') {
+            $query->where(function (Builder $q) {
+                $q->whereNull('status')->orWhere('status', '');
+            });
+
+            return;
+        }
+
+        if (in_array($status, ['WDR', 'SICK', 'EXH', 'RJC'], true)) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * Problemfilter des Cockpits: Meldungen, die vor dem Wettkampf noch Handlung
+     * brauchen — ohne Meldezeit oder ohne Sportklasse. (Eine echte Doppelmeldung
+     * kann es nicht geben — der Unique-Constraint [meet_id, swim_event_id,
+     * athlete_id] auf entries verhindert sie bereits auf DB-Ebene.)
+     */
+    private function applyProblemFilter(Builder $query, ?string $problem): void
+    {
+        if ($problem === 'no_time') {
+            $query->whereNull('entry_time');
+        } elseif ($problem === 'no_class') {
+            $query->where(function (Builder $q) {
+                $q->whereNull('sport_class')->orWhere('sport_class', '');
+            });
+        }
+    }
 
     private function sharedEntryRules(): array
     {
