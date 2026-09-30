@@ -33,36 +33,39 @@
     <div class="mb-4 flex flex-wrap items-end gap-3">
         <flux:field class="w-48">
             <flux:label>Bewerb</flux:label>
-            <flux:select x-on:change="$wire.setFilter('stroke', $event.target.value)">
-                <option value="">Alle</option>
+            <flux:select variant="listbox" wire:model.live="filterStroke">
+                <flux:select.option value="">Alle</flux:select.option>
                 @foreach($this->strokeTypes() as $strokeType)
-                    <option value="{{ $strokeType->id }}"
-                        @selected($filterStroke === (string) $strokeType->id)>{{ $strokeType->name_de }}</option>
+                    <flux:select.option value="{{ $strokeType->id }}">{{ $strokeType->name_de }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Geschlecht</flux:label>
-            <flux:select x-on:change="$wire.setFilter('gender', $event.target.value)">
-                <option value="">Alle</option>
-                <option value="M" @selected($filterGender === 'M')>männlich</option>
-                <option value="F" @selected($filterGender === 'F')>weiblich</option>
+            <flux:select variant="listbox" wire:model.live="filterGender">
+                <flux:select.option value="">Alle</flux:select.option>
+                <flux:select.option value="M">männlich</flux:select.option>
+                <flux:select.option value="F">weiblich</flux:select.option>
             </flux:select>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Sportklasse</flux:label>
-            <flux:select x-on:change="$wire.setFilter('sportClass', $event.target.value)">
-                <option value="">Alle</option>
+            <flux:select variant="listbox" wire:model.live="filterSportClass">
+                <flux:select.option value="">Alle</flux:select.option>
                 @foreach($this->availableSportClasses() as $sportClass)
-                    <option value="{{ $sportClass }}"
-                        @selected($filterSportClass === $sportClass)>{{ $sportClass }}</option>
+                    <flux:select.option value="{{ $sportClass }}">{{ $sportClass }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
-        <flux:button wire:click="resetFilters" variant="ghost" size="sm">Filter zurücksetzen</flux:button>
+        @if($filterStroke !== '' || $filterGender !== '' || $filterSportClass !== '')
+            <div class="ml-auto flex items-center">
+                <flux:button wire:click="resetFilters" variant="filled" icon="x-mark"
+                             class="text-red-500!">Zurücksetzen</flux:button>
+            </div>
+        @endif
     </div>
 
     @if($istAdmin)
@@ -74,7 +77,9 @@
                     <flux:label>ÖBSV-Verschärfung</flux:label>
                     <flux:input x-model="$wire.bulkPercent" placeholder="z.B. 2" type="number" step="0.01"/>
                 </flux:field>
-                <flux:button wire:click="applyBulkPercent" variant="primary" size="sm">
+                {{-- Standardhöhe (kein size="sm"), damit der Button so hoch ist wie das
+                     Prozentsatz-Eingabefeld daneben. --}}
+                <flux:button wire:click="applyBulkPercent" variant="primary">
                     Auf alle offenen Zeilen anwenden
                 </flux:button>
             </div>

@@ -90,27 +90,22 @@ class ChampionshipStandardTable extends Component
         $this->loadRows();
     }
 
-    /**
-     * Setzt einen Filter und lädt die Tabelle neu.
-     *
-     * Wird vom change-Ereignis der Auswahlfelder aufgerufen und bekommt den Wert
-     * ausdrücklich mitgeliefert, statt sich auf eine Bindung zu verlassen — dieselbe
-     * Entscheidung wie bei saveCell(). Ein eigener "Anwenden"-Knopf entfällt damit: Der
-     * Filter greift, sobald etwas ausgewählt ist.
-     */
-    public function setFilter(string $feld, string $wert): void
+    // Die Filter-Auswahlfelder binden per wire:model.live; bei jeder Änderung lädt die
+    // Tabelle sofort neu (kein "Anwenden"-Knopf). Je Filter ein updated-Hook, der denselben
+    // Helper aufruft.
+    public function updatedFilterStroke(): void
     {
-        match ($feld) {
-            'stroke' => $this->filterStroke = $wert,
-            'gender' => $this->filterGender = $wert,
-            'sportClass' => $this->filterSportClass = $wert,
-            default => null,
-        };
+        $this->afterFilterChange();
+    }
 
-        // Ohne Rücksprung auf Seite 1 landet man nach dem Filtern auf einer Seite, die es
-        // in der kleineren Treffermenge nicht mehr gibt, und sieht eine leere Tabelle.
-        $this->resetPage();
-        $this->loadRows();
+    public function updatedFilterGender(): void
+    {
+        $this->afterFilterChange();
+    }
+
+    public function updatedFilterSportClass(): void
+    {
+        $this->afterFilterChange();
     }
 
     public function addRow(ChampionshipStandardService $service): void
@@ -415,6 +410,20 @@ class ChampionshipStandardTable extends Component
     public function render(): View
     {
         return view('livewire.admin.championship-standard-table');
+    }
+
+    /**
+     * Nach einer Filteränderung: zurück auf Seite 1 und die Eingabefelder der jetzt
+     * sichtbaren Seite neu laden.
+     *
+     * Ohne Rücksprung auf Seite 1 landet man nach dem Filtern auf einer Seite, die es in der
+     * kleineren Treffermenge nicht mehr gibt, und sieht eine leere Tabelle. loadRows() leert
+     * dabei auch die Computed-Caches.
+     */
+    private function afterFilterChange(): void
+    {
+        $this->resetPage();
+        $this->loadRows();
     }
 
     private function afterSave(): void

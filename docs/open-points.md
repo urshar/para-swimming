@@ -36,34 +36,33 @@ dokumentiert in `specs/statistics.md`; dabei sind die zwei Folge-Punkte "Staffel
 "Weitere Statistiken" unten entstanden) und `feature/meet-entries-overview` ("Gesamte, editierbare Meldeliste einer
 Veranstaltung" → meet-weite "Alle Meldungen", Einzel + Staffel, alle Vereine, PR #18; erweitert um das
 wettkampfübergreifende Admin-Cockpit "Meldungen" mit Einzel-/Staffel-Tabs, Status-/Problemfiltern und
-Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit") und
+Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit"),
 `feature/index-filter-autosubmit` ("Index-Filter einheitlich: sofort filtern bei Feldänderung" → die fünf
 GET-Formular-Index-Filter athletes/clubs/classifiers/results/meets auf Auto-Submit ohne "Filtern"-Button umgestellt;
-`entries` war über das Cockpit schon so; dokumentiert in `specs/admin-ui-rework.md` "Index-Filter-Auto-Submit
-vereinheitlicht" — der Livewire-Meisterschafts-Teil wurde bewusst ausgelassen und bleibt als eigener Punkt unten)
-— die zugehörigen Open Points unten wurden entfernt.
+`entries` war über das Cockpit schon so) und `feature/championship-filter-autosubmit` (der Livewire-Rest: Auto-Submit
+auf den Meisterschafts-Unterseiten Normen/Qualifikanten/Förderansicht über `wire:model.live` + Listbox-Selects, plus
+die Auswahl-Rangliste als GET-Form über `indexFilters`) — beide dokumentiert in `specs/admin-ui-rework.md`
+"Index-Filter-Auto-Submit vereinheitlicht" — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Index-Filter-Auto-Submit auf den Livewire-Meisterschafts-Unterseiten" unten — der bewusst ausgelassene Rest des
-   erledigten GET-Formular-Umbaus (Qualifikanten/Förderansicht/Auswahl-Rangliste + `championships.show`, über
-   `wire:model.live` statt Alpine-`$watch`)
-3. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
-4. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
-5. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
-6. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
-7. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-8. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-9. "Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)" unten
-10. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-11. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-12. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-13. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-14. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-15. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-16. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #15
+2. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
+3. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
+4. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
+5. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+6. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+7. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+8. "Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)" unten
+9. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+10. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+11. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+12. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+13. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+14. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+15. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #14
+16. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -74,6 +73,29 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)
+
+**Seit:** Wunsch Erik (30.09.2026) beim Umbau der Meisterschafts-Filter.
+
+**Was fehlt:** Der Normen-Import (`championships/import/form.blade.php` → `ChampionshipStandardImportController`/
+`ChampionshipStandardImportService`) akzeptiert aktuell **nur eine `.xlsx`-Datei** im WPS-Excel-Layout (Zeile 1 Titel,
+Zeile 2 Events/Class/Men/Women, Zeile 3 MQS/MET, ab Zeile 4 die Daten in den Spalten A–F; füllt ausschließlich MQS und
+MET, ÖBSV-Prozentsätze/-Zeiten bleiben unberührt). Gewünscht: MQS und MET **auch aus einer XML-Datei** importieren
+können.
+
+**Warum zurückgestellt:** Ohne eine Beispiel-XML ist weder das Quellformat (Schema/Struktur) noch das Mapping auf
+Bewerb/Sportklasse/Geschlecht/MQS/MET bekannt. Zu klären ist außerdem, ob es sich um ein WPS-eigenes XML, um LENEX oder
+ein anderes Format handelt — davon hängt der Parser ab.
+
+**Wer entscheidet / liefert:** Erik — eine Beispiel-XML mit Normen (MQS/MET) und die Angabe, welches Format das ist
+(WPS-XML/LENEX/…). Offene Fragen: dieselbe "nur MQS/MET füllen, ÖBSV unberührt"-Regel wie beim xlsx-Import? Ein
+gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener Auswahlpunkt?
+
+**Zum Schließen nötig:** Nach Erhalt der Beispiel-XML: `ChampionshipStandardImportService` um einen XML-Parser erweitern
+(Format erkennen: xlsx vs. xml), Mapping auf Bewerb/Klasse/Geschlecht/MQS/MET, dieselbe Vorschau- und
+Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
+akzeptiert zusätzlich `.xml`.
 
 ## Staffel-Ergebnisse importieren + Relay-Gender pflegen
 
@@ -158,36 +180,6 @@ unmittelbar vorherigen Seite? Nur bestimmte Flows?).
 **Zum Schließen nötig:** Das Muster von `athletes.list_url` (Session-gespeicherte Rücksprung-URL) auf die übrigen
 Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
 -Back-Links auf das gemerkte Ziel umstellen.
-
-## Index-Filter-Auto-Submit auf den Livewire-Meisterschafts-Unterseiten
-
-**Erledigt (29.09.2026, `feature/index-filter-autosubmit`):** Die fünf GET-Formular-Index-Filter (**athletes, clubs,
-classifiers, results, meets**) lösen jetzt sofort bei Feldänderung aus, ohne "Filtern"-Button — generisches
-Alpine-Modul `resources/js/index-filters.js` (`x-model` + `$watch → submit`, Suchfelder mit Debounce 500 ms).
-`entries.index` war über das Meldungen-Cockpit schon so. Dokumentiert in `specs/admin-ui-rework.md`
-("Index-Filter-Auto-Submit vereinheitlicht"). **Offen bleibt dieser Punkt nur noch für den bewusst ausgelassenen
-Livewire-Teil:**
-
-**Seit:** Ergänzung Erik (20.09.2026) zum Index-Filter-Punkt; beim Umbau der GET-Seiten (29.09.2026) bewusst
-getrennt gehalten.
-
-**Was fehlt:** Die Filter der Meisterschafts-Unterseiten — **Qualifikanten**, **Förderansicht**,
-**Auswahl-Rangliste** (die drei Ansichten zu einer Meisterschaft) plus "Normen"/`championships.show` — sollen
-ebenfalls sofort filtern. Diese Ansichten sind **Livewire-Tabellen** (`championship-qualification-table`,
-`championship-development-table`); ihre Filter laufen über `wire:model`, nicht über eine GET-Form — das
-Alpine-`$watch`-Auto-Submit der GET-Seiten greift hier also nicht. Zusätzlich sollen die alten/nativen
-Dropdown-Boxen dort auf `flux:select variant="listbox"` umgestellt werden.
-
-**Warum zurückgestellt:** Anderer Mechanismus als bei den GET-Seiten — statt Alpine-`$watch`+`submit` vermutlich
-`wire:model.live` (ggf. `.debounce` auf Textfeldern). Gemischter Umfang (Livewire-Umbau + Dropdown-Austausch),
-bewusst nicht mit dem Alpine-Auto-Submit der fünf GET-Seiten vermischt.
-
-**Wer entscheidet:** Erik — ob `wire:model.live` das passende Muster ist (vs. eine Alpine-Variante), das
-Debounce-Verhalten etwaiger Textfelder, und ob die Dropdowns dabei gleich auf `flux:select variant="listbox"` wandern.
-
-**Zum Schließen nötig:** Die Filter der genannten Livewire-Ansichten auf Live-Aktualisierung umstellen
-(`wire:model.live`, Textfelder entprellt), Dropdowns auf `flux:select variant="listbox"` bringen, danach je Ansicht
-live verifizieren.
 
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 

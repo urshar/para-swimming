@@ -3240,7 +3240,39 @@ zurück), dann aus dem gebauten Bundle geprüft — `clubs` (Nation-Select löst
 Filter bleibt erhalten, beide Felder nach Reload korrekt vorbelegt), `athletes` (`letter=B` bleibt beim
 `gender`-Wechsel erhalten), `classifiers`/`results`/`meets` (Komponente initialisiert, `year`-Number-Feld löst aus).
 
-**Bewusst NICHT in diesem Branch** (bleibt eigener Open Point): die **Livewire-Meisterschafts-Unterseiten**
+**Bewusst NICHT in diesem Branch** (eigener Folge-Branch, s. u.): die **Livewire-Meisterschafts-Unterseiten**
 (Qualifikanten/Förderansicht/Auswahl-Rangliste + `championships.show`). Deren Filter laufen über `wire:model`, nicht
 über die GET-Form — dort greift das Alpine-`$watch`-Auto-Submit nicht; passender wäre `wire:model.live`. Bewusst als
 getrennter Branch belassen (gemischter Umfang: Alpine-Auto-Submit + Livewire-Umbau).
+
+### Livewire-Meisterschafts-Unterseiten nachgezogen — **abgeschlossen**
+
+`feature/championship-filter-autosubmit` (30.09.2026). Setzt den oben ausgelassenen Livewire-Teil um: Auch die vier
+Meisterschafts-Ansichten filtern jetzt sofort bei Feldänderung, ohne "Filtern"-/"Anwenden"-Knopf. Phasenweise je
+Ansicht (Erik: "je Ansicht einzeln").
+
+- **Drei Livewire-Tabellen** — Normen (`championship-standard-table`), Förderansicht (`championship-development-table`),
+  Qualifikanten (`championship-qualification-table`): Die Filter-Selects von nativen `<option>` +
+  `x-on:change="$wire.setFilter(...)"` auf `flux:select variant="listbox"` + **`wire:model.live`** umgestellt; die
+  Suchfelder von `x-model="$wire.search"` auf **`wire:model.live.debounce.500ms`**. Die `setFilter($feld, $wert)`-Methode
+  ist durch feldbezogene `updatedFilter*()`-Lifecycle-Hooks ersetzt (gemeinsamer privater Helper für die Seiteneffekte:
+  `resetPage()`/`loadRows()` bzw. bei Qualifikanten `expanded` leeren + Computed-Caches leeren). Die wenigen
+  Test-Aufrufe `->call('setFilter', …)` wurden auf `->set('filterX', …)` umgestellt — `->set` triggert den
+  `updated*`-Hook, sodass die Tests denselben Pfad wie die UI nehmen.
+- **Auswahl-Rangliste** (`championships/selection.blade.php`) ist **keine** Livewire-Tabelle, sondern eine GET-Form mit
+  einem einzelnen `limit`-Feld — dort greift dasselbe generische `indexFilters`-Alpine-Modul wie bei den fünf
+  Index-Seiten (Auto-Submit, `x-model.debounce.500ms`), "Anwenden" entfällt.
+- **Leerwert-Option:** `<flux:select.option value="">Alle</flux:select.option>` synct mit `wire:model.live` sauber auf
+  den leeren String (live geprüft) — der GET-Submit-Fehlalarm aus dem `@json`-Hinweis (Flux liest ein leeres `value`
+  beim Formular-Submit nicht zuverlässig) gilt hier **nicht**, weil Livewire den Wert über sein eigenes Binding
+  überträgt, nicht über einen HTML-Form-Submit.
+- **Buttons:** Der "Zurücksetzen"-Button ist überall auf das Index-Filter-Muster gebracht (rot `x-mark`,
+  `variant="filled"`, `ml-auto`-rechtsbündig, nur bei aktivem Filter). Der **PDF-Button** bleibt in der Filterleiste
+  (Erik: die zunächst getestete Kopfzeilen-Position wirkte optisch unpassend) — er trägt über `$this->pdfUrl()` den
+  aktuellen Filter- und (bei der Förderansicht) Athleten-Auswahlstand mit, den die server-gerenderte Kopfzeile nicht
+  kennt; eingefärbt lila (`text-purple-500!`) wie die übrigen Listen und in Standardhöhe (kein `size="sm"`), damit er so
+  hoch ist wie die Filterfelder daneben. Ebenso der Normen-Massenaktion-Button ("Auf alle offenen Zeilen anwenden").
+
+**Tests:** volle Suite (1556) grün, Pint clean. **Live verifiziert** gegen den Build (Dev-Server aus): `wire:model.live`
+filtert sofort, die entprellte Suche greift nach 500 ms, die "Alle"-Option synct auf `""`, der PDF-Link trägt den Filter
+mit (`?q=…` / `?fulfilment=…`), Suchfeld/Select/PDF-Button bündig auf 40 px — kein Konsolenfehler.

@@ -320,10 +320,10 @@ it('filtert nach erfüllten und nicht erfüllten Bewerben', function () {
 
     expect($komponente->instance()->visibleRows($eintrag))->toHaveCount(2);
 
-    $komponente->call('setFilter', 'fulfilment', 'met');
+    $komponente->set('filterFulfilment', 'met');
     expect($komponente->instance()->visibleRows($eintrag))->toHaveCount(1);
 
-    $komponente->call('setFilter', 'fulfilment', 'open');
+    $komponente->set('filterFulfilment', 'open');
     expect($komponente->instance()->visibleRows($eintrag))->toHaveCount(1);
 });
 

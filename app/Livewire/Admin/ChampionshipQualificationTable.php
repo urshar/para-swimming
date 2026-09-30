@@ -78,19 +78,16 @@ class ChampionshipQualificationTable extends Component
             .($parameter === [] ? '' : '?'.http_build_query($parameter));
     }
 
-    public function setFilter(string $feld, string $wert): void
+    // Die Filter-Auswahlfelder binden per wire:model.live; bei jeder Änderung sofort neu
+    // filtern (kein "Anwenden"-Knopf). Je Filter ein updated-Hook mit gemeinsamem Helper.
+    public function updatedFilterFulfilment(): void
     {
-        match ($feld) {
-            'fulfilment' => $this->filterFulfilment = $wert,
-            'kader' => $this->filterKader = $wert,
-            default => null,
-        };
+        $this->afterFilterChange();
+    }
 
-        // Aufgeklappte Zeilen zurücksetzen: Nach dem Filtern zeigen sie auf Bewerbe, die
-        // womöglich gar nicht mehr sichtbar sind.
-        $this->expanded = [];
-
-        unset($this->filter, $this->groups);
+    public function updatedFilterKader(): void
+    {
+        $this->afterFilterChange();
     }
 
     public function toggle(string $schluessel): void
@@ -190,6 +187,15 @@ class ChampionshipQualificationTable extends Component
     public function render(): View
     {
         return view('livewire.admin.championship-qualification-table');
+    }
+
+    private function afterFilterChange(): void
+    {
+        // Aufgeklappte Zeilen zurücksetzen: Nach dem Filtern zeigen sie auf Bewerbe, die
+        // womöglich gar nicht mehr sichtbar sind.
+        $this->expanded = [];
+
+        unset($this->filter, $this->groups);
     }
 
     /**
