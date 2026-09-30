@@ -89,6 +89,9 @@
                                 <x-gender-icon :gender="$relay->teamGender() ?? $relay->swimEvent->gender" class="ml-1"/>
                             </span>
 
+                            {{-- Staffelname (eigener Name oder Vereinsname + Nummer, siehe App\Support\RelayNames) --}}
+                            <span class="text-sm text-zinc-600 dark:text-zinc-300">{{ $relayNames[$relay->id] }}</span>
+
                             {{-- Vollständigkeit --}}
                             @if($isComplete)
                                 <flux:badge color="green" size="sm">Vollständig</flux:badge>

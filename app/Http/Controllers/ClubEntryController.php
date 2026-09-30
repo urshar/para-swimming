@@ -11,16 +11,23 @@ use App\Models\RelayEntryMember;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
 use App\Services\RelayClassValidator;
+use App\Support\RelayNames;
 use App\Support\TimeParser;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ClubEntryController extends Controller
 {
     use AuthorizesRequests;
+
+    private const array RELAY_NAME_MESSAGES = [
+        'name.unique' => 'Dieser Verein hat in diesem Bewerb bereits eine Staffel mit diesem Namen.',
+        'name.max' => 'Der Staffelname darf höchstens 50 Zeichen lang sein.',
+    ];
 
     public function __construct(
         private readonly ClubEntryService $entryService,
@@ -231,10 +238,13 @@ class ClubEntryController extends Controller
             ->orderBy('swim_event_id')
             ->orderBy('id')
             ->get();
+        // club-Relation für den Anzeigenamen setzen statt je Staffel nachzuladen — alle gehören zu $club.
+        $relayEntries->each(fn (RelayEntry $r) => $r->setRelation('club', $club));
+        $relayNames = RelayNames::for($relayEntries);
 
         $canManage = $this->canManage($meet);
 
-        return view('club-entries.index-relay', compact('meet', 'club', 'relayEntries', 'canManage'));
+        return view('club-entries.index-relay', compact('meet', 'club', 'relayEntries', 'relayNames', 'canManage'));
     }
 
     /**
@@ -276,11 +286,12 @@ class ClubEntryController extends Controller
 
         $validated = $request->validate([
             'swim_event_id' => ['required', 'integer', 'exists:swim_events,id'],
+            'name' => $this->relayNameRules($request->integer('swim_event_id'), $club->id, null),
             'athlete_ids' => ['nullable', 'array'],
             'athlete_ids.*' => ['integer', 'exists:athletes,id'],
             'entry_time' => ['nullable', 'string', 'max:20'],
             'entry_course' => ['nullable', 'in:LCM,SCM'],
-        ]);
+        ], self::RELAY_NAME_MESSAGES);
 
         // SwimEvent muss zum Meet gehören und ein Staffel-Event sein
         $event = SwimEvent::where('id', $validated['swim_event_id'])
@@ -307,6 +318,7 @@ class ClubEntryController extends Controller
             'meet_id' => $meet->id,
             'swim_event_id' => $event->id,
             'club_id' => $club->id,
+            'name' => $validated['name'] ?? null,
             'relay_class' => $relayClass,
             'entry_time' => $entryTime,
             'entry_time_code' => $entryTimeCode,
@@ -388,11 +400,12 @@ class ClubEntryController extends Controller
         $club = $this->userClub();
 
         $validated = $request->validate([
+            'name' => $this->relayNameRules($relayEntry->swim_event_id, $relayEntry->club_id, $relayEntry->id),
             'athlete_ids' => ['nullable', 'array'],
             'athlete_ids.*' => ['integer', 'exists:athletes,id'],
             'entry_time' => ['nullable', 'string', 'max:20'],
             'entry_course' => ['nullable', 'in:LCM,SCM'],
-        ]);
+        ], self::RELAY_NAME_MESSAGES);
 
         $event = $relayEntry->swimEvent;
 
@@ -411,6 +424,7 @@ class ClubEntryController extends Controller
         $relayClass = ! empty($athleteIds) ? $this->computeRelayClass($athleteIds, $event) : $relayEntry->relay_class;
 
         $relayEntry->update([
+            'name' => $validated['name'] ?? null,
             'relay_class' => $relayClass,
             'entry_time' => $entryTime,
             'entry_time_code' => $entryTimeCode,
@@ -705,6 +719,24 @@ class ClubEntryController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Frei vergebbarer Staffelname: optional, eindeutig innerhalb desselben Vereins im selben Bewerb
+     * (zwei gleichnamige eigene Staffeln wären in Start-/Meldelisten wieder nicht unterscheidbar).
+     * Leer = automatischer Name, siehe App\Support\RelayNames.
+     *
+     * @return array<int, mixed>
+     */
+    private function relayNameRules(int $swimEventId, int $clubId, ?int $ignoreId): array
+    {
+        return [
+            'nullable', 'string', 'max:50',
+            Rule::unique('relay_entries', 'name')
+                ->where('swim_event_id', $swimEventId)
+                ->where('club_id', $clubId)
+                ->ignore($ignoreId),
+        ];
     }
 
     /**

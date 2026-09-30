@@ -102,6 +102,17 @@
                     </p>
                 </div>
 
+                {{-- Staffelname (optional, siehe App\Support\RelayNames) --}}
+                <flux:field class="mb-5">
+                    <flux:label>
+                        Staffelname
+                        <x-hint content="Optional. Leer lassen = Vereinsname, bei mehreren Staffeln im selben Bewerb mit laufender Nummer (z. B. {{ $club->display_name }} 2)."/>
+                    </flux:label>
+                    <flux:input name="name" value="{{ old('name', $relayEntry->name) }}" maxlength="50" autocomplete="off"
+                                placeholder="{{ $club->display_name }}"/>
+                    <flux:error name="name"/>
+                </flux:field>
+
                 {{-- Athleten-Picker --}}
                 <div class="mb-5">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">

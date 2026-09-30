@@ -10,6 +10,7 @@ use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
 use App\Models\Result;
 use App\Models\SwimEvent;
+use App\Support\RelayNames;
 use DOMDocument;
 use DOMElement;
 use DOMException;
@@ -480,12 +481,17 @@ class LenexExportService
             ->where('club_id', $club->id)
             ->with(['swimEvent', 'members.athlete'])
             ->orderBy('swim_event_id')->orderBy('id')->get();
+        // club-Relation für den Anzeigenamen setzen statt je Staffel nachzuladen — alle gehören zu $club.
+        $relayEntries->each(fn (RelayEntry $r) => $r->setRelation('club', $club));
+        $relayNames = RelayNames::for($relayEntries);
 
         $eventCounters = [];
         foreach ($relayEntries as $relayEntry) {
             $eid = $relayEntry->swim_event_id;
             $eventCounters[$eid] = ($eventCounters[$eid] ?? 0) + 1;
-            $relaysEl->appendChild($this->buildRelay($relayEntry, $eventCounters[$eid]));
+            $relaysEl->appendChild(
+                $this->buildRelay($relayEntry, $eventCounters[$eid], $relayNames[$relayEntry->id])
+            );
         }
 
         return $relaysEl;
@@ -494,10 +500,15 @@ class LenexExportService
     /**
      * @throws DOMException
      */
-    private function buildRelay(RelayEntry $relayEntry, int $number): DOMElement
+    private function buildRelay(RelayEntry $relayEntry, int $number, string $name): DOMElement
     {
         $el = $this->dom->createElement('RELAY');
         $el->setAttribute('number', (string) $number);
+        // Anzeigename wie in den Meldelisten (App\Support\RelayNames) — "number" bleibt die technische
+        // laufende Nummer aller Staffeln des Vereins im Bewerb.
+        if ($name !== '') {
+            $el->setAttribute('name', $name);
+        }
         $el->setAttribute('agemax', '-1');
         $el->setAttribute('agemin', '-1');
         $el->setAttribute('agetotalmax', '-1');

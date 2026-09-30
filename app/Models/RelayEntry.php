@@ -4,10 +4,34 @@ namespace App\Models;
 
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * Staffelmeldung eines Vereins für einen Staffelbewerb.
+ *
+ * @property int $id
+ * @property int $meet_id
+ * @property int $swim_event_id
+ * @property int $club_id
+ * @property string|null $name Frei vergebener Staffelname; leer = automatischer Name (App\Support\RelayNames)
+ * @property string|null $relay_class
+ * @property int|null $entry_time
+ * @property string|null $entry_time_code
+ * @property string|null $entry_course
+ * @property string $status
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read string $formatted_entry_time
+ * @property-read int $member_count
+ * @property-read Meet|null $meet
+ * @property-read SwimEvent|null $swimEvent
+ * @property-read Club|null $club
+ * @property-read Collection<int, RelayEntryMember> $members
+ */
 class RelayEntry extends Model
 {
     protected $attributes = [
@@ -18,6 +42,7 @@ class RelayEntry extends Model
         'meet_id',
         'swim_event_id',
         'club_id',
+        'name',
         'relay_class',
         'entry_time',
         'entry_time_code',
