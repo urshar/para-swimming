@@ -62,6 +62,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 13. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
 14. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
 15. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #14
+16. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -72,6 +73,29 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)
+
+**Seit:** Wunsch Erik (30.09.2026) beim Umbau der Meisterschafts-Filter.
+
+**Was fehlt:** Der Normen-Import (`championships/import/form.blade.php` → `ChampionshipStandardImportController`/
+`ChampionshipStandardImportService`) akzeptiert aktuell **nur eine `.xlsx`-Datei** im WPS-Excel-Layout (Zeile 1 Titel,
+Zeile 2 Events/Class/Men/Women, Zeile 3 MQS/MET, ab Zeile 4 die Daten in den Spalten A–F; füllt ausschließlich MQS und
+MET, ÖBSV-Prozentsätze/-Zeiten bleiben unberührt). Gewünscht: MQS und MET **auch aus einer XML-Datei** importieren
+können.
+
+**Warum zurückgestellt:** Ohne eine Beispiel-XML ist weder das Quellformat (Schema/Struktur) noch das Mapping auf
+Bewerb/Sportklasse/Geschlecht/MQS/MET bekannt. Zu klären ist außerdem, ob es sich um ein WPS-eigenes XML, um LENEX oder
+ein anderes Format handelt — davon hängt der Parser ab.
+
+**Wer entscheidet / liefert:** Erik — eine Beispiel-XML mit Normen (MQS/MET) und die Angabe, welches Format das ist
+(WPS-XML/LENEX/…). Offene Fragen: dieselbe "nur MQS/MET füllen, ÖBSV unberührt"-Regel wie beim xlsx-Import? Ein
+gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener Auswahlpunkt?
+
+**Zum Schließen nötig:** Nach Erhalt der Beispiel-XML: `ChampionshipStandardImportService` um einen XML-Parser erweitern
+(Format erkennen: xlsx vs. xml), Mapping auf Bewerb/Klasse/Geschlecht/MQS/MET, dieselbe Vorschau- und
+Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
+akzeptiert zusätzlich `.xml`.
 
 ## Staffel-Ergebnisse importieren + Relay-Gender pflegen
 
