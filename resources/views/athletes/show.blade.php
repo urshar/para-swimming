@@ -1,3 +1,5 @@
+@php use App\Support\ListUrl; @endphp
+
 @extends('layouts.app')
 
 @section('title', $athlete->display_name)
@@ -6,7 +8,7 @@
 
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="primary"
+            <flux:button href="{{ ListUrl::to('athletes') }}" variant="primary"
                          icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $athlete->full_name }}</h1>
             @if(!$athlete->is_active)

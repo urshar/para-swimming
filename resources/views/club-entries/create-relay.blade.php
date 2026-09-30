@@ -9,7 +9,7 @@
         {{-- Header --}}
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                <flux:button href="{{ $backUrl }}"
                              variant="primary" icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Neue Staffelmeldung</h1>
             </div>
@@ -251,7 +251,7 @@
                         <span x-show="!submitting">Staffelmeldung speichern</span>
                         <span x-show="submitting">Wird gespeichert…</span>
                     </flux:button>
-                    <flux:button href="{{ route('club-entries.relay.index', $meet) }}" variant="ghost">
+                    <flux:button href="{{ $backUrl }}" variant="ghost">
                         Abbrechen
                     </flux:button>
                 </div>

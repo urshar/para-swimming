@@ -13,6 +13,7 @@ use App\Models\ExceptionCode;
 use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
+use App\Support\ListUrl;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,10 +25,6 @@ class AthleteController extends Controller
 {
     public function index(Request $request): View
     {
-        // Für den Zurück-Link in Detailansicht/Formular merken, welche Listen-Ansicht
-        // (Filter + Seite) zuletzt offen war — siehe athletes.show/athletes.form.
-        session(['athletes.list_url' => $request->fullUrl()]);
-
         $query = Athlete::with(['club', 'nation', 'sportClasses'])
             ->orderBy('last_name')
             ->orderBy('first_name');
@@ -181,7 +178,7 @@ class AthleteController extends Controller
         $athlete->delete();
 
         return redirect()
-            ->route('athletes.index')
+            ->to(ListUrl::to('athletes'))
             ->with('success', 'Athlet gelöscht.');
     }
 

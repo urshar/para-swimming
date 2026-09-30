@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AthleteClassification;
 use App\Models\Classifier;
 use App\Models\Nation;
+use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -106,7 +107,7 @@ class ClassifierController extends Controller
         $classifier->delete();
 
         return redirect()
-            ->route('classifiers.index')
+            ->to(ListUrl::to('classifiers'))
             ->with('success', 'Klassifizierer gelöscht.');
     }
 

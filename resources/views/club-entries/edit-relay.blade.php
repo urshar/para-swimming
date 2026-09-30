@@ -11,7 +11,7 @@
         {{-- Header --}}
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ route('club-entries.relay.index', array_merge(['meet' => $meet], $clubParams)) }}"
+                <flux:button href="{{ $backUrl }}"
                              variant="primary" icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Staffelmeldung bearbeiten</h1>
             </div>
@@ -37,7 +37,7 @@
                 : ($relayEntry->entry_time_code ?? '');
 
             // Konfiguration als EIN zusammenhängender JSON-Wert übergeben (siehe
-            // club-entries/create.blade.php). $clubParams bereits oben (Zurück-Button) gesetzt.
+            // club-entries/create.blade.php). $clubParams bereits oben gesetzt.
             $relayEntryFormConfig = [
                 'relayAthletesUrl' => route('club-entries.relay.relay-athletes', array_merge(['meet' => $meet], $clubParams)),
                 'relayBestTimeUrl' => route('club-entries.relay.relay-best-time', array_merge(['meet' => $meet], $clubParams)),
@@ -59,6 +59,9 @@
                   @submit="onSubmit()">
                 @csrf
                 @method('PUT')
+                @if(request('return_to'))
+                    <input type="hidden" name="return_to" value="{{ request('return_to') }}">
+                @endif
                 @if(auth()->user()->is_admin && request('club_id'))
                     <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
                 @endif
@@ -244,7 +247,7 @@
                         <span x-show="!submitting">Speichern</span>
                         <span x-show="submitting">Wird gespeichert…</span>
                     </flux:button>
-                    <flux:button href="{{ route('club-entries.relay.index', $meet) }}" variant="ghost">
+                    <flux:button href="{{ $backUrl }}" variant="ghost">
                         Abbrechen
                     </flux:button>
                 </div>

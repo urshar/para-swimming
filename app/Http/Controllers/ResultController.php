@@ -11,6 +11,7 @@ use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimEvent;
 use App\Services\WorldAquaticsPointsService;
+use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -167,18 +168,19 @@ class ResultController extends Controller
             $this->storeSplits($result, $data['splits']);
         });
 
+        // Bearbeiten/Löschen erreicht man über die Ergebnisliste (bzw. deren Detailansicht) — dorthin
+        // zurück, inkl. der dort gesetzten Filter. Anlegen läuft über meets.show und bleibt dabei.
         return redirect()
-            ->route('meets.show', $result->meet)
+            ->to(ListUrl::to('results'))
             ->with('success', 'Ergebnis aktualisiert.');
     }
 
     public function destroy(Result $result): RedirectResponse
     {
-        $meet = $result->meet;
         $result->delete(); // cascadeOnDelete löscht auch splits
 
         return redirect()
-            ->route('meets.show', $meet)
+            ->to(ListUrl::to('results'))
             ->with('success', 'Ergebnis gelöscht.');
     }
 

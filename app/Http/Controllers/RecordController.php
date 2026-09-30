@@ -12,6 +12,7 @@ use App\Models\RelayTeamMember;
 use App\Models\StrokeType;
 use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
+use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -241,7 +242,7 @@ class RecordController extends Controller
             ? 'Rekord gelöscht. Vorgänger wurde automatisch wiederhergestellt.'
             : 'Rekord gelöscht.';
 
-        return redirect()->route('records.index')->with('success', $message);
+        return redirect()->to(ListUrl::to('records'))->with('success', $message);
     }
 
     /**

@@ -93,6 +93,16 @@ composer lint:check   # Pint nur prüfen
 ## Bewährte Architektur-Muster (Fallstricke)
 
 - **Session speichert nur IDs**, keine Eloquent-Modelle (Deserialisierung schlägt sonst fehl).
+- **Zurück-/Abbrechen-Ziele im Admin-Bereich über `App\Support\ListUrl`**, nicht über `route('*.index')`
+  und nie über `url()->previous()` (nach einem Validierungsfehler ist die "vorherige Seite" das Formular
+  selbst → Zurück-Schleife). Die Listen-Route bekommt die Middleware `remember.list:<bereich>`
+  (`->middlewareFor('index', 'remember.list:clubs')` bzw. `->middleware(...)`), die die volle URL inkl.
+  Filter/Sortierung/Seite in der Session merkt; `ListUrl::to('<bereich>')` liefert sie (Fallback:
+  `<bereich>.index`, nur interne URLs). Regeln: Detailseite → gemerkte Liste; Formular beim Bearbeiten →
+  Detailseite (falls vorhanden), beim Anlegen → gemerkte Liste; Weiterleitung nach Speichern/Löschen, die
+  bisher auf die Liste ging → gemerkte Liste. Mehrere Listen können denselben Bereich setzen (Meldungen:
+  Cockpit und "Alle Meldungen"). In Tests die erwartete Listen-URL mit sortierten Query-Parametern bauen —
+  `$request->fullUrl()` normalisiert die Reihenfolge alphabetisch (siehe `ContextBackNavigationTest`).
 - **Mehrkriterien-Sortierung**: `sortBy()` mit Closure-Arrays ist unzuverlässig – stattdessen zusammengesetzte
   `sprintf()`-Sortierschlüssel.
 - **Alpine-Doppelinitialisierung** vermeiden: kein `import Alpine` / `Alpine.start()`

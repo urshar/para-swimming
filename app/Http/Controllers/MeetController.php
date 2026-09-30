@@ -11,6 +11,7 @@ use App\Models\PointSystem;
 use App\Models\QualifyingTimeList;
 use App\Models\Result;
 use App\Models\WpsPointVersion;
+use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -121,7 +122,7 @@ class MeetController extends Controller
         $meet->delete();
 
         return redirect()
-            ->route('meets.index')
+            ->to(ListUrl::to('meets'))
             ->with('success', 'Wettkampf gelöscht.');
     }
 

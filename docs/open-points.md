@@ -45,26 +45,28 @@ die Auswahl-Rangliste als GET-Form über `indexFilters`) — beide dokumentiert 
 "Index-Filter-Auto-Submit vereinheitlicht", sowie `feature/nations-add-delete` ("Nationen anlegen & löschen" →
 `create`/`store`/`destroy`, beliebiger eindeutiger 3-Buchstaben-IOC-Code; Löschen immer angeboten, aber blockiert mit
 Hinweis, solange Athleten/Vereine/Veranstaltungen/Rekorde/Klassifizierer — inkl. soft-gelöschter — darauf verweisen,
-`Nation::referenceCounts()`) — die zugehörigen Open Points unten wurden entfernt.
+`Nation::referenceCounts()`) und `feature/context-back-buttons` ("'Zurück'-Buttons kontextsensitiv" → gemerkte
+Listen-URL je Bereich über `App\Support\ListUrl` + Middleware `remember.list:<bereich>` für Rekorde, Veranstaltungen,
+Vereine, Klassifizierer, Nationen, Ergebnisse, Meldungen, Athleten; Weiterleitungen nach Speichern/Löschen ebenso;
+Muster in CLAUDE.md dokumentiert) — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
-3. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
-4. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
-5. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
-6. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-7. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-8. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-9. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-10. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-11. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-12. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-13. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-14. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #13
-15. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+2. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
+3. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
+4. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+5. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+6. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+7. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+8. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+9. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+10. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+11. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+12. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+13. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #12
+14. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -151,38 +153,6 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 **Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
-
-## "Zurück"-Buttons kontextsensitiv statt fest auf den Index
-
-**Seit:** `feature/admin-ui-header-pattern` (19.09.2026), Rückmeldung Erik beim Header-Rework Gruppe 1 (records).
-
-**Was fehlt:** Viele "Zurück"-Buttons führen fest auf die jeweilige Index-/Listenseite (`records.index`,
-`meets.index` …), nicht auf die tatsächlich vorher aufgerufene Ansicht. Beispiel: gefilterte Rekordliste → Detail →
-"Bearbeiten"; der "Zurück"-Button auf dem Formular springt auf `records.index` statt zurück auf die Detailseite bzw.
-die vorher gewählte (gefilterte) Liste. `athletes/show` macht es bereits richtig — es merkt sich die zuletzt
-aufgerufene Listen-URL in der Session (`athletes.list_url`, siehe `AdminUiAthletesTest`); records/meets/… tun das
-nicht. `records/import-preview` zeigt korrekt auf den vorherigen Schritt (`records.import`) — der Rest zeigt stumpf
-auf den Index.
-
-Konkret bei `records/show`: Der Back-Link übergibt **nur** `type` (`records.index?type=…`), aber keinen der übrigen
-Filter (`sportClass`, `ageGroup`, `gender`, `course`, `category`, `relay`, `status`). Die `records.index` fällt ohne
-`sportClass`-Parameter auf ihren Default zurück und zeigt dann **immer S01/SB01/SM01**, unabhängig davon, aus welcher
-Sportklasse/Ansicht der Nutzer kam. Das "Zurück" landet also gerade nicht in der Darstellung, aus der man kam — es
-reicht nicht, nur `type` mitzugeben, es muss der komplette Filter-Zustand (bzw. die vollständige vorherige URL)
-wiederhergestellt werden.
-
-**Warum zurückgestellt:** Der Header-Rework (`feature/admin-ui-header-pattern`) ist bewusst rein kosmetisch
-(Anordnung/Farbe/Höhe der Buttons) und fasst die Back- **Ziele** nicht an. Kontextsensitive Rücknavigation ist ein
-eigenes Verhalten: Referrer/letzte-Liste je Bereich in der Session merken (wie bei Athleten) oder gezielt
-`url()->previous()` mit sinnvollem Fallback — plus die Entscheidung, wie weit "zurück" gehen soll (unmittelbar
-vorherige Seite vs. gemerkte Listenansicht inkl. Filter).
-
-**Wer entscheidet:** Erik — pro Bereich das gewünschte Verhalten (immer zur letzten Liste inkl. Filter? Zur
-unmittelbar vorherigen Seite? Nur bestimmte Flows?).
-
-**Zum Schließen nötig:** Das Muster von `athletes.list_url` (Session-gespeicherte Rücksprung-URL) auf die übrigen
-Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
--Back-Links auf das gemerkte Ziel umstellen.
 
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 

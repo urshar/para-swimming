@@ -35,7 +35,7 @@
         {{-- Header --}}
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ url()->previous() }}" variant="primary" icon="arrow-left" size="sm"
+                <flux:button href="{{ isset($result) ? route('results.show', $result) : route('meets.show', $meet) }}" variant="primary" icon="arrow-left" size="sm"
                              title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {{ isset($result) ? 'Ergebnis bearbeiten' : 'Ergebnis anlegen' }}
@@ -268,7 +268,7 @@
                     <flux:button type="submit" variant="primary">
                         {{ isset($result) ? 'Speichern' : 'Ergebnis anlegen' }}
                     </flux:button>
-                    <flux:button href="{{ url()->previous() }}" variant="ghost">Abbrechen</flux:button>
+                    <flux:button href="{{ isset($result) ? route('results.show', $result) : route('meets.show', $meet) }}" variant="ghost">Abbrechen</flux:button>
                 </div>
             </form>
         </div>
