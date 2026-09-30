@@ -39,16 +39,25 @@
             Die Reihenfolge ist ein Vorschlag; die Auswahl trifft der Verband.
         </div>
 
-        <form method="GET" class="mb-6 flex flex-wrap items-end gap-3">
+        @php
+            // Startwert des Filters fürs Alpine-x-data (indexFilters: Auto-Submit bei Änderung,
+            // kein "Anwenden"-Knopf). Einfach anführen + @json, siehe CLAUDE.md /
+            // resources/js/index-filters.js.
+            $filterConfig = ['limit' => (string) request('limit', '')];
+        @endphp
+        {{-- Kein "Anwenden"-Knopf: das Zahlenfeld löst bei Änderung sofort eine neue Ansicht aus
+             (entprellt, x-model.debounce). Generische Alpine-Komponente in index-filters.js. --}}
+        <form method="GET" class="mb-6 flex flex-wrap items-end gap-3"
+              x-data='indexFilters(@json($filterConfig))'>
             <flux:field class="w-40">
                 <flux:label>Beste n je Liste</flux:label>
-                <flux:input name="limit" type="number" min="1" value="{{ $limit }}" placeholder="alle"/>
+                <flux:input name="limit" type="number" min="1" x-model.debounce.500ms="limit" placeholder="alle"/>
             </flux:field>
-            <flux:button type="submit" variant="filled" size="sm">Anwenden</flux:button>
             @if($limit !== null)
-                <flux:button href="{{ route('championships.selection', $championship) }}"
-                             variant="ghost" size="sm">Alle zeigen
-                </flux:button>
+                <div class="ml-auto flex items-end">
+                    <flux:button href="{{ route('championships.selection', $championship) }}"
+                                 variant="filled" icon="x-mark" class="text-red-500!">Zurücksetzen</flux:button>
+                </div>
             @endif
         </form>
 
