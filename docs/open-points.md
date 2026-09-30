@@ -36,15 +36,20 @@ dokumentiert in `specs/statistics.md`; dabei sind die zwei Folge-Punkte "Staffel
 "Weitere Statistiken" unten entstanden) und `feature/meet-entries-overview` ("Gesamte, editierbare Meldeliste einer
 Veranstaltung" → meet-weite "Alle Meldungen", Einzel + Staffel, alle Vereine, PR #18; erweitert um das
 wettkampfübergreifende Admin-Cockpit "Meldungen" mit Einzel-/Staffel-Tabs, Status-/Problemfiltern und
-Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit")
+Kennzahlen-Kacheln, `feature/entries-cockpit`, dokumentiert in `specs/club-entries.md` "Meldungen-Cockpit") und
+`feature/index-filter-autosubmit` ("Index-Filter einheitlich: sofort filtern bei Feldänderung" → die fünf
+GET-Formular-Index-Filter athletes/clubs/classifiers/results/meets auf Auto-Submit ohne "Filtern"-Button umgestellt;
+`entries` war über das Cockpit schon so; dokumentiert in `specs/admin-ui-rework.md` "Index-Filter-Auto-Submit
+vereinheitlicht" — der Livewire-Meisterschafts-Teil wurde bewusst ausgelassen und bleibt als eigener Punkt unten)
 — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Index-Filter einheitlich: sofort filtern bei Feldänderung" unten — das Auto-Submit-Muster aus dem
-   Meldungen-Cockpit auf die sechs Index-Seiten (athletes, clubs, classifiers, results, meets, entries) übertragen
+2. "Index-Filter-Auto-Submit auf den Livewire-Meisterschafts-Unterseiten" unten — der bewusst ausgelassene Rest des
+   erledigten GET-Formular-Umbaus (Qualifikanten/Förderansicht/Auswahl-Rangliste + `championships.show`, über
+   `wire:model.live` statt Alpine-`$watch`)
 3. "'Zurück'-Buttons kontextsensitiv statt fest auf den Index" unten
 4. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
 5. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
@@ -154,40 +159,35 @@ unmittelbar vorherigen Seite? Nur bestimmte Flows?).
 Bereiche übertragen bzw. einen einheitlichen Back-Ziel-Helfer bauen, dann die betroffenen `route('*.index')`
 -Back-Links auf das gemerkte Ziel umstellen.
 
-## Index-Filter einheitlich: sofort filtern bei Feldänderung statt "Filtern"-Button
+## Index-Filter-Auto-Submit auf den Livewire-Meisterschafts-Unterseiten
 
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework
-(Athleten/Vereine/Klassifizierer).
+**Erledigt (29.09.2026, `feature/index-filter-autosubmit`):** Die fünf GET-Formular-Index-Filter (**athletes, clubs,
+classifiers, results, meets**) lösen jetzt sofort bei Feldänderung aus, ohne "Filtern"-Button — generisches
+Alpine-Modul `resources/js/index-filters.js` (`x-model` + `$watch → submit`, Suchfelder mit Debounce 500 ms).
+`entries.index` war über das Meldungen-Cockpit schon so. Dokumentiert in `specs/admin-ui-rework.md`
+("Index-Filter-Auto-Submit vereinheitlicht"). **Offen bleibt dieser Punkt nur noch für den bewusst ausgelassenen
+Livewire-Teil:**
 
-**Was fehlt:** Die Index-Filter verhalten sich uneinheitlich. `records/index` filtert bereits automatisch bei jeder
-Feldänderung (Alpine `x-model` + `x-init="$watch(...)"` → Auto-Submit, kein "Filtern"-Button — siehe die ausführliche
-Begründung im Kommentar dort). Die übrigen Index-Filter verlangen dagegen einen Klick auf "Filtern"
-(`type="submit"`, `icon="funnel"`): **athletes, clubs, classifiers, results, meets, entries** (6 Seiten).
-Zusätzlich wirken einzelne Elemente auf derselben Seite sofort (z. B. der A–Z-Buchstabenfilter auf `athletes/index`
-sind Links, die sofort navigieren), während die Text-/Select-Felder daneben erst auf "Filtern" reagieren — genau
-diese Mischung fällt als inkonsistent auf. Gewünscht: In allen Index-Filtern soll die Liste sofort aktualisiert
-werden, sobald ein Feld ausgewählt/eingetragen wird (mindestens athletes, clubs, classifiers; sinngemäß auch
-results, meets, entries).
+**Seit:** Ergänzung Erik (20.09.2026) zum Index-Filter-Punkt; beim Umbau der GET-Seiten (29.09.2026) bewusst
+getrennt gehalten.
 
-**Ergänzung (Erik, 20.09.2026):** Dasselbe gilt für die Filter der Meisterschafts-Unterseiten (**Qualifikanten**,
-**Förderansicht**, **Auswahl-Rangliste** — die drei Ansichten zu einer Meisterschaft, plus
-"Normen"/`championships.show`). Dort sollen die bestehenden Filter angepasst und die **Dropdown-Boxen ausgetauscht**
-werden — auf dasselbe Muster (`flux:select variant="listbox"` + Auto-Submit statt nativer/alter Dropdowns). Diese
-Ansichten sind Livewire-Tabellen (`championship-qualification-table`, `championship-development-table`), die Filter
-laufen dort ggf. über `wire:model` statt der GET-Form — beim Umbau zu prüfen, ob das Alpine-Auto-Submit-Muster
-greift oder die Livewire-Variante (`wire:model.live`) die passendere ist.
+**Was fehlt:** Die Filter der Meisterschafts-Unterseiten — **Qualifikanten**, **Förderansicht**,
+**Auswahl-Rangliste** (die drei Ansichten zu einer Meisterschaft) plus "Normen"/`championships.show` — sollen
+ebenfalls sofort filtern. Diese Ansichten sind **Livewire-Tabellen** (`championship-qualification-table`,
+`championship-development-table`); ihre Filter laufen über `wire:model`, nicht über eine GET-Form — das
+Alpine-`$watch`-Auto-Submit der GET-Seiten greift hier also nicht. Zusätzlich sollen die alten/nativen
+Dropdown-Boxen dort auf `flux:select variant="listbox"` umgestellt werden.
 
-**Warum zurückgestellt / offene Entscheidung:** Kein reines Copy-and-paste vom records-Muster, weil dort **nur Selects**
-gefiltert werden. athletes/clubs/… haben zusätzlich ein **Text-Suchfeld** — ein Auto-Submit bei jedem Tastendruck
-ist unbrauchbar (Submit pro Zeichen, Fokusverlust). Braucht eine Entscheidung: Debounce (z. B. 300–400 ms) auf dem
-Suchfeld, oder Text erst bei "Enter"/Blur, Selects sofort. Außerdem: "Filtern"-Button ganz entfernen (wie
-`records/index`) oder als No-JS-Fallback behalten? Der "Zurücksetzen"-Button bleibt in jedem Fall.
+**Warum zurückgestellt:** Anderer Mechanismus als bei den GET-Seiten — statt Alpine-`$watch`+`submit` vermutlich
+`wire:model.live` (ggf. `.debounce` auf Textfeldern). Gemischter Umfang (Livewire-Umbau + Dropdown-Austausch),
+bewusst nicht mit dem Alpine-Auto-Submit der fünf GET-Seiten vermischt.
 
-**Wer entscheidet:** Erik — Debounce-Verhalten des Suchfelds und ob der "Filtern"-Button verschwindet.
+**Wer entscheidet:** Erik — ob `wire:model.live` das passende Muster ist (vs. eine Alpine-Variante), das
+Debounce-Verhalten etwaiger Textfelder, und ob die Dropdowns dabei gleich auf `flux:select variant="listbox"` wandern.
 
-**Zum Schließen nötig:** Das `x-model` + `$watch`-Auto-Submit-Muster aus `records/index.blade.php` (mit Debounce für
-Text-Inputs) auf die 6 Index-Filter (athletes, clubs, classifiers, results, meets, entries) übertragen — Selects
-sofort, Suchfeld entprellt —, danach je Seite live verifizieren.
+**Zum Schließen nötig:** Die Filter der genannten Livewire-Ansichten auf Live-Aktualisierung umstellen
+(`wire:model.live`, Textfelder entprellt), Dropdowns auf `flux:select variant="listbox"` bringen, danach je Ansicht
+live verifizieren.
 
 ## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
 

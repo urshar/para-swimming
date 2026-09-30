@@ -20,44 +20,61 @@
         Zeile (bei flux:select dagegen ungefährlich, das setzt sein w-full mit :where() ohne Spezifität).
         Deshalb hier in einen eigenen, schrumpfbaren Wrapper-Div mit der Breitenklasse packen.
     --}}
-    <form method="GET" class="flex flex-wrap items-start gap-3 mb-2">
+    @php
+        // Startwerte der Filter fürs Alpine-x-data (indexFilters, siehe clubs/index.blade.php).
+        // active_only fällt ohne Parameter auf "1" (nur aktive) zurück — Default gehört in die Config,
+        // damit x-model die richtige Option vorbelegt.
+        $filterConfig = [
+            'search' => (string) request('search', ''),
+            'gender' => (string) request('gender', ''),
+            'sport_class' => (string) request('sport_class', ''),
+            'nation_id' => (string) request('nation_id', ''),
+            'club_id' => (string) request('club_id', ''),
+            'active_only' => (string) request('active_only', '1'),
+        ];
+    @endphp
+    {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus. Selects über
+         x-model + $watch, Suche/Klasse als native Felder über x-model.debounce. Generische
+         Alpine-Komponente in resources/js/index-filters.js. --}}
+    <form method="GET" class="flex flex-wrap items-start gap-3 mb-2"
+          x-data='indexFilters(@json($filterConfig))'>
+        {{-- Aktiven Buchstaben (eigener Link-Filter darunter) beim Auto-Submit erhalten, damit ein
+             Dropdown-Wechsel die Buchstabenauswahl nicht verwirft. --}}
+        <input type="hidden" name="letter" value="{{ request('letter') }}"/>
         <div class="w-64 shrink-0">
-            <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder Lizenz…"
+            <flux:input name="search" x-model.debounce.500ms="search" placeholder="Name oder Lizenz…"
                         icon="magnifying-glass"/>
         </div>
-        <flux:select variant="listbox" name="gender" placeholder="Geschlecht" clearable class="w-36">
-            <flux:select.option value="M" :selected="request('gender') === 'M'">Herren</flux:select.option>
-            <flux:select.option value="F" :selected="request('gender') === 'F'">Damen</flux:select.option>
-            <flux:select.option value="N" :selected="request('gender') === 'N'">Nicht binär</flux:select.option>
+        <flux:select variant="listbox" name="gender" x-model="gender" placeholder="Geschlecht" clearable class="w-36">
+            <flux:select.option value="M">Herren</flux:select.option>
+            <flux:select.option value="F">Damen</flux:select.option>
+            <flux:select.option value="N">Nicht binär</flux:select.option>
         </flux:select>
         <div class="w-32 shrink-0">
-            <flux:input name="sport_class" value="{{ request('sport_class') }}" placeholder="Klasse z.B. S4"/>
+            <flux:input name="sport_class" x-model.debounce.500ms="sport_class" placeholder="Klasse z.B. S4"/>
         </div>
-        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-40">
+        <flux:select variant="listbox" searchable name="nation_id" x-model="nation_id" placeholder="Nation" clearable class="w-40">
             @foreach($nations as $nation)
-                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
+                <flux:select.option value="{{ $nation->id }}">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        <flux:select variant="listbox" searchable name="club_id" placeholder="Verein" clearable class="w-48">
+        <flux:select variant="listbox" searchable name="club_id" x-model="club_id" placeholder="Verein" clearable class="w-48">
             @foreach($clubs as $club)
-                <flux:select.option value="{{ $club->id }}" :selected="request('club_id') == $club->id">{{ $club->display_name }}</flux:select.option>
+                <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
             @endforeach
         </flux:select>
         {{-- Aktiv-Filter: Standard = nur aktive --}}
-        <flux:select variant="listbox" name="active_only" class="w-40">
-            <flux:select.option value="1" :selected="request('active_only', '1') === '1'">Nur aktive</flux:select.option>
-            <flux:select.option value="0" :selected="request('active_only') === '0'">Alle (inkl. inaktive)</flux:select.option>
-            <flux:select.option value="2" :selected="request('active_only') === '2'">Nur inaktive</flux:select.option>
+        <flux:select variant="listbox" name="active_only" x-model="active_only" class="w-40">
+            <flux:select.option value="1">Nur aktive</flux:select.option>
+            <flux:select.option value="0">Alle (inkl. inaktive)</flux:select.option>
+            <flux:select.option value="2">Nur inaktive</flux:select.option>
         </flux:select>
-        {{-- Filtern-Button an den rechten Rand der Zeile, wie im öffentlichen Bereich
-             (public/qualifying-times/index.blade.php: ml-auto statt "letztes Element"). --}}
-        <div class="ml-auto flex items-center gap-3">
-            @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
+        @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
+            <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('athletes.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
-            @endif
-            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
-        </div>
+            </div>
+        @endif
     </form>
 
     {{-- Buchstaben-Filter nach Nachname --}}

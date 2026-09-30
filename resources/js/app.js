@@ -4,6 +4,7 @@ import documentForm from './document-form';
 import entriesCockpitFilters from './entries-cockpit-filters';
 import entryBestTimes from './entry-best-times';
 import fileUploadField from './file-upload-field';
+import indexFilters from './index-filters';
 import initFluxFileUploadSync from './flux-file-upload-sync';
 import maskedTimeField from './masked-time-field';
 import meetPointSystems from './meet-point-systems';
@@ -33,6 +34,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('entriesCockpitFilters', entriesCockpitFilters);
     window.Alpine.data('entryBestTimes', entryBestTimes);
     window.Alpine.data('fileUploadField', fileUploadField);
+    window.Alpine.data('indexFilters', indexFilters);
     window.Alpine.data('maskedTimeField', maskedTimeField);
     window.Alpine.data('meetPointSystems', meetPointSystems);
     window.Alpine.data('qualificationFilters', qualificationFilters);

@@ -10,26 +10,35 @@
         <flux:button href="{{ route('clubs.create') }}" variant="primary" icon="plus">Neuer Verein</flux:button>
     </div>
 
-    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4">
+    @php
+        // Startwerte der Filter fürs Alpine-x-data (indexFilters spreizt die Keys als reaktive
+        // Felder und löst je Feld bei Änderung sofort einen Submit aus — kein Filtern-Button).
+        // Einbindung unten über x-data='...(@json(...))' — einfach anführen und @json, siehe CLAUDE.md.
+        $filterConfig = [
+            'search' => (string) request('search', ''),
+            'nation_id' => (string) request('nation_id', ''),
+        ];
+    @endphp
+    {{-- Kein Filtern-Button: jedes Feld löst bei Änderung sofort eine neue Suche aus. Selects über
+         x-model + $watch, Suche als natives Feld über x-model.debounce. Generische Alpine-Komponente
+         in resources/js/index-filters.js. --}}
+    <form method="GET" class="flex flex-wrap items-center gap-3 mb-4"
+          x-data='indexFilters(@json($filterConfig))'>
         <div class="w-48 shrink-0">
-            <flux:input name="search" value="{{ request('search') }}" placeholder="Name oder Kürzel…"
+            <flux:input name="search" x-model.debounce.500ms="search" placeholder="Name oder Kürzel…"
                         icon="magnifying-glass"/>
         </div>
-        <flux:select variant="listbox" searchable name="nation_id" placeholder="Nation" clearable class="w-56">
+        <flux:select variant="listbox" searchable name="nation_id" x-model="nation_id" placeholder="Nation" clearable class="w-56">
             @foreach($nations as $nation)
-                <flux:select.option value="{{ $nation->id }}" :selected="request('nation_id') == $nation->id">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
+                <flux:select.option value="{{ $nation->id }}">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
-        {{-- Filtern-Button an den rechten Rand der Zeile, wie im öffentlichen Bereich
-             (public/qualifying-times/index.blade.php: ml-auto statt "letztes Element", sonst bleibt
-             bei viel Platz in der Zeile sichtbarer Leerraum bis zum tatsächlichen rechten Rand). --}}
-        <div class="ml-auto flex items-center gap-3">
-            @if(request()->hasAny(['search', 'nation_id']))
+        @if(request()->hasAny(['search', 'nation_id']))
+            <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('clubs.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
-            @endif
-            <flux:button type="submit" variant="primary" icon="funnel">Filtern</flux:button>
-        </div>
+            </div>
+        @endif
     </form>
 
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
