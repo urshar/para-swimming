@@ -429,3 +429,17 @@ describe('LENEX Relay Export', function () {
     });
 
 });
+
+// ── CLUB-Attribute ────────────────────────────────────────────────────────────
+
+it('exportiert am CLUB kein clubid-Attribut (es gibt keine gespeicherte LENEX-Club-ID)', function () {
+    $nation = makeNation_p7();
+    $club = makeClub_p7($nation);
+    $meet = makeMeet_p7($nation, [$club]);
+    makeRelayEntry_p7($meet, makeRelayEvent_p7($meet, makeStrokeType_p7()), $club);
+
+    $clubEl = parseXml_p7(buildLenex_p7($meet))->MEETS->MEET->CLUBS->CLUB;
+
+    expect((string) $clubEl['code'])->toBe('BSV')
+        ->and(isset($clubEl['clubid']))->toBeFalse();
+});

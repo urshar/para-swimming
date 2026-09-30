@@ -52,7 +52,6 @@ class Club extends Model
         'type',
         'regional_association',
         'swrid',
-        'lenex_club_id',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────
