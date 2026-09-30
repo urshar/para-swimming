@@ -349,7 +349,7 @@ it('filtert die Förderansicht nach Kaderart', function () {
 
     expect($komponente->instance()->athletes())->toHaveCount(2);
 
-    $komponente->call('setFilter', 'kader', 'Top');
+    $komponente->set('filterKader', 'Top');
 
     expect($komponente->instance()->athletes())->toHaveCount(1)
         ->and($komponente->instance()->athletes()->first()->athlete->last_name)->toBe('ImKader');

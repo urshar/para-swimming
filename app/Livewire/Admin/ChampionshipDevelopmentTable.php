@@ -62,13 +62,10 @@ class ChampionshipDevelopmentTable extends Component
         $this->clubId = $clubId;
     }
 
-    public function setFilter(string $feld, string $wert): void
+    // Kaderart-Auswahl und Suche binden per wire:model.live; bei jeder Änderung neu filtern
+    // (kein "Anwenden"-Knopf). Beide Hooks setzen auf Seite 1 zurück und leeren die Computed.
+    public function updatedFilterKader(): void
     {
-        match ($feld) {
-            'kader' => $this->filterKader = $wert,
-            default => null,
-        };
-
         $this->resetPage();
         $this->refresh();
     }

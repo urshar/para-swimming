@@ -15,26 +15,29 @@
     <div class="mb-4 flex flex-wrap items-end gap-3">
         <flux:field class="w-48">
             <flux:label>Kaderart</flux:label>
-            <flux:select x-on:change="$wire.setFilter('kader', $event.target.value)">
-                <option value="">Alle</option>
+            <flux:select variant="listbox" wire:model.live="filterKader">
+                <flux:select.option value="">Alle</flux:select.option>
                 @foreach($this->kaderTypes() as $kaderType)
-                    <option value="{{ $kaderType->name_de }}"
-                        @selected($filterKader === $kaderType->name_de)>{{ $kaderType->name_de }}</option>
+                    <flux:select.option value="{{ $kaderType->name_de }}">{{ $kaderType->name_de }}</flux:select.option>
                 @endforeach
             </flux:select>
         </flux:field>
 
         <flux:field class="w-56">
             <flux:label>Athlet suchen</flux:label>
-            <flux:input x-model="$wire.search" placeholder="Name"/>
+            <flux:input wire:model.live.debounce.500ms="search" placeholder="Name"/>
         </flux:field>
 
-        <flux:button wire:click="resetFilters" variant="ghost" size="sm">Zurücksetzen</flux:button>
-
-        <flux:button
-            href="{{ $this->pdfUrl() }}"
-            variant="filled" size="sm" icon="document-arrow-down">PDF
-        </flux:button>
+        <div class="ml-auto flex items-end gap-3">
+            @if($search !== '' || $filterKader !== '')
+                <flux:button wire:click="resetFilters" variant="filled" icon="x-mark"
+                             class="text-red-500!">Zurücksetzen</flux:button>
+            @endif
+            <flux:button
+                href="{{ $this->pdfUrl() }}"
+                variant="filled" size="sm" icon="document-arrow-down">PDF
+            </flux:button>
+        </div>
     </div>
 
     {{-- ── Auswahl ─────────────────────────────────────────────────────────── --}}
