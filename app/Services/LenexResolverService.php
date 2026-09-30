@@ -19,8 +19,9 @@ use SimpleXMLElement;
  *
  * Matching-Priorität Clubs:
  *   1. code + nation_id
- *   2. lenex_club_id + nation_id
- *   3. name (normalisiert) + nation_id
+ *   2. name (normalisiert) + nation_id
+ * Die LENEX-Club-ID (clubid/id) wird nicht gespeichert — sie dient nur als Cache-Schlüssel innerhalb
+ * eines Imports.
  *
  * Matching-Priorität Athleten:
  *   1. license
@@ -30,7 +31,7 @@ use SimpleXMLElement;
  */
 class LenexResolverService
 {
-    /** lenex_club_id → App Club ID */
+    /** Cache-Schlüssel (LENEX clubid/id bzw. "code:XYZ") → App Club ID */
     private array $clubCache = [];
 
     /** lenex_athlete_id → App Athlete ID */

@@ -221,9 +221,6 @@ class LenexExportService
         if ($club->type && $club->type !== 'CLUB') {
             $el->setAttribute('type', $club->type);
         }
-        if ($club->lenex_club_id) {
-            $el->setAttribute('clubid', $club->lenex_club_id);
-        }
 
         $athletes = $this->collectAthletes($club, $meet);
 
