@@ -128,7 +128,7 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
     Route::resource('nations', NationController::class)
-        ->only(['index', 'edit', 'update']);
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::resource('clubs', ClubController::class);
 
