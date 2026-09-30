@@ -77,7 +77,9 @@
                     <flux:label>ÖBSV-Verschärfung</flux:label>
                     <flux:input x-model="$wire.bulkPercent" placeholder="z.B. 2" type="number" step="0.01"/>
                 </flux:field>
-                <flux:button wire:click="applyBulkPercent" variant="primary" size="sm">
+                {{-- Standardhöhe (kein size="sm"), damit der Button so hoch ist wie das
+                     Prozentsatz-Eingabefeld daneben. --}}
+                <flux:button wire:click="applyBulkPercent" variant="primary">
                     Auf alle offenen Zeilen anwenden
                 </flux:button>
             </div>
