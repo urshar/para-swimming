@@ -42,7 +42,10 @@ GET-Formular-Index-Filter athletes/clubs/classifiers/results/meets auf Auto-Subm
 `entries` war über das Cockpit schon so) und `feature/championship-filter-autosubmit` (der Livewire-Rest: Auto-Submit
 auf den Meisterschafts-Unterseiten Normen/Qualifikanten/Förderansicht über `wire:model.live` + Listbox-Selects, plus
 die Auswahl-Rangliste als GET-Form über `indexFilters`) — beide dokumentiert in `specs/admin-ui-rework.md`
-"Index-Filter-Auto-Submit vereinheitlicht" — die zugehörigen Open Points unten wurden entfernt.
+"Index-Filter-Auto-Submit vereinheitlicht", sowie `feature/nations-add-delete` ("Nationen anlegen & löschen" →
+`create`/`store`/`destroy`, beliebiger eindeutiger 3-Buchstaben-IOC-Code; Löschen immer angeboten, aber blockiert mit
+Hinweis, solange Athleten/Vereine/Veranstaltungen/Rekorde/Klassifizierer — inkl. soft-gelöschter — darauf verweisen,
+`Nation::referenceCounts()`) — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
@@ -54,15 +57,14 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 5. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
 6. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
 7. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-8. "Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)" unten
-9. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-10. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-11. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-12. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-13. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-14. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-15. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #14
-16. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+8. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+9. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+10. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+11. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+12. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+13. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+14. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #13
+15. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -102,7 +104,7 @@ akzeptiert zusätzlich `.xml`.
 **Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Beim Bau der Staffel-Auswertungen fiel auf,
 dass gar keine Staffelergebnisse in der Datenbank liegen.
 
-**Was fehlt:** Der LENEX-Import legt zwar die Staffel-**Bewerbe** an (`relaycount` aus dem SwimStyle →
+**Was fehlt:** Der LENEX-Import legt zwar die Staffel- **Bewerbe** an (`relaycount` aus dem SwimStyle →
 `swim_event.relay_count > 1`, aktuell 151 Bewerbe), aber **keine Staffel-Ergebnisse**: von 12.487 importierten
 Ergebnissen sind 0 Staffelergebnisse. Damit bleiben die bereits gebauten und getesteten Staffel-Zählungen
 (`ParticipationStatisticsService::relayStartsByEventGender`, Grafik "Staffelstarts nach Typ" im Jahresvergleich)
@@ -133,6 +135,7 @@ weitere sinnvolle Auswertungen als "für später" freigegeben — erst wenn eine
 (vollständigere Importe, insbesondere Staffelergebnisse, s. o.), damit die Zahlen aussagekräftig sind.
 
 **Was fehlt:** Zusätzliche Trend-/Kennzahl-Auswertungen, u. a.:
+
 - Geschlechteranteil in Prozent (statt nur absoluter Zahlen)
 - Altersgruppen im Zeitverlauf
 - Nationen im Zeitverlauf
@@ -210,7 +213,7 @@ Startlisten, LENEX-`name`).
 **Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
 
 **Erledigt (28.09.2026, `feature/entry-lists`):** Die vier **Melde-Listen** sind umgesetzt und in
-`docs/specs/club-entries.md` (Abschnitt „Meldebasierte Listen") dokumentiert: **Teilnehmerliste** (pro Verein,
+`docs/specs/club-entries.md` (Abschnitt "Meldebasierte Listen") dokumentiert: **Teilnehmerliste** (pro Verein,
 PDF + Excel, Sport-Austria-Vorlage), **Sportpasskontrolle** (alle Vereine, admin-only, PDF + Excel, ÖBSV-Vorlage),
 **Meldeliste nach Namen** und **Meldeliste nach Bewerben** (je PDF, Admin = ganze Veranstaltung, Verein = nur eigene).
 Ebenfalls erledigt: das Club-Scoping der linksseitigen Meldungsliste (`entries.index`), auf das dieser Punkt früher
@@ -218,8 +221,8 @@ verwies.
 
 **Was noch fehlt — Meldegelder:** Aus den Meldungen die Gebühren je Verein/Athlet samt Summe erzeugen (PDF + online).
 
-**Warum zurückgestellt:** **Meldegelder brauchen ein neues Datenmodell:** aktuell gibt es kein Gebühren-Feld
-(kein `entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je Bewerb/Staffel,
+**Warum zurückgestellt:** **Meldegelder brauchen ein neues Datenmodell:** aktuell gibt es kein Gebühren-Feld (kein
+`entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je Bewerb/Staffel,
 evtl. Grundgebühr je Verein), eine Berechnung über die Meldungen und die PDF-/Online-Darstellung — ein eigenes
 Thema mit Design-Entscheidungen. Die vorhandene Melde-Listen-Infrastruktur (`MeetEntryListService`/
 `MeetEntryListController`) kann als Vorbild/Anschlusspunkt dienen.
@@ -234,11 +237,12 @@ Darstellung (PDF + online), analog zu den bestehenden Melde-Listen.
 
 **Seit:** `feature/entry-lists` (28.09.2026), beim Bau der Meldeliste nach Bewerben.
 
-**Was fehlt:** Die „Übersichtsliste nach Wettkämpfen" gruppiert nach **Abschnitt** (Session, `swim_events.session_number`)
-und zeigt in der swimify-Vorlage je Abschnitt den konkreten **Wochentag + Datum** („Abschnitt 1 - Samstag, 17. Oktober
+**Was fehlt:** Die "Übersichtsliste nach Wettkämpfen" gruppiert nach **Abschnitt** (Session,
+`swim_events.session_number`)
+und zeigt in der swimify-Vorlage je Abschnitt den konkreten **Wochentag + Datum** ("Abschnitt 1 - Samstag, 17. Oktober
 2026"). Unser Datenmodell kennt aber **keine Zuordnung Session → Kalendertag** — nur `meet.start_date`/`end_date`.
 Daher zeigt die Liste den Wochentag/das Datum nur bei **eintägigen** Veranstaltungen; bei mehrtägigen steht lediglich
-„Abschnitt N" (siehe `MeetEntryListService::sessionLabel`).
+"Abschnitt N" (siehe `MeetEntryListService::sessionLabel`).
 
 **Warum zurückgestellt:** Braucht ein neues Feld/Datenmodell (Datum bzw. Datum+Startzeit je Session) plus Pflege
 (manuell im Meet-/Session-Formular und/oder aus dem LENEX-Import, wo `<SESSION date=…>` vorhanden ist). Eigenes
@@ -312,6 +316,7 @@ Zeitraum (z. B. 24 h) wieder öffnen** können, damit z. B. Vereine kontrolliert
 können — danach schließt sie automatisch wieder.
 
 **Offene Entscheidungen (Erik):**
+
 - Behält der Admin die unbegrenzte Direkt-Bearbeitung (Admin-Override wie heute), oder soll auch für den Admin
   nach Ablauf erst "wiedereröffnen" nötig sein?
 - Wer darf während des Wiedereröffnungs-Fensters melden — nur der Admin, oder wieder die Vereine (das ist der
@@ -327,8 +332,8 @@ erweitern (Vereins-User zusätzlich erlaubt, wenn `entries_reopened_until` geset
 zentrale Policy deckt automatisch alle o. g. Controller-Pfade ab); Admin-UI zum Wiederöffnen (Button
 "+24 h" / freies Datum, Anzeige des aktiven Fensters inkl. Ablauf) auf `meets/show` bzw. in der
 Meldungsverwaltung; sichtbarer Status ("wieder geöffnet bis …") in `club-entries/index(-relay)`. **Zusätzlich
-als Absicherung:** ein Regressionstest, der bestätigt, dass ein Vereins-User nach Ablauf auf ALLEN Pfaden
-(Einzel + Staffel, store/update/destroy) 403 bekommt und während eines aktiven Wiederöffnungs-Fensters wieder
+als Absicherung:** ein Regressionstest, der bestätigt, dass ein Vereins-User nach Ablauf auf ALLEN Pfaden (Einzel +
+Staffel, store/update/destroy) 403 bekommt und während eines aktiven Wiederöffnungs-Fensters wieder
 darf — damit ein etwaiges echtes Leck (statt nur des Admin-Overrides) auffliegt.
 
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
@@ -483,29 +488,6 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
 
-## Nationen anlegen & löschen (Add/Delete in der Nationenverwaltung)
-
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik beim Header-Rework.
-
-**Was fehlt:** Die Nationenliste (`nations/index`) bietet aktuell nur **Bearbeiten** je Zeile. Es gibt keinen
-"Neu"-Button und kein "Löschen". Die Route ist bewusst beschränkt: `Route::resource('nations', …)->only(['index',
-'edit', 'update'])` (`routes/web.php`) — **kein** `create`/`store`/`destroy`. Gewünscht: Nationen anlegen und löschen
-können.
-
-**Warum zurückgestellt — kein Header-/Cosmetic-Fix, sondern Feature mit Datenintegritäts-Frage:** Nationen sind
-IOC-Referenzdaten (geseedet) und werden von `athletes`, `clubs`, `swim_records`, `meets` u. a. per FK referenziert.
-Ein Löschen einer *verwendeten* Nation würde die FK-Constraint verletzen (DB-Fehler) — es braucht einen Guard (Löschen
-nur, wenn nichts darauf verweist; sonst Hinweis "N Athleten/Vereine hängen daran"). Zusätzlich offene
-Fragen: Sollen Nationen überhaupt frei anlegbar sein (Kollision mit dem IOC-Seed / der `<x-flag>`-Code-Zuordnung),
-oder nur solche außerhalb des Seeds? Welche Felder beim Anlegen (Code, name_de, name_en, is_active)?
-
-**Wer entscheidet:** Erik — ob anlegen/löschen überhaupt gewünscht ist (angesichts IOC-Referenzcharakter) und wie
-mit referenzierten Nationen beim Löschversuch umgegangen wird (blockieren mit Hinweis vs. gar nicht anbieten).
-
-**Zum Schließen nötig:** Routen (`create`/`store`/`destroy`) + Controller-Methoden mit Validierung (eindeutiger
-Code) ergänzen, Anlege-Formular-View, FK-sicherer Delete-Guard, "Neu"-Button im Header (Regel: Einzelbutton inline)
-und Delete-Button je Zeile (rot, mit Confirm) in `nations/index`.
-
 ## "Außer Konkurrenz" (AK) bei Meldungen setzbar machen
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
@@ -635,8 +617,8 @@ Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll d
 
 - **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
   kontextsensitive Rücksprung. Überschneidet sich mit "Ergebnisse einer Veranstaltung manuell erfassen & löschen".
-- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen
-  ("Alle Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
+- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen ("Alle
+  Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
   Wettkampfübergreifend zusätzlich das Meldungen-Cockpit (`entries.index`).
 - **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
   statt eine eigene Seite zu öffnen.

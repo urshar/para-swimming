@@ -3,7 +3,24 @@
 @section('title', 'Nationen')
 
 @section('content')
-    <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Nationen</h1>
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Nationen</h1>
+        <flux:button href="{{ route('nations.create') }}" variant="primary" icon="plus">Neue Nation</flux:button>
+    </div>
+
+    @if(session('success'))
+        <div role="status"
+             class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @error('nation')
+        <div role="alert"
+             class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+            {{ $message }}
+        </div>
+    @enderror
 
     @php
         // Sortierbare Spalten-Header ohne Livewire: flux:table.sortable rendert einen <button> ohne
@@ -65,8 +82,21 @@
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell class="text-right">
-                        <flux:button href="{{ route('nations.edit', $nation) }}" size="xs" variant="ghost"
-                                     icon="pencil" class="text-amber-500!"/>
+                        <div class="flex items-center justify-end gap-1">
+                            <flux:button href="{{ route('nations.edit', $nation) }}" size="xs" variant="ghost"
+                                         icon="pencil" class="text-amber-500!"
+                                         title="Bearbeiten" aria-label="{{ $nation->code }} bearbeiten"/>
+                            {{-- Code per data-Attribut statt Blade-Echo im JS-String: PhpStorm zerlegt die
+                                 Alpine-Injection sonst am Blade-Echo und meldet einen Fehlalarm. --}}
+                            <form method="POST" action="{{ route('nations.destroy', $nation) }}"
+                                  data-code="{{ $nation->code }}"
+                                  x-data="{ submit() { if (confirm('Nation ' + this.$el.dataset.code + ' löschen?')) this.$el.submit() } }"
+                                  @submit.prevent="submit()">
+                                @csrf @method('DELETE')
+                                <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500!"
+                                             title="Löschen" aria-label="{{ $nation->code }} löschen"/>
+                            </form>
+                        </div>
                     </flux:table.cell>
                 </flux:table.row>
             @endforeach
