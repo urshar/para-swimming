@@ -48,25 +48,27 @@ Hinweis, solange Athleten/Vereine/Veranstaltungen/Rekorde/Klassifizierer — ink
 `Nation::referenceCounts()`) und `feature/context-back-buttons` ("'Zurück'-Buttons kontextsensitiv" → gemerkte
 Listen-URL je Bereich über `App\Support\ListUrl` + Middleware `remember.list:<bereich>` für Rekorde, Veranstaltungen,
 Vereine, Klassifizierer, Nationen, Ergebnisse, Meldungen, Athleten; Weiterleitungen nach Speichern/Löschen ebenso;
-Muster in CLAUDE.md dokumentiert) — die zugehörigen Open Points unten wurden entfernt.
+Muster in CLAUDE.md dokumentiert) und `feature/relay-names` ("Staffelnamen / -bezeichnung" → optionales Feld
+`relay_entries.name`, sonst Vereinsname + laufende Nummer nur für mehrere unbenannte Staffeln im selben Bewerb;
+`App\Support\RelayNames` für App-Listen, PDF-Meldelisten und LENEX-`RELAY@name`, dokumentiert in
+`specs/club-entries.md` "Staffelnamen") — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)" unten
-3. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
-4. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
-5. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-6. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-7. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-8. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-9. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-10. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-11. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-12. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-13. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #12
-14. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+2. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
+3. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+4. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+5. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+6. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+7. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+8. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+9. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+10. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+11. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+12. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #11
+13. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -153,30 +155,6 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 **Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
-
-## Staffelnamen / -bezeichnung (frei vergebbar, sonst Vereinsname + laufende Nummer)
-
-**Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
-
-**Was fehlt:** Staffeln haben keinen eigenen Namen. In Listen (Meldeliste, Startliste) und im Datenmodell
-erscheinen mehrere Staffeln desselben Vereins in einem Bewerb alle nur als Vereinsname (z. B. "BSV Spittal") —
-in den Auswertungsprogrammen von Schwimmveranstaltungen und in Startlisten nicht unterscheidbar.
-
-Gewünscht: Der Verein kann einen Staffelnamen **frei** vergeben. Ist keiner gesetzt, wird der Vereinsname genommen
-und bei **mehreren Staffeln desselben Vereins im selben Bewerb** eine laufende Nummer angehängt (z. B.
-"BSV Spittal 1", "BSV Spittal 2").
-
-**Warum zurückgestellt:** Querschnittlich — ein optionales Namensfeld an `RelayEntry` (Migration) + Eingabe im
-Staffel-Formular + Anzeige in Meldeliste/Startlisten + LENEX-Export. Der LENEX-Export vergibt Staffeln bereits eine
-laufende `number` (`LenexExportService::buildRelay`), aber es gibt kein Namensfeld und die App-Anzeige nutzt nur den
-Vereinsnamen. Eigenes Thema, nicht Teil der Meldelisten-Übersicht.
-
-**Wer entscheidet:** Erik — ob nur die laufende Nummerierung (Fallback) reicht oder auch der frei vergebbare Name
-gebraucht wird (Letzteres braucht Feld + Formularfeld).
-
-**Zum Schließen nötig:** `name`/Bezeichnung an `RelayEntry` (nullable) + Formularfeld; eine Anzeige-Logik "Name,
-sonst Vereinsname (+ laufende Nummer bei mehreren im selben Bewerb)" als Accessor, überall genutzt (Meldeliste,
-Startlisten, LENEX-`name`).
 
 ## Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online
 

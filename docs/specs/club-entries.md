@@ -121,6 +121,27 @@ Summe:
   der Startaufstellung JBZ (Jahres-) oder ABZ (absolute Bestzeit) zu wählen (Default JBZ); daraus wird eine **gemischte
   Summe** für den aktuell gewählten Kurs gebildet und ist per Klick übernehmbar.
 
+## Staffelnamen — `RelayNames`
+
+Staffeln haben einen optionalen, frei vergebbaren Namen (`relay_entries.name`, max. 50 Zeichen, Feld
+"Staffelname" in "Staffel anlegen"/"Staffel bearbeiten" für Vereine und Admins). Der **Anzeigename** kommt an
+allen Stellen aus `App\Support\RelayNames::for($relays)`:
+
+- eigener Name, falls gesetzt,
+- sonst der Vereinsname (`club.display_name`); gibt es im **selben Bewerb** mehrere **unbenannte** Staffeln
+  desselben Vereins, bekommen nur diese eine laufende Nummer nach Anlage (ID): "Team Kärnten", "BSV Spittal 1",
+  "BSV Spittal 2". Eine einzelne unbenannte Staffel bleibt ohne Nummer.
+
+Die Nummer hängt von den Geschwister-Staffeln ab — `for()` lädt deshalb alle Staffeln der betroffenen (Bewerb, Verein)
+-Paare in **einer** Abfrage nach, damit auch gefilterte/paginierte Listen richtig zählen.
+
+**Eindeutigkeit:** Der Name muss innerhalb desselben Vereins im selben Bewerb eindeutig sein (`Rule::unique` auf
+`swim_event_id` + `club_id`); andere Vereine/Bewerbe dürfen denselben Namen verwenden.
+
+**Verwendet in:** "Alle Meldungen", Staffel-Cockpit, Staffelliste des Vereins (bei eigenem Namen steht der Verein
+zusätzlich daneben), beide PDF-Meldelisten (nach Namen und nach Bewerben) und im LENEX-Export als `RELAY@name`
+(immer der Anzeigename; `RELAY@number` bleibt die technische laufende Nummer aller Staffeln des Vereins im Bewerb).
+
 ## Staffelklassen — `RelayClassValidator`
 
 `resolveRelayClass(array $memberClasses)` ermittelt die Staffelklasse aus den Sportklassen der Mitglieder (Strings wie
@@ -198,8 +219,8 @@ Club- und Admin-Flow (s. u.).
 Neben den club-gescopten Ansichten gibt es für Admins eine **meet-weite** Übersicht aller Meldungen einer
 Veranstaltung — Einzel- UND Staffelmeldungen, über alle Vereine hinweg, nach Disziplin gruppiert
 (`MeetEntriesOverviewController@index`, Route `meets.entries-overview`, nur Admin via `RequireAdmin`; verlinkt von
-`meets/show`). Rein lesend/gruppierend: Bearbeiten und Löschen laufen über die bestehenden Formulare
-(`entries.edit`/`entries.destroy` bzw. `club-entries.relay.edit`/`.destroy` mit `club_id`). Ein optionaler
+`meets/show`). Rein lesend/gruppierend: Bearbeiten und Löschen laufen über die bestehenden Formulare (`entries.edit`/
+`entries.destroy` bzw. `club-entries.relay.edit`/`.destroy` mit `club_id`). Ein optionaler
 Disziplin-Filter (`event_id`) blendet den jeweils unpassenden Abschnitt aus.
 
 **Anlegen aus der Übersicht:**
@@ -219,8 +240,8 @@ ausgefülltes Feld bleibt als bewusste Abweichung erhalten.
 
 ### Meldungen-Cockpit (Admin)
 
-Die linksseitige „Meldungen"-Liste (`entries.index`, `EntryController@index`) ist ein **admin-only Cockpit**
-„Was ist zu tun" — der Menüpunkt ist für Vereine ausgeblendet, die Route liegt hinter `RequireAdmin` (Vereine
+Die linksseitige "Meldungen"-Liste (`entries.index`, `EntryController@index`) ist ein **admin-only Cockpit**
+"Was ist zu tun" — der Menüpunkt ist für Vereine ausgeblendet, die Route liegt hinter `RequireAdmin` (Vereine
 nutzen weiterhin den eigenen `club-entries`-Weg). Zwei Tabs (`entries/_tabs.blade.php`):
 
 - **Einzel** (`entries.index`): alle Einzelmeldungen wettkampfübergreifend, mit Bearbeiten/Löschen (admin).
@@ -232,10 +253,10 @@ generische Alpine-Komponente `entriesCockpitFilters` (`resources/js/entries-cock
 Suche via `x-model.debounce`) sofort eine neue Suche aus. Die Kachelzahlen zählen im Wettkampf-/Suchkontext, aber
 unabhängig vom Status-/Problemfilter (`countFiltered()` nutzt dieselben Filter-Methoden wie die Liste).
 
-| Tab | Statusfilter / Kacheln | Problemfilter | Suche |
-| --- | --- | --- | --- |
-| Einzel | Normal · WDR · SICK · EXH · RJC | Ohne Meldezeit · Ohne Sportklasse | Athlet |
-| Staffel | Ausstehend · Bestätigt | Unvollständig (`members < swim_events.relay_count`, korrelierte Subquery) · Ohne Meldezeit | Verein |
+| Tab     | Statusfilter / Kacheln          | Problemfilter                                                                              | Suche  |
+|---------|---------------------------------|--------------------------------------------------------------------------------------------|--------|
+| Einzel  | Normal · WDR · SICK · EXH · RJC | Ohne Meldezeit · Ohne Sportklasse                                                          | Athlet |
+| Staffel | Ausstehend · Bestätigt          | Unvollständig (`members < swim_events.relay_count`, korrelierte Subquery) · Ohne Meldezeit | Verein |
 
 Eine **Doppelmeldung** (gleicher Athlet, gleiche Disziplin) gibt es als Problemfilter bewusst nicht — der
 Unique-Constraint `[meet_id, swim_event_id, athlete_id]` auf `entries` verhindert sie bereits auf DB-Ebene.
@@ -245,44 +266,43 @@ Unique-Constraint `[meet_id, swim_event_id, athlete_id]` auf `entries` verhinder
 Aus den Meldungen einer Veranstaltung lassen sich vier Listen erzeugen — Aufbereitung in
 `MeetEntryListService`, Excel in `MeetEntryListExportService`, PDF über
 `resources/views/pdf/entry-lists/*`, ausgeliefert von `MeetEntryListController`. Zugang über ein
-„Listen"-Dropdown auf „Alle Meldungen" (Admin) bzw. der Vereins-Meldungsansicht (`club-entries/index`,
+"Listen"-Dropdown auf "Alle Meldungen" (Admin) bzw. der Vereins-Meldungsansicht (`club-entries/index`,
 nur für Vereinsnutzer); die Links öffnen in einem **neuen Tab** (`target="_blank"`).
 
-**Scope:** Admin = ganze Veranstaltung (alle Vereine), Vereinsnutzer = nur die eigenen Meldungen
-(`scopeClubId`: Admin → `null` = alle, sonst `user.club_id`; ein Nicht-Admin ohne Verein bekommt `0` →
+**Scope:** Admin = ganze Veranstaltung (alle Vereine), Vereinsnutzer = nur die eigenen Meldungen (`scopeClubId`: Admin →
+`null` = alle, sonst `user.club_id`; ein Nicht-Admin ohne Verein bekommt `0` →
 leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middleware `RequireAdmin`).
 
-**Kopf aller Listen:** ÖBSV (nicht der swimify-Registrierungsverein „SC Diana Wien" aus den Vorlagen).
-ÖBSV- und Sport-Austria-Logo liegen in `resources/images/`, werden in den PDFs als base64 eingebettet
-(dompdf-Muster wie `wps-athlete-analysis`), im Excel als `Drawing`.
+**Kopf aller Listen:** ÖBSV (nicht der swimify-Registrierungsverein "SC Diana Wien" aus den Vorlagen).
+ÖBSV- und Sport-Austria-Logo liegen in `resources/images/`, werden in den PDFs als base64 eingebettet (dompdf-Muster wie
+`wps-athlete-analysis`), im Excel als `Drawing`.
 
-| Liste | Route (`meets.entry-lists.*`) | Umfang | Format |
-|-------|-------------------------------|--------|--------|
-| Teilnehmerliste     | `teilnehmer.pdf` / `.xlsx`   | pro Verein            | PDF + Excel |
-| Sportpasskontrolle  | `sportpass.pdf` / `.xlsx`    | alle Vereine (Admin)  | PDF + Excel |
-| Meldeliste nach Namen    | `nach-namen.pdf`        | Admin alle / Verein eigene | PDF |
-| Meldeliste nach Bewerben | `nach-bewerben.pdf`     | Admin alle / Verein eigene | PDF |
+| Liste                    | Route (`meets.entry-lists.*`) | Umfang                     | Format      |
+|--------------------------|-------------------------------|----------------------------|-------------|
+| Teilnehmerliste          | `teilnehmer.pdf` / `.xlsx`    | pro Verein                 | PDF + Excel |
+| Sportpasskontrolle       | `sportpass.pdf` / `.xlsx`     | alle Vereine (Admin)       | PDF + Excel |
+| Meldeliste nach Namen    | `nach-namen.pdf`              | Admin alle / Verein eigene | PDF         |
+| Meldeliste nach Bewerben | `nach-bewerben.pdf`           | Admin alle / Verein eigene | PDF         |
 
-- **Teilnehmerliste** — offizielle Sport-Austria-Vorlage (Logo oben rechts): Titel „TEILNEHMER(INNEN)LISTE",
+- **Teilnehmerliste** — offizielle Sport-Austria-Vorlage (Logo oben rechts): Titel "TEILNEHMER (INNEN)LISTE",
   BETRIFFT/ORT, ZEITRAUM + TAGE (Meet-Dauer), ANZAHL DER PERSONEN; Spalten `lfd. Nr | FAMILIEN- und VORNAME |
   WOHNORT (leer, Handausfüllen) | TAGE | UNTERSCHRIFT (leer)`. Ein ergänztes **VEREIN**-Feld (nicht im
   Original-Vordruck) macht den Ausdruck zuordenbar. Excel: ein Arbeitsblatt je Verein.
-- **Sportpasskontrolle** — offizielle ÖBSV-Vorlage (Logo + Briefkopf, „Die Kontrolle wurde durchgeführt von"):
+- **Sportpasskontrolle** — offizielle ÖBSV-Vorlage (Logo + Briefkopf, "Die Kontrolle wurde durchgeführt von"):
   Spalten `lfd. Nr | ZU- und VORNAME (+ Verein als kleine zweite Zeile) | DATUM der letzten UNTERSUCHUNG (leer) |
   SPORTPASS Nummer (= `athlete.license`) | ANMERKUNG (leer) | FAUS (leer)`. Sortiert nach Verein, dann Name.
 - **Meldeliste nach Namen** — Geschlecht (Herren/Damen/Mixed) → Verein (Name + Codezeile
-  „CODE / Regionalverband / NATION") → Athlet (Lizenz, „Nachname, Vorname", Jahrgang) mit seinen Bewerben
-  (Bewerb | Meldezeit | Sportklasse — Einzel und Staffel in derselben Spalte); Staffeln je Verein mit ihren
+  "CODE / Regionalverband / NATION") → Athlet (Lizenz, "Nachname, Vorname", Jahrgang) mit seinen Bewerben (Bewerb |
+  Meldezeit | Sportklasse — Einzel und Staffel in derselben Spalte); Staffeln je Verein mit ihren
   Schwimmern in Positionsreihenfolge.
 - **Meldeliste nach Bewerben** — Abschnitt (Session; Wochentag + Datum nur bei **eintägiger** Veranstaltung,
-  sonst nur „Abschnitt N" — siehe Open Point) → Bewerb („Nr. X  Bewerb [Herren/Damen/Mixed/Alle]") →
+  sonst nur "Abschnitt N" — siehe Open Point) → Bewerb ("Nr. X Bewerb [Herren/Damen/Mixed/Alle]") →
   Teilnehmer alphabetisch, wahlweise **ein- oder zweispaltig** (`?columns=1`, Default 2). Im **einspaltigen
   Admin-Modus** zusätzlich der Verein je Einzelsportler (Name · Jahrgang · Meldezeit · Sportklasse · Verein);
   feste, über alle Bewerbe identische Spaltenbreiten, damit die Spalten untereinander stehen. Staffeln mit
   Schwimmern in Reihenfolge.
 
-Staffelname in den Meldelisten: aktuell Vereinsname + laufende Nummer (Platzhalter, bis das
-Staffelnamen-Feature umgesetzt ist — siehe `docs/open-points.md`).
+Staffelname in den Meldelisten: Anzeigename aus `RelayNames` (siehe "Staffelnamen" oben).
 
 ## Validierung
 
@@ -302,6 +322,7 @@ Verein des Users gehören (`club->athletes()->findOrFail(...)`).
 
 ```php
 'swim_event_id'  => ['required', 'integer', 'exists:swim_events,id'],
+'name'           => ['nullable', 'string', 'max:50', Rule::unique(...)], // je Verein + Bewerb
 'athlete_ids'    => ['nullable', 'array'],
 'athlete_ids.*'  => ['integer', 'exists:athletes,id'],
 'entry_time'     => ['nullable', 'string', 'max:20'],
@@ -338,10 +359,12 @@ Phase).
 - `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
   Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
 - `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.
+- `tests/Feature/RelayNamesTest.php` — Staffelnamen: Nummerierungsregel, Speichern/Validierung, Anzeige in
+  Listen, PDF-Meldelisten und LENEX-`RELAY@name`.
 - `tests/Feature/EntriesIndexScopeTest.php` — Meldungs-Cockpit ist admin-only (Verein → 403), Admin sieht alle
   Meldungen samt Bearbeiten-Aktion; Anlegen/Bearbeiten/Löschen admin-only.
-- `tests/Feature/EntriesCockpitFilterTest.php` — Einzel-Cockpit: Status-/Problemfilter und Kennzahlen-Kacheln
-  (Zahlen, Wettkampf-Kontext, Kachel-Links).
+- `tests/Feature/EntriesCockpitFilterTest.php` — Einzel-Cockpit: Status-/Problemfilter und Kennzahlen-Kacheln (Zahlen,
+  Wettkampf-Kontext, Kachel-Links).
 - `tests/Feature/RelayCockpitTest.php` — Staffel-Cockpit (`relay-entries.index`): admin-only + Tabs, Status-/
   Problemfilter (Unvollständig/Ohne Meldezeit), Kennzahlen, Vereins-Suche.
 - `tests/Feature/MeetEntryListsTest.php` — meldebasierte Listen: Gruppierung/Sortierung (Teilnehmer je Verein,

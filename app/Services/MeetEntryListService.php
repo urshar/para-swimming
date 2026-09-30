@@ -8,6 +8,7 @@ use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\RelayEntry;
 use App\Models\SwimEvent;
+use App\Support\RelayNames;
 use App\Support\TimeParser;
 use Illuminate\Support\Collection;
 
@@ -116,6 +117,7 @@ final readonly class MeetEntryListService
             ->with(['club.nation', 'swimEvent.strokeType', 'members.athlete'])
             ->when($clubId, fn ($q) => $q->where('club_id', $clubId))
             ->get();
+        $relayNames = RelayNames::for($relays);
 
         // Geschlechts-Sektionen in fester Reihenfolge (Mixed nur für Staffeln relevant).
         $order = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
@@ -161,11 +163,10 @@ final readonly class MeetEntryListService
                         $a['athlete']->last_name ?? '', $a['athlete']->first_name ?? ''))
                     ->values();
 
-                // Staffelname als Platzhalter (Verein + laufende Nummer) bis das
-                // Staffelnamen-Feature umgesetzt ist (siehe docs/open-points.md).
-                // members in Positionsreihenfolge (members() ist bereits nach position sortiert).
-                $relayList = $clubRelays->map(fn (RelayEntry $r, int $i): array => [
-                    'name' => $club->display_name.' '.($i + 1),
+                // Staffelname siehe App\Support\RelayNames (Nummer je Bewerb, nicht je Verein über alle
+                // Bewerbe). members in Positionsreihenfolge (members() ist bereits nach position sortiert).
+                $relayList = $clubRelays->map(fn (RelayEntry $r): array => [
+                    'name' => $relayNames[$r->id],
                     'event' => $r->swimEvent,
                     'class' => $r->relay_class ?: 'allg.',
                     'time' => $r->entry_time ? TimeParser::display($r->entry_time) : ($r->entry_time_code ?: 'NT'),
@@ -212,6 +213,7 @@ final readonly class MeetEntryListService
             ->with(['club', 'swimEvent.strokeType', 'members.athlete'])
             ->when($clubId, fn ($q) => $q->where('club_id', $clubId))
             ->get();
+        $relayNames = RelayNames::for($relays);
 
         $events = $meet->swimEvents()->with('strokeType')
             ->orderBy('session_number')->orderBy('event_number')->get();
@@ -224,31 +226,26 @@ final readonly class MeetEntryListService
             foreach ($sessionEvents->sortBy('event_number') as $event) {
                 if ($event->isRelay()) {
                     $evRelays = $relays->where('swim_event_id', $event->id)
-                        ->sortBy(fn (RelayEntry $r): string => $r->club?->display_name ?? '')
+                        ->sortBy(fn (RelayEntry $r): string => $relayNames[$r->id])
                         ->values();
 
                     if ($evRelays->isEmpty()) {
                         continue;
                     }
 
-                    $perClub = [];
                     $eventBlocks->push([
                         'title' => $this->eventTitle($event, true),
                         'isRelay' => true,
                         'entrants' => collect(),
-                        'relays' => $evRelays->map(function (RelayEntry $r) use (&$perClub): array {
-                            $perClub[$r->club_id] = ($perClub[$r->club_id] ?? 0) + 1;
-
-                            return [
-                                'name' => ($r->club?->display_name ?? '').' '.$perClub[$r->club_id],
-                                'class' => $r->relay_class ?: 'allg.',
-                                'time' => $r->entry_time ? TimeParser::display($r->entry_time) : ($r->entry_time_code ?: 'NT'),
-                                'members' => $r->members->map(fn ($m): array => [
-                                    'position' => $m->position,
-                                    'name' => $m->athlete ? self::personName($m->athlete) : '',
-                                ])->filter(fn (array $m): bool => $m['name'] !== '')->values(),
-                            ];
-                        })->values(),
+                        'relays' => $evRelays->map(fn (RelayEntry $r): array => [
+                            'name' => $relayNames[$r->id],
+                            'class' => $r->relay_class ?: 'allg.',
+                            'time' => $r->entry_time ? TimeParser::display($r->entry_time) : ($r->entry_time_code ?: 'NT'),
+                            'members' => $r->members->map(fn ($m): array => [
+                                'position' => $m->position,
+                                'name' => $m->athlete ? self::personName($m->athlete) : '',
+                            ])->filter(fn (array $m): bool => $m['name'] !== '')->values(),
+                        ])->values(),
                     ]);
                 } else {
                     $evEntries = $entries->where('swim_event_id', $event->id)

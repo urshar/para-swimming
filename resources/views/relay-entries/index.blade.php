@@ -1,3 +1,5 @@
+@php use App\Models\RelayEntry; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Meldungen — Staffel')
@@ -103,14 +105,18 @@
             <flux:table.rows>
                 @forelse($relayEntries as $relay)
                     @php
-                        /** @var \App\Models\RelayEntry $relay */
+                        /** @var RelayEntry $relay */
                         $required = $relay->swimEvent?->relay_count ?? 4;
                         $memberCount = $relay->members->count();
                         $incomplete = $memberCount < $required;
                     @endphp
                     <flux:table.row>
                         <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
-                            {{ $relay->club?->display_name }}
+                            {{ $relayNames[$relay->id] }}
+                            @if($relay->name)
+                                {{-- Eigener Name: Verein zusätzlich nennen, sonst ist er nicht erkennbar. --}}
+                                <div class="text-xs font-normal text-zinc-500 dark:text-zinc-400">{{ $relay->club?->display_name }}</div>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                             {{ $relay->meet?->name }}

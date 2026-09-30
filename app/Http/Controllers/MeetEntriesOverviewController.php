@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\RelayEntry;
+use App\Support\RelayNames;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -48,11 +49,15 @@ class MeetEntriesOverviewController extends Controller
             ->sortBy(fn (Entry $e): string => sprintf('%s|%s', $e->club?->display_name ?? '', $e->athlete?->last_name ?? ''))
             ->groupBy('swim_event_id');
 
-        $relaysByEvent = $meet->relayEntries()
+        $relays = $meet->relayEntries()
             ->with(['club', 'swimEvent.strokeType', 'members.athlete'])
             ->when($eventFilter, fn (Builder $q) => $q->where('swim_event_id', $eventFilter))
-            ->get()
-            ->sortBy(fn (RelayEntry $r): string => $r->club?->display_name ?? '')
+            ->get();
+        $relayNames = RelayNames::for($relays);
+
+        // Nach Anzeigename sortiert: mehrere Staffeln eines Vereins stehen so in Nummernfolge beieinander.
+        $relaysByEvent = $relays
+            ->sortBy(fn (RelayEntry $r): string => $relayNames[$r->id])
             ->groupBy('swim_event_id');
 
         return view('meets.entries-overview', [
@@ -60,6 +65,7 @@ class MeetEntriesOverviewController extends Controller
             'events' => $events,
             'entriesByEvent' => $entriesByEvent,
             'relaysByEvent' => $relaysByEvent,
+            'relayNames' => $relayNames,
             'eventFilter' => $eventFilter,
             'einzelTotal' => $meet->entries()->count(),
             'staffelTotal' => $meet->relayEntries()->count(),

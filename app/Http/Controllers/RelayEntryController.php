@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Meet;
 use App\Models\RelayEntry;
+use App\Support\RelayNames;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,9 +50,10 @@ class RelayEntryController extends Controller
         $this->applyProblemFilter($query, $request->query('problem'));
 
         $relayEntries = $query->paginate(25)->withQueryString();
+        $relayNames = RelayNames::for($relayEntries->getCollection());
         $meets = Meet::orderByDesc('start_date')->get();
 
-        return view('relay-entries.index', compact('relayEntries', 'meets', 'counts'));
+        return view('relay-entries.index', compact('relayEntries', 'relayNames', 'meets', 'counts'));
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────

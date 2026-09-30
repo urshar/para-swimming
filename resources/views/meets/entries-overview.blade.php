@@ -214,8 +214,12 @@
                             <div class="flex items-start justify-between gap-4 mb-3">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                                        {{ $relay->club?->display_name }}
+                                        {{ $relayNames[$relay->id] }}
                                     </span>
+                                    @if($relay->name)
+                                        {{-- Eigener Name: Verein zusätzlich nennen, sonst ist er nicht erkennbar. --}}
+                                        <span class="text-sm text-zinc-500 dark:text-zinc-400">{{ $relay->club?->display_name }}</span>
+                                    @endif
                                     @if($relay->relay_class)
                                         <flux:badge color="blue" size="sm"
                                                     class="font-mono">{{ $relay->relay_class }}</flux:badge>
