@@ -1,3 +1,5 @@
+@php use App\Support\ListUrl; @endphp
+
 @extends('layouts.app')
 
 @section('title', isset($athlete) ? $athlete->display_name . ' bearbeiten' : 'Neuer Athlet')
@@ -9,7 +11,7 @@
     <div class="max-w-3xl">
 
         <div class="flex items-center gap-2 mb-6">
-            <flux:button href="{{ session('athletes.list_url', route('athletes.index')) }}" variant="primary"
+            <flux:button href="{{ isset($athlete) ? route('athletes.show', $athlete) : ListUrl::to('athletes') }}" variant="primary"
                          icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($athlete) ? 'Athlet bearbeiten' : 'Neuer Athlet' }}
@@ -264,7 +266,7 @@
                     {{ isset($athlete) ? 'Speichern' : 'Athlet anlegen' }}
                 </flux:button>
                 <flux:button
-                    href="{{ isset($athlete) ? route('athletes.show', $athlete) : session('athletes.list_url', route('athletes.index')) }}"
+                    href="{{ isset($athlete) ? route('athletes.show', $athlete) : ListUrl::to('athletes') }}"
                     variant="ghost">
                     Abbrechen
                 </flux:button>

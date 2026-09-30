@@ -1,5 +1,6 @@
 @php
     use App\Models\Club;
+    use App\Support\ListUrl;
 @endphp
 
 @extends('layouts.app')
@@ -11,7 +12,7 @@
     @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
     <div class="max-w-2xl">
         <div class="flex items-center gap-2 mb-6">
-            <flux:button href="{{ route('clubs.index') }}" variant="primary" icon="arrow-left" size="sm"
+            <flux:button href="{{ isset($club) ? route('clubs.show', $club) : ListUrl::to('clubs') }}" variant="primary" icon="arrow-left" size="sm"
                          title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($club) ? 'Verein bearbeiten' : 'Verein anlegen' }}
@@ -110,7 +111,7 @@
                 <flux:button type="submit" variant="primary">
                     {{ isset($club) ? 'Änderungen speichern' : 'Verein anlegen' }}
                 </flux:button>
-                <flux:button href="{{ route('clubs.index') }}" variant="ghost">Abbrechen</flux:button>
+                <flux:button href="{{ isset($club) ? route('clubs.show', $club) : ListUrl::to('clubs') }}" variant="ghost">Abbrechen</flux:button>
             </div>
         </form>
     </div>

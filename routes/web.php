@@ -128,11 +128,14 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
     Route::resource('nations', NationController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middlewareFor('index', 'remember.list:nations');
 
-    Route::resource('clubs', ClubController::class);
+    Route::resource('clubs', ClubController::class)
+        ->middlewareFor('index', 'remember.list:clubs');
 
-    Route::resource('athletes', AthleteController::class);
+    Route::resource('athletes', AthleteController::class)
+        ->middlewareFor('index', 'remember.list:athletes');
 
     Route::post('athletes/{athlete}/transfer-club',
         [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
@@ -219,7 +222,8 @@ Route::middleware(['auth'])->group(function () {
         [QualifyingExcludedDisciplineController::class, 'destroy'])->name('qualifying-excluded-disciplines.destroy');
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
-    Route::resource('classifiers', ClassifierController::class);
+    Route::resource('classifiers', ClassifierController::class)
+        ->middlewareFor('index', 'remember.list:classifiers');
 
     // ── Meisterschaften und Qualifikationsnormen ──────────────────────────────
     // Ansichten für alle Angemeldeten, Verwaltung nur für Admins (Spec §4).
@@ -337,7 +341,8 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
-    Route::resource('meets', MeetController::class);
+    Route::resource('meets', MeetController::class)
+        ->middlewareFor('index', 'remember.list:meets');
 
     Route::get('meets/{meet}/cup-daily-ranking',
         [CupDailyRankingController::class, 'show'])->name('meets.cup-daily-ranking.show');
@@ -356,7 +361,8 @@ Route::middleware(['auth'])->group(function () {
     // Vereine nutzen den eigenen, autorisierten club-entries-Weg.
     Route::middleware(RequireAdmin::class)->group(function () {
         // Verbandsweite Meldungsliste — nur Ansicht (Cockpit mit Status-/Problemfiltern).
-        Route::resource('entries', EntryController::class)->only(['index']);
+        Route::resource('entries', EntryController::class)->only(['index'])
+            ->middlewareFor('index', 'remember.list:entries');
 
         // Staffel-Cockpit (Tab neben dem Einzel-Cockpit) — nur Ansicht.
         Route::get('relay-entries', [RelayEntryController::class, 'index'])->name('relay-entries.index');
@@ -372,7 +378,8 @@ Route::middleware(['auth'])->group(function () {
         // Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine),
         // nach Disziplin gruppiert.
         Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
-            ->name('meets.entries-overview');
+            ->name('meets.entries-overview')
+            ->middleware('remember.list:entries');
     });
 
     // ── Meldebasierte Listen (PDF + Excel) ─────────────────────────────────────
@@ -394,7 +401,8 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Ergebnisse
-    Route::resource('results', ResultController::class)->only(['index']);
+    Route::resource('results', ResultController::class)->only(['index'])
+        ->middlewareFor('index', 'remember.list:results');
     Route::resource('meets.results', ResultController::class)
         ->shallow()
         ->except(['index'])
@@ -423,7 +431,8 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Rekorde ───────────────────────────────────────────────────────────────
     Route::prefix('records')->name('records.')->group(function () {
-        Route::get('/', [RecordController::class, 'index'])->name('index');
+        Route::get('/', [RecordController::class, 'index'])->name('index')
+            ->middleware('remember.list:records');
         Route::get('create', [RecordController::class, 'createManual'])->name('create');
         Route::post('/', [RecordController::class, 'storeManual'])->name('store');
 

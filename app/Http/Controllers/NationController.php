@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Nation;
+use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -76,7 +77,7 @@ class NationController extends Controller
         $nation->update($data);
 
         return redirect()
-            ->route('nations.index')
+            ->to(ListUrl::to('nations'))
             ->with('success', 'Nation aktualisiert.');
     }
 
@@ -102,7 +103,7 @@ class NationController extends Controller
         $nation->delete();
 
         return redirect()
-            ->route('nations.index')
+            ->to(ListUrl::to('nations'))
             ->with('success', 'Nation '.$nation->code.' gelöscht.');
     }
 }

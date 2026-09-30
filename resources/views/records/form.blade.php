@@ -1,5 +1,6 @@
 @php
     use App\Models\Club;
+    use App\Support\ListUrl;
     use App\Support\TimeParser;
 @endphp
 
@@ -81,7 +82,7 @@
     <div class="max-w-4xl">
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ route('records.index') }}" variant="primary" icon="arrow-left" size="sm"
+                <flux:button href="{{ $rec ? route('records.show', $rec) : ListUrl::to('records') }}" variant="primary" icon="arrow-left" size="sm"
                              title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {{ $rec ? 'Rekord bearbeiten' : 'Rekord manuell eintragen' }}
@@ -456,7 +457,7 @@
                         {{ $rec ? 'Änderungen speichern' : 'Rekord eintragen' }}
                     </flux:button>
                     <flux:button
-                        href="{{ $rec ? route('records.show', $rec) : route('records.index') }}"
+                        href="{{ $rec ? route('records.show', $rec) : ListUrl::to('records') }}"
                         variant="ghost">
                         Abbrechen
                     </flux:button>

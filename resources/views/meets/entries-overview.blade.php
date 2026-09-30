@@ -234,7 +234,7 @@
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
                                     <flux:button
-                                        href="{{ route('club-entries.relay.edit', ['meet' => $meet, 'relayEntry' => $relay, 'club_id' => $relay->club_id]) }}"
+                                        href="{{ route('club-entries.relay.edit', ['meet' => $meet, 'relayEntry' => $relay, 'club_id' => $relay->club_id, 'return_to' => url()->full()]) }}"
                                         size="xs" variant="ghost" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST"
                                           action="{{ route('club-entries.relay.destroy', ['meet' => $meet, 'relayEntry' => $relay, 'club_id' => $relay->club_id]) }}"

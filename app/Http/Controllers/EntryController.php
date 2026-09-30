@@ -9,6 +9,7 @@ use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
+use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -176,8 +177,9 @@ class EntryController extends Controller
 
         $entry->update($data);
 
+        // Zurück zur Meldungsliste, aus der bearbeitet wurde (Cockpit oder "Alle Meldungen", inkl. Filter).
         return redirect()
-            ->route('meets.show', $entry->meet)
+            ->to(ListUrl::to('entries'))
             ->with('success', 'Meldung aktualisiert.');
     }
 

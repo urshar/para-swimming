@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RememberListUrl;
 use App\Http\Middleware\RequireAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => RequireAdmin::class,
+            'remember.list' => RememberListUrl::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

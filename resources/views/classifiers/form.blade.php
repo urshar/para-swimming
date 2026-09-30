@@ -1,3 +1,5 @@
+@php use App\Support\ListUrl; @endphp
+
 @extends('layouts.app')
 
 @section('title', isset($classifier) ? $classifier->full_name . ' bearbeiten' : 'Neuer Klassifizierer')
@@ -6,7 +8,7 @@
     <div class="max-w-2xl">
 
         <div class="flex items-center gap-2 mb-6">
-            <flux:button href="{{ route('classifiers.index') }}" variant="primary" icon="arrow-left" size="sm"
+            <flux:button href="{{ isset($classifier) ? route('classifiers.show', $classifier) : ListUrl::to('classifiers') }}" variant="primary" icon="arrow-left" size="sm"
                          title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ isset($classifier) ? 'Klassifizierer bearbeiten' : 'Neuer Klassifizierer' }}
@@ -116,7 +118,7 @@
                 <flux:button type="submit" variant="primary">
                     {{ isset($classifier) ? 'Speichern' : 'Klassifizierer anlegen' }}
                 </flux:button>
-                <flux:button href="{{ isset($classifier) ? route('classifiers.show', $classifier) : route('classifiers.index') }}"
+                <flux:button href="{{ isset($classifier) ? route('classifiers.show', $classifier) : ListUrl::to('classifiers') }}"
                              variant="ghost">
                     Abbrechen
                 </flux:button>

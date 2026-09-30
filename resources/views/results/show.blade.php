@@ -1,4 +1,5 @@
 @php
+    use App\Support\ListUrl;
     use App\Support\TimeParser;
 @endphp
 
@@ -9,7 +10,7 @@
 @section('content')
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <flux:button href="{{ url()->previous() }}" variant="primary" icon="arrow-left" size="sm"
+            <flux:button href="{{ ListUrl::to('results') }}" variant="primary" icon="arrow-left" size="sm"
                          title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {{ $result->athlete?->display_name }} – {{ $result->swimEvent?->display_name }}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Club;
 use App\Models\Nation;
+use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -113,7 +114,7 @@ class ClubController extends Controller
         $club->delete();
 
         return redirect()
-            ->route('clubs.index')
+            ->to(ListUrl::to('clubs'))
             ->with('success', 'Club gelöscht.');
     }
 }

@@ -1,3 +1,5 @@
+@php use App\Support\ListUrl; @endphp
+
 @extends('layouts.app')
 
 @section('title', $club->name)
@@ -6,7 +8,7 @@
 
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <flux:button href="{{ route('clubs.index') }}" variant="primary" icon="arrow-left" size="sm"
+            <flux:button href="{{ ListUrl::to('clubs') }}" variant="primary" icon="arrow-left" size="sm"
                          title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $club->name }}</h1>
         </div>

@@ -260,7 +260,9 @@ class ClubEntryController extends Controller
             ->orderBy('event_number')
             ->get();
 
-        return view('club-entries.create-relay', compact('meet', 'club', 'events'));
+        $backUrl = $this->relayReturnUrl($meet);
+
+        return view('club-entries.create-relay', compact('meet', 'club', 'events', 'backUrl'));
     }
 
     /**
@@ -323,15 +325,9 @@ class ClubEntryController extends Controller
             ]);
         }
 
-        // Kam die Meldung aus der meet-weiten "Alle Meldungen"-Übersicht (return_to),
-        // dorthin zurück — sonst wie gehabt zur Staffelliste des Vereins. Nur interne
-        // Ziele (Open-Redirect-Schutz).
-        $returnTo = $request->input('return_to');
-        $redirect = (is_string($returnTo) && $returnTo !== '' && str_starts_with($returnTo, url('/')))
-            ? redirect($returnTo)
-            : redirect()->route('club-entries.relay.index', array_merge(['meet' => $meet], $this->clubParam()));
-
-        return $redirect->with('success', 'Staffelmeldung gespeichert.');
+        return redirect()
+            ->to($this->relayReturnUrl($meet))
+            ->with('success', 'Staffelmeldung gespeichert.');
     }
 
     // ── Destroy ───────────────────────────────────────────────────────────────
@@ -376,7 +372,9 @@ class ClubEntryController extends Controller
             ->orderBy('event_number')
             ->get();
 
-        return view('club-entries.edit-relay', compact('meet', 'club', 'relayEntry', 'events'));
+        $backUrl = $this->relayReturnUrl($meet);
+
+        return view('club-entries.edit-relay', compact('meet', 'club', 'relayEntry', 'events', 'backUrl'));
     }
 
     /**
@@ -434,7 +432,7 @@ class ClubEntryController extends Controller
         }
 
         return redirect()
-            ->route('club-entries.relay.index', array_merge(['meet' => $meet], $this->clubParam()))
+            ->to($this->relayReturnUrl($meet))
             ->with('success', 'Staffelmeldung aktualisiert.');
     }
 
@@ -707,6 +705,20 @@ class ClubEntryController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Rücksprungziel der Staffel-Formulare (Zurück/Abbrechen und Weiterleitung nach dem Speichern): Kam man
+     * aus der meet-weiten "Alle Meldungen"-Übersicht (return_to), dorthin zurück — sonst zur Staffelliste
+     * des Vereins. Nur interne Ziele (Open-Redirect-Schutz).
+     */
+    private function relayReturnUrl(Meet $meet): string
+    {
+        $returnTo = request()->input('return_to');
+
+        return is_string($returnTo) && $returnTo !== '' && str_starts_with($returnTo, url('/'))
+            ? $returnTo
+            : route('club-entries.relay.index', array_merge(['meet' => $meet], $this->clubParam()));
     }
 
     // ── Destroy Relay ─────────────────────────────────────────────────────────────
