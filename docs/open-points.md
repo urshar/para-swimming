@@ -69,6 +69,8 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 11. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
 12. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #11
 13. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+14. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+15. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -79,6 +81,56 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt
+
+**Seit:** `feature/nations-add-delete` (30.09.2026), Nebenbefund beim Lösch-Schutz der Nationen.
+
+**Was fehlt:** Controller geben nach Speichern/Löschen `->with('success', ...)` bzw. bei einem blockierten Vorgang
+`back()->withErrors([...])` zurück, aber das Layout (`layouts/app.blade.php`) zeigt Flash-Meldungen **nirgends** an —
+jede View muss das selbst tun. Das machen nur wenige (`meets/show`, `nations/index`, `club-entries/index`,
+`club-entries/index-relay`). Ohne Anzeige sind u. a. `athletes/index`+`show`, `clubs/index`+`show`,
+`classifiers/index`+`show`, `meets/index`, `records/index`+`show`, `results/index`, `entries/index` und
+`meets/entries-overview`. Allein in den Controllern von Athleten, Vereinen, Klassifizierern, Veranstaltungen, Rekorden,
+Ergebnissen und Meldungen sind das rund 40 `with('success')`/`withErrors()`-Aufrufe, deren Text nie erscheint.
+
+Konkretes Beispiel: `ClubController::destroy()` blockiert das Löschen eines Vereins mit Athleten per
+`withErrors(['club' => 'Club kann nicht gelöscht werden — es sind noch N Athleten zugeordnet.'])` — in der Vereinsliste
+sieht man davon nichts, der Klick auf Löschen scheint einfach wirkungslos. Ebenso fehlen die Bestätigungen "... gelöscht"
+/ "... gespeichert" nach den Weiterleitungen auf die gemerkte Liste (`feature/context-back-buttons`).
+
+**Warum zurückgestellt:** Querschnittsthema, nicht Teil der Nationen-Verwaltung.
+
+**Wer entscheidet:** Erik — zentrale Anzeige im Layout (einheitlich, z. B. als Hinweisbox unter dem Seitenkopf oder als
+Flux-Toast) vs. je View einbauen. Empfehlung: zentral im Layout, dann die bestehenden Einzel-Blöcke (`meets/show`,
+`nations/index`, `club-entries/*`) entfernen, damit nichts doppelt erscheint.
+
+**Zum Schließen nötig:** Eine Flash-Komponente (Erfolg + Fehler ohne Feldbezug, barrierefrei mit `role="status"` bzw.
+`role="alert"`, siehe `docs/accessibility.md`) im Layout einbinden; Einzel-Blöcke entfernen; Fehler mit Feldbezug in
+Formularen bleiben bei `flux:error`. Tests: Löschversuch mit Hinweis und Erfolgsmeldung erscheinen auf der Zielseite.
+
+## LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)
+
+**Seit:** `fix/club-lenex-club-id` (30.09.2026) — Weg B der Entscheidung zu `clubs.lenex_club_id`.
+
+**Ausgangslage:** Die nie angelegte Spalte `clubs.lenex_club_id` wurde entfernt (toter Code in `Club::$fillable`,
+`LenexExportService`, `LenexResolverService`-Docblock). Beim LENEX-Import wird die Club-ID aus Splash (`CLUB@clubid`,
+LENEX-Standard wäre `id`) nur als Cache-Schlüssel innerhalb **eines** Imports verwendet, nicht gespeichert. Vereine
+werden importübergreifend über `code`, dann über den normalisierten Namen (jeweils + Nation) wiedererkannt.
+
+**Was fehlen könnte:** Eine gespeicherte LENEX-Club-ID als zusätzliche, stabile Matching-Stufe — sinnvoll, falls Vereine
+ohne (oder mit wechselndem) `code` und mit abweichenden Namensschreibweisen importiert werden und dadurch doppelt angelegt
+oder falsch zugeordnet werden. Optional auch Export dieser ID, damit Splash beim Re-Import dieselben Vereine erkennt.
+
+**Warum zurückgestellt:** Neues Feature statt Bugfix; nur nötig, wenn das Matching über `code`/Name in der Praxis nicht
+reicht.
+
+**Wer entscheidet:** Erik — ob es beim Import tatsächlich Fehlzuordnungen/Dubletten gibt, und ob der Export die ID für
+Splash-Rundreisen mitgeben soll (`clubid` ist kein LENEX-3-Attribut an `CLUB`, nur Splash-spezifisch).
+
+**Zum Schließen nötig:** Migration `clubs.lenex_club_id` (nullable, ggf. unique je Nation), beim Import befüllen
+(`LenexResolverService::resolveClub()` + `createClub()`), als Matching-Stufe zwischen `code` und Name einbauen,
+optional im Export als `clubid` ausgeben; Tests für Matching und Export.
 
 ## Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)
 
