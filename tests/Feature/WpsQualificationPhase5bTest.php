@@ -166,7 +166,7 @@ it('nimmt den Filterstand in den PDF-Link auf', function () {
 
     expect($komponente->instance()->pdfUrl())->not->toContain('?');
 
-    $komponente->call('setFilter', 'fulfilment', 'met');
+    $komponente->set('filterFulfilment', 'met');
 
     expect($komponente->instance()->pdfUrl())->toContain('fulfilment=met');
 });
