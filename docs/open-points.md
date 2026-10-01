@@ -54,27 +54,28 @@ Muster in CLAUDE.md dokumentiert) und `feature/relay-names` ("Staffelnamen / -be
 `specs/club-entries.md` "Staffelnamen") und `feature/meet-session-dates` ("Meldeliste nach Bewerben:
 Abschnitt-Datum" → neue Tabelle `meet_sessions` mit Datum + Startzeit je Abschnitt, pflegbar über "Abschnitte
 bearbeiten" auf `meets/show` und aus dem LENEX-Import; genutzt von der Meldeliste nach Bewerben und dem LENEX-Export,
-der vorher jedem Abschnitt den Veranstaltungsbeginn gab; dokumentiert in `data-model.md`) — die zugehörigen Open
-Points unten wurden entfernt.
+der vorher jedem Abschnitt den Veranstaltungsbeginn gab; dokumentiert in `data-model.md`) und `feature/entry-fees`
+("Meldegelder" → Gebühren nach LENEX je Veranstaltung/Abschnitt/Bewerb, Pflege-Seite, LENEX-Import/-Export,
+Abrechnung je Verein online + PDF; `TEAM` und `LATEENTRY.*` noch nicht berechnet, siehe unten; dokumentiert in
+`specs/club-entries.md` "Meldegelder") — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
-3. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-4. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-5. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-6. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-7. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-8. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-9. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-10. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-11. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #10
-12. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-13. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-14. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-15. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+2. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+3. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+4. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+5. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+6. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+7. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+8. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+9. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+10. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #9
+11. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+12. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+13. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+14. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -211,31 +212,6 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 **Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
-
-## Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online
-
-**Seit:** Feedback Erik (27.09.2026) beim Bau der meet-weiten Meldeliste (`feature/meet-entries-overview`).
-
-**Erledigt (28.09.2026, `feature/entry-lists`):** Die vier **Melde-Listen** sind umgesetzt und in
-`docs/specs/club-entries.md` (Abschnitt "Meldebasierte Listen") dokumentiert: **Teilnehmerliste** (pro Verein,
-PDF + Excel, Sport-Austria-Vorlage), **Sportpasskontrolle** (alle Vereine, admin-only, PDF + Excel, ÖBSV-Vorlage),
-**Meldeliste nach Namen** und **Meldeliste nach Bewerben** (je PDF, Admin = ganze Veranstaltung, Verein = nur eigene).
-Ebenfalls erledigt: das Club-Scoping der linksseitigen Meldungsliste (`entries.index`), auf das dieser Punkt früher
-verwies.
-
-**Was noch fehlt — Meldegelder:** Aus den Meldungen die Gebühren je Verein/Athlet samt Summe erzeugen (PDF + online).
-
-**Warum zurückgestellt:** **Meldegelder brauchen ein neues Datenmodell:** aktuell gibt es kein Gebühren-Feld (kein
-`entry_fee`/Meldegeld im Schema). Nötig wären eine Gebühren-Konfiguration (je Meet, evtl. je Bewerb/Staffel,
-evtl. Grundgebühr je Verein), eine Berechnung über die Meldungen und die PDF-/Online-Darstellung — ein eigenes
-Thema mit Design-Entscheidungen. Die vorhandene Melde-Listen-Infrastruktur (`MeetEntryListService`/
-`MeetEntryListController`) kann als Vorbild/Anschlusspunkt dienen.
-
-**Wer entscheidet:** Erik — Gebührenmodell (Pauschale vs. je Start vs. je Bewerb; Staffel-Gebühren; Grundgebühr je
-Verein; wer legt die Beträge fest und wo).
-
-**Zum Schließen nötig:** Gebühren-Datenmodell (Konfiguration je Meet/Bewerb) + Berechnung über die Meldungen +
-Darstellung (PDF + online), analog zu den bestehenden Melde-Listen.
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 

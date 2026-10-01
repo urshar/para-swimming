@@ -304,6 +304,34 @@ leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middl
 
 Staffelname in den Meldelisten: Anzeigename aus `RelayNames` (siehe "Staffelnamen" oben).
 
+## Meldegelder
+
+**Konfiguration** (Seite "Meldegelder", admin-only, Button auf `meets/show`; `MeetFeeController`):
+
+- `meet_fees` — Gebühren nach LENEX `FEES > FEE` je Veranstaltung (`session_number` leer) oder je Abschnitt, Typen
+  `CLUB`, `ATHLETE`, `RELAY`, `TEAM`, `LATEENTRY.INDIVIDUAL`, `LATEENTRY.RELAY`.
+- `swim_events.fee_cents` — Gebühr je Meldung im Bewerb (LENEX `EVENT > FEE`), mit Schnellfeldern "für alle Einzel-
+  bzw. Staffelbewerbe setzen".
+- Beträge werden in Euro eingegeben und in Cent gespeichert (`App\Support\Money`).
+- LENEX-Import und -Export tauschen alle drei Ebenen aus (`MEET > FEES`, `SESSION > FEES`, `EVENT > FEE`).
+
+**Berechnung** (`App\Services\EntryFeeCalculator`, je Verein ein `App\Support\ClubFeeStatement`):
+
+- Berechnet werden alle Einzelmeldungen außer abgelehnten (`RJC`) — also auch `WDR`, `SICK`, `EXH` — und alle
+  Staffeln außer zurückgezogenen (`withdrawn`).
+- Je Einzelstart: Bewerbsgebühr (ohne Gebühr 0 €).
+- Je Staffel: Bewerbsgebühr, sonst `RELAY` des Abschnitts, sonst `RELAY` der Veranstaltung (Bewerbsgebühr hat Vorrang).
+- `CLUB`/`ATHLETE` der Veranstaltung: einmal je Verein bzw. je Athlet; `CLUB`/`ATHLETE` eines Abschnitts: einmal je
+  Abschnitt, in dem der Verein bzw. Athlet startet. Als Athleten zählen Einzelstarter und Staffelmitglieder des Vereins.
+- `TEAM` und `LATEENTRY.*` werden gespeichert, aber noch **nicht** berechnet (`docs/open-points.md`).
+
+**Darstellung** (`EntryFeeController`, Links im "Listen"-Dropdown von "Alle Meldungen" und der Vereins-Meldungsansicht):
+
+- Online `meets/{meet}/fees`: Admin = Übersicht aller Vereine (Athleten, Einzelstarts, Staffeln, Start-/Staffelgebühren,
+  Pauschalen, Summe, Gesamtsumme) mit Detail je Verein (`meets/{meet}/fees/clubs/{club}`); Vereinsnutzer = direkt die
+  eigene Abrechnung, fremde Vereine 403.
+- PDF `meets.entry-lists.meldegeld.pdf`: Admin = Gesamtübersicht + je Verein eine Seite; Verein = nur die eigene.
+
 ## Validierung
 
 **Einzelmeldung (`store`)**
@@ -359,6 +387,8 @@ Phase).
 - `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
   Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
 - `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.
+- `tests/Feature/MeetFeesPhase1Test.php` / `MeetFeesPhase2Test.php` — Meldegelder: Pflege, Validierung, LENEX,
+  Berechnungsregeln, Online-Abrechnung, Zugriff, PDF.
 - `tests/Feature/RelayNamesTest.php` — Staffelnamen: Nummerierungsregel, Speichern/Validierung, Anzeige in
   Listen, PDF-Meldelisten und LENEX-`RELAY@name`.
 - `tests/Feature/EntriesIndexScopeTest.php` — Meldungs-Cockpit ist admin-only (Verein → 403), Admin sieht alle
