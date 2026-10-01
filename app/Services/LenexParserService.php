@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\MeetFee;
 use App\Models\MeetSession;
 use App\Models\Nation;
 use App\Models\Result;
@@ -370,6 +371,11 @@ class LenexParserService
         }
         $this->stats['meets']++;
 
+        // Meldegelder der Veranstaltung (MEET > FEES)
+        if (isset($meetXml->FEES)) {
+            $this->importFees($meet, $meetXml->FEES, null);
+        }
+
         // Sessions + Events
         if (isset($meetXml->SESSIONS)) {
             $this->importSessions($meet, $meetXml->SESSIONS, $resolver);
@@ -412,6 +418,9 @@ class LenexParserService
             $sessionNumber = (int) ($sessionXml['number'] ?? 1);
 
             $this->importSessionDate($meet, $sessionNumber, $sessionXml);
+            if (isset($sessionXml->FEES)) {
+                $this->importFees($meet, $sessionXml->FEES, $sessionNumber);
+            }
 
             if (! isset($sessionXml->EVENTS)) {
                 continue;
@@ -444,6 +453,35 @@ class LenexParserService
             ['meet_id' => $meet->id, 'number' => $sessionNumber],
             ['date' => $date, 'daytime' => $daytime]
         );
+    }
+
+    /**
+     * FEES > FEE einer Veranstaltung (sessionNumber null) bzw. eines Abschnitts in meet_fees übernehmen. Unbekannte
+     * Typen und Gebühren ohne gültigen Betrag werden übersprungen; vorhandene Typen werden überschrieben.
+     */
+    private function importFees(Meet $meet, SimpleXMLElement $feesXml, ?int $sessionNumber): void
+    {
+        foreach ($feesXml->FEE as $feeXml) {
+            $type = (string) ($feeXml['type'] ?? '');
+            $cents = $this->feeCents($feeXml);
+
+            if (! array_key_exists($type, MeetFee::TYPES) || $cents === null) {
+                continue;
+            }
+
+            MeetFee::updateOrCreate(
+                ['meet_id' => $meet->id, 'session_number' => $sessionNumber, 'type' => $type],
+                ['amount_cents' => $cents, 'currency' => (string) ($feeXml['currency'] ?? '') ?: 'EUR']
+            );
+        }
+    }
+
+    /** FEE@value (LENEX: ganze Cent) → int, oder null bei fehlendem/ungültigem Wert. */
+    private function feeCents(SimpleXMLElement $feeXml): ?int
+    {
+        $value = (string) ($feeXml['value'] ?? '');
+
+        return ctype_digit($value) ? (int) $value : null;
     }
 
     // ── Clubs + Athletes ──────────────────────────────────────────────────────
@@ -482,12 +520,15 @@ class LenexParserService
             $sportClasses = $sportClassesFromXml;
         }
 
+        // EVENT > FEE (Gebühr je Meldung) nur übernehmen, wenn vorhanden — sonst bleibt ein gepflegter Wert stehen.
+        $feeCents = isset($eventXml->FEE) ? $this->feeCents($eventXml->FEE) : null;
+
         $swimEvent = SwimEvent::updateOrCreate(
             [
                 'meet_id' => $meet->id,
                 'event_number' => $eventNumber,
             ],
-            [
+            ($feeCents !== null ? ['fee_cents' => $feeCents] : []) + [
                 'stroke_type_id' => $strokeType->id,
                 'session_number' => $sessionNumber,
                 'gender' => $this->mapGender((string) ($eventXml['gender'] ?? 'A')),

@@ -138,6 +138,12 @@ class Meet extends Model
         return $this->belongsToMany(Club::class, 'meet_club');
     }
 
+    /** Meldegebühren der Veranstaltung und ihrer Abschnitte (LENEX FEES); Bewerbsgebühren in swim_events.fee_cents. */
+    public function fees(): HasMany
+    {
+        return $this->hasMany(MeetFee::class);
+    }
+
     /** Abschnitte mit Datum/Startzeit — Zuordnung zu den Disziplinen über swim_events.session_number. */
     public function sessions(): HasMany
     {

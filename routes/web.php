@@ -26,6 +26,7 @@ use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntryListController;
+use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
@@ -355,6 +356,13 @@ Route::middleware(['auth'])->group(function () {
     // Abschnitte (Datum + Startzeit je Session) — eine Seite für alle Abschnitte der Veranstaltung.
     Route::get('meets/{meet}/sessions/edit', [MeetSessionController::class, 'edit'])->name('meets.sessions.edit');
     Route::put('meets/{meet}/sessions', [MeetSessionController::class, 'update'])->name('meets.sessions.update');
+
+    // Meldegelder — Gebühren je Veranstaltung/Abschnitt (meet_fees) und je Bewerb (swim_events.fee_cents).
+    // Admin-only: Gebühren legt der Verband fest, nicht der Verein.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::get('meets/{meet}/fees/edit', [MeetFeeController::class, 'edit'])->name('meets.fees.edit');
+        Route::put('meets/{meet}/fees', [MeetFeeController::class, 'update'])->name('meets.fees.update');
+    });
 
     Route::resource('meets.events', SwimEventController::class)
         ->shallow()

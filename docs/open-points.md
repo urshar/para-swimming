@@ -74,6 +74,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 12. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 13. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
 14. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+15. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -317,6 +318,32 @@ Meldungsverwaltung; sichtbarer Status ("wieder geöffnet bis …") in `club-entr
 als Absicherung:** ein Regressionstest, der bestätigt, dass ein Vereins-User nach Ablauf auf ALLEN Pfaden (Einzel +
 Staffel, store/update/destroy) 403 bekommt und während eines aktiven Wiederöffnungs-Fensters wieder
 darf — damit ein etwaiges echtes Leck (statt nur des Admin-Overrides) auffliegt.
+
+**Nachmeldegebühren (LENEX `LATEENTRY.INDIVIDUAL` / `LATEENTRY.RELAY`) — gehören hierher:** Seit
+`feature/entry-fees` (01.10.2026) werden beide Gebührentypen in `meet_fees` gespeichert (je Veranstaltung oder je
+Abschnitt), auf der Seite "Meldegelder" gepflegt und per LENEX importiert/exportiert, fließen aber **noch nicht in die
+Meldegeld-Abrechnung** ein. Dafür fehlt die Information, ob eine Meldung eine Nachmeldung ist. Mit diesem Punkt
+klären: woran eine Nachmeldung erkannt wird (Meldung angelegt nach `entries_deadline` bzw. während eines
+Wiedereröffnungs-Fensters; dafür z. B. ein Merker oder der Anlegezeitpunkt je Meldung), ob die Nachmeldegebühr
+**zusätzlich** zur normalen Startgebühr oder **statt** ihr anfällt, und dann die Berechnung im Meldegeld-Service
+ergänzen (Einzel: `LATEENTRY.INDIVIDUAL`, Staffel: `LATEENTRY.RELAY`).
+
+## Mannschaftsgebühr (LENEX `TEAM`) berechnen
+
+**Seit:** `feature/entry-fees` (01.10.2026), Entscheidung Erik.
+
+**Ausgangslage:** Die Gebühr vom Typ `TEAM` (je Mannschaft, für Mannschaftsbewerbe — ein Verein kann mehrere
+Mannschaften an den Start schicken) wird in `meet_fees` gespeichert, auf der Seite "Meldegelder" gepflegt und per
+LENEX importiert/exportiert, aber **nicht berechnet**.
+
+**Warum zurückgestellt:** Das Datenmodell kennt keine Mannschaften (außer Staffeln). Ohne Mannschafts-Zuordnung lässt
+sich nicht zählen, wie viele Mannschaften ein Verein stellt.
+
+**Wer entscheidet:** Erik — ob und wie Mannschaftsbewerbe abgebildet werden (eigene Mannschafts-Meldung je Verein mit
+Mitgliedern? Bezug zu Staffeln?).
+
+**Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
+Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
 
 ## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
 
