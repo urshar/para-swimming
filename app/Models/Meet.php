@@ -55,6 +55,8 @@ class Meet extends Model
         'is_open' => 'boolean',
         'wps_approved' => 'boolean',
         'entries_deadline' => 'date',
+        'entries_reopened_until' => 'datetime',
+        'entries_reopened_at' => 'datetime',
         'is_published' => 'boolean',
     ];
 
@@ -98,6 +100,12 @@ class Meet extends Model
     public function nation(): BelongsTo
     {
         return $this->belongsTo(Nation::class);
+    }
+
+    /** Wer den Meldeschluss zuletzt wiedereröffnet hat (entries_reopened_by). */
+    public function entriesReopenedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'entries_reopened_by');
     }
 
     public function cup(): BelongsTo
@@ -246,5 +254,20 @@ class Meet extends Model
     public function hasDeadline(): bool
     {
         return $this->entries_deadline !== null;
+    }
+
+    /** Ob der Admin den Meldeschluss gerade wiedereröffnet hat (Zeitfenster entries_reopened_until noch nicht vorbei). */
+    public function isReopened(): bool
+    {
+        return $this->entries_reopened_until !== null && now()->lt($this->entries_reopened_until);
+    }
+
+    /**
+     * Ob Vereine gerade melden dürfen: kein Meldeschluss, Meldeschluss noch nicht abgelaufen oder wiedereröffnet.
+     * Admins dürfen unabhängig davon immer (EntryPolicy).
+     */
+    public function acceptsClubEntries(): bool
+    {
+        return ! $this->isDeadlinePassed() || $this->isReopened();
     }
 }

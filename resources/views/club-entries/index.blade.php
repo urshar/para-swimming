@@ -1,7 +1,3 @@
-@php
-    use Carbon\Carbon;
-@endphp
-
 @extends('layouts.app')
 
 @section('title', 'Meldungen – ' . $meet->name)
@@ -87,14 +83,7 @@
             </div>
         @endif
 
-        {{-- Meldeschluss-Hinweis --}}
-        @if(!$canManage && $meet->entries_deadline)
-            <div class="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-700
-                        rounded-xl text-sm text-amber-700 dark:text-amber-400">
-                Meldeschluss war am {{ Carbon::parse($meet->entries_deadline)->format('d.m.Y') }}.
-                Änderungen sind nicht mehr möglich.
-            </div>
-        @endif
+        @include('club-entries._deadline-notice')
 
         {{-- Tabelle --}}
         @if($entries->isEmpty())
@@ -136,6 +125,9 @@
                             <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">
                                 {{ $entry->swimEvent->display_name }}
                                 <x-gender-icon :gender="$entry->swimEvent->gender" class="text-base ml-1"/>
+                                @if($entry->is_late_entry)
+                                    <flux:badge color="orange" size="sm" class="ml-1">Nachmeldung</flux:badge>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">
                                 {{ $entry->athlete->last_name }}, {{ $entry->athlete->first_name }}

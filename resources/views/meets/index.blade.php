@@ -98,7 +98,13 @@
                            class="font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {{ $meet->name }}
                         </a>
-                        @if($meet->is_open)
+                        {{-- "Offen" nur, solange Vereine tatsächlich melden können: nach Meldeschluss entfällt das
+                             Badge, während eines Wiedereröffnungs-Fensters steht stattdessen "Nachmeldung bis …". --}}
+                        @if($meet->is_open && $meet->isReopened())
+                            <flux:badge size="sm" color="amber" class="ml-2">
+                                Nachmeldung bis {{ $meet->entries_reopened_until->format('d.m.Y H:i') }}
+                            </flux:badge>
+                        @elseif($meet->is_open && $meet->acceptsClubEntries())
                             <flux:badge size="sm" color="emerald" class="ml-2">Offen</flux:badge>
                         @endif
                     </flux:table.cell>

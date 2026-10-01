@@ -169,6 +169,9 @@
                                                 {{ $entry->status }}
                                             </flux:badge>
                                         @endif
+                                        @if($entry->is_late_entry)
+                                            <flux:badge size="sm" color="orange">Nachmeldung</flux:badge>
+                                        @endif
                                     </flux:table.cell>
                                     <flux:table.cell class="text-right">
                                         <flux:button href="{{ route('entries.edit', $entry) }}" size="xs" variant="ghost"
@@ -238,6 +241,9 @@
                                         <flux:badge color="green" size="sm">Vollständig</flux:badge>
                                     @else
                                         <flux:badge color="zinc" size="sm">{{ $memberCount }}/{{ $required }} Athleten</flux:badge>
+                                    @endif
+                                    @if($relay->is_late_entry)
+                                        <flux:badge color="orange" size="sm">Nachmeldung</flux:badge>
                                     @endif
                                     @if($relay->entry_time || $relay->entry_time_code)
                                         <span class="font-mono text-sm text-zinc-700 dark:text-zinc-200">

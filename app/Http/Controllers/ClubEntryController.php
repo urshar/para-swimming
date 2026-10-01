@@ -103,20 +103,23 @@ class ClubEntryController extends Controller
             }
         }
 
-        Entry::updateOrCreate(
-            [
-                'meet_id' => $meet->id,
-                'swim_event_id' => $event->id,
-                'athlete_id' => $validated['athlete_id'],
-            ],
-            [
-                'club_id' => $club->id,
-                'entry_time' => $entryTime,
-                'entry_time_code' => $entryTimeCode,
-                'entry_course' => $validated['entry_course'] ?? $meet->course,
-                'sport_class' => $this->resolveSportClass($validated['athlete_id'], $event),
-            ]
-        );
+        $entry = Entry::firstOrNew([
+            'meet_id' => $meet->id,
+            'swim_event_id' => $event->id,
+            'athlete_id' => $validated['athlete_id'],
+        ]);
+        $entry->fill([
+            'club_id' => $club->id,
+            'entry_time' => $entryTime,
+            'entry_time_code' => $entryTimeCode,
+            'entry_course' => $validated['entry_course'] ?? $meet->course,
+            'sport_class' => $this->resolveSportClass($validated['athlete_id'], $event),
+        ]);
+        // Nur eine NEUE Meldung nach Meldeschluss ist eine Nachmeldung — das Überschreiben einer bestehenden nicht.
+        if (! $entry->exists) {
+            $entry->is_late_entry = $meet->isDeadlinePassed();
+        }
+        $entry->save();
 
         return redirect()
             ->route('club-entries.index', array_merge(['meet' => $meet], $this->clubParam()))
@@ -324,6 +327,7 @@ class ClubEntryController extends Controller
             'entry_time_code' => $entryTimeCode,
             'entry_course' => $validated['entry_course'] ?? $meet->course,
             'status' => 'pending',
+            'is_late_entry' => $meet->isDeadlinePassed(),
         ]);
 
         // Members anlegen
@@ -546,7 +550,7 @@ class ClubEntryController extends Controller
      * AJAX: Vorgeschlagene Staffel-Meldezeit (Summe der Einzel-Bestzeiten der gemeldeten
      * Athleten je Kurs, Jahres- + absolute Summe). Reihenfolge der athlete_ids = Startposition.
      *
-     * GET /meets/{meet}/relay-entries/relay-best-time?event_id=X&athlete_ids[]=…
+     * GET /meets/{meet}/relay-entries/relay-best-time?event_id=X&athlete_ids[]= …
      */
     public function relayBestTime(Request $request, Meet $meet): JsonResponse
     {

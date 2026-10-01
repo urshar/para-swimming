@@ -8,7 +8,6 @@ namespace App\Policies;
 
 use App\Models\Meet;
 use App\Models\User;
-use Illuminate\Support\Carbon;
 
 /**
  * EntryPolicy
@@ -17,7 +16,8 @@ use Illuminate\Support\Carbon;
  *
  * Regeln:
  *  - Admin       → immer erlaubt
- *  - Vereins-User → nur, wenn kein Meldeschluss oder Meldeschluss noch nicht abgelaufen
+ *  - Vereins-User → nur, wenn kein Meldeschluss, Meldeschluss noch nicht abgelaufen oder wiedereröffnet
+ *                   (Meet::acceptsClubEntries)
  *  - Kein Club   → nie erlaubt
  */
 class EntryPolicy
@@ -51,14 +51,8 @@ class EntryPolicy
             return false;
         }
 
-        // Kein Meldeschluss gesetzt → erlaubt
-        if (! $meet->entries_deadline) {
-            return true;
-        }
-
-        // Meldeschluss noch nicht erreicht → erlaubt
-        // today() verwendet die App-Timezone aus config/app.php
-        return Carbon::today()->lte(Carbon::parse($meet->entries_deadline));
+        // Kein Meldeschluss, Meldeschluss noch nicht erreicht oder vom Admin wiedereröffnet → erlaubt
+        return $meet->acceptsClubEntries();
     }
 
     public function updateEntry(User $user, Meet $meet): bool

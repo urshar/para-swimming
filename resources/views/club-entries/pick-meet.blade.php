@@ -21,8 +21,9 @@
                      $watch statt onchange. --}}
                 <div class="mb-6 p-4 rounded-xl border border-blue-200 dark:border-blue-800
                         bg-blue-50 dark:bg-blue-950/20"
+                     data-url="{{ request()->url() }}"
                      x-data="{ clubId: '{{ request()->integer('club_id') ?: '' }}' }"
-                     x-init="$watch('clubId', v => { if (v) window.location.href = '{{ request()->url() }}?club_id=' + v; })">
+                     x-init="$watch('clubId', v => { if (v) window.location.assign($el.dataset.url + '?club_id=' + v) })">
                     <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
                         Verein (Admin)
                     </p>
@@ -91,11 +92,17 @@
                                 @if($meet->entries_deadline)
                                     <p @class([
                                         'text-xs mt-1',
-                                        'text-red-500 dark:text-red-400' => $meet->isDeadlinePassed(),
+                                        'text-red-500 dark:text-red-400' => $meet->isDeadlinePassed() && ! $meet->isReopened(),
+                                        'text-amber-600 dark:text-amber-400' => $meet->isReopened(),
                                         'text-zinc-400 dark:text-zinc-500' => ! $meet->isDeadlinePassed(),
                                     ])>
                                         Meldeschluss: {{ $meet->entries_deadline->format('d.m.Y') }}
-                                        {{ $meet->isDeadlinePassed() ? '(abgelaufen)' : '' }}
+                                        @if($meet->isReopened())
+                                            (abgelaufen) · Nachmeldung möglich bis
+                                            {{ $meet->entries_reopened_until->format('d.m.Y H:i') }} Uhr
+                                        @elseif($meet->isDeadlinePassed())
+                                            (abgelaufen)
+                                        @endif
                                     </p>
                                 @endif
                             </div>

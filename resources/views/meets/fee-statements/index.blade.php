@@ -35,6 +35,9 @@
             Für diese Veranstaltung gibt es noch keine berechneten Meldungen.
         </div>
     @else
+        @php
+            $hasLateFees = $statements->contains(fn (ClubFeeStatement $s): bool => $s->lateFees->isNotEmpty());
+        @endphp
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
             <flux:table bleed>
                 <flux:table.columns>
@@ -45,6 +48,9 @@
                     <flux:table.column align="end">Startgebühren</flux:table.column>
                     <flux:table.column align="end">Staffelgebühren</flux:table.column>
                     <flux:table.column align="end">Pauschalen</flux:table.column>
+                    @if($hasLateFees)
+                        <flux:table.column align="end">Nachmeldungen</flux:table.column>
+                    @endif
                     <flux:table.column align="end">Summe</flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
@@ -63,6 +69,9 @@
                             <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statement->startsCents()) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statement->relaysCents()) }}</flux:table.cell>
                             <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statement->flatCents()) }}</flux:table.cell>
+                            @if($hasLateFees)
+                                <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statement->lateCents()) }}</flux:table.cell>
+                            @endif
                             <flux:table.cell align="end" class="tabular-nums font-semibold text-zinc-900 dark:text-white">
                                 {{ Money::format($statement->totalCents) }}
                             </flux:table.cell>
@@ -76,6 +85,9 @@
                         <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->startsCents())) }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->relaysCents())) }}</flux:table.cell>
                         <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->flatCents())) }}</flux:table.cell>
+                        @if($hasLateFees)
+                            <flux:table.cell align="end" class="tabular-nums">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->lateCents())) }}</flux:table.cell>
+                        @endif
                         <flux:table.cell align="end" class="tabular-nums font-semibold text-zinc-900 dark:text-white">
                             {{ Money::format($totalCents) }}
                         </flux:table.cell>

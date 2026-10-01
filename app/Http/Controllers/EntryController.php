@@ -145,6 +145,7 @@ class EntryController extends Controller
             'meet_id' => $meet->id,
             'entry_time' => $entryTime,
             'entry_time_code' => $entryTimeCode,
+            'is_late_entry' => $meet->isDeadlinePassed(),
         ]));
 
         return $this->redirectAfterSave($request, $meet)

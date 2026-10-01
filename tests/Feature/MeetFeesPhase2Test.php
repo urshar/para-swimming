@@ -268,7 +268,7 @@ it('rendert im PDF die Übersicht nur für den Admin', function () {
     $club = makeClub_p5();
     entry_mf2(event_mf2($meet, 1, 1, 1, 500), makeAthlete_p5($club), $club, null);
     $statements = app(EntryFeeCalculator::class)->statements($meet, null);
-    $data = ['meet' => $meet, 'statements' => $statements, 'totalCents' => 500];
+    $data = ['meet' => $meet, 'statements' => $statements, 'totalCents' => 500, 'feeSchedule' => collect()];
 
     expect(pdfHtml_mf2($data + ['showOverview' => true]))
         ->toContain('Übersicht aller Vereine')
@@ -286,4 +286,55 @@ it('verlinkt die Abrechnung in den Listen-Dropdowns', function () {
     $this->actingAs(admin_mf2())->get(route('meets.entries-overview', $meet))->assertOk()
         ->assertSee(route('meets.fees.index', $meet))
         ->assertSee(route('meets.entry-lists.meldegeld.pdf', $meet));
+});
+
+// ── Gebührenübersicht im PDF ──────────────────────────────────────────────────
+
+it('listet nur befüllte, berechnete Gebühren und fasst gleiche Bewerbsgebühren zusammen', function () {
+    $meet = makeMeet_p5();
+    foreach ([1 => 1000, 2 => 1000, 3 => 1000, 4 => null, 5 => 1000, 6 => 1200] as $number => $fee) {
+        event_mf2($meet, 1, $number, 1, $fee);
+    }
+    event_mf2($meet, 2, 7, 4, 2000);
+    MeetFee::create(['meet_id' => $meet->id, 'session_number' => 2, 'type' => MeetFee::TYPE_CLUB, 'amount_cents' => 2500]);
+    MeetFee::create(['meet_id' => $meet->id, 'session_number' => null, 'type' => MeetFee::TYPE_LATE_INDIVIDUAL, 'amount_cents' => 300]);
+    MeetFee::create(['meet_id' => $meet->id, 'session_number' => null, 'type' => MeetFee::TYPE_ATHLETE, 'amount_cents' => 500]);
+    MeetFee::create(['meet_id' => $meet->id, 'session_number' => null, 'type' => MeetFee::TYPE_TEAM, 'amount_cents' => 9900]);
+
+    $lines = app(EntryFeeCalculator::class)->schedule($meet)
+        ->map(fn ($l): string => $l->group.' | '.$l->label.' | '.$l->amountCents)
+        ->all();
+
+    expect($lines)->toBe([
+        'Veranstaltung | Je Athlet | 500',
+        'Veranstaltung | Nachmeldung je Einzelstart | 300',
+        'Abschnitt 2 | Je Verein | 2500',
+        'Bewerbe | Einzelbewerbe Nr. 1–3, 5 pro Start | 1000',
+        'Bewerbe | Einzelbewerbe Nr. 6 pro Start | 1200',
+        'Bewerbe | Staffelbewerbe pro Start | 2000',
+    ]);
+});
+
+it('zeigt im PDF die Gebührenübersicht und die Spalte Nachmeldungen', function () {
+    $meet = makeMeet_p5();
+    $club = makeClub_p5();
+    $event = event_mf2($meet, 1, 1, 1, 1000);
+    Entry::create(['meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => makeAthlete_p5($club)->id, 'club_id' => $club->id, 'is_late_entry' => true]);
+    MeetFee::create(['meet_id' => $meet->id, 'session_number' => null, 'type' => MeetFee::TYPE_LATE_INDIVIDUAL, 'amount_cents' => 300]);
+
+    $calculator = app(EntryFeeCalculator::class);
+    $statements = $calculator->statements($meet, null);
+    $html = pdfHtml_mf2([
+        'meet' => $meet,
+        'statements' => $statements,
+        'totalCents' => EntryFeeCalculator::total($statements),
+        'feeSchedule' => $calculator->schedule($meet),
+        'showOverview' => true,
+    ]);
+
+    expect($html)->toContain('Meldegebühren')
+        ->toContain('Einzelbewerbe pro Start')
+        ->toContain('Nachmeldung je Einzelstart')
+        ->toContain('<th class="num">Nachmeldungen</th>')
+        ->not->toContain('Je Verein');
 });

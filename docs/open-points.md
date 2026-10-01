@@ -56,26 +56,29 @@ Abschnitt-Datum" → neue Tabelle `meet_sessions` mit Datum + Startzeit je Absch
 bearbeiten" auf `meets/show` und aus dem LENEX-Import; genutzt von der Meldeliste nach Bewerben und dem LENEX-Export,
 der vorher jedem Abschnitt den Veranstaltungsbeginn gab; dokumentiert in `data-model.md`) und `feature/entry-fees`
 ("Meldegelder" → Gebühren nach LENEX je Veranstaltung/Abschnitt/Bewerb, Pflege-Seite, LENEX-Import/-Export,
-Abrechnung je Verein online + PDF; `TEAM` und `LATEENTRY.*` noch nicht berechnet, siehe unten; dokumentiert in
-`specs/club-entries.md` "Meldegelder") — die zugehörigen Open Points unten wurden entfernt.
+Abrechnung je Verein online + PDF; `TEAM` noch nicht berechnet, siehe unten; dokumentiert in
+`specs/club-entries.md` "Meldegelder") und `feature/entries-reopen` ("Meldeschluss: nach Ablauf kontrolliert
+wiedereröffnen" → Admin öffnet befristet für alle Vereine (24 h, 48 h oder frei gewählter Zeitpunkt, protokolliert
+wer/wann), Admin-Override bleibt; nach Meldeschluss neu angelegte Meldungen werden als Nachmeldung gekennzeichnet und
+kosten zusätzlich `LATEENTRY.INDIVIDUAL` / `LATEENTRY.RELAY`; dokumentiert in `specs/club-entries.md` "Meldeschluss
+und Nachmeldungen") — die zugehörigen Open Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-3. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-4. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-5. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-6. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-7. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-8. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-9. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-10. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #9
-11. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-12. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-13. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-14. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+2. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+3. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+4. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+5. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+6. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+7. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+8. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+9. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #8
+10. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+11. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+12. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+13. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -257,52 +260,6 @@ gegenprüfen, insbesondere die Rechtsgrundlage für die Athletendaten-Veröffent
 `@section('robots', 'noindex, nofollow')` entfernen, die beiden Routen aus den
 `Disallow`-Zeilen in `app/Http/Controllers/Public/RobotsController.php` streichen und in
 `app/Http/Controllers/Public/SitemapController.php::STATIC_ROUTES` aufnehmen.
-
-## Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)
-
-**Seit:** `feature/relay-entry-time-suggestion` (21.09.2026), Beobachtung Erik.
-
-**Aktueller Stand (verifiziert im Code):** Der Meldeschluss wird für **Vereins-User bereits durchgesetzt** —
-`EntryPolicy::manageEntries()` gibt nach Ablauf `false` zurück (`Carbon::today()->lte(entries_deadline)`), und
-alle mutierenden Pfade in `ClubEntryController` (Einzel- UND Staffelmeldung: create/store/edit/update/destroy)
-rufen `authorize('manageEntries', $meet)` bzw. `authorize('deleteEntry', $meet)`; `club-entries/index`
-blendet die Buttons aus und zeigt "Meldeschluss war am …". **Admins sind per Policy dagegen IMMER erlaubt, ohne
-Zeitlimit** — das ist vermutlich der Grund, warum "Meldungen noch möglich" beobachtet wurde (Test als Admin).
-
-**Was fehlt / gewünscht (Erik):** Nach Meldeschluss soll die Veranstaltung **geschlossen** sein; nur der Admin
-darf danach etwas ändern/hinzufügen. Zusätzlich soll der Admin die Veranstaltung **für einen begrenzten
-Zeitraum (z. B. 24 h) wieder öffnen** können, damit z. B. Vereine kontrolliert Nachmeldungen/Korrekturen machen
-können — danach schließt sie automatisch wieder.
-
-**Offene Entscheidungen (Erik):**
-
-- Behält der Admin die unbegrenzte Direkt-Bearbeitung (Admin-Override wie heute), oder soll auch für den Admin
-  nach Ablauf erst "wiedereröffnen" nötig sein?
-- Wer darf während des Wiedereröffnungs-Fensters melden — nur der Admin, oder wieder die Vereine (das ist der
-  eigentliche Nutzen)?
-- Fenster fix 24 h oder frei wählbar (Datum/Uhrzeit)? Pro Veranstaltung global oder je Verein?
-- Soll das Wiederöffnen protokolliert werden (wer/wann/bis wann)?
-
-**Wer entscheidet:** Erik — die vier Punkte oben (v. a. wer im Fenster melden darf und ob der Admin-Override
-bleibt).
-
-**Zum Schließen nötig:** Migration `entries_reopened_until` (nullable `timestamp`) auf `meets`; `EntryPolicy`
-erweitern (Vereins-User zusätzlich erlaubt, wenn `entries_reopened_until` gesetzt und `now()` davor — die
-zentrale Policy deckt automatisch alle o. g. Controller-Pfade ab); Admin-UI zum Wiederöffnen (Button
-"+24 h" / freies Datum, Anzeige des aktiven Fensters inkl. Ablauf) auf `meets/show` bzw. in der
-Meldungsverwaltung; sichtbarer Status ("wieder geöffnet bis …") in `club-entries/index(-relay)`. **Zusätzlich
-als Absicherung:** ein Regressionstest, der bestätigt, dass ein Vereins-User nach Ablauf auf ALLEN Pfaden (Einzel +
-Staffel, store/update/destroy) 403 bekommt und während eines aktiven Wiederöffnungs-Fensters wieder
-darf — damit ein etwaiges echtes Leck (statt nur des Admin-Overrides) auffliegt.
-
-**Nachmeldegebühren (LENEX `LATEENTRY.INDIVIDUAL` / `LATEENTRY.RELAY`) — gehören hierher:** Seit
-`feature/entry-fees` (01.10.2026) werden beide Gebührentypen in `meet_fees` gespeichert (je Veranstaltung oder je
-Abschnitt), auf der Seite "Meldegelder" gepflegt und per LENEX importiert/exportiert, fließen aber **noch nicht in die
-Meldegeld-Abrechnung** ein. Dafür fehlt die Information, ob eine Meldung eine Nachmeldung ist. Mit diesem Punkt
-klären: woran eine Nachmeldung erkannt wird (Meldung angelegt nach `entries_deadline` bzw. während eines
-Wiedereröffnungs-Fensters; dafür z. B. ein Merker oder der Anlegezeitpunkt je Meldung), ob die Nachmeldegebühr
-**zusätzlich** zur normalen Startgebühr oder **statt** ihr anfällt, und dann die Berechnung im Meldegeld-Service
-ergänzen (Einzel: `LATEENTRY.INDIVIDUAL`, Staffel: `LATEENTRY.RELAY`).
 
 ## Mannschaftsgebühr (LENEX `TEAM`) berechnen
 
@@ -570,7 +527,8 @@ einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle defini
 
 **Entschieden — Vereins-User sollen, dürfen (Erik, 20.09.2026):**
 
-- **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss).
+- **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss oder im
+  vom Admin geöffneten Nachmelde-Fenster).
 - **Eigene Athleten pflegen** (Athleten des eigenen Vereins anlegen/bearbeiten).
 - **Eigene Ergebnisse einsehen** (Ergebnisse der eigenen Athleten ansehen, nicht bearbeiten).
 - **Vereinsstammdaten bearbeiten** (eigene Vereinsdaten wie Name/Kontakt pflegen).

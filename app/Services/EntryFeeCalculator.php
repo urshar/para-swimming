@@ -7,9 +7,11 @@ use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\MeetFee;
 use App\Models\RelayEntry;
+use App\Models\SwimEvent;
 use App\Support\AthleteFees;
 use App\Support\ClubFeeStatement;
 use App\Support\FeeLine;
+use App\Support\FeeScheduleLine;
 use App\Support\RelayNames;
 use Illuminate\Support\Collection;
 
@@ -21,9 +23,11 @@ use Illuminate\Support\Collection;
  *   - je Einzelstart die Bewerbsgebühr (swim_events.fee_cents),
  *   - je Staffel die Bewerbsgebühr, sonst RELAY des Abschnitts, sonst RELAY der Veranstaltung,
  *   - CLUB/ATHLETE der Veranstaltung einmal je Verein bzw. Athlet,
- *   - CLUB/ATHLETE eines Abschnitts einmal je Abschnitt, in dem der Verein bzw. Athlet startet.
- * Als Athleten eines Vereins zählen seine Einzelstarter und die Mitglieder seiner Staffeln. TEAM und LATEENTRY.*
- * werden noch nicht berechnet (docs/open-points.md).
+ *   - CLUB/ATHLETE eines Abschnitts einmal je Abschnitt, in dem der Verein bzw. Athlet startet,
+ *   - je Nachmeldung (is_late_entry) zusätzlich LATEENTRY.INDIVIDUAL bzw. LATEENTRY.RELAY des Abschnitts, sonst der
+ *     Veranstaltung.
+ * Als Athleten eines Vereins zählen seine Einzelstarter und die Mitglieder seiner Staffeln. TEAM wird noch nicht
+ * berechnet (docs/open-points.md).
  */
 final readonly class EntryFeeCalculator
 {
@@ -61,6 +65,49 @@ final readonly class EntryFeeCalculator
     }
 
     /**
+     * Übersicht der hinterlegten Gebühren — nur befüllte, in der Abrechnung berechnete Beträge (TEAM entfällt):
+     * zuerst die der Veranstaltung, dann je Abschnitt, dann die Bewerbsgebühren. Bewerbe mit gleichem Betrag
+     * werden zusammengefasst ("Einzelbewerbe pro Start" bzw.
+     * "Einzelbewerbe Nr. 1–3, 5 pro Start").
+     *
+     * @return Collection<int, FeeScheduleLine>
+     */
+    public function schedule(Meet $meet): Collection
+    {
+        $lines = collect();
+
+        $fees = $meet->fees()->get()
+            ->reject(fn (MeetFee $f): bool => in_array($f->type, MeetFee::NOT_CALCULATED, true))
+            ->sortBy(fn (MeetFee $f): string => sprintf(
+                '%05d|%02d',
+                $f->session_number ?? 0,
+                array_search($f->type, array_keys(MeetFee::TYPES), true),
+            ));
+        foreach ($fees as $fee) {
+            $lines->push(new FeeScheduleLine(
+                $fee->session_number === null ? 'Veranstaltung' : 'Abschnitt '.$fee->session_number,
+                MeetFee::TYPES[$fee->type] ?? $fee->type,
+                $fee->amount_cents,
+            ));
+        }
+
+        $events = $meet->swimEvents()->orderBy('event_number')->get();
+        foreach ([['Einzelbewerbe', false], ['Staffelbewerbe', true]] as [$kind, $isRelay]) {
+            $ofKind = $events->filter(fn (SwimEvent $e): bool => ($e->relay_count > 1) === $isRelay);
+            $byFee = $ofKind->whereNotNull('fee_cents')->groupBy('fee_cents');
+
+            foreach ($byFee as $amount => $group) {
+                $label = $group->count() === $ofKind->count()
+                    ? $kind.' pro Start'
+                    : $kind.' Nr. '.self::numberRanges($group->pluck('event_number')->filter()->all()).' pro Start';
+                $lines->push(new FeeScheduleLine('Bewerbe', $label, (int) $amount));
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
      * Gesamtsumme mehrerer Abrechnungen.
      *
      * @param  Collection<int, ClubFeeStatement>  $statements
@@ -68,6 +115,36 @@ final readonly class EntryFeeCalculator
     public static function total(Collection $statements): int
     {
         return $statements->sum(fn (ClubFeeStatement $s): int => $s->totalCents);
+    }
+
+    /**
+     * Bewerbsnummern als Bereiche: [1, 2, 3, 5] → "1–3, 5".
+     *
+     * @param  array<int, int>  $numbers
+     */
+    private static function numberRanges(array $numbers): string
+    {
+        $numbers = array_map('intval', $numbers);
+        sort($numbers);
+        $parts = [];
+        $start = $prev = null;
+
+        foreach ($numbers as $n) {
+            if ($start !== null && $n === $prev + 1) {
+                $prev = $n;
+
+                continue;
+            }
+            if ($start !== null) {
+                $parts[] = $start === $prev ? (string) $start : $start.'–'.$prev;
+            }
+            $start = $prev = $n;
+        }
+        if ($start !== null) {
+            $parts[] = $start === $prev ? (string) $start : $start.'–'.$prev;
+        }
+
+        return implode(', ', $parts);
     }
 
     /**
@@ -91,7 +168,7 @@ final readonly class EntryFeeCalculator
                 $starts = $athleteEntries
                     ->sortBy(fn (Entry $e): string => sprintf('%05d', $e->swimEvent?->event_number ?? 0))
                     ->map(fn (Entry $e): FeeLine => FeeLine::of(
-                        self::eventLabel($e),
+                        self::eventLabel($e).($e->is_late_entry ? ' (Nachmeldung)' : ''),
                         1,
                         $e->swimEvent?->fee_cents ?? 0,
                     ))
@@ -112,7 +189,7 @@ final readonly class EntryFeeCalculator
         $relayLines = $relays
             ->sortBy(fn (RelayEntry $r): string => sprintf('%05d|%s', $r->swimEvent?->event_number ?? 0, $relayNames[$r->id]))
             ->map(fn (RelayEntry $r): FeeLine => FeeLine::of(
-                $relayNames[$r->id].' · '.self::eventLabel($r),
+                $relayNames[$r->id].' · '.self::eventLabel($r).($r->is_late_entry ? ' (Nachmeldung)' : ''),
                 1,
                 $r->swimEvent?->fee_cents
                     ?? self::fee($fees, $r->swimEvent?->session_number ?? 1, MeetFee::TYPE_RELAY)
@@ -122,6 +199,8 @@ final readonly class EntryFeeCalculator
             ->values();
 
         $flat = $this->flatFees($entries, $relays, $athletes->count(), $fees);
+        $late = $this->lateFees($entries, MeetFee::TYPE_LATE_INDIVIDUAL, 'Nachmeldung je Einzelstart', $fees)
+            ->merge($this->lateFees($relays, MeetFee::TYPE_LATE_RELAY, 'Nachmeldung je Staffel', $fees));
 
         $athleteList = $athletes
             ->sortBy(fn (AthleteFees $a): string => mb_strtolower($a->athlete->display_name))
@@ -132,9 +211,48 @@ final readonly class EntryFeeCalculator
             athletes: $athleteList,
             relays: $relayLines,
             flatFees: $flat,
+            lateFees: $late,
             startCount: $entries->count(),
-            totalCents: $athleteList->sum('totalCents') + $relayLines->sum('totalCents') + $flat->sum('totalCents'),
+            totalCents: $athleteList->sum('totalCents') + $relayLines->sum('totalCents') + $flat->sum('totalCents')
+                + $late->sum('totalCents'),
         );
+    }
+
+    /**
+     * Nachmeldegebühr (LATEENTRY.*) je nachgemeldetem Einzelstart bzw. je nachgemeldeter Staffel, zusätzlich zur
+     * Start-/Staffelgebühr. Der Betrag des Abschnitts geht dem der Veranstaltung vor; zusammengefasst wird je
+     * Abschnitt mit eigenem Betrag, alle übrigen Nachmeldungen in einer Position zum Betrag der Veranstaltung.
+     *
+     * @param  Collection<int, Entry>|Collection<int, RelayEntry>  $entries
+     * @param  Collection<int, MeetFee>  $fees
+     * @return Collection<int, FeeLine>
+     */
+    private function lateFees(Collection $entries, string $type, string $label, Collection $fees): Collection
+    {
+        $meetLevel = 0;
+        /** @var array<int, array{count: int, amount: int}> $bySession */
+        $bySession = [];
+
+        foreach ($entries->filter(fn (Entry|RelayEntry $e): bool => $e->is_late_entry) as $entry) {
+            $session = $entry->swimEvent?->session_number ?? 1;
+            $amount = self::fee($fees, $session, $type);
+            if ($amount !== null) {
+                $bySession[$session] = ['count' => ($bySession[$session]['count'] ?? 0) + 1, 'amount' => $amount];
+            } else {
+                $meetLevel++;
+            }
+        }
+        ksort($bySession);
+
+        $lines = collect();
+        if ($meetLevel > 0 && ($amount = self::fee($fees, null, $type)) !== null) {
+            $lines->push(FeeLine::of($label, $meetLevel, $amount));
+        }
+        foreach ($bySession as $session => $line) {
+            $lines->push(FeeLine::of("$label – Abschnitt $session", $line['count'], $line['amount']));
+        }
+
+        return $lines;
     }
 
     /**
