@@ -26,6 +26,7 @@ use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntryListController;
+use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
 use App\Http\Controllers\QualifyingTimeListController;
@@ -350,6 +351,10 @@ Route::middleware(['auth'])->group(function () {
         [CupDailyRankingController::class, 'pdf'])->name('meets.cup-daily-ranking.pdf');
     Route::post('meets/{meet}/cup-daily-ranking/calculate',
         [CupDailyRankingController::class, 'calculate'])->name('meets.cup-daily-ranking.calculate');
+
+    // Abschnitte (Datum + Startzeit je Session) — eine Seite für alle Abschnitte der Veranstaltung.
+    Route::get('meets/{meet}/sessions/edit', [MeetSessionController::class, 'edit'])->name('meets.sessions.edit');
+    Route::put('meets/{meet}/sessions', [MeetSessionController::class, 'update'])->name('meets.sessions.update');
 
     Route::resource('meets.events', SwimEventController::class)
         ->shallow()

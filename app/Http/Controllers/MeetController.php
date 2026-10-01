@@ -92,8 +92,10 @@ class MeetController extends Controller
 
         $participantsCount = $meet->participantsCount();
         $participatingClubsCount = $meet->participatingClubsCount();
+        $sessions = $meet->sessions()->get()->keyBy('number');
 
-        return view('meets.show', compact('meet', 'swimEvents', 'participantsCount', 'participatingClubsCount'));
+        return view('meets.show',
+            compact('meet', 'swimEvents', 'participantsCount', 'participatingClubsCount', 'sessions'));
     }
 
     public function edit(Meet $meet): View

@@ -51,26 +51,29 @@ Vereine, Klassifizierer, Nationen, Ergebnisse, Meldungen, Athleten; Weiterleitun
 Muster in CLAUDE.md dokumentiert) und `feature/relay-names` ("Staffelnamen / -bezeichnung" → optionales Feld
 `relay_entries.name`, sonst Vereinsname + laufende Nummer nur für mehrere unbenannte Staffeln im selben Bewerb;
 `App\Support\RelayNames` für App-Listen, PDF-Meldelisten und LENEX-`RELAY@name`, dokumentiert in
-`specs/club-entries.md` "Staffelnamen") — die zugehörigen Open Points unten wurden entfernt.
+`specs/club-entries.md` "Staffelnamen") und `feature/meet-session-dates` ("Meldeliste nach Bewerben:
+Abschnitt-Datum" → neue Tabelle `meet_sessions` mit Datum + Startzeit je Abschnitt, pflegbar über "Abschnitte
+bearbeiten" auf `meets/show` und aus dem LENEX-Import; genutzt von der Meldeliste nach Bewerben und dem LENEX-Export,
+der vorher jedem Abschnitt den Veranstaltungsbeginn gab; dokumentiert in `data-model.md`) — die zugehörigen Open
+Points unten wurden entfernt.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt" unten
-3. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
-4. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
-5. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-6. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-7. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-8. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-9. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-10. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-11. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-12. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #11
-13. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-14. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-15. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+2. "Meldegelder (Gebühren je Verein/Athlet, Summe) — PDF + online" unten
+3. "Meldeschluss: nach Ablauf kontrolliert wiedereröffnen (Admin, Zeitfenster)" unten
+4. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
+5. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+6. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+7. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+8. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+9. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+10. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+11. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #10
+12. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+13. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+14. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -232,27 +235,6 @@ Verein; wer legt die Beträge fest und wo).
 
 **Zum Schließen nötig:** Gebühren-Datenmodell (Konfiguration je Meet/Bewerb) + Berechnung über die Meldungen +
 Darstellung (PDF + online), analog zu den bestehenden Melde-Listen.
-
-## Meldeliste nach Bewerben: Abschnitt-Datum (Session → Tag) fehlt
-
-**Seit:** `feature/entry-lists` (28.09.2026), beim Bau der Meldeliste nach Bewerben.
-
-**Was fehlt:** Die "Übersichtsliste nach Wettkämpfen" gruppiert nach **Abschnitt** (Session,
-`swim_events.session_number`)
-und zeigt in der swimify-Vorlage je Abschnitt den konkreten **Wochentag + Datum** ("Abschnitt 1 - Samstag, 17. Oktober
-2026"). Unser Datenmodell kennt aber **keine Zuordnung Session → Kalendertag** — nur `meet.start_date`/`end_date`.
-Daher zeigt die Liste den Wochentag/das Datum nur bei **eintägigen** Veranstaltungen; bei mehrtägigen steht lediglich
-"Abschnitt N" (siehe `MeetEntryListService::sessionLabel`).
-
-**Warum zurückgestellt:** Braucht ein neues Feld/Datenmodell (Datum bzw. Datum+Startzeit je Session) plus Pflege
-(manuell im Meet-/Session-Formular und/oder aus dem LENEX-Import, wo `<SESSION date=…>` vorhanden ist). Eigenes
-kleines Thema, nicht Teil der Listen-Formatierung.
-
-**Wer entscheidet:** Erik — ob die Session-Datumsangabe gebraucht wird und woher sie kommt (manuell pflegen vs. aus
-LENEX übernehmen).
-
-**Zum Schließen nötig:** Session-Datum am Datenmodell (z. B. `session_date` je `swim_event` bzw. eine eigene
-Session-Struktur), Pflege/Import, dann `sessionLabel` das echte Datum je Abschnitt nutzen lassen.
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 

@@ -295,8 +295,8 @@ leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middl
   "CODE / Regionalverband / NATION") → Athlet (Lizenz, "Nachname, Vorname", Jahrgang) mit seinen Bewerben (Bewerb |
   Meldezeit | Sportklasse — Einzel und Staffel in derselben Spalte); Staffeln je Verein mit ihren
   Schwimmern in Positionsreihenfolge.
-- **Meldeliste nach Bewerben** — Abschnitt (Session; Wochentag + Datum nur bei **eintägiger** Veranstaltung,
-  sonst nur "Abschnitt N" — siehe Open Point) → Bewerb ("Nr. X Bewerb [Herren/Damen/Mixed/Alle]") →
+- **Meldeliste nach Bewerben** — Abschnitt (Session; Wochentag + Datum aus `meet_sessions`, ohne gepflegtes Datum
+  bei **eintägiger** Veranstaltung deren Datum, sonst nur "Abschnitt N"; Startzeit wird nicht angezeigt) → Bewerb ("Nr. X Bewerb [Herren/Damen/Mixed/Alle]") →
   Teilnehmer alphabetisch, wahlweise **ein- oder zweispaltig** (`?columns=1`, Default 2). Im **einspaltigen
   Admin-Modus** zusätzlich der Verein je Einzelsportler (Name · Jahrgang · Meldezeit · Sportklasse · Verein);
   feste, über alle Bewerbe identische Spaltenbreiten, damit die Spalten untereinander stehen. Staffeln mit
