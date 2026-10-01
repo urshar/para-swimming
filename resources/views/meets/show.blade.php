@@ -1,4 +1,7 @@
-@php use App\Support\ListUrl; @endphp
+@php
+    use App\Models\MeetSession;
+    use App\Support\ListUrl;
+@endphp
 
 @extends('layouts.app')
 
@@ -179,9 +182,16 @@
     {{-- Events --}}
     <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Disziplinen</h2>
-        <flux:button href="{{ route('meets.events.create', $meet) }}" variant="ghost" icon="plus" size="sm">
-            Disziplin hinzufügen
-        </flux:button>
+        <div class="flex items-center gap-2">
+            @if($swimEvents->isNotEmpty())
+                <flux:button href="{{ route('meets.sessions.edit', $meet) }}" variant="ghost" icon="calendar-days" size="sm">
+                    Abschnitte bearbeiten
+                </flux:button>
+            @endif
+            <flux:button href="{{ route('meets.events.create', $meet) }}" variant="ghost" icon="plus" size="sm">
+                Disziplin hinzufügen
+            </flux:button>
+        </div>
     </div>
 
     @if($swimEvents->isEmpty())
@@ -193,9 +203,19 @@
         </div>
     @else
         @foreach($swimEvents->groupBy('session_number') as $session => $events)
+            @php
+                // Datum/Startzeit aus meet_sessions (gepflegt über "Abschnitte bearbeiten" bzw. LENEX-Import).
+                /** @var MeetSession|null $sessionInfo */
+                $sessionInfo = $sessions->get($session);
+            @endphp
             <div class="mb-4">
                 <div class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2 px-1">
                     Session {{ $session }}
+                    @if($sessionInfo?->date)
+                        <span class="normal-case tracking-normal font-normal">
+                            · {{ $sessionInfo->date->locale('de')->translatedFormat('l, j. F Y') }}@if($sessionInfo->daytime_short), {{ $sessionInfo->daytime_short }} Uhr @endif
+                        </span>
+                    @endif
                 </div>
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
                 <flux:table bleed>

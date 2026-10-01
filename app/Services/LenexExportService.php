@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\MeetSession;
 use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
 use App\Models\Result;
@@ -114,11 +115,19 @@ class LenexExportService
     private function buildSessions(Meet $meet): DOMElement
     {
         $sessionsEl = $this->dom->createElement('SESSIONS');
+        $sessions = $meet->sessions()->get()->keyBy('number');
 
         foreach ($meet->swimEvents->groupBy('session_number') as $sessionNumber => $sessionEvents) {
+            /** @var MeetSession|null $session */
+            $session = $sessions->get($sessionNumber);
+
             $sessionEl = $this->dom->createElement('SESSION');
             $sessionEl->setAttribute('number', (string) $sessionNumber);
-            $sessionEl->setAttribute('date', $meet->start_date->format('Y-m-d'));
+            // Datum je Abschnitt aus meet_sessions; ohne Eintrag wie bisher der Veranstaltungsbeginn.
+            $sessionEl->setAttribute('date', ($session?->date ?? $meet->start_date)->format('Y-m-d'));
+            if ($session?->daytime_short) {
+                $sessionEl->setAttribute('daytime', $session->daytime_short);
+            }
 
             $eventsEl = $this->dom->createElement('EVENTS');
             foreach ($sessionEvents->sortBy('event_number') as $event) {

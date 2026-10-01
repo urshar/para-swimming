@@ -26,6 +26,7 @@ erDiagram
     CLUB ||--o{ ATHLETE: "Stammverein"
     ATHLETE ||--o{ ATHLETE_SPORT_CLASS: "hat (S/SB/SM)"
     MEET ||--o{ SWIM_EVENT: "hat"
+    MEET ||--o{ MEET_SESSION: "Abschnitte (Datum/Startzeit)"
     MEET }o--o{ CLUB: "meet_club"
     SWIM_EVENT ||--o{ ENTRY: "Meldungen"
     SWIM_EVENT ||--o{ RESULT: "Ergebnisse"
@@ -91,6 +92,12 @@ Altbestand: `true` behauptete über jeden bestehenden Wettkampf eine Anerkennung
 `sport_classes` (leerzeichensepariert), `lenex_event_id`. → gehört zu **Meet** und **StrokeType**; hat viele **Entry**,
 **Result**.
 
+**MeetSession** (Abschnitt) — `meet_id`, `number`, `date` (nullable), `daytime` (Startzeit, nullable). Unique je
+`(meet_id, number)`. Zuordnung zu den Disziplinen über `swim_events.session_number` = `number` (bewusst kein
+Fremdschlüssel, `swim_events` bleibt unverändert). Gepflegt über "Abschnitte bearbeiten" auf `meets/show` bzw. beim
+LENEX-Import (`SESSION@date`/`@daytime`); genutzt von der Meldeliste nach Bewerben (Abschnitts-Datum) und dem
+LENEX-Export (`SESSION@date`/`@daytime`, ohne Eintrag Fallback auf den Veranstaltungsbeginn).
+
 **StrokeType** — `code`, `lenex_code` (FREE/BACK/BREAST/FLY/MEDLEY/IMRELAY),
 `name_de`, `name_en`, `category` (standard/fin/special), `is_relay_stroke`.
 
@@ -107,8 +114,8 @@ einem **SwimRecord** referenziert werden.
 
 **ResultSplit** — `result_id`, `distance`, `split_time`.
 
-**RelayEntry** (Staffelmeldung) — `meet_id`, `swim_event_id`, `club_id`,
-`relay_class`, `entry_time`, `entry_time_code`, `entry_course`, `status`. → hat viele **RelayEntryMember**
+**RelayEntry** (Staffelmeldung) — `meet_id`, `swim_event_id`, `club_id`, `name` (frei vergebbar, nullable; Anzeigename
+über `App\Support\RelayNames`), `relay_class`, `entry_time`, `entry_time_code`, `entry_course`, `status`. → hat viele **RelayEntryMember**
 (`athlete_id`, `sport_class`), unique je
 `(relay_entry_id, athlete_id)`.
 

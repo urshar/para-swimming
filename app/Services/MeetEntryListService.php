@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\MeetSession;
 use App\Models\RelayEntry;
 use App\Models\SwimEvent;
 use App\Support\RelayNames;
@@ -217,6 +218,8 @@ final readonly class MeetEntryListService
 
         $events = $meet->swimEvents()->with('strokeType')
             ->orderBy('session_number')->orderBy('event_number')->get();
+        /** @var Collection<int, MeetSession> $sessions Abschnitte nach Nummer */
+        $sessions = $meet->sessions()->get()->keyBy('number');
 
         $sections = collect();
 
@@ -277,7 +280,7 @@ final readonly class MeetEntryListService
             }
 
             $sections->push([
-                'label' => $this->sessionLabel($meet, (int) $session),
+                'label' => $this->sessionLabel($meet, (int) $session, $sessions->get((int) $session)),
                 'events' => $eventBlocks,
             ]);
         }
@@ -309,13 +312,19 @@ final readonly class MeetEntryListService
         return 'Nr. '.$event->event_number.'  '.$event->display_name.$suffix;
     }
 
-    /** Abschnitts-Überschrift; Datum nur bei eintägiger Veranstaltung sicher bekannt. */
-    private function sessionLabel(Meet $meet, int $session): string
+    /**
+     * Abschnitts-Überschrift "Abschnitt N - Wochentag, Datum": Datum aus meet_sessions, sonst bei eintägiger
+     * Veranstaltung deren Datum, sonst ohne Datum. Die Startzeit wird bewusst nicht angezeigt (swimify-Vorlage).
+     */
+    private function sessionLabel(Meet $meet, int $session, ?MeetSession $sessionInfo): string
     {
         $label = 'Abschnitt '.$session;
 
-        if (! $meet->end_date || $meet->start_date->isSameDay($meet->end_date)) {
-            $label .= ' - '.$meet->start_date->locale('de')->translatedFormat('l, j. F Y');
+        $date = $sessionInfo?->date
+            ?? ((! $meet->end_date || $meet->start_date->isSameDay($meet->end_date)) ? $meet->start_date : null);
+
+        if ($date) {
+            $label .= ' - '.$date->locale('de')->translatedFormat('l, j. F Y');
         }
 
         return $label;

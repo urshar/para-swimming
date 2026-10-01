@@ -138,6 +138,12 @@ class Meet extends Model
         return $this->belongsToMany(Club::class, 'meet_club');
     }
 
+    /** Abschnitte mit Datum/Startzeit — Zuordnung zu den Disziplinen über swim_events.session_number. */
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(MeetSession::class)->orderBy('number');
+    }
+
     public function swimEvents(): HasMany
     {
         return $this->hasMany(SwimEvent::class);

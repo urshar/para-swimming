@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\MeetSession;
 use App\Models\Nation;
 use App\Models\Result;
 use App\Models\ResultSplit;
@@ -410,6 +411,8 @@ class LenexParserService
         foreach ($sessionsXml->SESSION as $sessionXml) {
             $sessionNumber = (int) ($sessionXml['number'] ?? 1);
 
+            $this->importSessionDate($meet, $sessionNumber, $sessionXml);
+
             if (! isset($sessionXml->EVENTS)) {
                 continue;
             }
@@ -418,6 +421,29 @@ class LenexParserService
                 $this->importEvent($meet, $eventXml, $sessionNumber, $resolver);
             }
         }
+    }
+
+    /**
+     * Datum und Startzeit eines Abschnitts (SESSION@date "YYYY-MM-DD", SESSION@daytime "HH:MM") in meet_sessions
+     * übernehmen. Ungültige oder fehlende Werte werden nicht gespeichert; fehlt beides, bleibt ein bereits
+     * gepflegter Eintrag unverändert (kein Überschreiben mit leeren Werten).
+     */
+    private function importSessionDate(Meet $meet, int $sessionNumber, SimpleXMLElement $sessionXml): void
+    {
+        $date = (string) ($sessionXml['date'] ?? '');
+        $daytime = (string) ($sessionXml['daytime'] ?? '');
+
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null;
+        $daytime = preg_match('/^\d{2}:\d{2}/', $daytime) ? substr($daytime, 0, 5) : null;
+
+        if ($date === null && $daytime === null) {
+            return;
+        }
+
+        MeetSession::updateOrCreate(
+            ['meet_id' => $meet->id, 'number' => $sessionNumber],
+            ['date' => $date, 'daytime' => $daytime]
+        );
     }
 
     // ── Clubs + Athletes ──────────────────────────────────────────────────────
