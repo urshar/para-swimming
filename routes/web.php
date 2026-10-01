@@ -20,12 +20,14 @@ use App\Http\Controllers\CupController;
 use App\Http\Controllers\CupDailyRankingController;
 use App\Http\Controllers\CupOverallRankingController;
 use App\Http\Controllers\EntryController;
+use App\Http\Controllers\EntryFeeController;
 use App\Http\Controllers\KaderTypeController;
 use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntryListController;
+use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
@@ -356,6 +358,17 @@ Route::middleware(['auth'])->group(function () {
     Route::get('meets/{meet}/sessions/edit', [MeetSessionController::class, 'edit'])->name('meets.sessions.edit');
     Route::put('meets/{meet}/sessions', [MeetSessionController::class, 'update'])->name('meets.sessions.update');
 
+    // Meldegelder — Gebühren je Veranstaltung/Abschnitt (meet_fees) und je Bewerb (swim_events.fee_cents).
+    // Meldegeld-Abrechnung online. Admin: Übersicht aller Vereine + Detail; Verein: nur die eigene.
+    Route::get('meets/{meet}/fees', [EntryFeeController::class, 'index'])->name('meets.fees.index');
+    Route::get('meets/{meet}/fees/clubs/{club}', [EntryFeeController::class, 'club'])->name('meets.fees.club');
+
+    // Admin-only: Gebühren legt der Verband fest, nicht der Verein.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::get('meets/{meet}/fees/edit', [MeetFeeController::class, 'edit'])->name('meets.fees.edit');
+        Route::put('meets/{meet}/fees', [MeetFeeController::class, 'update'])->name('meets.fees.update');
+    });
+
     Route::resource('meets.events', SwimEventController::class)
         ->shallow()
         ->except(['index', 'show'])
@@ -398,6 +411,9 @@ Route::middleware(['auth'])->group(function () {
         // Meldelisten (PDF). Admin: alle Vereine; Verein: nur eigener.
         Route::get('nach-namen/pdf', [MeetEntryListController::class, 'nachNamenPdf'])->name('nach-namen.pdf');
         Route::get('nach-bewerben/pdf', [MeetEntryListController::class, 'nachBewerbenPdf'])->name('nach-bewerben.pdf');
+
+        // Meldegeld-Abrechnung (PDF). Admin: alle Vereine + Übersicht; Verein: nur eigener.
+        Route::get('meldegeld/pdf', [EntryFeeController::class, 'pdf'])->name('meldegeld.pdf');
 
         Route::middleware(RequireAdmin::class)->group(function () {
             Route::get('sportpass/pdf', [MeetEntryListController::class, 'sportpassPdf'])->name('sportpass.pdf');

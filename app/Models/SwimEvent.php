@@ -18,6 +18,7 @@ class SwimEvent extends Model
         'lenex_status',
         'distance',
         'relay_count',
+        'fee_cents',
         'technique',
         'style_code',
         'style_name',

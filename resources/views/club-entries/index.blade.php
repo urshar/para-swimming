@@ -53,6 +53,15 @@
                                             href="{{ route('meets.entry-lists.nach-bewerben.pdf', ['meet' => $meet, 'columns' => 1]) }}">
                                 Meldeliste nach Bewerben – 1-spaltig (PDF)
                             </flux:menu.item>
+                            <flux:menu.separator/>
+                            {{-- Online-Abrechnung bewusst ohne target=_blank: normale Seite mit Zurück-Navigation. --}}
+                            <flux:menu.item icon="banknotes" href="{{ route('meets.fees.index', $meet) }}">
+                                Meldegeld-Abrechnung
+                            </flux:menu.item>
+                            <flux:menu.item icon="document-text" target="_blank"
+                                            href="{{ route('meets.entry-lists.meldegeld.pdf', $meet) }}">
+                                Meldegeld-Abrechnung (PDF)
+                            </flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 @endunless

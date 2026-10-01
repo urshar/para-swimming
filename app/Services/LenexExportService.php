@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
+use App\Models\MeetFee;
 use App\Models\MeetSession;
 use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
@@ -97,7 +98,13 @@ class LenexExportService
             $el->setAttribute('meetid', $meet->lenex_meet_id);
         }
 
-        $el->appendChild($this->buildSessions($meet));
+        $fees = $meet->fees()->get();
+        $meetFees = $fees->whereNull('session_number');
+        if ($meetFees->isNotEmpty()) {
+            $el->appendChild($this->buildFees($meetFees));
+        }
+
+        $el->appendChild($this->buildSessions($meet, $fees));
 
         if (in_array($this->exportType, ['entries', 'results'])) {
             $clubsEl = $this->buildClubs($meet);
@@ -110,9 +117,34 @@ class LenexExportService
     }
 
     /**
+     * FEES > FEE (type, currency, value in Cent) einer Veranstaltung oder eines Abschnitts.
+     *
+     * @param  Collection<int, MeetFee>  $fees
+     *
      * @throws DOMException
      */
-    private function buildSessions(Meet $meet): DOMElement
+    private function buildFees(Collection $fees): DOMElement
+    {
+        $feesEl = $this->dom->createElement('FEES');
+
+        foreach ($fees as $fee) {
+            $feeEl = $this->dom->createElement('FEE');
+            $feeEl->setAttribute('type', $fee->type);
+            $feeEl->setAttribute('currency', $fee->currency);
+            $feeEl->setAttribute('value', (string) $fee->amount_cents);
+            $feesEl->appendChild($feeEl);
+        }
+
+        return $feesEl;
+    }
+
+    /**
+     * @param  Collection<int, MeetFee>  $fees  alle Gebühren der Veranstaltung; je SESSION werden die des Abschnitts
+     *                                          herausgefiltert
+     *
+     * @throws DOMException
+     */
+    private function buildSessions(Meet $meet, Collection $fees): DOMElement
     {
         $sessionsEl = $this->dom->createElement('SESSIONS');
         $sessions = $meet->sessions()->get()->keyBy('number');
@@ -127,6 +159,11 @@ class LenexExportService
             $sessionEl->setAttribute('date', ($session?->date ?? $meet->start_date)->format('Y-m-d'));
             if ($session?->daytime_short) {
                 $sessionEl->setAttribute('daytime', $session->daytime_short);
+            }
+
+            $sessionFees = $fees->where('session_number', (int) $sessionNumber);
+            if ($sessionFees->isNotEmpty()) {
+                $sessionEl->appendChild($this->buildFees($sessionFees));
             }
 
             $eventsEl = $this->dom->createElement('EVENTS');
@@ -161,6 +198,14 @@ class LenexExportService
         $styleEl->setAttribute('relaycount', (string) $event->relay_count);
         $styleEl->setAttribute('stroke', $event->strokeType?->lenex_code ?? 'FREE');
         $el->appendChild($styleEl);
+
+        // EVENT > FEE: Gebühr je Meldung in diesem Bewerb (ohne type, Wert in Cent).
+        if ($event->fee_cents !== null) {
+            $feeEl = $this->dom->createElement('FEE');
+            $feeEl->setAttribute('currency', 'EUR');
+            $feeEl->setAttribute('value', (string) $event->fee_cents);
+            $el->appendChild($feeEl);
+        }
 
         $ageGroupsEl = $this->buildAgeGroups($event);
         if ($ageGroupsEl->hasChildNodes()) {

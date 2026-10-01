@@ -27,6 +27,7 @@ erDiagram
     ATHLETE ||--o{ ATHLETE_SPORT_CLASS: "hat (S/SB/SM)"
     MEET ||--o{ SWIM_EVENT: "hat"
     MEET ||--o{ MEET_SESSION: "Abschnitte (Datum/Startzeit)"
+    MEET ||--o{ MEET_FEE: "Meldegebühren"
     MEET }o--o{ CLUB: "meet_club"
     SWIM_EVENT ||--o{ ENTRY: "Meldungen"
     SWIM_EVENT ||--o{ RESULT: "Ergebnisse"
@@ -89,8 +90,12 @@ Altbestand: `true` behauptete über jeden bestehenden Wettkampf eine Anerkennung
 
 **SwimEvent** — `meet_id`, `stroke_type_id`, `event_number`, `session_number`,
 `gender` (M/F/A/X), `round`, `distance`, `relay_count` (1 = Einzel, >1 = Staffel),
-`sport_classes` (leerzeichensepariert), `lenex_event_id`. → gehört zu **Meet** und **StrokeType**; hat viele **Entry**,
-**Result**.
+`sport_classes` (leerzeichensepariert), `lenex_event_id`, `fee_cents` (Meldegebühr je Meldung im Bewerb, LENEX
+`EVENT > FEE`, nullable). → gehört zu **Meet** und **StrokeType**; hat viele **Entry**, **Result**.
+
+**MeetFee** (Meldegebühr) — `meet_id`, `session_number` (leer = ganze Veranstaltung, sonst dieser Abschnitt), `type`
+(LENEX `CLUB`/`ATHLETE`/`RELAY`/`TEAM`/`LATEENTRY.INDIVIDUAL`/`LATEENTRY.RELAY`), `amount_cents`, `currency`. Unique je
+`(meet_id, session_number, type)`. Berechnung in `EntryFeeCalculator`, siehe `specs/club-entries.md` "Meldegelder".
 
 **MeetSession** (Abschnitt) — `meet_id`, `number`, `date` (nullable), `daytime` (Startzeit, nullable). Unique je
 `(meet_id, number)`. Zuordnung zu den Disziplinen über `swim_events.session_number` = `number` (bewusst kein

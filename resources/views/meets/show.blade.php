@@ -187,6 +187,11 @@
                 <flux:button href="{{ route('meets.sessions.edit', $meet) }}" variant="ghost" icon="calendar-days" size="sm">
                     Abschnitte bearbeiten
                 </flux:button>
+                @if(auth()->user()?->is_admin)
+                    <flux:button href="{{ route('meets.fees.edit', $meet) }}" variant="ghost" icon="banknotes" size="sm">
+                        Meldegelder
+                    </flux:button>
+                @endif
             @endif
             <flux:button href="{{ route('meets.events.create', $meet) }}" variant="ghost" icon="plus" size="sm">
                 Disziplin hinzufügen
