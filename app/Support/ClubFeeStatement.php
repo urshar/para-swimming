@@ -7,7 +7,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Meldegeld-Abrechnung eines Vereins für eine Veranstaltung (App\Services\EntryFeeCalculator).
- * Summe = Einzelstarts aller Athleten + Staffeln + Pauschalen. Beträge in Cent.
+ * Summe = Einzelstarts aller Athleten + Staffeln + Pauschalen + Nachmeldegebühren. Beträge in Cent.
  */
 final readonly class ClubFeeStatement
 {
@@ -15,12 +15,14 @@ final readonly class ClubFeeStatement
      * @param  Collection<int, AthleteFees>  $athletes  alphabetisch
      * @param  Collection<int, FeeLine>  $relays  je Staffel eine Position (Staffelname · Bewerb)
      * @param  Collection<int, FeeLine>  $flatFees  Pauschalen je Verein/Athlet (Veranstaltung, dann Abschnitte)
+     * @param  Collection<int, FeeLine>  $lateFees  Nachmeldegebühren je Einzelstart/Staffel (Veranstaltung, dann Abschnitte)
      */
     public function __construct(
         public Club $club,
         public Collection $athletes,
         public Collection $relays,
         public Collection $flatFees,
+        public Collection $lateFees,
         public int $startCount,
         public int $totalCents,
     ) {}
@@ -38,5 +40,10 @@ final readonly class ClubFeeStatement
     public function flatCents(): int
     {
         return $this->flatFees->sum(fn (FeeLine $line): int => $line->totalCents);
+    }
+
+    public function lateCents(): int
+    {
+        return $this->lateFees->sum(fn (FeeLine $line): int => $line->totalCents);
     }
 }

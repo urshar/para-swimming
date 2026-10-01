@@ -35,8 +35,8 @@ class MeetFee extends Model
     public const string TYPE_LATE_RELAY = 'LATEENTRY.RELAY';
 
     /**
-     * Alle LENEX-Typen mit Anzeigename. TEAM und LATEENTRY.* werden gespeichert und per LENEX ausgetauscht, fließen
-     * aber noch nicht in die Abrechnung ein (siehe docs/open-points.md).
+     * Alle LENEX-Typen mit Anzeigename. TEAM wird gespeichert und per LENEX ausgetauscht, fließt aber
+     * noch nicht in die Abrechnung ein (siehe docs/open-points.md).
      *
      * @var array<string, string>
      */
@@ -52,8 +52,6 @@ class MeetFee extends Model
     /** Typen, die (noch) nicht berechnet werden. */
     public const array NOT_CALCULATED = [
         self::TYPE_TEAM,
-        self::TYPE_LATE_INDIVIDUAL,
-        self::TYPE_LATE_RELAY,
     ];
 
     protected $fillable = [

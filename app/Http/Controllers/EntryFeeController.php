@@ -63,6 +63,7 @@ class EntryFeeController extends Controller
                 'meet' => $meet,
                 'statements' => $statements,
                 'totalCents' => EntryFeeCalculator::total($statements),
+                'feeSchedule' => $this->calculator->schedule($meet),
                 // Gesamtübersicht nur für den Admin (alle Vereine).
                 'showOverview' => (bool) $user->is_admin,
             ],

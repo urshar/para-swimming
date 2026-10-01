@@ -38,6 +38,8 @@
         </div>
     @endif
 
+    @include('club-entries._deadline-notice')
+
     @if($relayEntries->isEmpty())
         <div class="text-center py-16 text-zinc-400 dark:text-zinc-500">
             <svg class="w-10 h-10 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -98,6 +100,10 @@
                             @else
                                 <flux:badge color="zinc" size="sm">{{ $memberCount }}/{{ $required }}Athleten
                                 </flux:badge>
+                            @endif
+
+                            @if($relay->is_late_entry)
+                                <flux:badge color="orange" size="sm">Nachmeldung</flux:badge>
                             @endif
                         </div>
 

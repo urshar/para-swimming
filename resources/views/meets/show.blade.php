@@ -151,6 +151,10 @@
         @include('records.check-result', ['checkResult' => session('record_check_result')])
     @endif
 
+    @if(auth()->user()?->is_admin && $meet->isDeadlinePassed())
+        @include('meets._entries-reopen')
+    @endif
+
     {{-- Stats --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">

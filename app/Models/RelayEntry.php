@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $entry_time_code
  * @property string|null $entry_course
  * @property string $status
+ * @property bool $is_late_entry Nach Meldeschluss neu angelegt (Nachmeldegebühr LATEENTRY.RELAY)
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $formatted_entry_time
@@ -48,6 +49,11 @@ class RelayEntry extends Model
         'entry_time_code',
         'entry_course',
         'status',
+        'is_late_entry',
+    ];
+
+    protected $casts = [
+        'is_late_entry' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────

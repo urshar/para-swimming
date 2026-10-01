@@ -36,7 +36,24 @@ Gesteuert über `EntryPolicy`. Alle konkreten Fähigkeiten (`createEntry`,
 1. Admins (`user.is_admin`) dürfen immer.
 2. Nicht-Admins brauchen ein zugeordnetes `user.club_id`, sonst verboten.
 3. Ohne gesetzten `meet.entries_deadline` ist die Meldung offen.
-4. Mit Meldeschluss gilt: erlaubt, solange **heute ≤ `entries_deadline`**.
+4. Mit Meldeschluss gilt: erlaubt, solange **heute ≤ `entries_deadline`** oder der Admin den Meldeschluss
+   **wiedereröffnet** hat (`now() < meet.entries_reopened_until`), siehe `Meet::acceptsClubEntries()`.
+
+### Meldeschluss und Nachmeldungen
+
+- Nach Ablauf des Meldeschlusses dürfen nur noch Admins melden (Admin-Override, unbefristet). Vereine melden
+  ausschließlich mit ihrem eigenen Account.
+- **Wiedereröffnen** (admin-only, Block "Meldeschluss" auf `meets/show`, `MeetEntriesReopenController`): "24 h öffnen",
+  "48 h öffnen" (ab jetzt) oder frei gewählter Zeitpunkt (Datum + Uhrzeit, muss in der Zukunft liegen). Ein Fenster
+  gilt für **alle Vereine** der Veranstaltung und schließt sich zum gewählten Zeitpunkt von selbst; "Jetzt schließen"
+  beendet es vorzeitig. Gespeichert wird nur das letzte Öffnen: `entries_reopened_until`, `entries_reopened_by`,
+  `entries_reopened_at`.
+- Vereine sehen in Einzel- und Staffelmeldungen den Status ("Nachmeldungen sind möglich bis …" bzw. "Meldeschluss
+  war am … Änderungen sind nicht mehr möglich.").
+- **Nachmeldung** (`entries.is_late_entry`, `relay_entries.is_late_entry`): Eine Meldung, die nach Ablauf des
+  Meldeschlusses **neu angelegt** wird — im Fenster durch den Verein oder jederzeit durch den Admin. Das Bearbeiten
+  oder erneute Speichern einer bestehenden Meldung macht sie nicht zur Nachmeldung. Der LENEX-Import setzt das
+  Kennzeichen nicht. Anzeige als Badge "Nachmeldung" in den Meldungslisten.
 
 Der Controller autorisiert je Aktion (`authorize('manageEntries', $meet)` bzw.
 `authorize('deleteEntry', $meet)`) und stellt zusätzlich sicher, dass der Meet zum Verein passt und Entry/RelayEntry
@@ -245,7 +262,7 @@ Die linksseitige "Meldungen"-Liste (`entries.index`, `EntryController@index`) is
 nutzen weiterhin den eigenen `club-entries`-Weg). Zwei Tabs (`entries/_tabs.blade.php`):
 
 - **Einzel** (`entries.index`): alle Einzelmeldungen wettkampfübergreifend, mit Bearbeiten/Löschen (admin).
-- **Staffel** (`relay-entries.index`, `RelayEntryController@index`): alle Staffelmeldungen, rein lesend.
+- **Staffel** (`relay-entries.index`, `RelayEntryController@index`): alle Staffelmeldungen, reinlesend.
 
 Beide Tabs haben oben **klickbare Kennzahlen-Kacheln** (Schnellfilter, behalten Wettkampf-/Suchkontext und setzen
 genau einen Status-/Problemfilter) und eine **Filterleiste ohne Filtern-Button** — jedes Feld löst über die
@@ -296,7 +313,8 @@ leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middl
   Meldezeit | Sportklasse — Einzel und Staffel in derselben Spalte); Staffeln je Verein mit ihren
   Schwimmern in Positionsreihenfolge.
 - **Meldeliste nach Bewerben** — Abschnitt (Session; Wochentag + Datum aus `meet_sessions`, ohne gepflegtes Datum
-  bei **eintägiger** Veranstaltung deren Datum, sonst nur "Abschnitt N"; Startzeit wird nicht angezeigt) → Bewerb ("Nr. X Bewerb [Herren/Damen/Mixed/Alle]") →
+  bei **eintägiger** Veranstaltung deren Datum, sonst nur "Abschnitt N"; Startzeit wird nicht angezeigt) → Bewerb ("Nr.
+  X Bewerb [Herren/Damen/Mixed/Alle]") →
   Teilnehmer alphabetisch, wahlweise **ein- oder zweispaltig** (`?columns=1`, Default 2). Im **einspaltigen
   Admin-Modus** zusätzlich der Verein je Einzelsportler (Name · Jahrgang · Meldezeit · Sportklasse · Verein);
   feste, über alle Bewerbe identische Spaltenbreiten, damit die Spalten untereinander stehen. Staffeln mit
@@ -323,14 +341,19 @@ Staffelname in den Meldelisten: Anzeigename aus `RelayNames` (siehe "Staffelname
 - Je Staffel: Bewerbsgebühr, sonst `RELAY` des Abschnitts, sonst `RELAY` der Veranstaltung (Bewerbsgebühr hat Vorrang).
 - `CLUB`/`ATHLETE` der Veranstaltung: einmal je Verein bzw. je Athlet; `CLUB`/`ATHLETE` eines Abschnitts: einmal je
   Abschnitt, in dem der Verein bzw. Athlet startet. Als Athleten zählen Einzelstarter und Staffelmitglieder des Vereins.
-- `TEAM` und `LATEENTRY.*` werden gespeichert, aber noch **nicht** berechnet (`docs/open-points.md`).
+- Je Nachmeldung (siehe "Meldeschluss und Nachmeldungen") **zusätzlich** zur Start- bzw. Staffelgebühr
+  `LATEENTRY.INDIVIDUAL` bzw. `LATEENTRY.RELAY` — Betrag des Abschnitts vor dem der Veranstaltung; ohne Betrag keine
+  Nachmeldegebühr. Eigener Abschnitt "Nachmeldegebühren" in Abrechnung und PDF, Spalte "Nachmeldungen" in der Übersicht.
+- `TEAM` wird gespeichert, aber noch **nicht** berechnet (`docs/open-points.md`).
 
 **Darstellung** (`EntryFeeController`, Links im "Listen"-Dropdown von "Alle Meldungen" und der Vereins-Meldungsansicht):
 
 - Online `meets/{meet}/fees`: Admin = Übersicht aller Vereine (Athleten, Einzelstarts, Staffeln, Start-/Staffelgebühren,
   Pauschalen, Summe, Gesamtsumme) mit Detail je Verein (`meets/{meet}/fees/clubs/{club}`); Vereinsnutzer = direkt die
   eigene Abrechnung, fremde Vereine 403.
-- PDF `meets.entry-lists.meldegeld.pdf`: Admin = Gesamtübersicht + je Verein eine Seite; Verein = nur die eigene.
+- PDF `meets.entry-lists.meldegeld.pdf`: oben die hinterlegten Meldegebühren (nur befüllte, ohne `TEAM`; Bewerbe mit
+  gleichem Betrag zusammengefasst, `EntryFeeCalculator::schedule()`); Admin = danach Gesamtübersicht mit denselben Spalten
+  wie online + je Verein eine Seite; Verein = nur die eigene.
 
 ## Validierung
 
@@ -384,6 +407,8 @@ Phase).
 - `tests/Feature/RelayBestTimeTest.php` — Staffel-Summe (FREE/MEDLEY-Position/IMRELAY), `legs`,
   Teilsumme/Missing, Panel-/Filter-Rendering.
 - `tests/Feature/EntryPolicyTest.php` — Meldeschluss/Autorisierung.
+- `tests/Feature/EntriesReopenTest.php` — Wiedereröffnen (Admin-UI, Fenster, alle Vereinspfade 403 bzw. erlaubt),
+  Kennzeichnung von Nachmeldungen, Nachmeldegebühren.
 - `tests/Feature/MeetEntriesOverviewTest.php` — meet-weite Admin-Gesamtübersicht (Anzeige, Disziplin-Filter,
   Anlege-Buttons, Sportklassen-Ableitung, `return_to`-Redirects, Staffel-Vereinsauswahl, Admin-only).
 - `tests/Unit/SportClassRangesTest.php` — Zusammenfassung der Sportklassen zu Bereichen.

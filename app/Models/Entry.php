@@ -17,9 +17,15 @@ class Entry extends Model
         'entry_time_code',
         'entry_course',
         'status',
+        'is_late_entry',
         'sport_class',
         'heat',
         'lane',
+    ];
+
+    /** is_late_entry: nach Meldeschluss neu angelegt (Nachmeldegebühr LATEENTRY.INDIVIDUAL). */
+    protected $casts = [
+        'is_late_entry' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────

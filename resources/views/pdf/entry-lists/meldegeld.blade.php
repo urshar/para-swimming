@@ -2,6 +2,7 @@
     use App\Support\AthleteFees;
     use App\Support\ClubFeeStatement;
     use App\Support\FeeLine;
+    use App\Support\FeeScheduleLine;
     use App\Support\Money;
 @endphp
     <!DOCTYPE html>
@@ -12,8 +13,8 @@
     <style>
         /*
          * PDF der Meldegeld-Abrechnung (EntryFeeCalculator). Eigenständiges HTML/CSS für dompdf — kein
-         * Tailwind/Flux. Layout über Tabellen, NICHT über float (CLAUDE.md-Gotcha). Admin: Gesamtübersicht,
-         * dann je Verein eine neue Seite; Verein: nur die eigene Abrechnung.
+         * Tailwind/Flux. Layout über Tabellen, NICHT über float (CLAUDE.md-Gotcha). Oben die hinterlegten
+         * Meldegebühren; Admin: Gesamtübersicht, dann je Verein eine neue Seite; Verein: nur die eigene Abrechnung.
          */
         @page {
             margin: 80px 30px 30px 30px;
@@ -151,10 +152,32 @@
     <div class="rule"></div>
 </div>
 
+{{-- Hinterlegte Gebühren (nur befüllte), damit die Abrechnung nachvollziehbar ist. --}}
+@if($feeSchedule->isNotEmpty())
+    <h2>Meldegebühren</h2>
+    <table class="fees">
+        @foreach($feeSchedule->groupBy('group') as $group => $lines)
+            <tr>
+                <td colspan="2"><h3>{{ $group }}</h3></td>
+            </tr>
+            @foreach($lines as $line)
+                @php /** @var FeeScheduleLine $line */ @endphp
+                <tr>
+                    <td>{{ $line->label }}</td>
+                    <td class="num">{{ Money::format($line->amountCents) }}</td>
+                </tr>
+            @endforeach
+        @endforeach
+    </table>
+@endif
+
 @if($statements->isEmpty())
     <div class="empty">Keine berechneten Meldungen.</div>
 @else
     @if($showOverview)
+        @php
+            $hasLateFees = $statements->contains(fn (ClubFeeStatement $s): bool => $s->lateFees->isNotEmpty());
+        @endphp
         <h2>Übersicht aller Vereine</h2>
         <table class="fees">
             <tr>
@@ -162,6 +185,12 @@
                 <th class="num">Athleten</th>
                 <th class="num">Einzelstarts</th>
                 <th class="num">Staffeln</th>
+                <th class="num">Startgebühren</th>
+                <th class="num">Staffelgebühren</th>
+                <th class="num">Pauschalen</th>
+                @if($hasLateFees)
+                    <th class="num">Nachmeldungen</th>
+                @endif
                 <th class="num">Summe</th>
             </tr>
             @foreach($statements as $statement)
@@ -171,11 +200,26 @@
                     <td class="num">{{ $statement->athletes->count() }}</td>
                     <td class="num">{{ $statement->startCount }}</td>
                     <td class="num">{{ $statement->relays->count() }}</td>
+                    <td class="num">{{ Money::format($statement->startsCents()) }}</td>
+                    <td class="num">{{ Money::format($statement->relaysCents()) }}</td>
+                    <td class="num">{{ Money::format($statement->flatCents()) }}</td>
+                    @if($hasLateFees)
+                        <td class="num">{{ Money::format($statement->lateCents()) }}</td>
+                    @endif
                     <td class="num">{{ Money::format($statement->totalCents) }}</td>
                 </tr>
             @endforeach
             <tr class="total">
-                <td colspan="4">Gesamt</td>
+                <td>Gesamt</td>
+                <td class="num">{{ $statements->sum(fn (ClubFeeStatement $s) => $s->athletes->count()) }}</td>
+                <td class="num">{{ $statements->sum('startCount') }}</td>
+                <td class="num">{{ $statements->sum(fn (ClubFeeStatement $s) => $s->relays->count()) }}</td>
+                <td class="num">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->startsCents())) }}</td>
+                <td class="num">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->relaysCents())) }}</td>
+                <td class="num">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->flatCents())) }}</td>
+                @if($hasLateFees)
+                    <td class="num">{{ Money::format($statements->sum(fn (ClubFeeStatement $s) => $s->lateCents())) }}</td>
+                @endif
                 <td class="num">{{ Money::format($totalCents) }}</td>
             </tr>
         </table>
@@ -231,6 +275,20 @@
                         <td colspan="2"><h3>Pauschalen</h3></td>
                     </tr>
                     @foreach($statement->flatFees as $line)
+                        @php /** @var FeeLine $line */ @endphp
+                        <tr>
+                            <td>{{ $line->label }} <span class="muted">({{ $line->quantity }} × {{ Money::format($line->unitCents) }})</span>
+                            </td>
+                            <td class="num">{{ Money::format($line->totalCents) }}</td>
+                        </tr>
+                    @endforeach
+                @endif
+
+                @if($statement->lateFees->isNotEmpty())
+                    <tr>
+                        <td colspan="2"><h3>Nachmeldegebühren</h3></td>
+                    </tr>
+                    @foreach($statement->lateFees as $line)
                         @php /** @var FeeLine $line */ @endphp
                         <tr>
                             <td>{{ $line->label }} <span class="muted">({{ $line->quantity }} × {{ Money::format($line->unitCents) }})</span>

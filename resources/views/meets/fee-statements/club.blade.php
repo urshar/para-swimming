@@ -117,6 +117,29 @@
                     </section>
                 @endif
 
+                @if($statement->lateFees->isNotEmpty())
+                    <section aria-labelledby="fee-late">
+                        <h2 id="fee-late" class="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Nachmeldegebühren</h2>
+                        <table class="w-full text-sm">
+                            <thead class="sr-only">
+                                <tr><th scope="col">Nachmeldegebühr</th><th scope="col">Berechnung</th><th scope="col">Betrag</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach($statement->lateFees as $line)
+                                    @php /** @var FeeLine $line */ @endphp
+                                    <tr class="border-t border-zinc-100 dark:border-zinc-700">
+                                        <td class="py-1 text-zinc-900 dark:text-zinc-100">{{ $line->label }}</td>
+                                        <td class="py-1 text-end tabular-nums text-zinc-500 dark:text-zinc-400">
+                                            {{ $line->quantity }} × {{ Money::format($line->unitCents) }}
+                                        </td>
+                                        <td class="py-1 text-end tabular-nums text-zinc-900 dark:text-zinc-100">{{ Money::format($line->totalCents) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </section>
+                @endif
+
                 <div class="flex justify-between border-t-2 border-zinc-300 dark:border-zinc-600 pt-3 text-base font-semibold text-zinc-900 dark:text-white">
                     <span>Summe</span>
                     <span class="tabular-nums">{{ Money::format($statement->totalCents) }}</span>

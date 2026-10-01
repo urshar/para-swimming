@@ -26,6 +26,7 @@ use App\Http\Controllers\LenexExportController;
 use App\Http\Controllers\LenexImportController;
 use App\Http\Controllers\MeetController;
 use App\Http\Controllers\MeetEntriesOverviewController;
+use App\Http\Controllers\MeetEntriesReopenController;
 use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetSessionController;
@@ -367,6 +368,12 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(RequireAdmin::class)->group(function () {
         Route::get('meets/{meet}/fees/edit', [MeetFeeController::class, 'edit'])->name('meets.fees.edit');
         Route::put('meets/{meet}/fees', [MeetFeeController::class, 'update'])->name('meets.fees.update');
+
+        // Meldeschluss für die Vereine befristet wiedereröffnen bzw. vorzeitig wieder schließen.
+        Route::post('meets/{meet}/entries-reopen', [MeetEntriesReopenController::class, 'store'])
+            ->name('meets.entries-reopen.store');
+        Route::delete('meets/{meet}/entries-reopen', [MeetEntriesReopenController::class, 'destroy'])
+            ->name('meets.entries-reopen.destroy');
     });
 
     Route::resource('meets.events', SwimEventController::class)

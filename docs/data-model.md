@@ -78,7 +78,8 @@ Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Res
 ## Wettkampf
 
 **Meet** — `name`, `city`, `nation_id`, `course`, `start_date`, `end_date`,
-`entries_deadline`, `timing`, `entry_type` (OPEN/INVITATION), `is_open`,
+`entries_deadline`, `entries_reopened_until` / `entries_reopened_by` / `entries_reopened_at` (Meldeschluss befristet
+wiedereröffnet; nur das letzte Öffnen), `timing`, `entry_type` (OPEN/INVITATION), `is_open`,
 `lenex_meet_id`, sowie später ergänzt `cup_id`, `qualifying_time_list_id` und
 `wps_approved` / `wps_approved_note`. Soft-deletes. → hat viele **SwimEvent**;
 n:m zu **Club** über `meet_club`; optional einem **Cup** und einer **QualifyingTimeList** zugeordnet.
@@ -108,7 +109,7 @@ LENEX-Export (`SESSION@date`/`@daytime`, ohne Eintrag Fallback auf den Veranstal
 
 **Entry** (Einzelmeldung) — `meet_id`, `swim_event_id`, `athlete_id`,
 `club_id` (meldender Verein), `entry_time`, `entry_time_code`, `entry_course`,
-`status`, `sport_class`, `heat`, `lane`. Unique je
+`status`, `is_late_entry` (nach Meldeschluss neu angelegt → Nachmeldegebühr), `sport_class`, `heat`, `lane`. Unique je
 `(meet_id, swim_event_id, athlete_id)`.
 
 **Result** — wie Entry plus `swim_time`, `status`, `points`, `place`,
@@ -120,7 +121,8 @@ einem **SwimRecord** referenziert werden.
 **ResultSplit** — `result_id`, `distance`, `split_time`.
 
 **RelayEntry** (Staffelmeldung) — `meet_id`, `swim_event_id`, `club_id`, `name` (frei vergebbar, nullable; Anzeigename
-über `App\Support\RelayNames`), `relay_class`, `entry_time`, `entry_time_code`, `entry_course`, `status`. → hat viele **RelayEntryMember**
+über `App\Support\RelayNames`), `relay_class`, `entry_time`, `entry_time_code`, `entry_course`, `status`, `is_late_entry` (wie bei Entry). → hat viele
+**RelayEntryMember**
 (`athlete_id`, `sport_class`), unique je
 `(relay_entry_id, athlete_id)`.
 
