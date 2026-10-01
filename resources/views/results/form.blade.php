@@ -15,6 +15,10 @@
         // old("key", "default") hat selbst ein Komma und würde mitten im Ausdruck zerschnitten.
         $oldAthleteId = old('athlete_id', '');
         $oldClubId = old('club_id', '');
+        $oldEventId = (string) old('swim_event_id', $result->swim_event_id ?? '');
+        $oldStatus = (string) old('status', $result->status ?? '');
+        // Anlegen: Meldungen außer Konkurrenz ("Bewerb-Athlet") → Status EXH vorbelegen (ResultController::create()).
+        $exhibitionKeys = $exhibitionKeys ?? collect();
 
         $swimTimeValue = old('swim_time', isset($result) && $result->swim_time ? TimeParser::display($result->swim_time) : '');
 
@@ -51,10 +55,16 @@
                 x-data='{
                     athleteId: @json($oldAthleteId),
                     clubId: @json($oldClubId),
+                    eventId: @json($oldEventId),
+                    status: @json($oldStatus),
                     athleteClubMap: @json($athleteClubMap),
+                    exhibitionKeys: @json($exhibitionKeys),
+                    prefillExhibition() {
+                        if (this.exhibitionKeys.includes(this.eventId + "-" + this.athleteId)) { this.status = "EXH"; }
+                    },
                 }'
                 @if(! isset($result))
-                    x-init="$watch('athleteId', id => { if (athleteClubMap[id]) { clubId = String(athleteClubMap[id]); } })"
+                    x-init="$watch('athleteId', id => { if (athleteClubMap[id]) { clubId = String(athleteClubMap[id]); } prefillExhibition(); }); $watch('eventId', () => prefillExhibition())"
                 @endif
             >
                 @csrf
@@ -72,7 +82,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
                                 <flux:label>Disziplin<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                                <flux:select variant="listbox" name="swim_event_id" required>
+                                <flux:select variant="listbox" name="swim_event_id" x-model="eventId" required>
                                     @foreach($swimEvents as $event)
                                         <flux:select.option
                                             value="{{ $event->id }}" :selected="old('swim_event_id', $result->swim_event_id ?? '') == $event->id">
@@ -143,7 +153,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Status</flux:label>
-                                <flux:select variant="listbox" name="status">
+                                <flux:select variant="listbox" name="status" x-model="status">
                                     <flux:select.option value="" :selected="!old('status', $result->status ?? '')">Gültig</flux:select.option>
                                     <flux:select.option value="DSQ" :selected="old('status', $result->status ?? '') === 'DSQ'">DSQ –
                                         Disqualifiziert

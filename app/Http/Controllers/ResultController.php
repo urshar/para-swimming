@@ -6,6 +6,7 @@ use App\Concerns\SearchesAthletes;
 use App\Models\Athlete;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
+use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\ResultSplit;
@@ -105,7 +106,14 @@ class ResultController extends Controller
             ->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
 
-        return view('results.form', compact('meet', 'swimEvents', 'athletes', 'clubs'));
+        // Meldungen außer Konkurrenz ("Bewerb-Athlet"): Das Formular belegt dafür den Status EXH vor (änderbar).
+        $exhibitionKeys = Entry::where('meet_id', $meet->id)
+            ->where('status', 'EXH')
+            ->get(['swim_event_id', 'athlete_id'])
+            ->map(fn (Entry $e): string => $e->swim_event_id.'-'.$e->athlete_id)
+            ->values();
+
+        return view('results.form', compact('meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys'));
     }
 
     /**

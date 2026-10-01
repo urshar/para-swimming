@@ -125,6 +125,9 @@
                             <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">
                                 {{ $entry->swimEvent->display_name }}
                                 <x-gender-icon :gender="$entry->swimEvent->gender" class="text-base ml-1"/>
+                                @if($entry->status === 'EXH')
+                                    <flux:badge color="violet" size="sm" class="ml-1" title="Außer Konkurrenz">AK</flux:badge>
+                                @endif
                                 @if($entry->is_late_entry)
                                     <flux:badge color="orange" size="sm" class="ml-1">Nachmeldung</flux:badge>
                                 @endif

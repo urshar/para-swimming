@@ -97,9 +97,10 @@
          eine Alpine-Variable + $watch, der das GET-Formular absendet. Das leere
          (clearable) Feld sendet event_id="" → Controller wertet das als "alle". --}}
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-6">
-        <div x-data="{ eventId: @js($eventFilter !== null ? (string) $eventFilter : '') }"
-             x-init="$watch('eventId', () => $refs.filterForm.submit())">
-            <form method="GET" x-ref="filterForm">
+        @php $eventIdValue = $eventFilter !== null ? (string) $eventFilter : ''; @endphp
+        <div x-data='{ eventId: @json($eventIdValue) }'
+             x-init="$watch('eventId', () => $el.querySelector('form').submit())">
+            <form method="GET">
                 <div class="max-w-md">
                     <flux:label>Disziplin</flux:label>
                     <flux:select variant="listbox" searchable name="event_id" placeholder="Alle Disziplinen"
@@ -164,7 +165,9 @@
                                         {{ $entry->formatted_entry_time }}
                                     </flux:table.cell>
                                     <flux:table.cell>
-                                        @if($entry->status)
+                                        @if($entry->status === 'EXH')
+                                            <flux:badge size="sm" color="violet" title="Außer Konkurrenz">AK</flux:badge>
+                                        @elseif($entry->status)
                                             <flux:badge size="sm" color="{{ $entry->status === 'WDR' ? 'zinc' : 'yellow' }}">
                                                 {{ $entry->status }}
                                             </flux:badge>
@@ -241,6 +244,9 @@
                                         <flux:badge color="green" size="sm">Vollständig</flux:badge>
                                     @else
                                         <flux:badge color="zinc" size="sm">{{ $memberCount }}/{{ $required }} Athleten</flux:badge>
+                                    @endif
+                                    @if($relay->is_exhibition)
+                                        <flux:badge color="violet" size="sm" title="Außer Konkurrenz">AK</flux:badge>
                                     @endif
                                     @if($relay->is_late_entry)
                                         <flux:badge color="orange" size="sm">Nachmeldung</flux:badge>

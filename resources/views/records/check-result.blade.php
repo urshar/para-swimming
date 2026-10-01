@@ -103,14 +103,14 @@
         </div>
     @endif
 
-    {{-- ── Ausstehende Rekorde (Nationalität nicht hinterlegt) ────────────── --}}
+    {{-- ── Ausstehende Rekorde (Nationalität nicht hinterlegt oder außer Konkurrenz) ── --}}
     @if($totalPending > 0)
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-amber-300 dark:border-amber-700 overflow-hidden">
             <div
                 class="px-4 py-3 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-300 dark:border-amber-700 flex items-center gap-2">
                 <flux:icon.question-mark-circle class="size-4 text-amber-600"/>
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ausstehende Rekorde</h3>
-                <span class="text-xs text-zinc-500">— Nationalität des Athleten nicht hinterlegt</span>
+                <span class="text-xs text-zinc-500">— vom Verband zu bestätigen</span>
             </div>
 
             <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
@@ -120,6 +120,7 @@
                         <div class="flex items-center justify-between px-4 py-3 text-sm">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <flux:badge size="sm" color="amber">PENDING</flux:badge>
+                                <flux:badge size="sm" color="zinc">{{ $record->record_type }}</flux:badge>
                                 <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
                                 <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
                                 <span class="text-zinc-700 dark:text-zinc-300">
@@ -132,10 +133,15 @@
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
                                     {{ $record->formatted_swim_time }}
                                 </span>
-                                <span class="text-zinc-500 text-xs">{{ $item['athlete_name'] }}</span>
+                                <span class="text-zinc-500 text-xs">
+                                    {{ $item['athlete_name'] }}
+                                    @if(! empty($item['reason']))
+                                        · {{ $item['reason'] }}
+                                    @endif
+                                </span>
                                 <flux:button href="{{ route('records.edit', $record) }}"
                                              size="sm" variant="ghost" icon="pencil"
-                                             title="Athleten-Nationalität hinterlegen"/>
+                                             title="Rekord prüfen und bestätigen" aria-label="Rekord prüfen und bestätigen"/>
                             </div>
                         </div>
                     @endif
@@ -144,8 +150,8 @@
 
             <div class="px-4 py-3 bg-amber-50 dark:bg-amber-950/20 border-t border-amber-200 dark:border-amber-800">
                 <p class="text-xs text-amber-700 dark:text-amber-400">
-                    Bitte Nationalität der Athleten hinterlegen und Rekorde danach manuell bestätigen (Status → APPROVED
-                    setzen).
+                    Ausstehende Rekorde prüfen (bei fehlender Nationalität diese hinterlegen) und danach bestätigen
+                    (Status → "Bestätigt"). Der bisherige Rekord wird dabei automatisch abgelöst.
                 </p>
             </div>
         </div>

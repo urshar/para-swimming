@@ -36,7 +36,7 @@ Pflege in die Datenbank.
 
 ## Rekord-Erkennung — `RecordCheckerService`
 
-`checkMeet(Meet)` lädt die gültigen Ergebnisse eines Meets (mit
+`checkMeet(Meet)` lädt die gültigen Ergebnisse eines Meets (Status leer) sowie die Starts außer Konkurrenz (`EXH`) (mit
 `athlete.nation` u. a.) und prüft jedes einzeln; Einzel- und Staffelergebnisse laufen über getrennte Zweige
 (`checkResult` / `checkRelayResult`). Rückgabe:
 neue Rekorde, ausstehende Rekorde (`pending_records`) und die Anzahl geprüfter Ergebnisse.
@@ -50,6 +50,11 @@ Aus `result.athlete.nation.code`:
 | `AUT`  | Rekord wird als **APPROVED** angelegt                      |
 | `null` | Rekord wird als **PENDING** angelegt (Nationalität unklar) |
 | sonst  | **übersprungen** (kein AUT-Rekord)                         |
+
+**Außer Konkurrenz** (Ergebnisstatus `EXH`, Einzel und Staffel): Es werden alle Rekordtypen geprüft (AUT, AUT.JR,
+regional, regional JR), neue Rekorde aber als **PENDING** angelegt (Grund `RecordCheckerService::PENDING_EXHIBITION`).
+Unklare Nationalität prüft weiterhin nur den Nationalrekord. Ein erneuter Rekord-Check legt aus demselben Ergebnis
+keinen Rekord desselben Typs doppelt an.
 
 ### Vergleich & Anlage — `checkRecordType`
 
@@ -65,12 +70,15 @@ relay_count` mit `is_current = true`. Gibt es **keinen** aktuellen Rekord oder i
    `markAsSupersededBy()` abgelöst.
 
 **Wichtig:** Ein **PENDING**-Rekord löst den bestehenden aktuellen Rekord **nicht** ab — er wartet auf die Genehmigung.
-Erst mit der Genehmigung wird der Vorgänger historisiert.
+Erst mit der Genehmigung wird der Vorgänger historisiert: Wechselt der Status von PENDING auf APPROVED
+(Rekordbearbeitung oder Status-Schnelländerung in der Liste), ruft `RecordController` `SwimRecord::approve()` auf. Das
+löst alle geltenden, langsameren Rekorde derselben Kategorie ab und setzt das Rekord-Flag am Ergebnis; ist inzwischen
+ein schnellerer Rekord anerkannt, wandert der bestätigte direkt in die Historie (`APPROVED.HISTORY`).
 
 ### Jugend- und Regionalrekorde
 
 - **Jugend**: Einzel — `Wettkampfjahr − Geburtsjahr ≤ 18`; Staffel — alle Mitglieder mit bekanntem Geburtsdatum ≤ 18
-  (`RelayClassValidator::isJuniorRelay`). AUT.JR wird als APPROVED angelegt.
+  (`RelayClassValidator::isJuniorRelay`). AUT.JR wird als APPROVED angelegt (bei `EXH` als PENDING).
 - **Regional**: aus `club.regional_record_type`, jeweils Basis- und JR-Variante.
 
 ### Staffelrekorde — `checkRelayResult`
@@ -194,6 +202,7 @@ Alle unter `auth`, Prefix `records`:
    den Vorgänger sofort ab.
 2. Ist die Nationalität unklar (`nation = null` bzw. Club-Nation fehlt beim Import), entsteht ein **PENDING**-Rekord,
    der den aktuellen Rekord noch **nicht** ablöst und in `pending_records` zur Bestätigung erscheint.
+   Ebenso bei Starts außer Konkurrenz (`EXH`) — dort für alle Rekordtypen. Bestätigen = Status auf APPROVED setzen.
 3. Nicht-AUT-Ergebnisse werden gar nicht als AUT-Rekord angelegt.
 
 ## Tests

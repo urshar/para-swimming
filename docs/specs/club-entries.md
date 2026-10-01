@@ -39,6 +39,22 @@ Gesteuert über `EntryPolicy`. Alle konkreten Fähigkeiten (`createEntry`,
 4. Mit Meldeschluss gilt: erlaubt, solange **heute ≤ `entries_deadline`** oder der Admin den Meldeschluss
    **wiedereröffnet** hat (`now() < meet.entries_reopened_until`), siehe `Meet::acceptsClubEntries()`.
 
+### Außer Konkurrenz (AK)
+
+- Setzbar durch Admin **und** Verein: Checkbox "Außer Konkurrenz (AK)" in den Melde- und Bearbeitungsformularen
+  (Einzel + Staffel, `club-entries/create*`, `edit*`). Der Admin kann bei Einzelmeldungen zusätzlich wie bisher den
+  Status `EXH` in "Alle Meldungen" setzen.
+- Speicherung: Einzelmeldung `entries.status = 'EXH'` (LENEX); Abhaken entfernt nur ein `EXH`, andere Status
+  (`WDR`, `SICK`, `RJC`) bleiben. Staffelmeldung `relay_entries.is_exhibition` (eigenes Feld, weil `status` dort der
+  Ablaufstatus ist).
+- LENEX-Export: `ENTRY status="EXH"` bei Einzel- und Staffelmeldungen. Ergebnisse mit `EXH` kommen über den
+  Ergebnisimport; bei der manuellen Ergebniserfassung wird der Status `EXH` vorbelegt, wenn die Meldung AK ist
+  (änderbar).
+- Wirkung: AK-Ergebnisse zählen nicht in Cup- und Punktewertung (bestehende `EXH`-Regel), die WPS-Rangliste blendet sie
+  standardmäßig aus (per Filter zuschaltbar). Rekorde: alle Rekordtypen werden geprüft, aber als **ausstehend**
+  angelegt und erst mit Bestätigung durch den Verband gültig (`docs/specs/records.md`).
+- Anzeige: Badge "AK" in Vereinsmeldungen und "Alle Meldungen", Zusatz "(AK)" in den Meldelisten-PDFs.
+
 ### Meldeschluss und Nachmeldungen
 
 - Nach Ablauf des Meldeschlusses dürfen nur noch Admins melden (Admin-Override, unbefristet). Vereine melden
