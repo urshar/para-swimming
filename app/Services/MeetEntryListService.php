@@ -167,7 +167,7 @@ final readonly class MeetEntryListService
                 // Staffelname siehe App\Support\RelayNames (Nummer je Bewerb, nicht je Verein über alle
                 // Bewerbe). members in Positionsreihenfolge (members() ist bereits nach position sortiert).
                 $relayList = $clubRelays->map(fn (RelayEntry $r): array => [
-                    'name' => $relayNames[$r->id],
+                    'name' => $relayNames[$r->id].($r->is_exhibition ? ' (AK)' : ''),
                     'event' => $r->swimEvent,
                     'class' => $r->relay_class ?: 'allg.',
                     'time' => $r->entry_time ? TimeParser::display($r->entry_time) : ($r->entry_time_code ?: 'NT'),
@@ -241,7 +241,7 @@ final readonly class MeetEntryListService
                         'isRelay' => true,
                         'entrants' => collect(),
                         'relays' => $evRelays->map(fn (RelayEntry $r): array => [
-                            'name' => $relayNames[$r->id],
+                            'name' => $relayNames[$r->id].($r->is_exhibition ? ' (AK)' : ''),
                             'class' => $r->relay_class ?: 'allg.',
                             'time' => $r->entry_time ? TimeParser::display($r->entry_time) : ($r->entry_time_code ?: 'NT'),
                             'members' => $r->members->map(fn ($m): array => [
@@ -265,7 +265,8 @@ final readonly class MeetEntryListService
                         'isRelay' => false,
                         'relays' => collect(),
                         'entrants' => $evEntries->map(fn (Entry $e): array => [
-                            'name' => $e->athlete?->display_name ?? '',
+                            // AK = außer Konkurrenz (status EXH).
+                            'name' => ($e->athlete?->display_name ?? '').($e->status === 'EXH' ? ' (AK)' : ''),
                             'club' => $e->club?->display_name ?? '',
                             'year' => $e->athlete?->birth_date?->format('y') ?? '',
                             'time' => $e->formatted_entry_time,

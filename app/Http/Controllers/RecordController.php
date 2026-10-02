@@ -187,6 +187,8 @@ class RecordController extends Controller
 
     /**
      * Status-Schnelländerung aus der Liste heraus, ohne das Bearbeiten-Formular zu öffnen.
+     *
+     * @throws Throwable
      */
     public function updateStatus(Request $request, SwimRecord $record): RedirectResponse
     {
@@ -194,7 +196,13 @@ class RecordController extends Controller
             'record_status' => 'required|in:'.implode(',', array_keys(self::STATUS_OPTIONS)),
         ]);
 
+        $wasPending = $record->record_status === 'PENDING';
         $record->update($validated);
+
+        // Ausstehender Rekord bestätigt → bisherigen Rekord ablösen (SwimRecord::approve()).
+        if ($wasPending && $record->record_status === 'APPROVED') {
+            $record->approve();
+        }
 
         return back()->with('success', 'Status aktualisiert.');
     }
@@ -253,7 +261,9 @@ class RecordController extends Controller
         $data = $request->validate($this->recordValidationRules());
         $data = $this->parseTimeFields($data);
 
-        DB::transaction(function () use ($record, $data) {
+        $wasPending = $record->record_status === 'PENDING';
+
+        DB::transaction(function () use ($record, $data, $wasPending) {
             $splits = $this->extractSplits($data);
 
             $record->update($data);
@@ -261,6 +271,11 @@ class RecordController extends Controller
             $record->splits()->delete();
             $this->storeSplits($record->id, $splits);
             $this->storeRelayMembers($record, $data);
+
+            // Ausstehender Rekord bestätigt → bisherigen Rekord ablösen (SwimRecord::approve()).
+            if ($wasPending && $record->record_status === 'APPROVED') {
+                $record->approve();
+            }
         });
 
         return redirect()
@@ -292,7 +307,7 @@ class RecordController extends Controller
             $message .= ', '.$newCount.' neuer '.($newCount === 1 ? 'Rekord' : 'Rekorde');
         }
         if ($pendingCount > 0) {
-            $message .= ', '.$pendingCount.' ausstehend (Nationalität unklar)';
+            $message .= ', '.$pendingCount.' ausstehend (Bestätigung durch den Verband nötig)';
         }
         if ($newCount === 0 && $pendingCount === 0) {
             $message .= ' — keine neuen Rekorde';
@@ -312,6 +327,7 @@ class RecordController extends Controller
                 ->map(fn ($item) => [
                     'id' => $item['record']->id,
                     'athlete_name' => $item['athlete_name'],
+                    'reason' => $item['reason'],
                 ])
                 ->all(),
         ];

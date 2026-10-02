@@ -61,24 +61,29 @@ Abrechnung je Verein online + PDF; `TEAM` noch nicht berechnet, siehe unten; dok
 wiedereröffnen" → Admin öffnet befristet für alle Vereine (24 h, 48 h oder frei gewählter Zeitpunkt, protokolliert
 wer/wann), Admin-Override bleibt; nach Meldeschluss neu angelegte Meldungen werden als Nachmeldung gekennzeichnet und
 kosten zusätzlich `LATEENTRY.INDIVIDUAL` / `LATEENTRY.RELAY`; dokumentiert in `specs/club-entries.md` "Meldeschluss
-und Nachmeldungen") — die zugehörigen Open Points unten wurden entfernt.
+und Nachmeldungen") und `feature/exhibition-entries` ("Außer Konkurrenz (AK)" → Admin und Verein
+setzen AK bei Einzel- (`status EXH`) und Staffelmeldungen (`is_exhibition`), LENEX-Export, Vorbelegung bei der
+manuellen Ergebniserfassung; AK-Rekorde aller Typen werden als ausstehend angelegt und vom Verband bestätigt —
+`SwimRecord::approve()` löst dabei den Vorgänger ab; dokumentiert in `specs/club-entries.md` und `specs/records.md`) — die
+zugehörigen Open Points unten wurden entfernt.
+
+**Bug, vorrangig:** "LENEX-Export von Meldungen und Ergebnissen enthält nur die Struktur (keine Vereine)" unten.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "'Außer Konkurrenz' (AK) bei Meldungen setzbar machen" unten
-3. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-4. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-5. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-6. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-7. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-8. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-9. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #8
-10. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-11. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-12. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-13. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+2. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
+3. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+4. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+5. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+6. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+7. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+8. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #7
+9. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+10. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+11. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+12. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -89,6 +94,33 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## Bug: LENEX-Export von Meldungen und Ergebnissen enthält nur die Struktur (keine Vereine)
+
+**Seit:** Beobachtung Erik (02.10.2026) für Meldungen und Ergebnisse; für Meldungen beim Live-Test von
+`feature/exhibition-entries` reproduziert.
+
+**Symptom:** Der LENEX-Export einer Veranstaltung mit Exporttyp "Meldungen" (`entries`) **und** "Ergebnisse"
+(`results`) liefert nur MEET, SESSIONS und EVENTS — der Block `CLUBS` mit Athleten, Meldungen bzw. Ergebnissen fehlt,
+obwohl Daten existieren.
+
+**Ursache (verifiziert im Code):** `LenexExportService::buildClubs()` iteriert über `$meet->clubs`, also die
+Pivot-Tabelle `meet_club`. Die wird nur vom LENEX-Import befüllt (`LenexParserService`, `syncWithoutDetaching`).
+Meldungen, die in der App angelegt werden (`ClubEntryController` für Vereine, `EntryController` / "Alle Meldungen" für
+den Admin), verknüpfen den Verein nie mit der Veranstaltung. Ohne Eintrag in `meet_club` ist `CLUBS` leer und wird
+weggelassen (`hasChildNodes()`-Prüfung in `buildMeet`) — für `entries` und `results` gleichermaßen, beide laufen über
+`buildClubs()`. Bei Ergebnissen: Manuell erfasste (`ResultController::store`) verknüpfen den Verein nie; der
+LENEX-Import verknüpft zwar (auch nach der Club-Klärung, die den Import erneut startet), beim Beheben aber an Eriks
+konkreter Veranstaltung prüfen, auf welchem Weg deren Ergebnisse ohne `meet_club`-Eintrag entstanden sind. Ebenfalls
+betroffen: die Anzeige "Teilnehmende Vereine" auf `meets/show` (liest auch `$meet->clubs`).
+
+**Zum Schließen nötig:** Entscheiden, ob (a) der Export die Vereine aus den tatsächlichen Meldungen/Ergebnissen ableitet
+(`entries.club_id`, `relay_entries.club_id`, bei `results` zusätzlich `results.club_id`) statt aus `meet_club`
+(empfohlen — keine zweite Quelle, die auseinanderlaufen kann), oder (b) `meet_club` beim Anlegen von Meldungen/Ergebnissen
+mitgepflegt und für den Bestand einmalig per Migration nachgezogen wird. Regressionstest: Meldung über
+`club-entries.store` anlegen (ohne `meet_club`), Export `entries` enthält `CLUBS > CLUB > ATHLETES > ATHLETE > ENTRIES`
+und `RELAYS`; ebenso ein manuell erfasstes Ergebnis → Export `results` enthält `RESULTS`. Bestehende Export-Tests
+hängen den Verein bisher explizit per `$meet->clubs()->attach()` an und decken den Fehler deshalb nicht auf.
 
 ## Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt
 
@@ -429,29 +461,6 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `APP_LOCALE=en`/`APP_FALLBACK_LOCALE=en` (`config/app.php` fällt sonst auf `env('APP_LOCALE', 'en')` zurück), obwohl
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
-
-## "Außer Konkurrenz" (AK) bei Meldungen setzbar machen
-
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
-
-**Was fehlt:** Bei Meldungen (Einzel **und** Staffel) soll ein Kennzeichen "außer Konkurrenz" (AK) setzbar sein.
-
-**Entschieden (Erik, 20.09.2026):**
-
-- **Umfang:** AK ist sowohl bei Einzel- (`Entry`) als auch bei Staffelmeldungen (`RelayEntry`) setzbar.
-- **Wirkung:** AK-Starts werden **nur aus der Cup-/Punktewertung** ausgeschlossen. Rekorde und Ranglisten (WPS)
-  zählen weiterhin normal, und der Start erscheint ganz normal in Ergebnissen und im LENEX-Export.
-
-**Warum zurückgestellt:** Neues Feld + Auswirkung auf die Cup-Wertungslogik, kein Bugfix. Offene Detailfragen:
-Wandert AK von der Meldung automatisch auf das zugehörige Ergebnis (`Result`), oder wird es dort separat gepflegt?
-Wo genau greift der Cup-Ausschluss (in `CupRankingService`/Tageswertungs-Aggregation — die Zeilen mit AK
-überspringen)? Wird AK im LENEX gekennzeichnet (LENEX kennt `ENTRY`-Attribute wie `status`) oder nur intern?
-
-**Wer entscheidet:** Erik — Vererbung Meldung→Ergebnis und ob AK im LENEX-Export mitgegeben werden soll.
-
-**Zum Schließen nötig:** Migration (Boolean-Spalte `out_of_competition`/`ak` auf `entries` und `relay_entries`,
-ggf. auch `results`), Checkbox in den Melde-Formularen (`club-entries/create*.blade.php`, `entries/form.blade.php`),
-Ausschluss in der Cup-Wertungsberechnung, sichtbare AK-Markierung in Meldungs-/Ergebnislisten.
 
 ## Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)
 

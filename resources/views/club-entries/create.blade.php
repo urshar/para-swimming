@@ -195,6 +195,11 @@
                     </flux:field>
                 </div>
 
+                {{-- Außer Konkurrenz: Einzelmeldung → status EXH (LENEX). --}}
+                <flux:checkbox name="exhibition" value="1" label="Außer Konkurrenz (AK)"
+                               description="Zählt nicht in der Cup- und Punktewertung. Ein Rekord wird erst nach Bestätigung durch den Verband anerkannt."
+                               :checked="(bool) old('exhibition', false)"/>
+
                 {{-- Buttons --}}
                 <div class="flex gap-3 pt-2">
                     <flux:button type="submit" variant="primary" x-bind:disabled="submitting">

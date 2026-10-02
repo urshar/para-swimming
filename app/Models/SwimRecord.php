@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class SwimRecord extends Model
 {
@@ -143,6 +145,56 @@ class SwimRecord extends Model
                 default => $this->record_status,
             },
         ]);
+    }
+
+    /**
+     * Bestätigt einen bisher ausstehenden Rekord (z. B. aus einem Start außer Konkurrenz) und stellt die Kette
+     * richtig: Er löst die geltenden, langsameren Rekorde derselben Kategorie ab. Wurde inzwischen ein schnellerer
+     * Rekord anerkannt, geht der bestätigte direkt in die Historie. Setzt das passende Rekord-Flag am Ergebnis.
+     *
+     * Aufzurufen, nachdem record_status von PENDING auf APPROVED gewechselt hat.
+     *
+     * @throws Throwable
+     */
+    public function approve(): void
+    {
+        DB::transaction(function () {
+            $others = self::query()
+                ->whereKeyNot($this->id)
+                ->where('record_type', $this->record_type)
+                ->where('stroke_type_id', $this->stroke_type_id)
+                ->where('sport_class', $this->sport_class)
+                ->where('gender', $this->gender)
+                ->where('course', $this->course)
+                ->where('distance', $this->distance)
+                ->where('relay_count', $this->relay_count)
+                ->where('is_current', true)
+                ->where('record_status', '!=', 'PENDING')
+                ->get();
+
+            /** @var SwimRecord|null $faster */
+            $faster = $others->first(fn (SwimRecord $other): bool => $other->swim_time < $this->swim_time);
+            if ($faster) {
+                $this->update([
+                    'is_current' => false,
+                    'superseded_by_id' => $faster->id,
+                    'record_status' => 'APPROVED.HISTORY',
+                ]);
+
+                return;
+            }
+
+            $this->update(['is_current' => true, 'record_status' => 'APPROVED']);
+            $others->each(fn (SwimRecord $other) => $other->markAsSupersededBy($this));
+
+            $flag = match (true) {
+                $this->record_type === 'AUT' => 'is_national_record',
+                $this->record_type === 'AUT.JR' => 'is_junior_record',
+                str_ends_with($this->record_type, '.JR') => 'is_regional_junior_record',
+                default => 'is_regional_record',
+            };
+            $this->result?->update([$flag => true]);
+        });
     }
 
     public function club(): BelongsTo

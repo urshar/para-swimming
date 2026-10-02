@@ -94,7 +94,7 @@
                     </tr>
                     @foreach($a['entries'] as $entry)
                         <tr>
-                            <td class="ev">{{ $entry->swimEvent?->display_name }}</td>
+                            <td class="ev">{{ $entry->swimEvent?->display_name }}@if($entry->status === 'EXH') (AK)@endif</td>
                             <td class="col-tm">{{ $entry->formatted_entry_time }}</td>
                             <td class="col-cls">{{ $entry->sport_class }}</td>
                         </tr>

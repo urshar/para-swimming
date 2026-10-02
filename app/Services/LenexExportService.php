@@ -580,6 +580,10 @@ class LenexExportService
         if ($relayEntry->entry_course) {
             $entryEl->setAttribute('entrycourse', $relayEntry->entry_course);
         }
+        // Außer Konkurrenz — wie bei Einzelmeldungen (entries.status) als LENEX-Status EXH.
+        if ($relayEntry->is_exhibition) {
+            $entryEl->setAttribute('status', 'EXH');
+        }
 
         $members = $relayEntry->members;
         if ($members->isNotEmpty()) {

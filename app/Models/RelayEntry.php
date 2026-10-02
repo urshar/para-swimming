@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $entry_course
  * @property string $status
  * @property bool $is_late_entry Nach Meldeschluss neu angelegt (Nachmeldegebühr LATEENTRY.RELAY)
+ * @property bool $is_exhibition Außer Konkurrenz (AK; LENEX ENTRY status="EXH")
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string $formatted_entry_time
@@ -50,10 +51,12 @@ class RelayEntry extends Model
         'entry_course',
         'status',
         'is_late_entry',
+        'is_exhibition',
     ];
 
     protected $casts = [
         'is_late_entry' => 'boolean',
+        'is_exhibition' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────

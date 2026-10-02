@@ -114,6 +114,7 @@ class ClubEntryController extends Controller
             'entry_time_code' => $entryTimeCode,
             'entry_course' => $validated['entry_course'] ?? $meet->course,
             'sport_class' => $this->resolveSportClass($validated['athlete_id'], $event),
+            'status' => self::exhibitionStatus($request->boolean('exhibition'), $entry->status),
         ]);
         // Nur eine NEUE Meldung nach Meldeschluss ist eine Nachmeldung — das Überschreiben einer bestehenden nicht.
         if (! $entry->exists) {
@@ -328,6 +329,7 @@ class ClubEntryController extends Controller
             'entry_course' => $validated['entry_course'] ?? $meet->course,
             'status' => 'pending',
             'is_late_entry' => $meet->isDeadlinePassed(),
+            'is_exhibition' => $request->boolean('exhibition'),
         ]);
 
         // Members anlegen
@@ -433,6 +435,7 @@ class ClubEntryController extends Controller
             'entry_time' => $entryTime,
             'entry_time_code' => $entryTimeCode,
             'entry_course' => $validated['entry_course'] ?? $relayEntry->entry_course,
+            'is_exhibition' => $request->boolean('exhibition'),
         ]);
 
         // Members komplett neu schreiben — nur, wenn Athleten angegeben wurden
@@ -490,6 +493,7 @@ class ClubEntryController extends Controller
             'entry_time' => $entryTime,
             'entry_time_code' => $entryTimeCode,
             'entry_course' => $validated['entry_course'] ?? $entry->entry_course,
+            'status' => self::exhibitionStatus($request->boolean('exhibition'), $entry->status),
         ]);
 
         return redirect()
@@ -689,6 +693,19 @@ class ClubEntryController extends Controller
     }
 
     // ── Index Relay ───────────────────────────────────────────────────────────────
+
+    /**
+     * Status einer Einzelmeldung aus der Checkbox "außer Konkurrenz": angehakt → EXH; abgehakt → ein bisheriges EXH
+     * entfällt. Andere Status (WDR, SICK, RJC — setzt nur der Admin) bleiben unangetastet.
+     */
+    private static function exhibitionStatus(bool $exhibition, ?string $current): ?string
+    {
+        if ($exhibition) {
+            return 'EXH';
+        }
+
+        return $current === 'EXH' ? null : $current;
+    }
 
     /**
      * Prüft, ob der User Meldungen verwalten darf (ohne Exception).

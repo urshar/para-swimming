@@ -102,6 +102,9 @@
                                 </flux:badge>
                             @endif
 
+                            @if($relay->is_exhibition)
+                                <flux:badge color="violet" size="sm" title="Außer Konkurrenz">AK</flux:badge>
+                            @endif
                             @if($relay->is_late_entry)
                                 <flux:badge color="orange" size="sm">Nachmeldung</flux:badge>
                             @endif
