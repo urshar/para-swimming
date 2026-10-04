@@ -81,7 +81,7 @@ class MeetController extends Controller
 
     public function show(Meet $meet): View
     {
-        $meet->load(['nation', 'cup', 'clubs.nation', 'pointSystems']);
+        $meet->load(['nation', 'cup', 'pointSystems']);
         $meet->loadCount(['swimEvents', 'entries', 'relayEntries', 'results', 'documents']);
 
         $swimEvents = $meet->swimEvents()
@@ -91,11 +91,12 @@ class MeetController extends Controller
             ->get();
 
         $participantsCount = $meet->participantsCount();
+        $participatingClubs = $meet->participatingClubs();
         $participatingClubsCount = $meet->participatingClubsCount();
         $sessions = $meet->sessions()->get()->keyBy('number');
 
         return view('meets.show',
-            compact('meet', 'swimEvents', 'participantsCount', 'participatingClubsCount', 'sessions'));
+            compact('meet', 'swimEvents', 'participantsCount', 'participatingClubs', 'participatingClubsCount', 'sessions'));
     }
 
     public function edit(Meet $meet): View

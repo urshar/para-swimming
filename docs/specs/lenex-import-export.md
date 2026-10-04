@@ -111,6 +111,11 @@ CONSTRUCTOR und
 
 - Für `entries`/`results` werden zusätzlich `CLUBS > CLUB > ATHLETES > ATHLETE`
   (inkl. `HANDICAP`) aufgebaut.
+- **Welche Vereine:** bei `entries` die Vereine aus `entries` und `relay_entries`, bei `results` die aus `results`,
+  jeweils ergänzt um die per LENEX-Import zugeordneten (`meet_club`), alphabetisch (`Meet::entryClubIds()` /
+  `resultClubIds()` / `clubsByIds()`). `meet_club` allein reicht nicht: Meldungen und manuell erfasste Ergebnisse
+  befüllen die Pivot-Tabelle nicht. Dieselbe Ableitung nutzt "Teilnehmende Vereine" auf `meets/show`
+  (`Meet::participatingClubs()`).
 - **Meldungen**: `ATHLETE > ENTRIES > ENTRY` mit `entrytime` (aus Hundertstelsekunden formatiert, `NT` wenn leer).
 - **Staffelmeldungen**: `CLUB > RELAYS > RELAY` mit `ENTRIES > ENTRY`
   (`entrytime`) und `RELAYPOSITIONS > RELAYPOSITION` je Mitglied — gespeist aus
@@ -157,6 +162,8 @@ Alle unter `auth`, Prefix `lenex`:
 ## Tests
 
 - `tests/Feature/LenexRelayExportTest.php` — Export von Staffelmeldungen als LENEX-`RELAY`-Elemente.
+- `tests/Feature/LenexExportClubsTest.php` — Vereine im Export ohne `meet_club`-Eintrag (Meldungen, Ergebnisse,
+  Import-Zuordnungen) und "Teilnehmende Vereine" auf `meets/show`.
 
 Die Relais-XML-Struktur beim Import (`RELAY > ENTRIES > ENTRY` mit `eventid`/
 `entrytime` am `ENTRY`, `RELAYPOSITIONS` innerhalb des `ENTRY`) und die

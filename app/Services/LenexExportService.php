@@ -73,7 +73,7 @@ class LenexExportService
      */
     private function buildMeet(Meet $meet): DOMElement
     {
-        $meet->load(['nation', 'clubs.nation', 'swimEvents.strokeType']);
+        $meet->load(['nation', 'swimEvents.strokeType']);
 
         $el = $this->dom->createElement('MEET');
         $el->setAttribute('name', $meet->name);
@@ -251,8 +251,12 @@ class LenexExportService
      */
     private function buildClubs(Meet $meet): DOMElement
     {
+        // Vereine aus den tatsächlichen Daten, nicht nur aus meet_club: Meldungen und
+        // manuell erfasste Ergebnisse ordnen den Verein dort nicht zu.
+        $clubIds = $this->exportType === 'entries' ? $meet->entryClubIds() : $meet->resultClubIds();
+
         $clubsEl = $this->dom->createElement('CLUBS');
-        foreach ($meet->clubs as $club) {
+        foreach ($meet->clubsByIds($clubIds) as $club) {
             $clubsEl->appendChild($this->buildClub($club, $meet));
         }
 

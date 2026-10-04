@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -227,11 +228,61 @@ class Meet extends Model
      */
     public function participatingClubsCount(): int
     {
-        $individualClubIds = $this->entries()->pluck('club_id');
-        $relayClubIds = $this->relayEntries()->pluck('club_id');
-        $resultClubIds = $this->results()->pluck('club_id');
+        return $this->entryClubIds()->merge($this->resultClubIds())->unique()->count();
+    }
 
-        return $individualClubIds->merge($relayClubIds)->merge($resultClubIds)->unique()->count();
+    /**
+     * IDs der Vereine mit mindestens einer Einzel- oder Staffelmeldung.
+     *
+     * @return SupportCollection<int, int>
+     */
+    public function entryClubIds(): SupportCollection
+    {
+        return $this->entries()->pluck('club_id')
+            ->merge($this->relayEntries()->pluck('club_id'))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * IDs der Vereine mit mindestens einem Ergebnis.
+     *
+     * @return SupportCollection<int, int>
+     */
+    public function resultClubIds(): SupportCollection
+    {
+        return $this->results()->pluck('club_id')->filter()->unique()->values();
+    }
+
+    /**
+     * Teilnehmende Vereine (alphabetisch): Vereine aus Meldungen, Staffelmeldungen und
+     * Ergebnissen, dazu die per LENEX-Import zugeordneten (meet_club). Die Pivot-Tabelle
+     * allein reicht nicht, weil sie beim Melden und manuellen Erfassen in der App nicht
+     * befüllt wird.
+     *
+     * @return EloquentCollection<int, Club>
+     */
+    public function participatingClubs(): EloquentCollection
+    {
+        return $this->clubsByIds($this->entryClubIds()->merge($this->resultClubIds()));
+    }
+
+    /**
+     * Die übergebenen Vereine plus die meet_club-Zuordnungen, alphabetisch und mit Nation.
+     *
+     * @param  SupportCollection<int, int>  $clubIds
+     * @return EloquentCollection<int, Club>
+     */
+    public function clubsByIds(SupportCollection $clubIds): EloquentCollection
+    {
+        $ids = $clubIds->merge($this->clubs()->pluck('clubs.id'))->unique()->values();
+
+        return Club::query()
+            ->with('nation')
+            ->whereIn('id', $ids)
+            ->orderBy('name')
+            ->get();
     }
 
     /** Ob für diese Veranstaltung WPS-Punkte berechnet werden sollen. */
