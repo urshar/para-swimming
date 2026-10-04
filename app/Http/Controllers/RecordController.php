@@ -332,8 +332,8 @@ class RecordController extends Controller
                 ->all(),
         ];
 
-        return redirect()
-            ->route('meets.show', $meet)
+        // Zurück zur aufrufenden Seite (Veranstaltung oder Ergebnis-Sammelansicht); beide zeigen das Prüfergebnis.
+        return back(fallback: route('meets.show', $meet))
             ->with('success', $message)
             ->with('record_check_result', $sessionData);
     }

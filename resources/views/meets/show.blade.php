@@ -42,10 +42,11 @@
                 </flux:button>
             @endif
 
+            {{-- Sammelansicht aller Ergebnisse (Erfassen, Bearbeiten, Löschen) — nur Admin --}}
             @if(auth()->user()?->is_admin)
-                <flux:button href="{{ route('meets.results.create', $meet) }}" variant="filled"
-                             icon="plus" size="sm" class="text-blue-500!">
-                    Ergebnis erfassen
+                <flux:button href="{{ route('meets.results-overview', $meet) }}" variant="filled"
+                             icon="list-bullet" size="sm" class="text-blue-500!">
+                    Ergebnisse
                 </flux:button>
             @endif
 
@@ -169,10 +170,19 @@
             <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->relay_entries_count }}</div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400">Staffelmeldungen</div>
         </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Ergebnisse</div>
-        </div>
+        @if(auth()->user()?->is_admin)
+            <a href="{{ route('meets.results-overview', $meet) }}"
+               class="block bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center
+                      hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
+                <div class="text-sm text-blue-600 dark:text-blue-400">Ergebnisse</div>
+            </a>
+        @else
+            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
+                <div class="text-sm text-zinc-500 dark:text-zinc-400">Ergebnisse</div>
+            </div>
+        @endif
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
             <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $participantsCount }}</div>
             <div class="text-sm text-zinc-500 dark:text-zinc-400">Teilnehmer</div>

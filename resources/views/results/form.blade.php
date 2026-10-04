@@ -15,10 +15,13 @@
         // old("key", "default") hat selbst ein Komma und würde mitten im Ausdruck zerschnitten.
         $oldAthleteId = old('athlete_id', '');
         $oldClubId = old('club_id', '');
-        $oldEventId = (string) old('swim_event_id', $result->swim_event_id ?? '');
+        $oldEventId = (string) old('swim_event_id', $result->swim_event_id ?? $presetEventId);
         $oldStatus = (string) old('status', $result->status ?? '');
         // Anlegen: Meldungen außer Konkurrenz ("Bewerb-Athlet") → Status EXH vorbelegen (ResultController::create()).
         $exhibitionKeys = $exhibitionKeys ?? collect();
+
+        // Zurück/Abbrechen: beim Bearbeiten zur Detailseite, beim Anlegen zur Ergebnis-Sammelansicht (backUrl vom Controller).
+        $cancelUrl = isset($result) ? route('results.show', $result) : $backUrl;
 
         $swimTimeValue = old('swim_time', isset($result) && $result->swim_time ? TimeParser::display($result->swim_time) : '');
 
@@ -39,7 +42,7 @@
         {{-- Header --}}
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ isset($result) ? route('results.show', $result) : route('meets.show', $meet) }}" variant="primary" icon="arrow-left" size="sm"
+                <flux:button href="{{ $cancelUrl }}" variant="primary" icon="arrow-left" size="sm"
                              title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {{ isset($result) ? 'Ergebnis bearbeiten' : 'Ergebnis anlegen' }}
@@ -47,6 +50,13 @@
             </div>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
         </div>
+
+        @if(session('success'))
+            <div class="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800
+                        rounded-xl text-sm text-green-700 dark:text-green-400" role="status">
+                {{ session('success') }}
+            </div>
+        @endif
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
             <form
@@ -85,7 +95,7 @@
                                 <flux:select variant="listbox" name="swim_event_id" x-model="eventId" required>
                                     @foreach($swimEvents as $event)
                                         <flux:select.option
-                                            value="{{ $event->id }}" :selected="old('swim_event_id', $result->swim_event_id ?? '') == $event->id">
+                                            value="{{ $event->id }}" :selected="$oldEventId === (string) $event->id">
                                             {{ $event->display_name }}
                                         </flux:select.option>
                                     @endforeach
@@ -138,6 +148,7 @@
                                 <flux:label>Sport-Klasse</flux:label>
                                 <flux:input name="sport_class" value="{{ old('sport_class', $result->sport_class ?? '') }}"
                                             maxlength="15" placeholder="z.B. S4"/>
+                                <flux:description class="mt-1!">Leer lassen = Sportklasse des Athleten zur Lage (S, SB oder SM).</flux:description>
                                 <flux:error name="sport_class"/>
                             </flux:field>
                         </div>
@@ -202,6 +213,7 @@
                                 <flux:label>Punkte</flux:label>
                                 <flux:input name="points" type="number" min="0"
                                             value="{{ old('points', $result->points ?? '') }}"/>
+                                <flux:description class="mt-1!">Leer lassen = automatisch nach den Punktesystemen der Veranstaltung.</flux:description>
                                 <flux:error name="points"/>
                             </flux:field>
                             <flux:field>
@@ -278,7 +290,13 @@
                     <flux:button type="submit" variant="primary">
                         {{ isset($result) ? 'Speichern' : 'Ergebnis anlegen' }}
                     </flux:button>
-                    <flux:button href="{{ isset($result) ? route('results.show', $result) : route('meets.show', $meet) }}" variant="ghost">Abbrechen</flux:button>
+                    @unless(isset($result))
+                        {{-- Speichert und öffnet das Formular erneut mit derselben Disziplin. --}}
+                        <flux:button type="submit" name="save_next" value="1" variant="filled">
+                            Speichern und nächstes
+                        </flux:button>
+                    @endunless
+                    <flux:button href="{{ $cancelUrl }}" variant="ghost">Abbrechen</flux:button>
                 </div>
             </form>
         </div>

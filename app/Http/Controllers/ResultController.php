@@ -11,6 +11,8 @@ use App\Models\Meet;
 use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimEvent;
+use App\Services\ClubEntryService;
+use App\Services\ResultPointsService;
 use App\Services\WorldAquaticsPointsService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
@@ -27,6 +29,8 @@ class ResultController extends Controller
 
     public function __construct(
         private readonly WorldAquaticsPointsService $pointsService,
+        private readonly ClubEntryService $entryService,
+        private readonly ResultPointsService $resultPoints,
     ) {}
 
     public function index(Request $request): View
@@ -90,7 +94,7 @@ class ResultController extends Controller
         return view('results.show', compact('result'));
     }
 
-    public function create(Meet $meet): View
+    public function create(Request $request, Meet $meet): View
     {
         $swimEvents = $meet->swimEvents()
             ->with('strokeType')
@@ -113,7 +117,15 @@ class ResultController extends Controller
             ->map(fn (Entry $e): string => $e->swim_event_id.'-'.$e->athlete_id)
             ->values();
 
-        return view('results.form', compact('meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys'));
+        // "Speichern und nächstes" kommt mit der Disziplin des eben gespeicherten Ergebnisses zurück.
+        $presetEventId = $swimEvents->contains('id', $request->integer('swim_event_id'))
+            ? (string) $request->integer('swim_event_id')
+            : '';
+        $backUrl = MeetResultsOverviewController::backUrl($meet);
+
+        return view('results.form', compact(
+            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl'
+        ));
     }
 
     /**
@@ -129,18 +141,32 @@ class ResultController extends Controller
             return back()->withErrors(['swim_event_id' => 'Diese Disziplin gehört nicht zu diesem Wettkampf.']);
         }
 
-        DB::transaction(function () use ($meet, $data) {
+        $data['result']['sport_class'] = $this->sportClassOrDefault($data['result'], $swimEvent);
+
+        $notes = DB::transaction(function () use ($meet, $data) {
             $result = Result::create(array_merge(
                 $data['result'],
                 ['meet_id' => $meet->id]
             ));
 
             $this->storeSplits($result, $data['splits']);
+
+            return $this->resultPoints->calculate($result, ($data['result']['points'] ?? null) !== null);
         });
 
+        $message = self::withNotes('Ergebnis gespeichert.', $notes);
+
+        // "Speichern und nächstes": Formular neu, gleiche Disziplin vorausgewählt. Sonst zurück zur
+        // Sammelansicht der Veranstaltung (mit den dort zuletzt gesetzten Filtern).
+        if ($request->boolean('save_next')) {
+            return redirect()
+                ->route('meets.results.create', ['meet' => $meet, 'swim_event_id' => $swimEvent->id])
+                ->with('success', $message);
+        }
+
         return redirect()
-            ->route('meets.show', $meet)
-            ->with('success', 'Ergebnis gespeichert.');
+            ->to(MeetResultsOverviewController::backUrl($meet))
+            ->with('success', $message);
     }
 
     public function edit(Result $result): View
@@ -168,19 +194,29 @@ class ResultController extends Controller
     {
         $data = $this->validateResult($request);
 
-        DB::transaction(function () use ($result, $data) {
+        $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
+        $data['result']['sport_class'] = $this->sportClassOrDefault($data['result'], $swimEvent);
+
+        // Das Punktefeld ist beim Bearbeiten mit dem gespeicherten Wert vorbelegt: als manuell gilt nur
+        // ein geänderter Wert, sonst wird neu gerechnet (z. B. nach einer korrigierten Zeit).
+        $points = $data['result']['points'] ?? null;
+        $manualPoints = $points !== null && ($result->points === null || (int) $points !== (int) $result->points);
+
+        $notes = DB::transaction(function () use ($result, $data, $manualPoints) {
             $result->update($data['result']);
 
             // Splits komplett ersetzen
             $result->splits()->delete();
             $this->storeSplits($result, $data['splits']);
+
+            return $this->resultPoints->calculate($result, $manualPoints);
         });
 
-        // Bearbeiten/Löschen erreicht man über die Ergebnisliste (bzw. deren Detailansicht) — dorthin
-        // zurück, inkl. der dort gesetzten Filter. Anlegen läuft über meets.show und bleibt dabei.
+        // Bearbeiten/Löschen erreicht man über eine Ergebnisliste (global oder die Sammelansicht der
+        // Veranstaltung) bzw. deren Detailansicht — dorthin zurück, inkl. der dort gesetzten Filter.
         return redirect()
             ->to(ListUrl::to('results'))
-            ->with('success', 'Ergebnis aktualisiert.');
+            ->with('success', self::withNotes('Ergebnis aktualisiert.', $notes));
     }
 
     public function destroy(Result $result): RedirectResponse
@@ -206,6 +242,25 @@ class ResultController extends Controller
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Sportklasse: leeres Feld = aus dem Athleten zur Lage des Bewerbs ableiten (wie bei den
+     * Meldungen); eine eingetragene Klasse bleibt als bewusste Abweichung erhalten.
+     */
+    private function sportClassOrDefault(array $data, SwimEvent $swimEvent): ?string
+    {
+        if (! empty($data['sport_class'])) {
+            return $data['sport_class'];
+        }
+
+        return $this->entryService->resolveSportClass((int) $data['athlete_id'], $swimEvent);
+    }
+
+    /** @param  list<string>  $notes */
+    private static function withNotes(string $message, array $notes): string
+    {
+        return $notes === [] ? $message : $message.' '.implode('. ', $notes).'.';
+    }
 
     private function validateResult(Request $request): array
     {

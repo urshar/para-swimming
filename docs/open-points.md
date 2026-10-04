@@ -67,23 +67,28 @@ manuellen Ergebniserfassung; AK-Rekorde aller Typen werden als ausstehend angele
 `SwimRecord::approve()` löst dabei den Vorgänger ab; dokumentiert in `specs/club-entries.md` und `specs/records.md`) — die
 zugehörigen Open Points unten wurden entfernt. Behoben in `fix/lenex-export-clubs`: Der LENEX-Export von Meldungen
 und Ergebnissen enthielt nur die Struktur, weil die Vereine nur aus `meet_club` kamen; sie werden jetzt aus Meldungen
-und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`).
+und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`). Umgesetzt in `feature/meet-results-overview`:
+Ergebnis-Sammelansicht je Veranstaltung mit Filtern, Erfassen ("Speichern und nächstes", Sportklasse aus dem Athleten,
+automatische Punkte), Löschen einzeln oder je Disziplin und Ergebnisliste als PDF; Ergebnis-Routen jetzt nur Admin
+(dokumentiert in `specs/meet-results.md`). Die PDF gliedert vorläufig nach Sportklasse, bis die Wertungsgruppen (#3)
+abgebildet sind. Als Nächstes vereinbart: Staffel-Ergebnisse (#6).
+
+**Sicherheit, vorrangig:** "Sicherheit: LENEX-Import nur für Admins" unten.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)" unten
-3. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-4. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-5. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-6. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-7. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
-8. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #7
-9. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-10. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-11. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-12. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+2. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+3. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
+4. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+5. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+6. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+7. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #6
+8. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+9. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+10. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+11. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -94,6 +99,28 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## Sicherheit: LENEX-Import nur für Admins (und weitere Admin-Routen ohne `RequireAdmin`)
+
+**Seit:** `feature/meet-results-overview` (04.10.2026), Nebenbefund beim Absichern der Ergebnis-Routen.
+
+**Problem (verifiziert im Code):** Die Routengruppe `lenex.*` in `routes/web.php` (Import: `import`, `import.store`,
+`import.confirm-meet`, `import.run`, `import.review`, `import.resolve-clubs`, dazu der Export) liegt nur in der
+`auth`-Gruppe, nicht hinter `RequireAdmin`. `LenexImportController` und `LenexExportController` prüfen keine Rechte.
+Damit kann jeder eingeloggte Vereinsnutzer, der die URL kennt, einen LENEX-Import ausführen.
+
+**Entscheidung Erik (04.10.2026):** Den LENEX-Import darf **nur der Admin** ausführen.
+
+**Ebenfalls zu prüfen:** Die Punkte-Neuberechnung einer Veranstaltung (`meets.recalculate-points`,
+`meets.wps-points.recalculate`) autorisiert über `EntryPolicy::manageEntries`. Das erlaubt Vereinsnutzern die
+Neuberechnung, solange die Meldung offen oder wiedereröffnet ist. Vermutlich ebenfalls eine reine Admin-Funktion.
+Beim Beheben alle Routen in `routes/web.php` ohne `RequireAdmin` durchgehen und je Route festhalten, ob sie bewusst
+für Vereine offen ist (z. B. `club-entries`, Meldelisten des eigenen Vereins).
+
+**Zum Schließen nötig:** `lenex.*`-Import-Routen in eine `RequireAdmin`-Gruppe legen. Entscheiden, ob der
+LENEX-Export für Vereine offen bleiben soll; er wird z. B. auf `meets/show` angeboten. Die Navigation und die Links
+für Vereinsnutzer prüfen. Regressionstest nach dem Muster von `ResultEntryAutomationTest` ("sperrt die
+Ergebnisverwaltung für Vereinsnutzer"): Vereinsnutzer bekommt 403 auf alle Import-Routen.
 
 ## Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt
 
@@ -435,27 +462,6 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
 
-## Ergebnisse einer Veranstaltung manuell erfassen & löschen (Sammelansicht)
-
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
-
-**Was fehlt / zu klären:** Einzeln existiert schon einiges — `meets/show` hat "Ergebnis erfassen"
-(`meets.results.create`), `results/show` hat jetzt Bearbeiten/Löschen, und es gibt `results/index` (global,
-nach Meet filterbar). Gewünscht ist aber eine **auf eine ausgewählte Veranstaltung fokussierte** Möglichkeit,
-Ergebnisse **manuell zu erfassen und zu löschen** — vermutlich eine meet-gebundene Ergebnis-Sammelansicht (alle
-Ergebnisse des Meets auf einen Blick, mit Anlegen/Löschen), statt des globalen `results/index` mit Filter.
-
-**Warum zurückgestellt:** Überschneidet sich teils mit der bereits umgesetzten Meldungs-Übersicht (meet-weite
-"Alle Meldungen" + das wettkampfübergreifende Meldungen-Cockpit) — die betrifft aber **Meldungen**, nicht
-**Ergebnisse**; zu klären, ob das eine gemeinsame Meet-Detail-Arbeitsfläche (Meldungen + Ergebnisse) werden soll
-oder zwei getrennte Ansichten.
-
-**Wer entscheidet:** Erik — konkret was heute fehlt (nur ein schnellerer Zugang zum vorhandenen Erfassen/Löschen,
-oder eine echte neue Sammelansicht pro Meet?) und ob Ergebnis- und Meldungsverwaltung zusammengelegt werden.
-
-**Zum Schließen nötig:** Nach Klärung: ggf. neue meet-gebundene Ergebnis-Übersicht (Liste aller `Result` eines Meets
-mit Inline-Löschen + "Ergebnis erfassen"), verlinkt von `meets/show`.
-
 ## Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik.
@@ -476,6 +482,8 @@ Beschreibung des Fehlers), erst danach ist die Umsetzung eindeutig planbar.
 
 **Zum Schließen nötig:** Nach Erhalt der Beispiele: Soll-Struktur der Wertungsgruppen festlegen, Meet-Anlage-UI
 anpassen, LENEX-Export gegen die Beispieldatei prüfen und die falsch erzeugte Wertung korrigieren.
+Danach die Ergebnisliste (PDF) auf die Wertungsgruppen umstellen: sie gliedert bisher vorläufig nach Sportklasse
+(`MeetResultListService::groupKey()`/`groupLabel()`, siehe `specs/meet-results.md`).
 
 ## Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern
 
@@ -540,8 +548,8 @@ Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll d
 
 **Warum zurückgestellt / Überschneidungen:** Teilweise existieren Zielansichten schon, teils nicht:
 
-- **Ergebnisse:** `results/index` ist bereits per `?meet_id=` filterbar — hier reicht ggf. ein Link + der
-  kontextsensitive Rücksprung. Überschneidet sich mit "Ergebnisse einer Veranstaltung manuell erfassen & löschen".
+- **Ergebnisse:** erledigt in `feature/meet-results-overview` — die Kachel verlinkt (für Admins) auf die
+  Ergebnis-Sammelansicht der Veranstaltung, deren Zurück-Button auf `meets/show` führt (`specs/meet-results.md`).
 - **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen ("Alle
   Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
   Wettkampfübergreifend zusätzlich das Meldungen-Cockpit (`entries.index`).

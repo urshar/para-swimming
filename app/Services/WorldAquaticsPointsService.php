@@ -107,8 +107,12 @@ class WorldAquaticsPointsService
         return $points;
     }
 
-    /** @return array{0: ?int, 1: string} [Punkte oder null, Grund falls null] */
-    private function resolvePoints(Result $result, Meet $meet, ?BaseTimeVersion $version = null): array
+    /**
+     * Punkte eines Ergebnisses samt Grund, falls keine berechenbar sind (ohne zu speichern).
+     *
+     * @return array{0: ?int, 1: string} [Punkte oder null, Grund falls null]
+     */
+    public function resolvePoints(Result $result, Meet $meet, ?BaseTimeVersion $version = null): array
     {
         if (! $result->swim_time || $result->swim_time <= 0) {
             return [null, 'keine gültige Schwimmzeit'];
