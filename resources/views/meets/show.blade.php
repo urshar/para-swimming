@@ -280,11 +280,11 @@
     @endif
 
     {{-- Clubs --}}
-    @if($meet->clubs->isNotEmpty())
+    @if($participatingClubs->isNotEmpty())
         <div class="mt-6">
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Teilnehmende Vereine</h2>
             <div class="flex flex-wrap gap-2">
-                @foreach($meet->clubs as $club)
+                @foreach($participatingClubs as $club)
                     <a href="{{ route('clubs.show', $club) }}">
                         <flux:badge color="zinc" size="sm">{{ $club->display_name }}</flux:badge>
                     </a>

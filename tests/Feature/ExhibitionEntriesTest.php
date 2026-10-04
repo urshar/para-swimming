@@ -195,7 +195,6 @@ it('exportiert AK bei Einzel- und Staffelmeldungen als ENTRY status EXH', functi
     [$meet, $club, $athlete, $event, $relayEvent] = setup_ak();
     Entry::create(['meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id, 'club_id' => $club->id, 'status' => 'EXH']);
     RelayEntry::create(['meet_id' => $meet->id, 'swim_event_id' => $relayEvent->id, 'club_id' => $club->id, 'is_exhibition' => true]);
-    $meet->clubs()->attach($club->id);
 
     $clubXml = lenex_ak($meet)->MEETS->MEET->CLUBS->CLUB;
 

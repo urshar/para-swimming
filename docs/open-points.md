@@ -65,9 +65,9 @@ und Nachmeldungen") und `feature/exhibition-entries` ("Außer Konkurrenz (AK)" �
 setzen AK bei Einzel- (`status EXH`) und Staffelmeldungen (`is_exhibition`), LENEX-Export, Vorbelegung bei der
 manuellen Ergebniserfassung; AK-Rekorde aller Typen werden als ausstehend angelegt und vom Verband bestätigt —
 `SwimRecord::approve()` löst dabei den Vorgänger ab; dokumentiert in `specs/club-entries.md` und `specs/records.md`) — die
-zugehörigen Open Points unten wurden entfernt.
-
-**Bug, vorrangig:** "LENEX-Export von Meldungen und Ergebnissen enthält nur die Struktur (keine Vereine)" unten.
+zugehörigen Open Points unten wurden entfernt. Behoben in `fix/lenex-export-clubs`: Der LENEX-Export von Meldungen
+und Ergebnissen enthielt nur die Struktur, weil die Vereine nur aus `meet_club` kamen; sie werden jetzt aus Meldungen
+und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`).
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
@@ -94,33 +94,6 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
-
-## Bug: LENEX-Export von Meldungen und Ergebnissen enthält nur die Struktur (keine Vereine)
-
-**Seit:** Beobachtung Erik (02.10.2026) für Meldungen und Ergebnisse; für Meldungen beim Live-Test von
-`feature/exhibition-entries` reproduziert.
-
-**Symptom:** Der LENEX-Export einer Veranstaltung mit Exporttyp "Meldungen" (`entries`) **und** "Ergebnisse"
-(`results`) liefert nur MEET, SESSIONS und EVENTS — der Block `CLUBS` mit Athleten, Meldungen bzw. Ergebnissen fehlt,
-obwohl Daten existieren.
-
-**Ursache (verifiziert im Code):** `LenexExportService::buildClubs()` iteriert über `$meet->clubs`, also die
-Pivot-Tabelle `meet_club`. Die wird nur vom LENEX-Import befüllt (`LenexParserService`, `syncWithoutDetaching`).
-Meldungen, die in der App angelegt werden (`ClubEntryController` für Vereine, `EntryController` / "Alle Meldungen" für
-den Admin), verknüpfen den Verein nie mit der Veranstaltung. Ohne Eintrag in `meet_club` ist `CLUBS` leer und wird
-weggelassen (`hasChildNodes()`-Prüfung in `buildMeet`) — für `entries` und `results` gleichermaßen, beide laufen über
-`buildClubs()`. Bei Ergebnissen: Manuell erfasste (`ResultController::store`) verknüpfen den Verein nie; der
-LENEX-Import verknüpft zwar (auch nach der Club-Klärung, die den Import erneut startet), beim Beheben aber an Eriks
-konkreter Veranstaltung prüfen, auf welchem Weg deren Ergebnisse ohne `meet_club`-Eintrag entstanden sind. Ebenfalls
-betroffen: die Anzeige "Teilnehmende Vereine" auf `meets/show` (liest auch `$meet->clubs`).
-
-**Zum Schließen nötig:** Entscheiden, ob (a) der Export die Vereine aus den tatsächlichen Meldungen/Ergebnissen ableitet
-(`entries.club_id`, `relay_entries.club_id`, bei `results` zusätzlich `results.club_id`) statt aus `meet_club`
-(empfohlen — keine zweite Quelle, die auseinanderlaufen kann), oder (b) `meet_club` beim Anlegen von Meldungen/Ergebnissen
-mitgepflegt und für den Bestand einmalig per Migration nachgezogen wird. Regressionstest: Meldung über
-`club-entries.store` anlegen (ohne `meet_club`), Export `entries` enthält `CLUBS > CLUB > ATHLETES > ATHLETE > ENTRIES`
-und `RELAYS`; ebenso ein manuell erfasstes Ergebnis → Export `results` enthält `RESULTS`. Bestehende Export-Tests
-hängen den Verein bisher explizit per `$meet->clubs()->attach()` an und decken den Fehler deshalb nicht auf.
 
 ## Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt
 
