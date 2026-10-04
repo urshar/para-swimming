@@ -269,13 +269,25 @@ it('führt vom Ergebnis zurück zur gefilterten Ergebnisliste statt zur vorherig
     $this->actingAs($admin)->delete(route('results.destroy', $result))->assertRedirect($listUrl);
 });
 
-it('führt vom Ergebnis-Anlegen zurück zur Veranstaltung', function () {
+it('führt vom Ergebnis-Anlegen zurück zur Ergebnis-Sammelansicht der Veranstaltung', function () {
     $meet = makeMeet_p5();
 
     $this->actingAs(admin_cbb())
         ->get(route('meets.results.create', $meet))
         ->assertOk()
-        ->assertSee('href="'.route('meets.show', $meet).'"', false);
+        ->assertSee('href="'.route('meets.results-overview', $meet).'"', false);
+});
+
+it('führt vom Ergebnis-Anlegen zurück in die gefilterte Sammelansicht, aber nicht in die eines anderen Meets', function () {
+    $meet = makeMeet_p5();
+    $otherMeet = makeMeet_p5();
+    $admin = admin_cbb();
+    $listUrl = listUrl_cbb('meets.results-overview', ['meet' => $meet, 'search' => 'Muster']);
+
+    $this->actingAs($admin)->get($listUrl)->assertOk();
+    $this->get(route('meets.results.create', $meet))->assertSee('href="'.e($listUrl).'"', false);
+    $this->get(route('meets.results.create', $otherMeet))
+        ->assertSee('href="'.route('meets.results-overview', $otherMeet).'"', false);
 });
 
 // ── Meldungen ─────────────────────────────────────────────────────────────────

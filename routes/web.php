@@ -29,6 +29,7 @@ use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntriesReopenController;
 use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
+use App\Http\Controllers\MeetResultsOverviewController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
@@ -405,6 +406,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('meets/{meet}/all-entries', [MeetEntriesOverviewController::class, 'index'])
             ->name('meets.entries-overview')
             ->middleware('remember.list:entries');
+
+        // Meet-weite Sammelansicht aller Ergebnisse, nach Disziplin gruppiert; teilt sich den
+        // Rücksprung-Bereich "results" mit der globalen Ergebnisliste.
+        Route::get('meets/{meet}/results', [MeetResultsOverviewController::class, 'index'])
+            ->name('meets.results-overview')
+            ->middleware('remember.list:results');
+        Route::get('meets/{meet}/results/pdf', [MeetResultsOverviewController::class, 'pdf'])
+            ->name('meets.results-overview.pdf');
+        Route::delete('meets/{meet}/events/{swimEvent}/results', [MeetResultsOverviewController::class, 'destroyEvent'])
+            ->name('meets.results-overview.destroy-event');
     });
 
     // ── Meldebasierte Listen (PDF + Excel) ─────────────────────────────────────
@@ -428,13 +439,15 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // Ergebnisse
-    Route::resource('results', ResultController::class)->only(['index'])
-        ->middlewareFor('index', 'remember.list:results');
-    Route::resource('meets.results', ResultController::class)
-        ->shallow()
-        ->except(['index'])
-        ->parameters(['results' => 'result']);
+    // Ergebnisse — Verwaltung nur Admin (die öffentliche Ergebnisseite liegt in routes/public.php)
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::resource('results', ResultController::class)->only(['index'])
+            ->middlewareFor('index', 'remember.list:results');
+        Route::resource('meets.results', ResultController::class)
+            ->shallow()
+            ->except(['index'])
+            ->parameters(['results' => 'result']);
+    });
 
     Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
         ->name('meets.recalculate-points');
