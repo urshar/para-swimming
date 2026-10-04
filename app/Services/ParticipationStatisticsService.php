@@ -7,6 +7,7 @@ use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\RelayResultMember;
 use App\Models\Result;
 use App\Support\ReportConfiguration;
 use App\Support\SportClassSorter;
@@ -609,19 +610,19 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Staffelstarts je Event-Geschlecht (Herren = M, Damen = F, Mixed = X) im
-     * Auswertungsumfang, gezählt "pro Athlet": jede angetretene
-     * Staffel-Ergebniszeile (ein eingesetzter Schwimmer) zählt einzeln.
+     * Staffelstarts je Staffel-Geschlecht (Herren = M, Damen = F, Mixed = X) im
+     * Auswertungsumfang, gezählt "pro Athlet": jeder eingesetzte Schwimmer einer
+     * angetretenen Staffel (relay_result_members) zählt einzeln.
      *
-     * Maßgeblich ist das Geschlecht des Staffel-Bewerbs (swim_events.gender),
-     * nicht das des einzelnen Schwimmers — eine Mixed-Staffel bleibt Mixed (X),
-     * unabhängig von der Zusammensetzung. Ausschließlich Staffeln
-     * (relay_count > 1); Einzelbewerbe bleiben außen vor.
+     * Maßgeblich ist das Geschlecht der Mannschaft (relay_results.gender), nicht
+     * das des Bewerbs (bei LENEX-Importen meist unspezifiziert) und nicht das des
+     * einzelnen Schwimmers — eine Herrenstaffel mit Damenbeteiligung zählt als
+     * Herren (M), eine 2+2-Staffel als Mixed (X).
      *
-     * Als "angetreten" gilt dieselbe Definition wie bei den Einzelstarts
-     * (onlyStarted): reguläre Ergebnisse plus alle Status außer
-     * NON_START_STATUSES. Alle drei Schlüssel erscheinen immer (0, falls nicht
-     * vorhanden), in der Reihenfolge Herren, Damen, Mixed.
+     * Als "angetreten" gilt dieselbe Definition wie bei den Einzelstarts:
+     * reguläre Ergebnisse plus alle Status außer NON_START_STATUSES. Alle drei
+     * Schlüssel erscheinen immer (0, falls nicht vorhanden), in der Reihenfolge
+     * Herren, Damen, Mixed.
      *
      * @return array<string, int>
      */
@@ -629,11 +630,26 @@ final readonly class ParticipationStatisticsService
     {
         $counts = array_fill_keys(self::RELAY_GENDER_ORDER, 0);
 
-        $rows = $this->onlyStarted($this->relayScopedQuery($config))
-            ->join('swim_events', 'swim_events.id', '=', 'results.swim_event_id')
-            ->toBase()
-            ->selectRaw('swim_events.gender as gender, COUNT(*) as starts')
-            ->groupBy('swim_events.gender')
+        $query = RelayResultMember::query()
+            ->join('relay_results', 'relay_results.id', '=', 'relay_result_members.relay_result_id')
+            ->where(function (Builder $q): void {
+                $q->whereNull('relay_results.status')
+                    ->orWhereNotIn('relay_results.status', self::NON_START_STATUSES);
+            });
+
+        if ($config->isMeetFiltered()) {
+            $query->whereIn('relay_results.meet_id', $config->meetIds);
+        } else {
+            // whereDate() wie in periodScopedQuery(): portabel zwischen MySQL und SQLite.
+            $query->join('meets', 'meets.id', '=', 'relay_results.meet_id')
+                ->whereNull('meets.deleted_at')
+                ->whereDate('meets.start_date', '>=', $config->dateFrom->toDateString())
+                ->whereDate('meets.start_date', '<=', $config->dateTo->toDateString());
+        }
+
+        $rows = $query->toBase()
+            ->selectRaw('relay_results.gender as gender, COUNT(*) as starts')
+            ->groupBy('relay_results.gender')
             ->get();
 
         foreach ($rows as $row) {
@@ -704,7 +720,7 @@ final readonly class ParticipationStatisticsService
      * (startsQuery) als auch die vollständige Status-Aufschlüsselung
      * (statusBreakdown) aufsetzen können.
      *
-     * Staffeln werden hier ausgeklammert; sie laufen über relayScopedQuery().
+     * Staffeln werden hier ausgeklammert; sie liegen in relay_results (relayStartsByEventGender()).
      */
     private function scopedQuery(ReportConfiguration $config): Builder
     {
@@ -713,24 +729,9 @@ final readonly class ParticipationStatisticsService
     }
 
     /**
-     * Auswertungsumfang für Staffeln (relay_count > 1) — das Gegenstück zu
-     * scopedQuery(). Staffelergebnisse liegen pro eingesetztem Schwimmer als
-     * eigene Ergebniszeile vor (results.athlete_id ist Pflichtfeld); die
-     * Zählweise "pro Athlet" ergibt sich damit direkt aus COUNT(*).
-     *
-     * Zeitraum- und Meet-Scope sind identisch zur Einzelauswertung
-     * (periodScopedQuery); ebenfalls bewusst OHNE Status-Filter.
-     */
-    private function relayScopedQuery(ReportConfiguration $config): Builder
-    {
-        return $this->periodScopedQuery($config)
-            ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '>', 1));
-    }
-
-    /**
-     * Reiner Zeitraum-/Meet-Scope ohne Staffel-Unterscheidung — gemeinsame
-     * Grundlage von scopedQuery() (Einzel) und relayScopedQuery() (Staffel),
-     * damit die Definition des Auswertungsfensters an genau einer Stelle liegt.
+     * Reiner Zeitraum-/Meet-Scope über results — Grundlage von scopedQuery()
+     * (Einzel). Staffelergebnisse liegen in relay_results und nutzen in
+     * relayStartsByEventGender() dasselbe Zeitfenster.
      */
     private function periodScopedQuery(ReportConfiguration $config): Builder
     {
@@ -767,8 +768,8 @@ final readonly class ParticipationStatisticsService
     /**
      * Schränkt einen Ergebnis-Query auf angetretene Ergebnisse ein (reguläre
      * Ergebnisse mit status = null sowie alle Status außer NON_START_STATUSES).
-     * Ausgelagert, damit Einzel- (startsQuery) und Staffelauswertung
-     * (relayStartsByEventGender) dieselbe Start-Definition teilen.
+     * Die Staffelauswertung (relayStartsByEventGender) wendet dieselbe
+     * Definition auf relay_results.status an.
      */
     private function onlyStarted(Builder $query): Builder
     {

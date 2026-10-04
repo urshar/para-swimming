@@ -39,6 +39,7 @@
         table.res th.col-pl, table.res th.col-tm, table.res th.col-pts { text-align: right; }
 
         .footnote { margin-top: 10px; font-size: 8px; color: #555; }
+        tr.members td { font-size: 8px; color: #555; padding-top: 0; padding-bottom: 3px; }
         table.res .col-note { width: 70px; color: #555; }
         tr.unranked td { color: #555; }
 
@@ -67,6 +68,52 @@
             {{ match ($event->gender) { 'M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed', default => '' } }}
         </div>
 
+        @if($block['isRelay'])
+            {{-- Staffeln: Wertung (Herren/Damen/Mixed) und Staffelklasse, darunter die Schwimmer. --}}
+            @foreach($block['groups'] as $group)
+                <div class="group-title">{{ $group['label'] }}</div>
+                <table class="res">
+                    <tr>
+                        <th class="col-pl">Pl.</th>
+                        <th>Staffel</th>
+                        <th class="col-tm">Zeit</th>
+                        @if($pointColumns['points'])
+                            <th class="col-pts">Punkte</th>
+                        @endif
+                        <th class="col-note"></th>
+                    </tr>
+                    @foreach($group['rows'] as $row)
+                        @php
+                            $relayResult = $row['result'];
+                            $relayRecords = collect([
+                                'NR' => $relayResult->is_national_record,
+                                'JR' => $relayResult->is_junior_record,
+                                'LR' => $relayResult->is_regional_record || $relayResult->is_regional_junior_record,
+                            ])->filter()->keys()->implode(' ');
+                            $relayStatus = $relayResult->status === 'EXH' ? 'AK' : $relayResult->status;
+                            $memberLine = $relayResult->members
+                                ->map(fn ($m) => $m->display_name . ($m->athlete?->birth_date ? ' ' . $m->athlete->birth_date->format('Y') : ''))
+                                ->implode(' · ');
+                        @endphp
+                        <tr @class(['unranked' => $row['place'] === null])>
+                            <td class="col-pl">{{ $row['place'] ? $row['place'] . '.' : '' }}</td>
+                            <td>{{ $relayResult->display_name }}</td>
+                            <td class="col-tm">{{ $relayResult->swim_time ? $relayResult->formatted_swim_time : '' }}</td>
+                            @if($pointColumns['points'])
+                                <td class="col-pts">{{ $relayResult->points }}</td>
+                            @endif
+                            <td class="col-note">{{ trim($relayStatus . ' ' . $relayRecords) }}</td>
+                        </tr>
+                        @if($memberLine !== '')
+                            <tr class="members">
+                                <td></td>
+                                <td colspan="{{ $pointColumns['points'] ? 4 : 3 }}">{{ $memberLine }}</td>
+                            </tr>
+                        @endif
+                    @endforeach
+                </table>
+            @endforeach
+        @else
         @foreach($block['groups'] as $group)
             <div class="group-title">{{ $group['label'] }}</div>
             <table class="res">
@@ -115,6 +162,7 @@
                 @endforeach
             </table>
         @endforeach
+        @endif
     </div>
 @empty
     <div class="empty">Keine Ergebnisse vorhanden.</div>

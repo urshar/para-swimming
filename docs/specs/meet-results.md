@@ -1,8 +1,7 @@
 # Spec: Ergebnisse einer Veranstaltung (Sammelansicht)
 
-Admin-Arbeitsfläche, um die Einzelergebnisse **einer** Veranstaltung zu erfassen, zu bearbeiten und zu löschen.
-Gegenstück zu "Alle Meldungen" ([club-entries.md](club-entries.md)), aber für Ergebnisse. Staffelergebnisse gibt es
-im Datenmodell noch nicht (Open Point "Staffel-Ergebnisse importieren"), die Seite zeigt nur Einzelbewerbe.
+Admin-Arbeitsfläche, um die Einzel- und Staffelergebnisse **einer** Veranstaltung zu erfassen, zu bearbeiten und zu
+löschen. Gegenstück zu "Alle Meldungen" ([club-entries.md](club-entries.md)), aber für Ergebnisse.
 
 | Teil       | Ort                                                                                                                                              |
 |------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -79,12 +78,41 @@ oder schon Werte vorliegen (`MeetResultsOverviewController::pointColumns()`). Ge
 Kurzbahn-Parameter, nicht offiziell; `Result::hasEstimatedWpsPoints()`) tragen ein `*`, wie in der globalen
 Ergebnisliste.
 
+## Staffelergebnisse
+
+Eigene Tabellen `relay_results`, `relay_result_members`, `relay_result_splits` (siehe
+[data-model.md](../data-model.md)); Import aus LENEX siehe [lenex-import-export.md](lenex-import-export.md).
+
+- **Sammelansicht:** Staffelbewerbe zeigen ihre Staffelergebnisse (Partial `meets/_relay-results-table`): Platz,
+  Staffel (Verein mit Mannschaftsnummer ab 2 bzw. eigener Name), Wertung und Staffelklasse, Schwimmer, Zeit, Punkte,
+  Rekorde, Status, Herkunft. Sortiert zuerst nach Wertung, weil die Plätze je Wertung gelten. Vereinsfilter auf den
+  Staffelverein, Athletensuche auf die Schwimmer. "Alle löschen" je Disziplin löscht auch Staffelergebnisse.
+- **Erfassen** (`RelayResultController`, View `relay-results/form`, Alpine `relayResultForm`): Bewerb, Verein,
+  Mannschaftsnummer, eigener Name, Schwimmer je Position (so viele, wie der Bewerb hat), Zeit, Status, Staffelklasse,
+  Platz, Punkte, Kommentar.
+  - Schwimmer werden aus der Staffelmeldung desselben Vereins und Bewerbs vorbelegt; jeder Athlet ist wählbar (auch
+    vereinsfremd). Ein Athlet darf nur einmal vorkommen.
+  - **Wertung** leer = aus den Schwimmern (`RelayResult::genderFromMembers()`): nur Frauen = Damen, gleich viele Frauen
+    und Männer = Mixed, sonst Herren (auch 3 + 1 und 1 + 3).
+  - **Staffelklasse** leer = aus den S-Klassen der Schwimmer (`RelayClassValidator`), nur bei voller Besetzung.
+  - "Speichern und nächstes" wie bei Einzelergebnissen. Zwischenzeiten werden manuell (noch) nicht erfasst; importierte
+    bleiben beim Bearbeiten erhalten.
+- **Ergebnisliste (PDF):** je Staffelbewerb nach Wertung und Staffelklasse ("Herren S14", "Mixed S49"), Platz aus der
+  Zeit wie bei Einzelergebnissen, darunter die Schwimmer mit Jahrgang.
+- **Rekorde:** siehe [records.md](records.md) "Staffelrekorde"; Herrenstaffeln mit Damenbeteiligung und Staffeln mit
+  vereinsfremden Schwimmern stellen keinen Rekord auf.
+- **Noch nicht (Phase 2):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX, WA-Punkte
+  für Staffeln, öffentliche Ergebnisseite.
+
 ## Zugriff
 
-Alle Ergebnis-Verwaltungsrouten (`results.*`, `meets.results.*`, Sammelansicht, PDF, Löschen je Disziplin) liegen
+Alle Ergebnis-Verwaltungsrouten (`results.*`, `meets.results.*`, `meets.relay-results.*`/`relay-results.*`, Sammelansicht,
+PDF, Löschen je Disziplin) liegen
 hinter `RequireAdmin`. Die öffentliche Ergebnisseite (`routes/public.php`) ist davon nicht betroffen.
 
 ## Tests
 
 `tests/Feature/MeetResultsOverviewTest.php`, `tests/Feature/ResultEntryAutomationTest.php` (Sportklasse, Punkte,
-Ergebnisliste, Zugriffsschutz), Rücksprung beim Erfassen zusätzlich in `tests/Feature/ContextBackNavigationTest.php`.
+Ergebnisliste, Zugriffsschutz), `tests/Feature/RelayResultsTest.php` (Staffeln: Wertungsregel, LENEX-Import nach dem
+Muster der ÖSTM 2025, Rekorde, Erfassen, Sammelansicht, PDF), Rücksprung beim Erfassen zusätzlich in
+`tests/Feature/ContextBackNavigationTest.php`.

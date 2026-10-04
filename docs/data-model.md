@@ -37,6 +37,9 @@ erDiagram
     RESULT ||--o{ RESULT_SPLIT: "Zwischenzeiten"
     MEET ||--o{ RELAY_ENTRY: "Staffelmeldungen"
     RELAY_ENTRY ||--o{ RELAY_ENTRY_MEMBER: "Mitglieder"
+    SWIM_EVENT ||--o{ RELAY_RESULT: "Staffelergebnisse"
+    RELAY_RESULT ||--o{ RELAY_RESULT_MEMBER: "Schwimmer"
+    RELAY_RESULT ||--o| SWIM_RECORD: "kann Rekord sein"
     STROKE_TYPE ||--o{ SWIM_EVENT: "Disziplin"
     RESULT ||--o| SWIM_RECORD: "kann Rekord sein"
     CHAMPIONSHIP ||--o{ CHAMPIONSHIP_STANDARD: "Normen"
@@ -126,6 +129,15 @@ einem **SwimRecord** referenziert werden.
 **RelayEntryMember**
 (`athlete_id`, `sport_class`), unique je
 `(relay_entry_id, athlete_id)`.
+
+**RelayResult** (Staffelergebnis) — `meet_id`, `swim_event_id`, `club_id`, `relay_number` (LENEX Mannschaftsnummer),
+`name`, `gender` (Wertung der Mannschaft: M/F/X, nicht das Bewerbsgeschlecht), `relay_class` (S14, S20, S34, S49 ...),
+`swim_time`, `status`, `place`, `points`, `heat`, `lane`, `comment`, Rekord-Flags wie Result, `lenex_result_id`. → hat
+viele **RelayResultMember** (`position`, `athlete_id` optional, Kopie von `first_name`/`last_name`/`gender`,
+`sport_class`, `reaction_time`; unique je `(relay_result_id, position)`) und **RelayResultSplit** (`distance`,
+`split_time`). Wertungsregel: nur Frauen = Damen, gleich viele Frauen und Männer = Mixed, sonst Herren
+(`RelayResult::genderFromMembers()`). Staffelergebnisse liegen bewusst nicht in `results`, weil dort jedes Ergebnis
+genau einen Athleten hat. Details: [specs/meet-results.md](specs/meet-results.md).
 
 ## Rekorde
 

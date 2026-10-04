@@ -8,8 +8,9 @@ use App\Models\Meet;
 use App\Models\MeetFee;
 use App\Models\MeetSession;
 use App\Models\Nation;
+use App\Models\RelayResult;
+use App\Models\RelayResultMember;
 use App\Models\Result;
-use App\Models\ResultSplit;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Support\TimeParser;
@@ -23,7 +24,7 @@ use ZipArchive;
  * Erkennt den LENEX-Typ automatisch und importiert:
  *   structure → Meet, Sessions, SwimEvents
  *   entries   → + Clubs, Athletes, Entries
- *   results   → + Results, Splits
+ *   results   → + Results, Splits, Staffelergebnisse (CLUB > RELAYS)
  */
 class LenexParserService
 {
@@ -34,7 +35,25 @@ class LenexParserService
         'events' => 0,
         'entries' => 0,
         'results' => 0,
+        'relay_results' => 0,
     ];
+
+    /**
+     * resultid → Wertungsklasse der AGEGROUP, in der das Ergebnis platziert ist (z. B. handicap 14 →
+     * Staffelklasse S14). Wird für Staffelergebnisse gebraucht; erste Platzierung gewinnt wie beim rankingIndex.
+     *
+     * @var array<string, array{handicap: string}>
+     */
+    private array $rankingGroupIndex = [];
+
+    /**
+     * LENEX athleteid → Athlet der Datenbank (bzw. null, wenn nicht zuordenbar) samt Kopie von Name, Geschlecht und
+     * S-Klasse. Grundlage für die Staffelpositionen, die nur per athleteid auf Athleten verweisen, auch auf
+     * Athleten eines anderen Vereins.
+     *
+     * @var array<string, array{athlete_id: ?int, first_name: string, last_name: string, gender: ?string, sport_class: ?string}>
+     */
+    private array $athleteIndex = [];
 
     /**
      * resultid → place (erste Platzierung die gefunden wird).
@@ -56,9 +75,11 @@ class LenexParserService
         // Stats und Index für jeden Import-Aufruf zurücksetzen
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
-            'events' => 0, 'entries' => 0, 'results' => 0,
+            'events' => 0, 'entries' => 0, 'results' => 0, 'relay_results' => 0,
         ];
         $this->rankingIndex = [];
+        $this->rankingGroupIndex = [];
+        $this->athleteIndex = [];
 
         $xml = $this->loadXml($filePath);
         $type = $this->detectType($xml);
@@ -311,6 +332,11 @@ class LenexParserService
                         // Erste gefundene Platzierung gewinnt — nicht überschreiben
                         if (! isset($this->rankingIndex[$resultId])) {
                             $this->rankingIndex[$resultId] = $place > 0 ? $place : null;
+                        }
+                        if (! isset($this->rankingGroupIndex[$resultId])) {
+                            $this->rankingGroupIndex[$resultId] = [
+                                'handicap' => trim((string) ($agegroupXml['handicap'] ?? '')),
+                            ];
                         }
                     }
                 }
@@ -637,6 +663,9 @@ class LenexParserService
         LenexResolverService $resolver,
         string $type
     ): void {
+        // Staffeln erst nach allen Athleten: ihre Positionen verweisen per athleteid auch auf Athleten anderer Vereine.
+        $relayClubs = [];
+
         foreach ($clubsXml->CLUB as $clubXml) {
             $nationCode = (string) ($clubXml['nation'] ?? '');
             $nation = Nation::where('code', $nationCode)->first();
@@ -652,12 +681,27 @@ class LenexParserService
             $meet->clubs()->syncWithoutDetaching([$club->id]);
             $this->stats['clubs']++;
 
+            if ($type === 'results' && isset($clubXml->RELAYS)) {
+                $relayClubs[] = [$clubXml, $club];
+            }
+
             if (! isset($clubXml->ATHLETES)) {
                 continue;
             }
 
             foreach ($clubXml->ATHLETES->ATHLETE as $athleteXml) {
                 $this->importAthlete($meet, $athleteXml, $club, $resolver, $type);
+            }
+        }
+
+        foreach ($relayClubs as [$clubXml, $club]) {
+            foreach ($clubXml->RELAYS->RELAY as $relayXml) {
+                if (! isset($relayXml->RESULTS)) {
+                    continue;
+                }
+                foreach ($relayXml->RESULTS->RESULT as $resultXml) {
+                    $this->importRelayResult($meet, $relayXml, $resultXml, $club, $resolver);
+                }
             }
         }
     }
@@ -675,6 +719,20 @@ class LenexParserService
         $nation = Nation::where('code', $nationCode)->first();
 
         $athlete = $resolver->resolveAthlete($athleteXml, $club->id, $nation?->id ?? 0);
+
+        $lenexAthleteId = (string) ($athleteXml['athleteid'] ?? '');
+        if ($lenexAthleteId !== '') {
+            $gender = strtoupper((string) ($athleteXml['gender'] ?? ''));
+            $this->athleteIndex[$lenexAthleteId] = [
+                'athlete_id' => $athlete?->id,
+                'first_name' => (string) ($athleteXml['firstname'] ?? ''),
+                'last_name' => (string) ($athleteXml['lastname'] ?? ''),
+                'gender' => in_array($gender, ['M', 'F'], true) ? $gender : null,
+                'sport_class' => isset($athleteXml->HANDICAP)
+                    ? $this->extractPrimaryClassFromHandicap($athleteXml->HANDICAP)
+                    : null,
+            ];
+        }
 
         if (! $athlete) {
             return;
@@ -806,16 +864,11 @@ class LenexParserService
         LenexResolverService $resolver,
         ?SimpleXMLElement $handicapXml = null
     ): void {
-        $swimEventId = $this->resolveSwimEventId($meet, (string) ($resultXml['eventid'] ?? ''), $resolver);
-
-        if (! $swimEventId) {
+        $header = $this->resultHeader($meet, $resultXml, $resolver);
+        if ($header === null) {
             return;
         }
-
-        $swimTime = $this->parseTime((string) ($resultXml['swimtime'] ?? ''));
-        $statusCode = $this->mapResultStatus((string) ($resultXml['status'] ?? ''));
-        $recordType = strtoupper((string) ($resultXml['recordtype'] ?? ''));
-        $lenexResultId = (string) ($resultXml['resultid'] ?? '') ?: null;
+        ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
 
         // place steht nicht im RESULT-Element sondern in EVENT > AGEGROUP > RANKING.
         $place = $this->rankingIndex[$lenexResultId]
@@ -840,23 +893,93 @@ class LenexParserService
                 'swim_time' => $swimTime,
                 'status' => $statusCode,
                 'sport_class' => $sportClass,
-                'points' => (int) ($resultXml['points'] ?? 0) ?: null,
                 'place' => $place,
                 'reaction_time' => $this->parseReactionTime((string) ($resultXml['reactiontime'] ?? '')),
-                'comment' => (string) ($resultXml['comment'] ?? '') ?: null,
-                'is_world_record' => str_contains($recordType, 'WR'),
-                'is_european_record' => str_contains($recordType, 'ER'),
-                'is_national_record' => str_contains($recordType, 'NR'),
                 'lenex_result_id' => $lenexResultId,
-            ]
+            ] + $this->sharedResultValues($resultXml)
         );
 
         // Splits importieren
         if (isset($resultXml->SPLITS)) {
-            $this->importSplits($result, $resultXml->SPLITS);
+            $this->replaceSplits($result, $resultXml->SPLITS);
         }
 
         $this->stats['results']++;
+    }
+
+    /**
+     * Importiert ein Staffelergebnis (CLUB > RELAYS > RELAY > RESULTS > RESULT) samt Positionen und Zwischenzeiten.
+     *
+     * - Geschlecht der Mannschaft aus RELAY gender (M/F/X), Staffelklasse aus der AGEGROUP, in der das Ergebnis
+     *   platziert ist (handicap 14 → S14), Platz aus deren RANKING.
+     * - Staffeln ohne Zeit und ohne Status (nicht angetreten, nichts erfasst) werden übersprungen.
+     * - Erneuter Import aktualisiert über meet + lenex_result_id, statt doppelt anzulegen.
+     */
+    private function importRelayResult(
+        Meet $meet,
+        SimpleXMLElement $relayXml,
+        SimpleXMLElement $resultXml,
+        Club $club,
+        LenexResolverService $resolver
+    ): void {
+        $header = $this->resultHeader($meet, $resultXml, $resolver);
+        if ($header === null || (! $header['swimTime'] && $header['status'] === null)) {
+            return;
+        }
+        ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
+
+        $handicap = $lenexResultId !== null ? ($this->rankingGroupIndex[$lenexResultId]['handicap'] ?? '') : '';
+        $relayNumber = (int) ($relayXml['number'] ?? 0) ?: null;
+
+        $members = [];
+        foreach ($resultXml->RELAYPOSITIONS->RELAYPOSITION ?? [] as $positionXml) {
+            $position = (int) ($positionXml['number'] ?? 0);
+            if ($position < 1) {
+                continue;
+            }
+            $athlete = $this->athleteIndex[(string) ($positionXml['athleteid'] ?? '')] ?? null;
+            $members[$position] = [
+                'position' => $position,
+                'athlete_id' => $athlete['athlete_id'] ?? null,
+                'first_name' => $athlete['first_name'] ?? null,
+                'last_name' => $athlete['last_name'] ?? null,
+                'gender' => $athlete['gender'] ?? null,
+                'sport_class' => $athlete['sport_class'] ?? null,
+                'reaction_time' => $this->parseReactionTime((string) ($positionXml['reactiontime'] ?? '')),
+            ];
+        }
+
+        $relayGender = strtoupper((string) ($relayXml['gender'] ?? ''));
+        if (! in_array($relayGender, ['M', 'F', 'X'], true)) {
+            $relayGender = RelayResult::genderFromMembers(array_column($members, 'gender'));
+        }
+
+        $identity = $lenexResultId !== null
+            ? ['meet_id' => $meet->id, 'lenex_result_id' => $lenexResultId]
+            : ['meet_id' => $meet->id, 'swim_event_id' => $swimEventId, 'club_id' => $club->id, 'relay_number' => $relayNumber];
+
+        $relayResult = RelayResult::updateOrCreate($identity, [
+            'swim_event_id' => $swimEventId,
+            'club_id' => $club->id,
+            'relay_number' => $relayNumber,
+            'name' => (string) ($relayXml['name'] ?? '') ?: null,
+            'gender' => $relayGender,
+            'relay_class' => is_numeric($handicap) && (int) $handicap > 0 ? 'S'.(int) $handicap : null,
+            'swim_time' => $swimTime,
+            'status' => $statusCode,
+            'place' => $lenexResultId !== null ? ($this->rankingIndex[$lenexResultId] ?? null) : null,
+            'heat' => (int) ($resultXml['heatid'] ?? 0) ?: null,
+            'lane' => (int) ($resultXml['lane'] ?? 0) ?: null,
+        ] + $this->sharedResultValues($resultXml));
+
+        $relayResult->members()->delete();
+        foreach ($members as $member) {
+            RelayResultMember::create(['relay_result_id' => $relayResult->id] + $member);
+        }
+
+        $this->replaceSplits($relayResult, $resultXml->SPLITS ?? null);
+
+        $this->stats['relay_results']++;
     }
 
     private function mapResultStatus(string $status): ?string
@@ -930,21 +1053,59 @@ class LenexParserService
         return (int) $trimmed;
     }
 
-    private function importSplits(Result $result, SimpleXMLElement $splitsXml): void
+    /** Ersetzt die Zwischenzeiten eines Einzel- oder Staffelergebnisses durch die aus SPLITS. */
+    private function replaceSplits(Result|RelayResult $result, ?SimpleXMLElement $splitsXml): void
     {
         $result->splits()->delete();
 
-        foreach ($splitsXml->SPLIT as $splitXml) {
+        foreach ($splitsXml->SPLIT ?? [] as $splitXml) {
             $splitTime = $this->parseTime((string) ($splitXml['swimtime'] ?? ''));
-            if (! $splitTime) {
-                continue;
+            if ($splitTime) {
+                $result->splits()->create([
+                    'distance' => (int) ($splitXml['distance'] ?? 0),
+                    'split_time' => $splitTime,
+                ]);
             }
-            ResultSplit::create([
-                'result_id' => $result->id,
-                'distance' => (int) ($splitXml['distance'] ?? 0),
-                'split_time' => $splitTime,
-            ]);
         }
+    }
+
+    /**
+     * Gemeinsamer Kopf von Einzel- und Staffelergebnis: Bewerb auflösen, Zeit, Status, LENEX-resultid.
+     * null, wenn der Bewerb nicht zuordenbar ist.
+     *
+     * @return array{swimEventId: int, swimTime: ?int, status: ?string, lenexResultId: ?string}|null
+     */
+    private function resultHeader(Meet $meet, SimpleXMLElement $resultXml, LenexResolverService $resolver): ?array
+    {
+        $swimEventId = $this->resolveSwimEventId($meet, (string) ($resultXml['eventid'] ?? ''), $resolver);
+        if (! $swimEventId) {
+            return null;
+        }
+
+        return [
+            'swimEventId' => $swimEventId,
+            'swimTime' => $this->parseTime((string) ($resultXml['swimtime'] ?? '')),
+            'status' => $this->mapResultStatus((string) ($resultXml['status'] ?? '')),
+            'lenexResultId' => (string) ($resultXml['resultid'] ?? '') ?: null,
+        ];
+    }
+
+    /**
+     * Felder, die Einzel- und Staffelergebnis gleich aus dem RESULT übernehmen: Punkte, Kommentar, Rekordkürzel.
+     *
+     * @return array<string, mixed>
+     */
+    private function sharedResultValues(SimpleXMLElement $resultXml): array
+    {
+        $recordType = strtoupper((string) ($resultXml['recordtype'] ?? ''));
+
+        return [
+            'points' => (int) ($resultXml['points'] ?? 0) ?: null,
+            'comment' => (string) ($resultXml['comment'] ?? '') ?: null,
+            'is_world_record' => str_contains($recordType, 'WR'),
+            'is_european_record' => str_contains($recordType, 'ER'),
+            'is_national_record' => str_contains($recordType, 'NR'),
+        ];
     }
 
     /**

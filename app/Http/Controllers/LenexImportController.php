@@ -322,7 +322,7 @@ class LenexImportController extends Controller
                 $q->orWhereRaw('? LIKE CONCAT(\'%\', name, \'%\')', [$name]);
             }
         })
-            ->orderBy('start_date', 'desc')
+            ->orderByDesc('start_date')
             ->limit(5)
             ->get();
     }
@@ -334,7 +334,8 @@ class LenexImportController extends Controller
             .$stats['meets'].' Wettkampf/Wettkämpfe, '
             .$stats['athletes'].' Athlet(en), '
             .$stats['entries'].' Meldungen, '
-            .$stats['results'].' Ergebnisse.';
+            .$stats['results'].' Ergebnisse, '
+            .($stats['relay_results'] ?? 0).' Staffelergebnisse.';
 
         return redirect()->route('meets.index')->with('success', $message);
     }

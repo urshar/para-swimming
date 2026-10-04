@@ -17,6 +17,7 @@ class SwimRecord extends Model
         'meet_nation_id',
         'athlete_id',
         'result_id',
+        'relay_result_id',
         'superseded_by_id',
         'supersedes_id',
         'record_type',
@@ -62,6 +63,12 @@ class SwimRecord extends Model
     public function athlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class);
+    }
+
+    /** Herkunft eines Staffelrekords (Gegenstück zu result()). */
+    public function relayResult(): BelongsTo
+    {
+        return $this->belongsTo(RelayResult::class);
     }
 
     public function result(): BelongsTo
@@ -194,6 +201,7 @@ class SwimRecord extends Model
                 default => 'is_regional_record',
             };
             $this->result?->update([$flag => true]);
+            $this->relayResult?->update([$flag => true]);
         });
     }
 

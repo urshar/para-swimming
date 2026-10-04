@@ -83,12 +83,21 @@ ein schnellerer Rekord anerkannt, wandert der bestätigte direkt in die Historie
 
 ### Staffelrekorde — `checkRelayResult`
 
-Mitglieder werden aus den `Entry`-Datensätzen desselben Events + Vereins ermittelt. Über `RelayClassValidator` werden
-die Sportklassen extrahiert und die Staffelklasse bestimmt (`resolveRelayClass`); ergibt sich **keine gültige**
-Klasse, entsteht kein Rekord. Zusätzlich müssen **alle Athleten die Nation AUT**
-haben (ein Nicht-AUT-Mitglied bricht ab). Bei Erfolg werden die Teammitglieder als `RelayTeamMember` (mit Position,
-Name, Geburtsdatum, optional `athlete_id`)
-gespeichert.
+Geprüft werden die Staffelergebnisse (`relay_results`, siehe [meet-results.md](meet-results.md)); die Mitglieder sind
+die eingesetzten Schwimmer des Ergebnisses (`relay_result_members`). Kein Rekord entsteht, wenn
+
+- nicht alle Positionen besetzt sind oder die Zusammensetzung nicht zur Wertung passt
+  (`RelayResult::hasRecordComposition()`: Herren nur Männer, Damen nur Frauen, Mixed gleich viele von beiden). Eine
+  **Herrenstaffel mit Damenbeteiligung** (3 + 1, 1 + 3) ist ein gültiges Ergebnis in der Herrenwertung, kann aber
+  **keinen ÖR, ÖJR oder Regionalrekord** aufstellen;
+- ein Schwimmer nicht zum Staffelverein gehört (z. B. AK-Staffel mit vereinsfremdem Schwimmer);
+- ein Athlet eine andere Nation als AUT hat;
+- sich über `RelayClassValidator` keine gültige Staffelklasse ergibt (`resolveRelayClass`).
+
+Das Rekord-Geschlecht ist die Wertung der Staffel (M, F, X). Bei Erfolg werden die Teammitglieder als
+`RelayTeamMember` (Position, Name, Geburtsdatum, optional `athlete_id`) gespeichert; der Rekord verweist über
+`swim_records.relay_result_id` auf das Staffelergebnis (Einzelrekorde über `result_id`), die Bestätigung eines
+ausstehenden Rekords setzt das Flag am Staffelergebnis.
 
 ## Historie & Ablösung
 

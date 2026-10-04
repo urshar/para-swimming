@@ -2,9 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\RecordSplit;
+use App\Models\RelayResult;
+use App\Models\RelayResultMember;
 use App\Models\RelayTeamMember;
 use App\Models\Result;
 use App\Models\SwimRecord;
@@ -33,9 +34,11 @@ use Throwable;
  * Außer Konkurrenz (Ergebnisstatus EXH, Einzel + Staffel): alle Rekordtypen werden geprüft, neue Rekorde aber
  * als PENDING angelegt — der Verband (Admin) bestätigt sie (SwimRecord::approve()).
  *
- * Staffelrekorde (via RelayClassValidator):
- *   Alle Athleten vom selben Verein, Sportklassen-Kombination muss
- *   S20 / S34 / S49 / S21 / S14 / S15 ergeben (sonst kein Rekord).
+ * Staffelrekorde (relay_results, via RelayClassValidator):
+ *   Alle Positionen besetzt, alle Athleten vom Staffelverein und AUT, Sportklassen-Kombination muss
+ *   S20 / S34 / S49 / S21 / S14 / S15 ergeben, und die Zusammensetzung muss zum Staffel-Geschlecht passen
+ *   (RelayResult::hasRecordComposition(): Herren nur Männer, Damen nur Frauen, Mixed 2 + 2). Eine Herrenstaffel mit
+ *   Damenbeteiligung bleibt ein gültiges Ergebnis, stellt aber keinen Rekord auf.
  *
  * Jugend: Einzeln Wettkampfjahr − Geburtsjahr ≤ 18 |
  *         Staffeln: alle Mitglieder mit Geburtsdatum ≤ 18
@@ -78,17 +81,31 @@ readonly class RecordCheckerService
             ->whereNotNull('swim_time')
             ->get();
 
+        $relayResults = $meet->relayResults()
+            ->with([
+                'club',
+                'swimEvent.strokeType',
+                'splits',
+                'members.athlete.nation',
+                'members.athlete.sportClasses',
+            ])
+            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
+            ->whereNotNull('swim_time')
+            ->get();
+
         $newRecords = [];
         $pendingRecords = [];
         $checked = 0;
 
         foreach ($results as $result) {
-            $isRelay = ($result->swimEvent?->relay_count ?? 1) > 1;
+            ['new' => $new, 'pending' => $pending] = $this->checkResult($result, $meet);
+            $newRecords = array_merge($newRecords, $new);
+            $pendingRecords = array_merge($pendingRecords, $pending);
+            $checked++;
+        }
 
-            ['new' => $new, 'pending' => $pending] = $isRelay
-                ? $this->checkRelayResult($result, $meet)
-                : $this->checkResult($result, $meet);
-
+        foreach ($relayResults as $relayResult) {
+            ['new' => $new, 'pending' => $pending] = $this->checkRelayResult($relayResult, $meet);
             $newRecords = array_merge($newRecords, $new);
             $pendingRecords = array_merge($pendingRecords, $pending);
             $checked++;
@@ -104,67 +121,66 @@ readonly class RecordCheckerService
     // ── Einzelrekord-Prüfung ──────────────────────────────────────────────────
 
     /**
-     * Prüft ein Staffel-Result auf neue Rekorde.
+     * Prüft ein Staffelergebnis auf neue Rekorde.
      *
      * @return array{new: array, pending: array}
      *
      * @throws Throwable
      */
-    public function checkRelayResult(Result $result, Meet $meet): array
+    public function checkRelayResult(RelayResult $relayResult, Meet $meet): array
     {
         $new = [];
         $pending = [];
 
-        $event = $result->swimEvent;
-        if (! $event || ! $result->swim_time || ! $result->club_id) {
+        $event = $relayResult->swimEvent;
+        $members = $relayResult->members;
+        if (! $event || ! $relayResult->swim_time || ! $relayResult->club_id || $members->isEmpty()) {
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Entries = Staffelmitglieder (selber Club + Event)
-        $entries = Entry::where('swim_event_id', $event->id)
-            ->where('club_id', $result->club_id)
-            ->with(['athlete.nation', 'athlete.club', 'athlete.sportClasses'])
-            ->get();
-
-        if ($entries->isEmpty()) {
+        // Herrenstaffel mit Damenbeteiligung, unvollständige Besetzung: gültiges Ergebnis, aber kein Rekord.
+        if (! $relayResult->hasRecordComposition()) {
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Staffelklasse validieren
-        $memberClasses = $this->relayValidator->extractMemberClasses($entries, $event);
+        // Alle Mitglieder vom Staffelverein und mit österreichischer (oder unbekannter) Nationalität.
+        foreach ($members as $member) {
+            $athlete = $member->athlete;
+            if (! $athlete || $athlete->club_id !== $relayResult->club_id) {
+                return ['new' => $new, 'pending' => $pending];
+            }
+            $code = $athlete->nation?->code;
+            if ($code !== null && $code !== 'AUT') {
+                return ['new' => $new, 'pending' => $pending];
+            }
+        }
+
+        // Staffelklasse aus den Mitgliedern validieren
+        $memberClasses = $this->relayValidator->extractMemberClasses($members, $event);
         $resolvedClass = $this->relayValidator->resolveRelayClass($memberClasses);
 
         if ($resolvedClass === null) {
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Nationalitätsprüfung: alle Athleten müssen AUT sein
-        foreach ($entries as $entry) {
-            $code = $entry->athlete?->nation?->code;
-            if ($code !== null && $code !== 'AUT') {
-                return ['new' => $new, 'pending' => $pending];
-            }
+        if ($relayResult->relay_class !== $resolvedClass) {
+            $relayResult->update(['relay_class' => $resolvedClass]);
         }
 
         $strokeTypeId = $event->stroke_type_id;
         $course = $meet->course;
         $distance = $event->distance;
         $relayCount = $event->relay_count;
-        $gender = $event->gender === 'F' ? 'F' : 'M';
+        $gender = $relayResult->gender;
         $meetYear = (int) $meet->start_date->format('Y');
-        $isJunior = $this->relayValidator->isJuniorRelay($entries, $meetYear);
-
-        // sport_class im Result auf validierte Klasse setzen
-        if ($result->sport_class !== $resolvedClass) {
-            $result->update(['sport_class' => $resolvedClass]);
-        }
+        $isJunior = $this->relayValidator->isJuniorRelay($members, $meetYear);
 
         // Außer Konkurrenz (EXH): alle Rekordtypen prüfen, neue Rekorde aber nur als ausstehend anlegen.
-        $isPending = $result->status === 'EXH';
+        $isPending = $relayResult->status === 'EXH';
         $recordStatus = $isPending ? 'PENDING' : 'APPROVED';
-        $relayName = $result->club?->display_name ?? '–';
+        $relayName = $relayResult->display_name;
 
-        $regionalBase = $result->club?->regional_record_type;
+        $regionalBase = $relayResult->club?->regional_record_type;
         $types = array_filter([
             'AUT' => true,
             'AUT.JR' => $isJunior,
@@ -177,19 +193,19 @@ readonly class RecordCheckerService
         foreach (array_keys($types) as $type) {
             [$isRecord, $newRecord] = $this->checkRecordType(
                 $type, $strokeTypeId, $resolvedClass, $gender,
-                $course, $distance, $relayCount, $result, null, $recordStatus
+                $course, $distance, $relayCount, $relayResult, null, $recordStatus
             );
             $broken[$type] = $isRecord;
 
             if ($newRecord) {
-                $this->saveRelayMembers($newRecord, $entries);
+                $this->saveRelayMembers($newRecord, $members);
                 $this->collect($new, $pending, $newRecord, $type, $isPending, $relayName, self::PENDING_EXHIBITION);
             }
         }
 
-        // Result-Flags nur für anerkannte Rekorde — ausstehende werden erst mit der Bestätigung zum Rekord.
+        // Rekord-Flags nur für anerkannte Rekorde — ausstehende werden erst mit der Bestätigung zum Rekord.
         if (! $isPending) {
-            $this->updateResultFlags($result, $broken, $regionalBase);
+            $this->updateResultFlags($relayResult, $broken, $regionalBase);
         }
 
         return ['new' => $new, 'pending' => $pending];
@@ -284,13 +300,14 @@ readonly class RecordCheckerService
         string $course,
         int $distance,
         int $relayCount,
-        Result $result,
+        Result|RelayResult $result,
         ?int $nationId,
         string $recordStatus = 'APPROVED',
         ?int $athleteId = null,
     ): array {
         // Erneuter Rekord-Check derselben Veranstaltung: aus diesem Ergebnis gibt es den Rekord schon.
-        if (SwimRecord::where('result_id', $result->id)->where('record_type', $recordType)->exists()) {
+        $sourceColumn = $result instanceof RelayResult ? 'relay_result_id' : 'result_id';
+        if (SwimRecord::where($sourceColumn, $result->id)->where('record_type', $recordType)->exists()) {
             return [false, null];
         }
 
@@ -330,7 +347,8 @@ readonly class RecordCheckerService
                     'meet_nation_id' => $result->meet?->nation_id,
                     'athlete_id' => $athleteId,
                     'club_id' => $result->club_id,
-                    'result_id' => $result->id,
+                    'result_id' => $result instanceof Result ? $result->id : null,
+                    'relay_result_id' => $result instanceof RelayResult ? $result->id : null,
                     'supersedes_id' => $current?->id,
                     'record_type' => $recordType,
                     'sport_class' => $sportClass,
@@ -391,20 +409,21 @@ readonly class RecordCheckerService
     }
 
     /**
-     * Speichert Staffelmitglieder (aus Entries) für einen neuen SwimRecord.
+     * Speichert die Staffelmitglieder eines Staffelergebnisses für einen neuen SwimRecord.
+     *
+     * @param  Collection<int, RelayResultMember>  $members
      */
-    private function saveRelayMembers(SwimRecord $record, Collection $entries): void
+    private function saveRelayMembers(SwimRecord $record, Collection $members): void
     {
-        $position = 1;
-        foreach ($entries as $entry) {
-            $athlete = $entry->athlete;
+        foreach ($members as $member) {
+            $athlete = $member->athlete;
             RelayTeamMember::create([
                 'swim_record_id' => $record->id,
-                'position' => $position++,
-                'first_name' => $athlete?->first_name ?? '',
-                'last_name' => $athlete?->last_name ?? '',
+                'position' => $member->position,
+                'first_name' => $athlete?->first_name ?? $member->first_name ?? '',
+                'last_name' => $athlete?->last_name ?? $member->last_name ?? '',
                 'birth_date' => $athlete?->birth_date,
-                'gender' => $athlete?->gender,
+                'gender' => $member->memberGender(),
                 'athlete_id' => $athlete?->id,
             ]);
         }
@@ -416,7 +435,7 @@ readonly class RecordCheckerService
      *
      * @param  array<string, bool>  $broken
      */
-    private function updateResultFlags(Result $result, array $broken, ?string $regionalBase): void
+    private function updateResultFlags(Result|RelayResult $result, array $broken, ?string $regionalBase): void
     {
         $flags = [
             'is_national_record' => $broken['AUT'] ?? false,

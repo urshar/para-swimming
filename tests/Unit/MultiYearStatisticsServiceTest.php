@@ -6,6 +6,8 @@ use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\RelayResult;
+use App\Models\RelayResultMember;
 use App\Models\Result;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
@@ -95,18 +97,21 @@ function multiYear_individualStart(int $year, string $gender): Result
 }
 
 /** Eine Staffel-Ergebniszeile (ein Schwimmer) im Jahr $year mit Event-Geschlecht $eventGender. */
-function multiYear_relayStart(int $year, string $eventGender): Result
+/** Ein Staffelergebnis mit einem eingesetzten Schwimmer (= ein Staffelstart) und Mannschaftsgeschlecht. */
+function multiYear_relayStart(int $year, string $relayGender): RelayResult
 {
     $meet = multiYear_meet($year);
 
-    return Result::create([
+    $relay = RelayResult::create([
         'meet_id' => $meet->id,
-        'swim_event_id' => multiYear_event($meet, 4, $eventGender)->id,
-        'athlete_id' => multiYear_athlete()->id,
+        'swim_event_id' => multiYear_event($meet, 4, 'A')->id,
         'club_id' => multiYear_club()->id,
-        'sport_class' => 'S9',
+        'gender' => $relayGender,
         'swim_time' => 24000,
     ]);
+    RelayResultMember::create(['relay_result_id' => $relay->id, 'position' => 1, 'athlete_id' => multiYear_athlete()->id]);
+
+    return $relay;
 }
 
 /** Zeile eines bestimmten Jahres aus der Zeitreihe. */

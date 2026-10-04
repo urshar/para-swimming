@@ -179,6 +179,11 @@ class Meet extends Model
         return $this->hasMany(Result::class);
     }
 
+    public function relayResults(): HasMany
+    {
+        return $this->hasMany(RelayResult::class);
+    }
+
     /** Dokumente dieser Veranstaltung (Ausschreibung, Meldeliste, ...) — Spec public-frontend §4.1. */
     public function documents(): MorphMany
     {
@@ -246,13 +251,17 @@ class Meet extends Model
     }
 
     /**
-     * IDs der Vereine mit mindestens einem Ergebnis.
+     * IDs der Vereine mit mindestens einem Einzel- oder Staffelergebnis.
      *
      * @return SupportCollection<int, int>
      */
     public function resultClubIds(): SupportCollection
     {
-        return $this->results()->pluck('club_id')->filter()->unique()->values();
+        return $this->results()->pluck('club_id')
+            ->merge($this->relayResults()->pluck('club_id'))
+            ->filter()
+            ->unique()
+            ->values();
     }
 
     /**
