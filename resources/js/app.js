@@ -14,6 +14,7 @@ import qualifyingTimesShowFilter from './qualifying-times-show-filter';
 import recordImportPreview from './record-import-preview';
 import relayEntryForm from './relay-entry-form';
 import relayResultForm from './relay-result-form';
+import scoringGroupsEditor from './scoring-groups-editor';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
 import wpsLivewireFilters from './wps-livewire-filters';
@@ -44,6 +45,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('recordImportPreview', recordImportPreview);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('relayResultForm', relayResultForm);
+    window.Alpine.data('scoringGroupsEditor', scoringGroupsEditor);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);
     window.Alpine.data('wpsLivewireFilters', wpsLivewireFilters);

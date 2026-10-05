@@ -10,6 +10,7 @@ use App\Models\RelayResult;
 use App\Models\RelayResultMember;
 use App\Models\SwimEvent;
 use App\Services\RelayClassValidator;
+use App\Services\ScoringGroupService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,7 @@ class RelayResultController extends Controller
 {
     public function __construct(
         private readonly RelayClassValidator $relayValidator,
+        private readonly ScoringGroupService $scoring,
     ) {}
 
     public function create(Request $request, Meet $meet): View
@@ -53,6 +55,7 @@ class RelayResultController extends Controller
             $relayResult = RelayResult::create($data['result'] + ['meet_id' => $meet->id]);
             $this->storeMembers($relayResult, $data['members']);
         });
+        $this->scoring->syncPlaces(SwimEvent::findOrFail($data['result']['swim_event_id']));
 
         if ($request->boolean('save_next')) {
             return redirect()
@@ -77,11 +80,19 @@ class RelayResultController extends Controller
     {
         $data = $this->validated($request, $relayResult->meet);
 
+        $previousEvent = $relayResult->swimEvent;
+
         DB::transaction(function () use ($relayResult, $data) {
             $relayResult->update($data['result']);
             $relayResult->members()->delete();
             $this->storeMembers($relayResult, $data['members']);
         });
+
+        $event = SwimEvent::findOrFail($data['result']['swim_event_id']);
+        $this->scoring->syncPlaces($event);
+        if ($previousEvent && $previousEvent->id !== $event->id) {
+            $this->scoring->syncPlaces($previousEvent);
+        }
 
         return redirect()
             ->to(ListUrl::to('results'))
@@ -90,7 +101,9 @@ class RelayResultController extends Controller
 
     public function destroy(RelayResult $relayResult): RedirectResponse
     {
+        $event = $relayResult->swimEvent;
         $relayResult->delete(); // cascadeOnDelete löscht Mitglieder und Zwischenzeiten
+        $this->scoring->syncPlaces($event);
 
         return redirect()
             ->to(ListUrl::to('results'))
@@ -138,6 +151,7 @@ class RelayResultController extends Controller
             'maxPositions' => $maxPositions,
             'presetEventId' => $presetEventId,
             'cancelUrl' => $relayResult ? ListUrl::to('results') : MeetResultsOverviewController::backUrl($meet),
+            'placements' => $relayResult ? $this->scoring->placementsOf($relayResult) : [],
         ]);
     }
 
@@ -157,7 +171,6 @@ class RelayResultController extends Controller
             'relay_class' => 'nullable|string|max:10',
             'swim_time' => 'nullable|string|max:20',
             'status' => 'nullable|in:EXH,DSQ,DNS,DNF,SICK,WDR',
-            'place' => 'nullable|integer|min:1',
             'points' => 'nullable|integer|min:0',
             'comment' => 'nullable|string|max:255',
             'members' => 'nullable|array',
@@ -205,7 +218,6 @@ class RelayResultController extends Controller
                 'relay_class' => $relayClass,
                 'swim_time' => $swimTime === '' ? null : TimeParser::parse($swimTime),
                 'status' => $validated['status'] ?? null,
-                'place' => $validated['place'] ?? null,
                 'points' => $validated['points'] ?? null,
                 'comment' => $validated['comment'] ?? null,
             ],

@@ -13,6 +13,7 @@ use App\Models\ResultSplit;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
 use App\Services\ResultPointsService;
+use App\Services\ScoringGroupService;
 use App\Services\WorldAquaticsPointsService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
@@ -31,6 +32,7 @@ class ResultController extends Controller
         private readonly WorldAquaticsPointsService $pointsService,
         private readonly ClubEntryService $entryService,
         private readonly ResultPointsService $resultPoints,
+        private readonly ScoringGroupService $scoring,
     ) {}
 
     public function index(Request $request): View
@@ -153,6 +155,7 @@ class ResultController extends Controller
 
             return $this->resultPoints->calculate($result, ($data['result']['points'] ?? null) !== null);
         });
+        $this->scoring->syncPlaces($swimEvent);
 
         $message = self::withNotes('Ergebnis gespeichert.', $notes);
 
@@ -184,6 +187,7 @@ class ResultController extends Controller
             'swimEvents' => $swimEvents,
             'athletes' => collect(),
             'clubs' => collect(),
+            'placements' => $this->scoring->placementsOf($result),
         ]);
     }
 
@@ -202,6 +206,8 @@ class ResultController extends Controller
         $points = $data['result']['points'] ?? null;
         $manualPoints = $points !== null && ($result->points === null || (int) $points !== (int) $result->points);
 
+        $previousEvent = $result->swimEvent;
+
         $notes = DB::transaction(function () use ($result, $data, $manualPoints) {
             $result->update($data['result']);
 
@@ -212,6 +218,12 @@ class ResultController extends Controller
             return $this->resultPoints->calculate($result, $manualPoints);
         });
 
+        // Plätze im (ggf. alten und neuen) Bewerb neu setzen.
+        $this->scoring->syncPlaces($swimEvent);
+        if ($previousEvent && $previousEvent->id !== $swimEvent->id) {
+            $this->scoring->syncPlaces($previousEvent);
+        }
+
         // Bearbeiten/Löschen erreicht man über eine Ergebnisliste (global oder die Sammelansicht der
         // Veranstaltung) bzw. deren Detailansicht — dorthin zurück, inkl. der dort gesetzten Filter.
         return redirect()
@@ -221,7 +233,9 @@ class ResultController extends Controller
 
     public function destroy(Result $result): RedirectResponse
     {
+        $event = $result->swimEvent;
         $result->delete(); // cascadeOnDelete löscht auch splits
+        $this->scoring->syncPlaces($event);
 
         return redirect()
             ->to(ListUrl::to('results'))
@@ -277,7 +291,6 @@ class ResultController extends Controller
             'points' => 'nullable|integer|min:0',
             'heat' => 'nullable|integer|min:1',
             'lane' => 'nullable|integer|min:0',
-            'place' => 'nullable|integer|min:1',
             // Kommt als Sekunden mit Komma aus dem Formular (z.B. "0,14", Fehlstart negativ
             // möglich, z.B. "-0,03") — unten über parseReactionTime() in Hundertstelsekunden
             // umgerechnet, wie es die Spalte speichert.

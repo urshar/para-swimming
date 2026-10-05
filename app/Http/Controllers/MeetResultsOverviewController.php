@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Concerns\SearchesAthletes;
 use App\Models\Meet;
 use App\Models\PointSystem;
 use App\Models\RelayResult;
@@ -12,7 +11,6 @@ use App\Services\MeetResultListService;
 use App\Services\PdfExportService;
 use App\Support\ListUrl;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,8 +18,8 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * MeetResultsOverviewController
  *
- * Meet-weite Sammelansicht aller Einzelergebnisse einer Veranstaltung, nach Disziplin
- * gruppiert und je Disziplin nach Platz bzw. Zeit sortiert. Gegenstück zur
+ * Meet-weite Sammelansicht aller Einzel- und Staffelergebnisse einer Veranstaltung, je Bewerb nach
+ * Wertungsgruppen gegliedert (ScoringGroupService, Platz je Gruppe). Gegenstück zur
  * "Alle Meldungen"-Übersicht (MeetEntriesOverviewController), aber für Ergebnisse.
  *
  * Anlegen, Bearbeiten und Einzel-Löschen laufen über den ResultController. Die Route merkt
@@ -32,9 +30,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class MeetResultsOverviewController extends Controller
 {
-    use SearchesAthletes;
-
-    public function index(Request $request, Meet $meet): View
+    public function index(Request $request, Meet $meet, MeetResultListService $lists): View
     {
         $events = $meet->swimEvents()
             ->with('strokeType')
@@ -54,55 +50,30 @@ class MeetResultsOverviewController extends Controller
             $clubFilter = null;
         }
 
-        $search = trim((string) $request->query('search', ''));
+        $search = mb_strtolower(trim((string) $request->query('search', '')));
 
-        $query = Result::query()
-            ->where('meet_id', $meet->id)
-            ->with(['athlete', 'club'])
-            ->when($eventFilter, fn (Builder $q) => $q->where('swim_event_id', $eventFilter))
-            ->when($clubFilter, fn (Builder $q) => $q->where('club_id', $clubFilter));
-        if ($search !== '') {
-            $this->applyAthleteSearch($query, $search);
+        // Wertung je Bewerb und Wertungsgruppe über alle Ergebnisse (Plätze gelten in der ganzen Gruppe); Verein und
+        // Athletensuche blenden danach nur Zeilen aus.
+        $blocks = [];
+        foreach ($lists->byEvent($meet, $eventFilter) as $block) {
+            $groups = [];
+            $visible = [];
+            foreach ($block['groups'] as $group) {
+                $rows = array_values(array_filter(
+                    $group['rows'],
+                    fn (array $row): bool => self::rowMatches($row['result'], $clubFilter, $search),
+                ));
+                if ($rows !== []) {
+                    $groups[] = ['group' => $group['group'], 'label' => $group['label'], 'missingPoints' => $group['missingPoints'], 'rows' => $rows];
+                    foreach ($rows as $row) {
+                        $visible[$row['result']->id] = true;
+                    }
+                }
+            }
+            if ($groups !== []) {
+                $blocks[$block['event']->id] = ['groups' => $groups, 'count' => count($visible)];
+            }
         }
-
-        // Platzierte zuerst nach Platz, dann ohne Platz nach Zeit, ohne Zeit (DNS/DSQ ...) ans Ende.
-        // Zusammengesetzter sprintf()-Schlüssel statt sortBy() mit Closure-Array (CLAUDE.md).
-        $resultsByEvent = $query->get()
-            ->sortBy(fn (Result $r): string => sprintf(
-                '%d|%06d|%d|%010d|%s',
-                $r->place ? 0 : 1,
-                $r->place ?? 0,
-                $r->swim_time ? 0 : 1,
-                $r->swim_time ?? 0,
-                $r->athlete?->last_name ?? '',
-            ))
-            ->groupBy('swim_event_id');
-
-        // Staffelergebnisse: Vereinsfilter auf den Staffelverein, Athletensuche auf die eingesetzten Schwimmer.
-        $relayResultsByEvent = RelayResult::query()
-            ->where('meet_id', $meet->id)
-            ->with(['club', 'members.athlete'])
-            ->when($eventFilter, fn (Builder $q) => $q->where('swim_event_id', $eventFilter))
-            ->when($clubFilter, fn (Builder $q) => $q->where('club_id', $clubFilter))
-            ->when($search !== '', fn (Builder $q) => $q->whereHas('members', fn (Builder $m) => $m
-                ->where(fn (Builder $w) => $w
-                    ->where('last_name', 'like', '%'.$search.'%')
-                    ->orWhere('first_name', 'like', '%'.$search.'%')
-                    ->orWhereHas('athlete', fn (Builder $a) => $a
-                        ->where('last_name', 'like', '%'.$search.'%')
-                        ->orWhere('first_name', 'like', '%'.$search.'%')))))
-            ->get()
-            // Plätze gelten je Wertung (Herren, Damen, Mixed): zuerst nach Wertung, dann wie bei Einzelergebnissen.
-            ->sortBy(fn (RelayResult $r): string => sprintf(
-                '%d|%d|%06d|%d|%010d|%s',
-                ['M' => 0, 'F' => 1, 'X' => 2][$r->gender] ?? 3,
-                $r->place ? 0 : 1,
-                $r->place ?? 0,
-                $r->swim_time ? 0 : 1,
-                $r->swim_time ?? 0,
-                $r->display_name,
-            ))
-            ->groupBy('swim_event_id');
 
         // Ungefilterte Anzahl je Disziplin: "Alle löschen" löscht auch die per Verein/Name ausgeblendeten
         // Ergebnisse, die Rückfrage nennt deshalb diese Zahl statt der sichtbaren.
@@ -126,13 +97,12 @@ class MeetResultsOverviewController extends Controller
             'events' => $events,
             'hasRelayEvents' => $events->contains(fn (SwimEvent $event): bool => $event->relay_count > 1),
             'clubs' => $clubs,
-            'resultsByEvent' => $resultsByEvent,
-            'relayResultsByEvent' => $relayResultsByEvent,
+            'blocks' => $blocks,
             'eventTotals' => $eventTotals,
             'filterConfig' => [
                 'event_id' => $eventFilter !== null ? (string) $eventFilter : '',
                 'club_id' => $clubFilter !== null ? (string) $clubFilter : '',
-                'search' => $search,
+                'search' => trim((string) $request->query('search', '')),
             ],
             'isFiltered' => $eventFilter !== null || $clubFilter !== null || $search !== '',
             'total' => $meet->results()->count() + $meet->relayResults()->count(),
@@ -140,7 +110,7 @@ class MeetResultsOverviewController extends Controller
     }
 
     /**
-     * Ergebnisliste als PDF: je Disziplin nach Wertungsgruppe (vorläufig Sportklasse) mit Platzierung.
+     * Ergebnisliste als PDF: je Bewerb nach Wertungsgruppe mit Platzierung.
      * Ein Disziplin-Filter der Sammelansicht (event_id) wird übernommen.
      */
     public function pdf(Request $request, Meet $meet, MeetResultListService $lists, PdfExportService $pdf): Response
@@ -189,6 +159,23 @@ class MeetResultsOverviewController extends Controller
         return $remembered === $overview || str_starts_with($remembered, $overview.'?')
             ? $remembered
             : $overview;
+    }
+
+    /** Ob eine Ergebniszeile zu Vereinsfilter und Athletensuche passt (Staffel: Verein der Staffel, Suche über die Schwimmer). */
+    private static function rowMatches(Result|RelayResult $result, ?int $clubFilter, string $search): bool
+    {
+        if ($clubFilter !== null && $result->club_id !== $clubFilter) {
+            return false;
+        }
+        if ($search === '') {
+            return true;
+        }
+
+        $names = $result instanceof RelayResult
+            ? $result->members->map(fn ($m) => ($m->athlete?->first_name ?? $m->first_name).' '.($m->athlete?->last_name ?? $m->last_name))->all()
+            : [$result->athlete?->first_name.' '.$result->athlete?->last_name];
+
+        return collect($names)->contains(fn (?string $name): bool => str_contains(mb_strtolower((string) $name), $search));
     }
 
     /**

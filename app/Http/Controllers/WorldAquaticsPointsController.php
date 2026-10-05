@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BaseTimeVersion;
 use App\Models\Meet;
+use App\Services\ScoringGroupService;
 use App\Services\WorldAquaticsPointsService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +16,7 @@ class WorldAquaticsPointsController extends Controller
 
     public function __construct(
         private readonly WorldAquaticsPointsService $pointsService,
+        private readonly ScoringGroupService $scoring,
     ) {}
 
     /**
@@ -36,6 +38,11 @@ class WorldAquaticsPointsController extends Controller
             : null;
 
         $summary = $this->pointsService->recalculateForMeet($meet, $version);
+
+        // Mit Wertungsgruppen wird nach Punkten platziert: Plätze aller Bewerbe neu setzen.
+        foreach ($meet->swimEvents()->with('scoringGroups')->get() as $event) {
+            $this->scoring->syncPlaces($event);
+        }
 
         $message = "{$summary['updated']} Punktzahl(en) aktualisiert".
             ($version ? " (Basiswert-Version: $version->label)" : ' (automatisch ermittelte Basiswert-Version)').'.';

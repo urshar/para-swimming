@@ -38,6 +38,7 @@ erDiagram
     MEET ||--o{ RELAY_ENTRY: "Staffelmeldungen"
     RELAY_ENTRY ||--o{ RELAY_ENTRY_MEMBER: "Mitglieder"
     SWIM_EVENT ||--o{ RELAY_RESULT: "Staffelergebnisse"
+    SWIM_EVENT ||--o{ SCORING_GROUP: "Wertungsgruppen"
     RELAY_RESULT ||--o{ RELAY_RESULT_MEMBER: "Schwimmer"
     RELAY_RESULT ||--o| SWIM_RECORD: "kann Rekord sein"
     STROKE_TYPE ||--o{ SWIM_EVENT: "Disziplin"
@@ -129,6 +130,10 @@ einem **SwimRecord** referenziert werden.
 **RelayEntryMember**
 (`athlete_id`, `sport_class`), unique je
 `(relay_entry_id, athlete_id)`.
+
+**ScoringGroup** (Wertungsgruppe, LENEX AGEGROUP) — `swim_event_id`, `name`, `gender` (M/F/X/A), `sport_classes`
+(Nummern, kommagetrennt, leer = alle), `age_min`/`age_max`, `title` (OSTM/OM), `sort_order`, `lenex_agegroup_id`.
+Zuordnung der Ergebnisse wird berechnet; Details: [specs/scoring-groups.md](specs/scoring-groups.md).
 
 **RelayResult** (Staffelergebnis) — `meet_id`, `swim_event_id`, `club_id`, `relay_number` (LENEX Mannschaftsnummer),
 `name`, `gender` (Wertung der Mannschaft: M/F/X, nicht das Bewerbsgeschlecht), `relay_class` (S14, S20, S34, S49 ...),

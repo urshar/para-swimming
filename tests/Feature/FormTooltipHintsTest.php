@@ -17,6 +17,16 @@ function admin_fth(): User
     ]);
 }
 
+/** Rendert die x-hint-Komponente (Throwable → RuntimeException). */
+function renderHint_fth(string $content): string
+{
+    try {
+        return view('components.hint', ['content' => $content])->render();
+    } catch (Throwable $e) {
+        throw new RuntimeException('Rendern fehlgeschlagen: '.$e->getMessage(), previous: $e);
+    }
+}
+
 it('zeigt die Disziplin-Hinweise als fokussierbaren Info-Tooltip statt permanentem Text', function () {
     $meet = makeMeet_p5();
 
@@ -28,13 +38,13 @@ it('zeigt die Disziplin-Hinweise als fokussierbaren Info-Tooltip statt permanent
     // Info-Icon-Tooltip mit Hinweistext im aria-label (barrierefrei), fokussierbar.
     expect($html)
         ->toContain('aria-label="Hinweis: 1 = Einzel"')
-        ->toContain('aria-label="Hinweis: Leerzeichen-getrennt"')
+        ->toContain('aria-label="Hinweis: Leerzeichen-getrennt. Mit Wertungsgruppen')
         ->toContain('tabindex="0"')
         ->toContain('data-flux-tooltip');
 });
 
 it('rendert die x-hint-Komponente als Flux-Tooltip', function () {
-    $html = view('components.hint', ['content' => 'MM:SS.hh — Testformat'])->render();
+    $html = renderHint_fth('MM:SS.hh — Testformat');
 
     expect($html)
         ->toContain('aria-label="Hinweis: MM:SS.hh — Testformat"')

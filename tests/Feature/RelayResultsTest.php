@@ -265,7 +265,7 @@ it('zeigt Staffelergebnisse in der Sammelansicht und gliedert die Ergebnisliste 
 
     $groups = app(MeetResultListService::class)->byEvent($meet, null)->first()['groups'];
 
-    expect(array_column($groups, 'label'))->toBe(['Herren S14', 'Mixed S14'])
+    expect(array_column($groups, 'label'))->toBe(['Herren – S14', 'Mixed – S14'])
         ->and($groups[0]['rows'][0]['result']->id)->toBe($schneller->id)
         ->and($groups[0]['rows'][0]['place'])->toBe(1);
 });

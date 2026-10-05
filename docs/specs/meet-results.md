@@ -15,7 +15,8 @@ auf `meets/show`.
 
 ## Liste
 
-- Gruppiert nach Disziplin (Abschnitt, dann Bewerbsnummer). Innerhalb einer Disziplin: platzierte Ergebnisse nach
+- Gruppiert nach Disziplin (Abschnitt, dann Bewerbsnummer), darin nach Wertungsgruppen mit Platz je Gruppe
+  ([scoring-groups.md](scoring-groups.md)); Vereins- und Athletenfilter blenden nur Zeilen aus. Früher: platzierte Ergebnisse nach
   Platz, dann unplatzierte nach Zeit, Ergebnisse ohne Zeit (DNS, DSQ ...) am Ende.
 - Spalten: Platz, Athlet, Verein, Klasse, Zeit, Punkte (+ WPS), Rekord-Kennzeichen, Status (AK als violettes Badge),
   Herkunft ("LENEX" bei `lenex_result_id`, sonst "manuell"), Aktionen Ansehen/Bearbeiten/Löschen.
@@ -61,12 +62,10 @@ zurück, wo man herkam, inklusive Filter.
 Button "Ergebnisliste (PDF)" in der Sammelansicht (Route `meets.results-overview.pdf`, View
 `pdf/result-list.blade.php`, Aufbereitung `MeetResultListService`). Ein gesetzter Disziplin-Filter wird übernommen.
 
-- Je Disziplin, darin je **Wertungsgruppe** mit eigener Platzierung. Vorläufig ist die Wertungsgruppe die Sportklasse
-  des Ergebnisses (S vor SB vor SM, numerisch; ohne Klasse am Ende). Die echten Wertungsgruppen sind noch nicht
-  abgebildet (Open Point "Meetstruktur / Wertungsgruppen"); dann ändert sich nur
-  `MeetResultListService::groupKey()`/`groupLabel()`.
-- Platz wird aus der Zeit berechnet (gleiche Zeit = gleicher Platz), nicht aus `results.place`. Gewertet werden
-  Ergebnisse ohne Status mit Zeit; AK (EXH) folgt mit Zeit ohne Platz, danach DSQ, DNF, DNS usw.
+- Je Bewerb, darin je **Wertungsgruppe** mit eigener Platzierung (siehe [scoring-groups.md](scoring-groups.md); ohne
+  Gruppen je Geschlecht und Sportklasse).
+- Platz wird berechnet, nicht aus `results.place` übernommen: mit Wertungsgruppen nach Punkten, ohne nach der Zeit
+  (siehe [scoring-groups.md](scoring-groups.md)). AK (EXH) folgt ohne Platz, danach DSQ, DNF, DNS usw.
 - Spalten: Platz, Name, Jahrgang, Verein, Sportklasse, Zeit, Punkte, WPS, Status/Rekordkürzel, mit Spaltenköpfen und
   Fußnote zu den Punkten.
 
@@ -97,8 +96,9 @@ Eigene Tabellen `relay_results`, `relay_result_members`, `relay_result_splits` (
   - **Staffelklasse** leer = aus den S-Klassen der Schwimmer (`RelayClassValidator`), nur bei voller Besetzung.
   - "Speichern und nächstes" wie bei Einzelergebnissen. Zwischenzeiten werden manuell (noch) nicht erfasst; importierte
     bleiben beim Bearbeiten erhalten.
-- **Ergebnisliste (PDF):** je Staffelbewerb nach Wertung und Staffelklasse ("Herren S14", "Mixed S49"), Platz aus der
-  Zeit wie bei Einzelergebnissen, darunter die Schwimmer mit Jahrgang.
+- **Ergebnisliste (PDF) und Sammelansicht:** je Staffelbewerb nach Wertungsgruppen (ohne Gruppen je Wertung und
+  Staffelklasse, "Herren – S14"), Platz aus der Zeit wie bei Einzelergebnissen, im PDF darunter die Schwimmer mit
+  Jahrgang.
 - **Rekorde:** siehe [records.md](records.md) "Staffelrekorde"; Herrenstaffeln mit Damenbeteiligung und Staffeln mit
   vereinsfremden Schwimmern stellen keinen Rekord auf.
 - **Noch nicht (Phase 2):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX, WA-Punkte

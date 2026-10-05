@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Meet;
+use App\Models\ScoringGroup;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
+use App\Services\ScoringGroupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class SwimEventController extends Controller
 {
+    public function __construct(
+        private readonly ScoringGroupService $scoring,
+    ) {}
+
     public function create(Meet $meet): View
     {
         $strokeTypes = StrokeType::active()
@@ -29,8 +35,10 @@ class SwimEventController extends Controller
     {
         $data = $this->validateSwimEvent($request);
         $data['meet_id'] = $meet->id;
+        $groups = $this->validateScoringGroups($request);
 
-        SwimEvent::create($data);
+        $event = SwimEvent::create($data);
+        $this->saveScoringGroups($event, $groups);
 
         return redirect()
             ->route('meets.show', $meet)
@@ -54,11 +62,45 @@ class SwimEventController extends Controller
     public function update(Request $request, SwimEvent $event): RedirectResponse
     {
         $data = $this->validateSwimEvent($request);
+        $groups = $this->validateScoringGroups($request);
+
         $event->update($data);
+        $this->saveScoringGroups($event, $groups);
 
         return redirect()
             ->route('meets.show', $event->meet)
             ->with('success', 'Disziplin aktualisiert.');
+    }
+
+    /**
+     * Übernimmt die Wertungsgruppen dieses Bewerbs auf alle anderen Bewerbe der Veranstaltung derselben Art (Einzel
+     * bzw. Staffel) und derselben Klassenkategorie (S: Freistil/Rücken/Delfin, SB: Brust, SM: Lagen). Deren bisherige
+     * Gruppen werden ersetzt.
+     */
+    public function copyScoringGroups(SwimEvent $event): RedirectResponse
+    {
+        $event->load(['scoringGroups', 'strokeType']);
+        $category = self::classCategory($event);
+
+        $targets = SwimEvent::where('meet_id', $event->meet_id)
+            ->whereKeyNot($event->id)
+            ->with('strokeType')
+            ->get()
+            ->filter(fn (SwimEvent $other): bool => ($other->relay_count > 1) === ($event->relay_count > 1)
+                && self::classCategory($other) === $category);
+
+        foreach ($targets as $target) {
+            $target->scoringGroups()->delete();
+            foreach ($event->scoringGroups as $group) {
+                $target->scoringGroups()->create($group->only(['name', 'gender', 'sport_classes', 'age_min', 'age_max', 'title', 'sort_order']));
+            }
+            $target->syncSportClassesFromGroups();
+            $this->scoring->syncPlaces($target);
+        }
+
+        return redirect()
+            ->route('events.edit', $event)
+            ->with('success', 'Wertungsgruppen auf '.$targets->count().' '.($targets->count() === 1 ? 'Bewerb' : 'Bewerbe').' übernommen.');
     }
 
     public function destroy(SwimEvent $event): RedirectResponse
@@ -79,6 +121,61 @@ class SwimEventController extends Controller
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Wertungsgruppen aus dem Formular (vor dem Speichern des Bewerbs geprüft).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function validateScoringGroups(Request $request): array
+    {
+        return array_values($request->validate([
+            'scoring_groups' => 'nullable|array',
+            'scoring_groups.*.name' => 'required|string|max:100',
+            'scoring_groups.*.gender' => 'required|in:M,F,X,A',
+            'scoring_groups.*.sport_classes' => 'nullable|string|max:100',
+            'scoring_groups.*.age_min' => 'nullable|integer|min:0|max:99',
+            'scoring_groups.*.age_max' => 'nullable|integer|min:0|max:99',
+            'scoring_groups.*.title' => 'nullable|in:'.implode(',', array_keys(ScoringGroup::TITLES)),
+            'scoring_groups.*.lenex_agegroup_id' => 'nullable|string|max:50',
+        ])['scoring_groups'] ?? []);
+    }
+
+    /**
+     * Ersetzt die Wertungsgruppen des Bewerbs und gleicht sport_classes ab.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function saveScoringGroups(SwimEvent $event, array $rows): void
+    {
+        $event->scoringGroups()->delete();
+        foreach ($rows as $index => $row) {
+            $classes = ScoringGroup::parseClassNumbers($row['sport_classes'] ?? '');
+            $event->scoringGroups()->create([
+                'name' => $row['name'],
+                'gender' => $row['gender'],
+                'sport_classes' => $classes !== [] ? implode(',', $classes) : null,
+                'age_min' => $row['age_min'] ?? null,
+                'age_max' => $row['age_max'] ?? null,
+                'title' => $row['title'] ?? null,
+                'sort_order' => $index + 1,
+                'lenex_agegroup_id' => $row['lenex_agegroup_id'] ?? null,
+            ]);
+        }
+
+        $event->syncSportClassesFromGroups();
+        $this->scoring->syncPlaces($event);
+    }
+
+    /** Klassenkategorie der Lage: SB (Brust), SM (Lagen), sonst S. */
+    private static function classCategory(SwimEvent $event): string
+    {
+        return match ($event->strokeType?->lenex_code) {
+            'BREAST' => 'SB',
+            'MEDLEY', 'IMRELAY' => 'SM',
+            default => 'S',
+        };
+    }
 
     private function validateSwimEvent(Request $request): array
     {
