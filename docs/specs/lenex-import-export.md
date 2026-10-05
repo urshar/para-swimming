@@ -78,6 +78,18 @@ Platzierungen stehen in LENEX nicht am Result, sondern in
 `resultid → place` (`buildRankingIndex`). Da ein Result in mehreren AGEGROUPs auftauchen kann (Gesamt- +
 Klassenwertung), **gewinnt die erste gefundene Platzierung** (die spezifischere AGEGROUP kommt zuerst).
 
+### Staffelergebnisse
+
+`CLUB > RELAYS > RELAY > RESULTS > RESULT` wird nach allen Athleten importiert (`importRelayResult`), weil die
+`RELAYPOSITION`en per `athleteid` auch auf Athleten anderer Vereine verweisen können:
+
+- Wertung aus `RELAY gender` (M/F/X), Staffelklasse aus dem `handicap` der AGEGROUP, in der das Ergebnis platziert ist
+  (`handicap="14"` → S14), Platz aus deren RANKING.
+- Schwimmer aus `RELAYPOSITIONS`; ein nicht zuordenbarer Athlet bleibt mit Namenskopie, aber ohne `athlete_id` stehen.
+  Sportklasse je Schwimmer aus `HANDICAP free`. Zwischenzeiten aus `SPLITS`.
+- Staffeln ohne Zeit und ohne Status werden übersprungen; WDR/DNS/DSQ werden importiert.
+- Erneuter Import aktualisiert über `meet_id` + `lenex_result_id` (Schwimmer und Zwischenzeiten werden ersetzt).
+
 ## Splash-Meet-Manager-Eigenheiten
 
 Der Parser gleicht mehrere Splash-Besonderheiten aus:

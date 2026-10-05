@@ -64,14 +64,17 @@ kosten zusätzlich `LATEENTRY.INDIVIDUAL` / `LATEENTRY.RELAY`; dokumentiert in `
 und Nachmeldungen") und `feature/exhibition-entries` ("Außer Konkurrenz (AK)" → Admin und Verein
 setzen AK bei Einzel- (`status EXH`) und Staffelmeldungen (`is_exhibition`), LENEX-Export, Vorbelegung bei der
 manuellen Ergebniserfassung; AK-Rekorde aller Typen werden als ausstehend angelegt und vom Verband bestätigt —
-`SwimRecord::approve()` löst dabei den Vorgänger ab; dokumentiert in `specs/club-entries.md` und `specs/records.md`) — die
+`SwimRecord::approve()` löst dabei den Vorgänger ab; dokumentiert in `specs/club-entries.md` und `specs/records.md`) —
+die
 zugehörigen Open Points unten wurden entfernt. Behoben in `fix/lenex-export-clubs`: Der LENEX-Export von Meldungen
 und Ergebnissen enthielt nur die Struktur, weil die Vereine nur aus `meet_club` kamen; sie werden jetzt aus Meldungen
-und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`). Umgesetzt in `feature/meet-results-overview`:
+und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`). Umgesetzt in
+`feature/meet-results-overview`:
 Ergebnis-Sammelansicht je Veranstaltung mit Filtern, Erfassen ("Speichern und nächstes", Sportklasse aus dem Athleten,
 automatische Punkte), Löschen einzeln oder je Disziplin und Ergebnisliste als PDF; Ergebnis-Routen jetzt nur Admin
 (dokumentiert in `specs/meet-results.md`). Die PDF gliedert vorläufig nach Sportklasse, bis die Wertungsgruppen (#3)
-abgebildet sind. Als Nächstes vereinbart: Staffel-Ergebnisse (#6).
+abgebildet sind. Umgesetzt in `feature/relay-results`: Staffelergebnisse Phase 1 (Datenmodell, LENEX-Import,
+Erfassung, Rekorde, PDF, Statistik); Phase 2 und der Nachimport alter Dateien siehe #6.
 
 **Sicherheit, vorrangig:** "Sicherheit: LENEX-Import nur für Admins" unten.
 
@@ -83,7 +86,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 3. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
 4. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
 5. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-6. "Staffel-Ergebnisse importieren + Relay-Gender pflegen" unten (Import-Parser + Datenmodell)
+6. "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen" unten (Phase 1 erledigt)
 7. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #6
 8. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 9. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
@@ -136,7 +139,8 @@ Ergebnissen und Meldungen sind das rund 40 `with('success')`/`withErrors()`-Aufr
 
 Konkretes Beispiel: `ClubController::destroy()` blockiert das Löschen eines Vereins mit Athleten per
 `withErrors(['club' => 'Club kann nicht gelöscht werden — es sind noch N Athleten zugeordnet.'])` — in der Vereinsliste
-sieht man davon nichts, der Klick auf Löschen scheint einfach wirkungslos. Ebenso fehlen die Bestätigungen "... gelöscht"
+sieht man davon nichts, der Klick auf Löschen scheint einfach wirkungslos. Ebenso fehlen die Bestätigungen "...
+gelöscht"
 / "... gespeichert" nach den Weiterleitungen auf die gemerkte Liste (`feature/context-back-buttons`).
 
 **Warum zurückgestellt:** Querschnittsthema, nicht Teil der Nationen-Verwaltung.
@@ -159,7 +163,8 @@ LENEX-Standard wäre `id`) nur als Cache-Schlüssel innerhalb **eines** Imports 
 werden importübergreifend über `code`, dann über den normalisierten Namen (jeweils + Nation) wiedererkannt.
 
 **Was fehlen könnte:** Eine gespeicherte LENEX-Club-ID als zusätzliche, stabile Matching-Stufe — sinnvoll, falls Vereine
-ohne (oder mit wechselndem) `code` und mit abweichenden Namensschreibweisen importiert werden und dadurch doppelt angelegt
+ohne (oder mit wechselndem) `code` und mit abweichenden Namensschreibweisen importiert werden und dadurch doppelt
+angelegt
 oder falsch zugeordnet werden. Optional auch Export dieser ID, damit Splash beim Re-Import dieselben Vereine erkennt.
 
 **Warum zurückgestellt:** Neues Feature statt Bugfix; nur nötig, wenn das Matching über `code`/Name in der Praxis nicht
@@ -195,36 +200,35 @@ gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener
 Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
 akzeptiert zusätzlich `.xml`.
 
-## Staffel-Ergebnisse importieren + Relay-Gender pflegen
+## Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen
 
-**Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Beim Bau der Staffel-Auswertungen fiel auf,
-dass gar keine Staffelergebnisse in der Datenbank liegen.
+**Seit:** `feature/relay-results` (04.10.2026). Phase 1 ist umgesetzt: eigene Tabellen `relay_results` (+ Schwimmer,
+Zwischenzeiten), LENEX-Import der Staffelergebnisse, Wertung D/H/X (nur Frauen = Damen, 2 + 2 = Mixed, sonst Herren,
+Herren mit Damenbeteiligung ohne Rekord), Staffelklasse aus AGEGROUP bzw. Schwimmern, manuelle Erfassung in der
+Ergebnis-Sammelansicht, Staffel-Rekordprüfung mit den echten Schwimmern, PDF-Ergebnisliste, Statistik "Staffelstarts
+nach Typ" nach der Wertung der Mannschaft. Dokumentiert in `specs/meet-results.md`, `specs/records.md`,
+`specs/lenex-import-export.md`.
 
-**Was fehlt:** Der LENEX-Import legt zwar die Staffel- **Bewerbe** an (`relaycount` aus dem SwimStyle →
-`swim_event.relay_count > 1`, aktuell 151 Bewerbe), aber **keine Staffel-Ergebnisse**: von 12.487 importierten
-Ergebnissen sind 0 Staffelergebnisse. Damit bleiben die bereits gebauten und getesteten Staffel-Zählungen
-(`ParticipationStatisticsService::relayStartsByEventGender`, Grafik "Staffelstarts nach Typ" im Jahresvergleich)
-leer bzw. Platzhalter.
+**Reihenfolge (vereinbart 04.10.2026):** zuerst die Wertungsgruppen (#3), dann Variante (b) unten und der Nachimport
+der alten LENEX-Dateien (damit die Wertungsgruppen aus den AGEGROUPs gleich mitkommen), danach Phase 2.
 
-Zusätzlich (**Relay-Gender**): Selbst mit Ergebnissen ließen sich 130 der 151 Staffel-Bewerbe nicht nach
-Herren/Damen/Mixed einordnen — ihr `gender` ist `A` (unspezifiziert); nur 21 haben `M`/`F`/`X`. Für die getrennte
-H/D/Mixed-Auswertung muss das Staffel-Geschlecht gepflegt oder hergeleitet werden.
+**Offen (Phase 2, eigener Branch):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX
+(`CLUB > RELAYS > RELAY > ENTRIES`, bisher übersprungen), WA-Punkte für Staffeln, Staffeln auf der öffentlichen
+Ergebnisseite.
 
-**Warum zurückgestellt:** Staffelergebnisse sind in LENEX anders aufgebaut als Einzelergebnisse (`<RELAY>` mit
-`<RELAYPOSITIONS>` und mehreren Athleten je Ergebnis, statt eines einzelnen `<RESULT>` je Schwimmer). Der
-`LenexParserService` verarbeitet aktuell nur Einzelergebnisse; es gibt kein `RelayResult`-Modell (nur `RelayEntry`
-für Meldungen). Das ist ein Import-Parser- **und** Datenmodell-Thema, kein Quick-Fix — bewusst getrennt von der
-Statistik-Iteration gehalten.
+**Wichtig vor dem Nachimport alter LENEX-Dateien (Befund Live-Test 04.10.2026):** Ein erneuter Ergebnis-Import in
+eine bestehende Veranstaltung legt die **Einzelergebnisse doppelt an**, wenn diese nicht aus derselben LENEX-Datei
+stammen. Der Einzel-Import erkennt vorhandene Ergebnisse an Veranstaltung + Bewerb + Athlet + Lauf + Bahn; bei Meet 160
+(ÖSTM 2025) haben die 266 vorhandenen Ergebnisse keinen Lauf, keine Bahn und keine `lenex_result_id` (andere Quelle),
+also entstanden 282 neue Zeilen und ein zusätzlicher Bewerb (Nr. 17, 150 m). Beides wurde wieder entfernt; die 12
+importierten Staffelergebnisse sind geblieben. Die Staffeln selbst sind wiederholbar (über `lenex_result_id`).
 
-**Wer entscheidet:** Datenmodell-Frage — eigenes `RelayResult`-Modell vs. Staffelergebnisse als spezielle
-`results`-Zeilen (mit Staffelposition/eingesetzten Schwimmern). Und: Relay-Gender aus dem Bewerb bzw. den
-eingesetzten Athleten herleiten oder manuell pflegbar machen?
-
-**Zum Schließen nötig:** `LenexParserService` um Staffelergebnisse erweitern (`<RELAY>` → Ergebniszeilen inkl.
-eingesetzter Schwimmer/Position), das Datenmodell dafür, und die Relay-Gender-Pflege. Danach liefern die
-bestehenden Zählungen echte Zahlen und die Platzhalter-Grafik im Jahresvergleich wird automatisch belegt.
-
-## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
+**Entscheidung Erik (04.10.2026):** Variante (b) — der Einzel-Import gleicht zusätzlich über Veranstaltung + Bewerb +
+Athlet ab, wenn das vorhandene Ergebnis keinen Lauf/keine Bahn hat, und ergänzt dann Lauf, Bahn und `lenex_result_id`
+(statt eine neue Zeile anzulegen). Damit lassen sich alte Dateien vollständig nachimportieren, Einzel- und
+Staffelergebnisse. Vor dem Umsetzen klären, ob derselbe Athlet im selben Bewerb mehrfach vorkommen kann (Stechen,
+mehrere Läufe); dann darf nur ein eindeutiger Treffer übernommen werden. Ausländische Vereine und unbekannte Athleten
+laufen dabei wie bisher über die Klärungsseite des Imports.
 
 **Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Erik hat beim Bau des Jahresvergleichs
 weitere sinnvolle Auswertungen als "für später" freigegeben — erst wenn eine belastbare Datenbasis vorhanden ist

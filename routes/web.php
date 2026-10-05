@@ -38,6 +38,7 @@ use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
 use App\Http\Controllers\RelayEntryController;
+use App\Http\Controllers\RelayResultController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
@@ -412,6 +413,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('meets/{meet}/results', [MeetResultsOverviewController::class, 'index'])
             ->name('meets.results-overview')
             ->middleware('remember.list:results');
+        // Staffelergebnisse manuell erfassen (Liste: Ergebnis-Sammelansicht)
+        Route::resource('meets.relay-results', RelayResultController::class)
+            ->shallow()
+            ->only(['create', 'store', 'edit', 'update', 'destroy'])
+            ->parameters(['relay-results' => 'relayResult']);
         Route::get('meets/{meet}/results/pdf', [MeetResultsOverviewController::class, 'pdf'])
             ->name('meets.results-overview.pdf');
         Route::delete('meets/{meet}/events/{swimEvent}/results', [MeetResultsOverviewController::class, 'destroyEvent'])

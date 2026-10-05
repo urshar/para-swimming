@@ -3,10 +3,10 @@
 use App\Models\Athlete;
 use App\Models\AthleteSportClass;
 use App\Models\Club;
-use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\Nation;
-use App\Models\Result;
+use App\Models\RelayResult;
+use App\Models\RelayResultMember;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Models\SwimRecord;
@@ -67,7 +67,6 @@ function makeRelayEvent(Meet $meet, StrokeType $stroke, int $relayCount = 4): Sw
 function makeRelayMember(
     Nation $nation,
     Club $club,
-    SwimEvent $event,
     string $sportClass,
     int $birthYear = 2000,
 ): Athlete {
@@ -91,38 +90,33 @@ function makeRelayMember(
         'sport_class' => $sportClass,
     ]);
 
-    Entry::create([
-        'meet_id' => $event->meet_id,
-        'swim_event_id' => $event->id,
-        'athlete_id' => $athlete->id,
-        'club_id' => $club->id,
-        'sport_class' => $sportClass,
-    ]);
-
     return $athlete;
 }
 
-function makeRelayResult(Meet $meet, SwimEvent $event, Club $club, int $swimTime = 5000): Result
+/**
+ * Herrenstaffel-Ergebnis (relay_results) mit allen bisher angelegten Athleten des Vereins als Schwimmer, in
+ * Anlagereihenfolge. Ohne Athleten entsteht ein Ergebnis ohne Schwimmer.
+ */
+function makeRelayResult(Meet $meet, SwimEvent $event, Club $club, int $swimTime = 5000): RelayResult
 {
-    // results.athlete_id ist NOT NULL in der DB — Staffeln bekommen einen Placeholder-Athleten.
-    // Der RecordCheckerService liest den Club aus result->club_id, nicht aus athlete->club.
-    $placeholder = Athlete::firstOrCreate(
-        [
-            'last_name' => '__relay__', 'first_name' => '__placeholder__', 'gender' => 'M',
-            'nation_id' => $club->nation_id,
-        ],
-        ['birth_date' => '2000-01-01', 'club_id' => $club->id]
-    );
-
-    return Result::create([
+    $relay = RelayResult::create([
         'meet_id' => $meet->id,
         'swim_event_id' => $event->id,
-        'athlete_id' => $placeholder->id,
         'club_id' => $club->id,
+        'gender' => 'M',
         'swim_time' => $swimTime,
-        'sport_class' => null,
-        'status' => null,
     ]);
+
+    Athlete::where('club_id', $club->id)->with('sportClasses')->orderBy('id')->get()
+        ->each(fn (Athlete $athlete, int $index) => RelayResultMember::create([
+            'relay_result_id' => $relay->id,
+            'position' => $index + 1,
+            'athlete_id' => $athlete->id,
+            'gender' => $athlete->gender,
+            'sport_class' => $athlete->sportClasses->first()?->sport_class,
+        ]));
+
+    return $relay;
 }
 
 // ── Hilfsfunktion: alle Typen aus einem checkMeet()-Ergebnis flach extrahieren ──
@@ -149,10 +143,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5'); // Summe = 20
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5'); // Summe = 20
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);
@@ -168,10 +162,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $this->service->checkMeet($meet);
@@ -184,10 +178,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S8');
-        makeRelayMember($aut, $club, $event, 'S8');
-        makeRelayMember($aut, $club, $event, 'S9');
-        makeRelayMember($aut, $club, $event, 'S9'); // Summe = 34
+        makeRelayMember($aut, $club, 'S8');
+        makeRelayMember($aut, $club, 'S8');
+        makeRelayMember($aut, $club, 'S9');
+        makeRelayMember($aut, $club, 'S9'); // Summe = 34
         makeRelayResult($meet, $event, $club);
 
         $this->service->checkMeet($meet);
@@ -199,10 +193,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S11');
-        makeRelayMember($aut, $club, $event, 'S12');
-        makeRelayMember($aut, $club, $event, 'S13');
-        makeRelayMember($aut, $club, $event, 'S11');
+        makeRelayMember($aut, $club, 'S11');
+        makeRelayMember($aut, $club, 'S12');
+        makeRelayMember($aut, $club, 'S13');
+        makeRelayMember($aut, $club, 'S11');
         makeRelayResult($meet, $event, $club);
 
         $this->service->checkMeet($meet);
@@ -214,10 +208,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S21');
-        makeRelayMember($aut, $club, $event, 'S21');
-        makeRelayMember($aut, $club, $event, 'S21');
-        makeRelayMember($aut, $club, $event, 'S21');
+        makeRelayMember($aut, $club, 'S21');
+        makeRelayMember($aut, $club, 'S21');
+        makeRelayMember($aut, $club, 'S21');
+        makeRelayMember($aut, $club, 'S21');
         makeRelayResult($meet, $event, $club);
 
         $this->service->checkMeet($meet);
@@ -229,10 +223,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S14');
-        makeRelayMember($aut, $club, $event, 'S21');
-        makeRelayMember($aut, $club, $event, 'S14');
-        makeRelayMember($aut, $club, $event, 'S21');
+        makeRelayMember($aut, $club, 'S14');
+        makeRelayMember($aut, $club, 'S21');
+        makeRelayMember($aut, $club, 'S14');
+        makeRelayMember($aut, $club, 'S21');
         makeRelayResult($meet, $event, $club);
 
         $this->service->checkMeet($meet);
@@ -246,10 +240,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S9');
-        makeRelayMember($aut, $club, $event, 'S9');
-        makeRelayMember($aut, $club, $event, 'S9');
-        makeRelayMember($aut, $club, $event, 'S9'); // Summe = 36
+        makeRelayMember($aut, $club, 'S9');
+        makeRelayMember($aut, $club, 'S9');
+        makeRelayMember($aut, $club, 'S9');
+        makeRelayMember($aut, $club, 'S9'); // Summe = 36
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);
@@ -262,10 +256,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S16');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S16');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);
@@ -278,10 +272,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S11');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S11');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);
@@ -290,7 +284,7 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
             ->and(SwimRecord::count())->toBe(0);
     })->group('relay-checker');
 
-    it('legt keinen Rekord an wenn keine Entries vorhanden', function () {
+    it('legt keinen Rekord an wenn keine Schwimmer erfasst sind', function () {
         ['club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
@@ -309,10 +303,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
         makeRelayResult($meet, $event, $club);
 
         $types = recordTypes($this->service->checkMeet($meet));
@@ -326,10 +320,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007); // 18
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2006); // 19 → kein Junior
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007); // 18
+        makeRelayMember($aut, $club, 'S5', birthYear: 2006); // 19 → kein Junior
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
         makeRelayResult($meet, $event, $club);
 
         $types = recordTypes($this->service->checkMeet($meet));
@@ -345,10 +339,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase('WBSV');
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $types = recordTypes($this->service->checkMeet($meet));
@@ -362,10 +356,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase('WBSV');
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
-        makeRelayMember($aut, $club, $event, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
+        makeRelayMember($aut, $club, 'S5', birthYear: 2007);
         makeRelayResult($meet, $event, $club);
 
         $types = recordTypes($this->service->checkMeet($meet));
@@ -379,10 +373,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ['aut' => $aut, 'club' => $club, 'meet' => $meet, 'stroke' => $stroke] = setupBase();
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $types = recordTypes($this->service->checkMeet($meet));
@@ -411,10 +405,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ]);
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);
@@ -441,10 +435,10 @@ describe('RecordCheckerService — Staffel-Rekorde', function () {
         ]);
 
         $event = makeRelayEvent($meet, $stroke);
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
-        makeRelayMember($aut, $club, $event, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
+        makeRelayMember($aut, $club, 'S5');
         makeRelayResult($meet, $event, $club);
 
         $checkResult = $this->service->checkMeet($meet);

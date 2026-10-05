@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Concerns\SearchesAthletes;
 use App\Models\Meet;
 use App\Models\PointSystem;
+use App\Models\RelayResult;
 use App\Models\Result;
 use App\Models\SwimEvent;
 use App\Services\MeetResultListService;
@@ -77,6 +78,32 @@ class MeetResultsOverviewController extends Controller
             ))
             ->groupBy('swim_event_id');
 
+        // Staffelergebnisse: Vereinsfilter auf den Staffelverein, Athletensuche auf die eingesetzten Schwimmer.
+        $relayResultsByEvent = RelayResult::query()
+            ->where('meet_id', $meet->id)
+            ->with(['club', 'members.athlete'])
+            ->when($eventFilter, fn (Builder $q) => $q->where('swim_event_id', $eventFilter))
+            ->when($clubFilter, fn (Builder $q) => $q->where('club_id', $clubFilter))
+            ->when($search !== '', fn (Builder $q) => $q->whereHas('members', fn (Builder $m) => $m
+                ->where(fn (Builder $w) => $w
+                    ->where('last_name', 'like', '%'.$search.'%')
+                    ->orWhere('first_name', 'like', '%'.$search.'%')
+                    ->orWhereHas('athlete', fn (Builder $a) => $a
+                        ->where('last_name', 'like', '%'.$search.'%')
+                        ->orWhere('first_name', 'like', '%'.$search.'%')))))
+            ->get()
+            // Plätze gelten je Wertung (Herren, Damen, Mixed): zuerst nach Wertung, dann wie bei Einzelergebnissen.
+            ->sortBy(fn (RelayResult $r): string => sprintf(
+                '%d|%d|%06d|%d|%010d|%s',
+                ['M' => 0, 'F' => 1, 'X' => 2][$r->gender] ?? 3,
+                $r->place ? 0 : 1,
+                $r->place ?? 0,
+                $r->swim_time ? 0 : 1,
+                $r->swim_time ?? 0,
+                $r->display_name,
+            ))
+            ->groupBy('swim_event_id');
+
         // Ungefilterte Anzahl je Disziplin: "Alle löschen" löscht auch die per Verein/Name ausgeblendeten
         // Ergebnisse, die Rückfrage nennt deshalb diese Zahl statt der sichtbaren.
         $eventTotals = Result::query()
@@ -84,13 +111,23 @@ class MeetResultsOverviewController extends Controller
             ->selectRaw('swim_event_id, COUNT(*) as total')
             ->groupBy('swim_event_id')
             ->pluck('total', 'swim_event_id');
+        $relayTotals = RelayResult::query()
+            ->where('meet_id', $meet->id)
+            ->selectRaw('swim_event_id, COUNT(*) as total')
+            ->groupBy('swim_event_id')
+            ->pluck('total', 'swim_event_id');
+        foreach ($relayTotals as $eventId => $count) {
+            $eventTotals[$eventId] = (int) ($eventTotals[$eventId] ?? 0) + (int) $count;
+        }
 
         return view('meets.results-overview', [
             'meet' => $meet,
             'pointColumns' => self::pointColumns($meet),
             'events' => $events,
+            'hasRelayEvents' => $events->contains(fn (SwimEvent $event): bool => $event->relay_count > 1),
             'clubs' => $clubs,
             'resultsByEvent' => $resultsByEvent,
+            'relayResultsByEvent' => $relayResultsByEvent,
             'eventTotals' => $eventTotals,
             'filterConfig' => [
                 'event_id' => $eventFilter !== null ? (string) $eventFilter : '',
@@ -98,7 +135,7 @@ class MeetResultsOverviewController extends Controller
                 'search' => $search,
             ],
             'isFiltered' => $eventFilter !== null || $clubFilter !== null || $search !== '',
-            'total' => $meet->results()->count(),
+            'total' => $meet->results()->count() + $meet->relayResults()->count(),
         ]);
     }
 
@@ -122,19 +159,18 @@ class MeetResultsOverviewController extends Controller
         );
     }
 
-    /** Löscht alle Ergebnisse einer Disziplin (Splits über cascadeOnDelete). */
+    /** Löscht alle Ergebnisse einer Disziplin, Einzel- wie Staffelergebnisse (Splits/Mitglieder über cascadeOnDelete). */
     public function destroyEvent(Meet $meet, SwimEvent $swimEvent): RedirectResponse
     {
         abort_unless($swimEvent->meet_id === $meet->id, 404);
 
         $deleted = 0;
-        Result::where('meet_id', $meet->id)
-            ->where('swim_event_id', $swimEvent->id)
-            ->get()
-            ->each(function (Result $result) use (&$deleted) {
-                $result->delete();
-                $deleted++;
-            });
+        $results = Result::where('meet_id', $meet->id)->where('swim_event_id', $swimEvent->id)->get();
+        $relayResults = RelayResult::where('meet_id', $meet->id)->where('swim_event_id', $swimEvent->id)->get();
+        foreach ($results->concat($relayResults) as $result) {
+            $result->delete();
+            $deleted++;
+        }
 
         return redirect()
             ->to(self::backUrl($meet))

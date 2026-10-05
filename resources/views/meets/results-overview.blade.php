@@ -37,6 +37,12 @@
                              target="_blank" variant="filled" icon="document-text" size="sm" class="text-blue-500!">
                     Ergebnisliste (PDF)
                 </flux:button>
+                @if($hasRelayEvents)
+                    <flux:button href="{{ route('meets.relay-results.create', $meet) }}" variant="filled" icon="plus" size="sm"
+                                 class="text-blue-500!">
+                        Staffelergebnis erfassen
+                    </flux:button>
+                @endif
                 <flux:button href="{{ route('meets.results.create', $meet) }}" variant="primary" icon="plus" size="sm">
                     Ergebnis erfassen
                 </flux:button>
@@ -98,7 +104,11 @@
     {{-- ── Ergebnisse je Disziplin ───────────────────────────────────────────── --}}
     @php $anyResults = false; @endphp
     @foreach($events as $event)
-        @php $eventResults = $resultsByEvent[$event->id] ?? null; @endphp
+        @php
+            // Staffelbewerbe zeigen Staffelergebnisse (relay_results), Einzelbewerbe Einzelergebnisse.
+            $isRelayEvent = $event->relay_count > 1;
+            $eventResults = $isRelayEvent ? ($relayResultsByEvent[$event->id] ?? null) : ($resultsByEvent[$event->id] ?? null);
+        @endphp
         @if($eventResults)
             @php $anyResults = true; @endphp
             <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden mb-4">
@@ -109,7 +119,7 @@
                     </h2>
                     <x-gender-icon :gender="$event->gender"/>
                     <span class="ml-auto text-xs text-zinc-400">{{ $eventResults->count() }} {{ $eventResults->count() === 1 ? 'Ergebnis' : 'Ergebnisse' }}</span>
-                    <flux:button href="{{ route('meets.results.create', ['meet' => $meet, 'swim_event_id' => $event->id]) }}"
+                    <flux:button href="{{ route($isRelayEvent ? 'meets.relay-results.create' : 'meets.results.create', ['meet' => $meet, 'swim_event_id' => $event->id]) }}"
                                  size="xs" variant="ghost" icon="plus" class="text-blue-500!"
                                  title="Ergebnis in dieser Disziplin erfassen"
                                  aria-label="Ergebnis in dieser Disziplin erfassen"/>
@@ -130,6 +140,9 @@
                                      aria-label="Alle Ergebnisse dieser Disziplin löschen"/>
                     </form>
                 </div>
+                @if($isRelayEvent)
+                    @include('meets._relay-results-table', ['relayResults' => $eventResults])
+                @else
                 <div class="p-4 [--flux-bleed:1rem]">
                     <flux:table bleed>
                         <flux:table.columns>
@@ -244,6 +257,7 @@
                         </flux:table.rows>
                     </flux:table>
                 </div>
+                @endif
             </div>
         @endif
     @endforeach
