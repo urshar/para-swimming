@@ -56,6 +56,12 @@ zurück, wo man herkam, inklusive Filter.
   **geänderter** Wert als manuell (das Feld ist mit dem gespeicherten Wert vorbelegt), sonst wird neu gerechnet, z. B.
   nach einer korrigierten Zeit. Kann ein aktiviertes System nicht rechnen (keine Zeit, keine Basiswert-Version ...),
   nennt die Erfolgsmeldung den Grund.
+- **Staffelpunkte:** Für Staffelergebnisse rechnet dieselbe Formel über die Wertung der Mannschaft (Damen/Herren/Mixed
+  → Basiswert-Kategorie) und die Staffelklasse (S14, S15, S20, S21, S34, S49) → `relay_results.points` — beim
+  Erfassen (eingetragener Wert bleibt) und bei "ÖBSV-Punkte berechnen"; WPS gibt es für Staffeln nicht. Beim
+  LENEX-Import bleiben die Punkte aus der Datei. Befund Oktober 2026: Splash rechnet Herrenstaffeln S14 mit anderen
+  Basiszeiten (4x50 m Freistil 1:47,44 statt 1:42,62, 4x100 m 3:52,80 statt 3:50,49); Damen und Mixed stimmen überein.
+  Die Basiswert-Tabelle ist maßgeblich — ggf. dort korrigieren.
 
 ## Ergebnisliste (PDF)
 
@@ -101,8 +107,12 @@ Eigene Tabellen `relay_results`, `relay_result_members`, `relay_result_splits` (
   Jahrgang.
 - **Rekorde:** siehe [records.md](records.md) "Staffelrekorde"; Herrenstaffeln mit Damenbeteiligung und Staffeln mit
   vereinsfremden Schwimmern stellen keinen Rekord auf.
-- **Noch nicht (Phase 2):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX, WA-Punkte
-  für Staffeln, öffentliche Ergebnisseite.
+- **Phase 2** (`feature/relay-results-phase2`): LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen**
+  (siehe [lenex-import-export.md](lenex-import-export.md)), ÖBSV-Punkte für Staffeln (oben) und Staffeln auf der
+  öffentlichen Ergebnisseite (`PublicResultService`, gleiche Wertungsgruppen; Spalten Staffel, Schwimmer mit
+  Jahrgang, Staffelklasse, Zeit, Punkte, Rekord; Schwimmer unverlinkt wie bei Einzelergebnissen). Eine Veranstaltung
+  nur mit Staffelergebnissen zeigt den Ergebnis-Link ebenfalls. Ein Staffelbewerb mit Staffelmeldungen oder
+  -ergebnissen lässt sich nicht löschen (sonst würden sie per Kaskade mitgelöscht).
 
 ## Zugriff
 

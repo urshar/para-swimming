@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property int $meet_id
  * @property int $swim_event_id
  * @property int $club_id
+ * @property int|null $relay_number LENEX RELAY number (Mannschaft des Vereins im Bewerb); leer bei App-Meldungen
  * @property string|null $name Frei vergebener Staffelname; leer = automatischer Name (App\Support\RelayNames)
  * @property string|null $relay_class
  * @property int|null $entry_time
@@ -44,6 +45,7 @@ class RelayEntry extends Model
         'meet_id',
         'swim_event_id',
         'club_id',
+        'relay_number',
         'name',
         'relay_class',
         'entry_time',

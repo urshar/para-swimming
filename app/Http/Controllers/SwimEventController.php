@@ -128,7 +128,10 @@ class SwimEventController extends Controller
     {
         $meet = $event->meet;
 
-        if ($event->entries()->exists() || $event->results()->exists()) {
+        // Staffelmeldungen und -ergebnisse hängen per cascadeOnDelete am Bewerb — ohne diese Prüfung würden sie still
+        // mitgelöscht.
+        if ($event->entries()->exists() || $event->results()->exists()
+            || $event->relayEntries()->exists() || $event->relayResults()->exists()) {
             return back()->withErrors([
                 'event' => 'Disziplin kann nicht gelöscht werden — es gibt bereits Meldungen oder Ergebnisse.',
             ]);

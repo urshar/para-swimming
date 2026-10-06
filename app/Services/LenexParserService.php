@@ -8,6 +8,8 @@ use App\Models\Meet;
 use App\Models\MeetFee;
 use App\Models\MeetSession;
 use App\Models\Nation;
+use App\Models\RelayEntry;
+use App\Models\RelayEntryMember;
 use App\Models\RelayResult;
 use App\Models\RelayResultMember;
 use App\Models\Result;
@@ -39,6 +41,7 @@ class LenexParserService
         'results_new' => 0,
         'results_ambiguous' => 0,
         'relay_results' => 0,
+        'relay_entries' => 0,
     ];
 
     /**
@@ -111,7 +114,7 @@ class LenexParserService
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
             'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
-            'relay_results' => 0,
+            'relay_results' => 0, 'relay_entries' => 0,
         ];
         $this->rankingIndex = [];
         $this->rankingGroupIndex = [];
@@ -293,13 +296,13 @@ class LenexParserService
 
         $meet = $meet[0];
 
-        // Results vorhanden?
-        if (isset($meet->CLUBS->CLUB->ATHLETES->ATHLETE->RESULTS->RESULT)) {
+        // Über alle Vereine, Athleten und Staffeln suchen: SimpleXMLs Kettenzugriff ($meet->CLUBS->CLUB->...) prüft
+        // nur jeweils das erste Element — hat der erste Athlet keine Ergebnisse, wäre die ganze Datei "structure".
+        if ($meet->xpath('CLUBS/CLUB/ATHLETES/ATHLETE/RESULTS/RESULT | CLUBS/CLUB/RELAYS/RELAY/RESULTS/RESULT')) {
             return 'results';
         }
 
-        // Entries vorhanden?
-        if (isset($meet->CLUBS->CLUB->ATHLETES->ATHLETE->ENTRIES->ENTRY)) {
+        if ($meet->xpath('CLUBS/CLUB/ATHLETES/ATHLETE/ENTRIES/ENTRY | CLUBS/CLUB/RELAYS/RELAY/ENTRIES/ENTRY')) {
             return 'entries';
         }
 
@@ -796,7 +799,7 @@ class LenexParserService
             $meet->clubs()->syncWithoutDetaching([$club->id]);
             $this->stats['clubs']++;
 
-            if ($type === 'results' && isset($clubXml->RELAYS)) {
+            if (in_array($type, ['entries', 'results'], true) && isset($clubXml->RELAYS)) {
                 $relayClubs[] = [$clubXml, $club];
             }
 
@@ -809,12 +812,17 @@ class LenexParserService
             }
         }
 
+        // Meldedatei: Staffelmeldungen (RELAY > ENTRIES), Ergebnisdatei: Staffelergebnisse (RELAY > RESULTS).
         foreach ($relayClubs as [$clubXml, $club]) {
             foreach ($clubXml->RELAYS->RELAY as $relayXml) {
-                if (! isset($relayXml->RESULTS)) {
+                if ($type === 'entries') {
+                    foreach ($relayXml->ENTRIES->ENTRY ?? [] as $entryXml) {
+                        $this->importRelayEntry($meet, $relayXml, $entryXml, $club, $resolver);
+                    }
+
                     continue;
                 }
-                foreach ($relayXml->RESULTS->RESULT as $resultXml) {
+                foreach ($relayXml->RESULTS->RESULT ?? [] as $resultXml) {
                     $this->importRelayResult($meet, $relayXml, $resultXml, $club, $resolver);
                 }
             }
@@ -1086,6 +1094,90 @@ class LenexParserService
     }
 
     /**
+     * Importiert eine Staffelmeldung (CLUB > RELAYS > RELAY > ENTRIES > ENTRY) samt Schwimmern.
+     *
+     * - Abgleich: Veranstaltung + Bewerb + Verein + RELAY number; sonst die n-te Meldung des Vereins im Bewerb ohne
+     *   Nummer (nach Anlage sortiert, wie der Meldeexport nummeriert) — so erzeugt das Zurückspielen einer
+     *   exportierten Meldedatei keine Doppelten.
+     * - Staffelklasse aus RELAY handicap, sonst aus den Klassen der Schwimmer (RelayClassValidator).
+     * - Neue Meldungen sind bestätigt; status="EXH" = außer Konkurrenz.
+     * - Schwimmer ohne Athleten-Datensatz (unbekannt, nicht aufgelöst) werden ausgelassen.
+     */
+    private function importRelayEntry(
+        Meet $meet,
+        SimpleXMLElement $relayXml,
+        SimpleXMLElement $entryXml,
+        Club $club,
+        LenexResolverService $resolver
+    ): void {
+        $swimEventId = $this->resolveSwimEventId($meet, (string) ($entryXml['eventid'] ?? ''), $resolver);
+        if (! $swimEventId || isset($this->unscoredEventIds[$swimEventId])) {
+            return;
+        }
+
+        $relayNumber = (int) ($relayXml['number'] ?? 0) ?: null;
+        $members = [];
+        foreach ($entryXml->RELAYPOSITIONS->RELAYPOSITION ?? [] as $positionXml) {
+            $position = (int) ($positionXml['number'] ?? 0);
+            $athlete = $this->athleteIndex[(string) ($positionXml['athleteid'] ?? '')] ?? null;
+            if ($position < 1 || ! ($athlete['athlete_id'] ?? null)) {
+                continue;
+            }
+            $members[$athlete['athlete_id']] = [
+                'athlete_id' => $athlete['athlete_id'],
+                'position' => $position,
+                'sport_class' => $athlete['sport_class'],
+            ];
+        }
+
+        $handicap = trim((string) ($relayXml['handicap'] ?? ''));
+        $relayClass = is_numeric($handicap) && (int) $handicap > 0
+            ? 'S'.(int) $handicap
+            : (new RelayClassValidator)->resolveRelayClass(array_values(array_filter(array_column($members, 'sport_class'))));
+
+        $relayEntry = $this->findRelayEntry($meet->id, $swimEventId, $club->id, $relayNumber)
+            ?? new RelayEntry(['meet_id' => $meet->id, 'swim_event_id' => $swimEventId, 'club_id' => $club->id, 'status' => 'confirmed']);
+        $entryTime = (string) ($entryXml['entrytime'] ?? '');
+        $relayEntry->fill([
+            'relay_number' => $relayNumber,
+            'name' => (string) ($relayXml['name'] ?? '') ?: $relayEntry->name,
+            'relay_class' => $relayClass ?? $relayEntry->relay_class,
+            'entry_time' => $this->parseTime($entryTime),
+            'entry_time_code' => $this->parseTimeCode($entryTime),
+            'entry_course' => $this->mapCourse((string) ($entryXml['entrycourse'] ?? '')),
+            'is_exhibition' => strtoupper((string) ($entryXml['status'] ?? '')) === 'EXH',
+        ])->save();
+
+        if ($members !== []) {
+            $relayEntry->members()->delete();
+            foreach ($members as $member) {
+                RelayEntryMember::create(['relay_entry_id' => $relayEntry->id] + $member);
+            }
+        }
+
+        $this->stats['relay_entries']++;
+    }
+
+    /** Vorhandene Staffelmeldung zu RELAY number (siehe importRelayEntry). */
+    private function findRelayEntry(int $meetId, int $swimEventId, int $clubId, ?int $relayNumber): ?RelayEntry
+    {
+        if ($relayNumber === null) {
+            return null;
+        }
+
+        $query = RelayEntry::where('meet_id', $meetId)->where('swim_event_id', $swimEventId)->where('club_id', $clubId);
+        $byNumber = (clone $query)->where('relay_number', $relayNumber)->first();
+        if ($byNumber) {
+            return $byNumber;
+        }
+
+        // App-Meldung ohne Nummer: die n-te nach Anlage — genau so zählt der Meldeexport (buildRelays).
+        $nth = $query->orderBy('id')->offset($relayNumber - 1)->first();
+
+        return $nth !== null && $nth->relay_number === null ? $nth : null;
+    }
+
+    /**
      * Importiert ein Staffelergebnis (CLUB > RELAYS > RELAY > RESULTS > RESULT) samt Positionen und Zwischenzeiten.
      *
      * - Geschlecht der Mannschaft aus RELAY gender (M/F/X), Staffelklasse aus der AGEGROUP, in der das Ergebnis
@@ -1108,6 +1200,10 @@ class LenexParserService
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
 
         $handicap = $lenexResultId !== null ? ($this->rankingGroupIndex[$lenexResultId]['handicap'] ?? '') : '';
+        // Gruppe mit mehreren oder ohne Klassen: Staffelklasse aus RELAY handicap (schreibt auch der eigene Export).
+        if (! is_numeric($handicap)) {
+            $handicap = trim((string) ($relayXml['handicap'] ?? ''));
+        }
         $relayNumber = (int) ($relayXml['number'] ?? 0) ?: null;
 
         $members = [];

@@ -212,7 +212,7 @@ ausdrücklich darauf hin; der Default ist `false`.
 | Startseite             | `/de`                                   | kommende Meets, neue Rekorde          | Flag ✗              |
 | Veranstaltungen        | `/de/veranstaltungen`                   | `meets`                               | ✓                   |
 | Veranstaltung          | `/de/veranstaltungen/{meet}`            | + Dokumente, Livetiming, Meldeschluss | Doks ✗              |
-| Ergebnisse             | `/de/veranstaltungen/{meet}/ergebnisse` | `results`                             | Ansicht ✗           |
+| Ergebnisse             | `/de/veranstaltungen/{meet}/ergebnisse` | `results`, `relay_results`            | Ansicht ✗           |
 | Rekorde                | `/de/rekorde`                           | `swim_records`                        | ✓                   |
 | Rekord-Download        | `/de/rekorde/export`                    | `RecordExportController`              | öffentl. Variante ✗ |
 | Punktetabelle          | `/de/punktetabelle`                     | `base_times`                          | ✓                   |

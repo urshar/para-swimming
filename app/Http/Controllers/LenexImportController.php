@@ -381,6 +381,7 @@ class LenexImportController extends Controller
             .$stats['meets'].' Wettkampf/Wettkämpfe, '
             .$stats['athletes'].' Athlet(en), '
             .$stats['entries'].' Meldungen, '
+            .($stats['relay_entries'] ?? 0).' Staffelmeldungen, '
             .$stats['results'].' Ergebnisse'
             .($stats['results'] > 0 ? self::resultMatchSummary($stats) : '').', '
             .($stats['relay_results'] ?? 0).' Staffelergebnisse.';

@@ -216,9 +216,10 @@ gleich mit), danach Phase 2.
 
 **Offen (Phase 2, eigener Branch):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX
 (`CLUB > RELAYS > RELAY > ENTRIES`, bisher übersprungen), WA-Punkte für Staffeln, Staffeln auf der öffentlichen
-Ergebnisseite. Dabei auch `EVENT > HEATS > HEAT` exportieren: Der Export schreibt bisher die Laufnummer als
-`heatid`, ohne zugehöriges HEAT-Element (der eigene Import kommt damit zurecht, andere Programme erwarten den
-Verweis).
+Ergebnisseite. In Arbeit auf `feature/relay-results-phase2`: Schritt 1 (Export der Staffelergebnisse samt Ranglisten
+und `EVENT > HEATS`) Schritt 2 (Import der Staffelmeldungen), Schritt 3 (ÖBSV-Punkte für Staffeln) und Schritt 4 (öffentliche
+Ergebnisseite) sind umgesetzt. Offen: Herren-
+staffel-Basiszeiten S14 weichen von Splash ab (siehe `specs/meet-results.md` "Staffelpunkte") — Basiswert-Tabelle prüfen.
 
 **Wichtig vor dem Nachimport alter LENEX-Dateien (Befund Live-Test 04.10.2026):** Ein erneuter Ergebnis-Import in
 eine bestehende Veranstaltung legt die **Einzelergebnisse doppelt an**, wenn diese nicht aus derselben LENEX-Datei
@@ -260,6 +261,24 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 **Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
+
+## Plätze internationaler Veranstaltungen aus der Datei erhalten
+
+**Seit:** Analyse der EM Kocaeli 2026 (06.10.2026), zusammen mit dem geplanten Nationenfilter beim LENEX-Import
+(eigener Branch).
+
+**Ausgangslage:** Bei internationalen Meisterschaften stehen in der LENEX-Datei die europäischen bzw. internationalen
+Plätze (RANKINGS je Klasse und Runde), importiert werden aber nur die österreichischen Schwimmer. Die Wertungsgruppen
+sind dort meist offen ("Open Class", Klasse nur im Bewerbsnamen). Unsere Wertung (`ScoringGroupService::syncPlaces`)
+rechnet mit Wertungsgruppen nach Punkten innerhalb der importierten Ergebnisse — sobald ÖBSV-Punkte berechnet sind,
+überschreibt jedes Speichern, "ÖBSV-Punkte berechnen" oder Ändern der Wertungsgruppen den Platz aus der Datei mit
+dem Platz der Österreicher untereinander.
+
+**Entscheidung Erik (06.10.2026):** Der Platz aus der Datei bleibt erhalten.
+
+**Was fehlt:** Eine Kennzeichnung (z. B. an der Veranstaltung "Plätze aus der Datei übernehmen" bzw. automatisch bei
+Import mit Nationenfilter), bei der `syncPlaces` die gespeicherten Plätze nicht anfasst und Sammelansicht, PDF und
+öffentliche Seite den gespeicherten Platz statt des berechneten zeigen.
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 

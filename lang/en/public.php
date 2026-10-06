@@ -170,6 +170,9 @@ return [
                 'points' => 'Points',
                 'wps_points' => 'WPS points',
                 'record' => 'Record',
+                'relay' => 'Relay',
+                'swimmers' => 'Swimmers',
+                'relay_class' => 'Relay class',
             ],
             'status' => [
                 'DSQ' => 'Disqualified',

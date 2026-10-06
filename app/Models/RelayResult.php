@@ -153,6 +153,16 @@ class RelayResult extends Model
         };
     }
 
+    public function hasRecords(): bool
+    {
+        return $this->is_world_record
+            || $this->is_european_record
+            || $this->is_national_record
+            || $this->is_junior_record
+            || $this->is_regional_record
+            || $this->is_regional_junior_record;
+    }
+
     /** Anzeigename: eigener Name, sonst Verein mit Mannschaftsnummer ab der zweiten Staffel. */
     public function getDisplayNameAttribute(): string
     {

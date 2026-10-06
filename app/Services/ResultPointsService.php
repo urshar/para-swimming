@@ -3,18 +3,20 @@
 namespace App\Services;
 
 use App\Models\PointSystem;
+use App\Models\RelayResult;
 use App\Models\Result;
 
 /**
  * ResultPointsService
  *
- * Berechnet beim Speichern eines einzelnen Ergebnisses die Punkte der Punktesysteme, die für
+ * Berechnet beim Speichern eines Einzel- oder Staffelergebnisses die Punkte der Punktesysteme, die für
  * die Veranstaltung aktiviert sind (Reiter "Punkteberechnung" im Veranstaltungsformular):
  *
  *   - World Aquatics (beim ÖBSV die "ÖBSV-Punkte", auch Grundlage des ÖBSV Cups):
  *     1000 × (B/T)³ mit der Basiswert-Version des Wettkampfdatums → results.points.
  *     Ein manuell eingetragener Wert bleibt stehen; gerechnet wird nur, wenn das Feld leer ist.
- *   - WPS → results.wps_points (immer neu, über WpsPointCalculationService).
+ *     Staffeln: über Wertung und Staffelklasse → relay_results.points.
+ *   - WPS → results.wps_points (immer neu, über WpsPointCalculationService; nur Einzelergebnisse).
  *
  * Gibt die Gründe zurück, warum ein aktiviertes System keine Punkte liefern konnte (z. B. keine
  * Zeit bei DNS), damit der Controller sie in der Erfolgsmeldung nennen kann.
@@ -30,7 +32,7 @@ final readonly class ResultPointsService
      * @param  bool  $manualPoints  true, wenn im Formular Punkte eingetragen wurden (dann keine WA-Berechnung)
      * @return list<string> Hinweise je aktiviertem System, das keine Punkte liefern konnte
      */
-    public function calculate(Result $result, bool $manualPoints): array
+    public function calculate(Result|RelayResult $result, bool $manualPoints): array
     {
         $meet = $result->meet;
         $codes = $meet->pointSystems()->pluck('code');
@@ -44,7 +46,7 @@ final readonly class ResultPointsService
             }
         }
 
-        if ($codes->contains(PointSystem::CODE_WPS)) {
+        if ($result instanceof Result && $codes->contains(PointSystem::CODE_WPS)) {
             $wps = $this->wps->recalculateForResult($result);
             if (! $wps->wasCalculated()) {
                 $notes[] = 'WPS-Punkte nicht berechnet: '.$wps->skipReason;
