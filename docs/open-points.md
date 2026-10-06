@@ -82,7 +82,8 @@ Staffeln Phase 2 (LENEX-Export, Import der Staffelmeldungen, ÖBSV-Punkte, öffe
 "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen"; den Nachimport der alten Dateien macht Erik
 selbst. Übrig: "Basiszeiten der Herrenstaffeln S14 prüfen" unten.
 
-**Sicherheit, vorrangig:** "Sicherheit: LENEX-Import nur für Admins" unten.
+**Sicherheit — erledigt** (`fix/admin-route-guard`, 06.10.2026): LENEX-Import und alle weiteren Schreib-Routen nur
+für Admins, Selbstregistrierung abgeschaltet, Routen-Audit als Test — siehe `docs/access-control.md`.
 
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
@@ -109,28 +110,6 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
-
-## Sicherheit: LENEX-Import nur für Admins (und weitere Admin-Routen ohne `RequireAdmin`)
-
-**Seit:** `feature/meet-results-overview` (04.10.2026), Nebenbefund beim Absichern der Ergebnis-Routen.
-
-**Problem (verifiziert im Code):** Die Routengruppe `lenex.*` in `routes/web.php` (Import: `import`, `import.store`,
-`import.confirm-meet`, `import.run`, `import.review`, `import.resolve-clubs`, dazu der Export) liegt nur in der
-`auth`-Gruppe, nicht hinter `RequireAdmin`. `LenexImportController` und `LenexExportController` prüfen keine Rechte.
-Damit kann jeder eingeloggte Vereinsnutzer, der die URL kennt, einen LENEX-Import ausführen.
-
-**Entscheidung Erik (04.10.2026):** Den LENEX-Import darf **nur der Admin** ausführen.
-
-**Ebenfalls zu prüfen:** Die Punkte-Neuberechnung einer Veranstaltung (`meets.recalculate-points`,
-`meets.wps-points.recalculate`) autorisiert über `EntryPolicy::manageEntries`. Das erlaubt Vereinsnutzern die
-Neuberechnung, solange die Meldung offen oder wiedereröffnet ist. Vermutlich ebenfalls eine reine Admin-Funktion.
-Beim Beheben alle Routen in `routes/web.php` ohne `RequireAdmin` durchgehen und je Route festhalten, ob sie bewusst
-für Vereine offen ist (z. B. `club-entries`, Meldelisten des eigenen Vereins).
-
-**Zum Schließen nötig:** `lenex.*`-Import-Routen in eine `RequireAdmin`-Gruppe legen. Entscheiden, ob der
-LENEX-Export für Vereine offen bleiben soll; er wird z. B. auf `meets/show` angeboten. Die Navigation und die Links
-für Vereinsnutzer prüfen. Regressionstest nach dem Muster von `ResultEntryAutomationTest` ("sperrt die
-Ergebnisverwaltung für Vereinsnutzer"): Vereinsnutzer bekommt 403 auf alle Import-Routen.
 
 ## Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt
 
@@ -528,6 +507,10 @@ Verein mit unterschiedlichen Rechten)? Wie strikt ist "nur eigene" überall durc
 
 **Wer entscheidet:** Erik — ob ein echtes Mehr-Rollen-Modell nötig ist oder die vier Fähigkeiten oben als fester
 Vereins-User-Satz reichen; Umgang mit Meldeschluss-Sperre; ob mehrere User je Verein.
+
+**Stand 06.10.2026:** Bis dahin gilt die Matrix in `docs/access-control.md` — Vereinsnutzer lesen, schreiben nur
+eigene Meldungen; Athleten- und Vereinspflege ist vorerst Admin-Sache und soll mit diesem Punkt auf den eigenen
+Verein beschränkt wieder geöffnet werden.
 
 **Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
 Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in

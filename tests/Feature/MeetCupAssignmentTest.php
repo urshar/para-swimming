@@ -60,14 +60,14 @@ describe('store', function () {
         expect(Meet::where('name', 'Testmeet')->firstOrFail()->cup_id)->toBe($cup->id);
     })->group('cup-wertung-p9');
 
-    it('cup_id eines Club-Users wird ignoriert', function () {
+    it('Club-User darf keinen Wettkampf anlegen (auch nicht mit cup_id)', function () {
         $cup = makeCup_cup9();
 
         $this->actingAs(makeClubUser_cup9())
             ->post(route('meets.store'), meetPayload_cup9(['cup_id' => $cup->id]))
-            ->assertRedirect();
+            ->assertForbidden();
 
-        expect(Meet::where('name', 'Testmeet')->firstOrFail()->cup_id)->toBeNull();
+        expect(Meet::where('name', 'Testmeet')->exists())->toBeFalse();
     })->group('cup-wertung-p9');
 });
 
@@ -96,13 +96,13 @@ describe('update', function () {
         expect($meet->fresh()->cup_id)->toBeNull();
     })->group('cup-wertung-p9');
 
-    it('cup_id-Änderung eines Club-Users wird ignoriert', function () {
+    it('Club-User darf die Cup-Zuordnung nicht ändern', function () {
         $meet = Meet::create(meetPayload_cup9());
         $cup = makeCup_cup9();
 
         $this->actingAs(makeClubUser_cup9())
             ->put(route('meets.update', $meet), meetPayload_cup9(['cup_id' => $cup->id]))
-            ->assertRedirect();
+            ->assertForbidden();
 
         expect($meet->fresh()->cup_id)->toBeNull();
     })->group('cup-wertung-p9');

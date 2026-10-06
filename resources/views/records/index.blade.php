@@ -6,7 +6,9 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekordlisten</h1>
+        @if(auth()->user()?->is_admin)
         <flux:button href="{{ route('records.create') }}" variant="primary" icon="plus">Rekord eintragen</flux:button>
+        @endif
     </div>
 
     {{--
@@ -291,6 +293,7 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
+                            @if(auth()->user()?->is_admin)
                             {{-- Status-Schnelländerung ohne das Formular zu öffnen. --}}
                             <flux:dropdown position="bottom" align="end">
                                 <flux:button size="sm" variant="ghost" icon="arrow-path"
@@ -312,8 +315,10 @@
                                     @endforeach
                                 </flux:menu>
                             </flux:dropdown>
+                            @endif
                             <flux:button href="{{ route('records.show', $record) }}" size="sm" variant="ghost"
                                          icon="eye"/>
+                            @if(auth()->user()?->is_admin)
                             <flux:button href="{{ route('records.edit', $record) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('records.destroy', $record) }}"
@@ -322,6 +327,7 @@
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

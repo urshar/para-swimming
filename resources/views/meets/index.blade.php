@@ -10,9 +10,11 @@
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Wettkämpfe</h1>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">Nationale Para-Swimming Datenbank</p>
         </div>
+        @if(auth()->user()?->is_admin)
         <flux:button href="{{ route('meets.create') }}" variant="primary" icon="plus">
             Neuer Wettkampf
         </flux:button>
+        @endif
     </div>
 
     {{-- Stats --}}
@@ -140,6 +142,7 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-2 justify-end">
                             <flux:button href="{{ route('meets.show', $meet) }}" size="sm" variant="ghost" icon="eye"/>
+                            @if(auth()->user()?->is_admin)
                             <flux:button href="{{ route('meets.edit', $meet) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('meets.destroy', $meet) }}"
@@ -149,6 +152,7 @@
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                              class="text-red-500!"/>
                             </form>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

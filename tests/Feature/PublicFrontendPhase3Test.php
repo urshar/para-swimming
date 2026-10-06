@@ -269,7 +269,7 @@ it('löscht beim Entfernen eines Dokuments die Datenbankzeile und die Datei', fu
     Storage::disk('local')->assertMissing($document->path);
 });
 
-it('ignoriert is_published und livetiming_url, wenn ein Nicht-Admin sie über einen rohen Request mitschickt', function () {
+it('lässt einen Nicht-Admin is_published und livetiming_url auch über einen rohen Request nicht setzen', function () {
     $clubUser = makeClubUser_p3();
     $meet = makeMeet_p3(['is_published' => false]);
 
@@ -283,7 +283,7 @@ it('ignoriert is_published und livetiming_url, wenn ein Nicht-Admin sie über ei
             'is_published' => '1',
             'livetiming_url' => 'https://sneaked-in.example.test',
         ])
-        ->assertRedirect(route('meets.show', $meet));
+        ->assertForbidden();
 
     $meet->refresh();
 

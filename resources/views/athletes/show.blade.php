@@ -33,10 +33,12 @@
                          variant="filled" icon="chart-bar" size="sm" class="text-blue-500!">
                 WPS-Analyse
             </flux:button>
+            @if(auth()->user()?->is_admin)
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            @endif
         </div>
     </div>
 
@@ -167,10 +169,12 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Vereins-History</h2>
+            @if(auth()->user()?->is_admin)
             <flux:button size="sm" variant="ghost" icon="arrows-right-left"
                          x-on:click="openTransfer = !openTransfer">
                 Ummeldung
             </flux:button>
+            @endif
         </div>
 
         {{-- Ummeldungs-Formular (Alpine toggle) --}}
@@ -256,10 +260,16 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
+            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->is_admin)
             <flux:button size="sm" variant="ghost" icon="plus"
                          x-on:click="openClassification = !openClassification">
                 Neue Klassifikation
             </flux:button>
+            @endif
+            @endif
+            @endif
         </div>
 
         {{-- Neues Klassifikations-Formular --}}
@@ -475,6 +485,7 @@
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
                                     <flux:button size="sm" variant="ghost" icon="pencil"
+                                                 @if(auth()->user()?->is_admin)
                                                  x-on:click="editing = true"/>
                                     <form method="POST"
                                           action="{{ route('athletes.classifications.destroy', [$athlete, $cl]) }}"
@@ -484,6 +495,7 @@
                                         <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                                      class="text-red-400"/>
                                     </form>
+                                                 @endif
                                 </div>
                             </div>
                         </div>
@@ -793,12 +805,14 @@
                             @endif
                         </div>
                         <form method="POST"
+                              @if(auth()->user()?->is_admin)
                               action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
                               onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
                             @csrf
                             @method('DELETE')
                             <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
                         </form>
+                              @endif
                     </div>
                 @endforeach
             </div>

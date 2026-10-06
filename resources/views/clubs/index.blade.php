@@ -7,7 +7,9 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vereine</h1>
+        @if(auth()->user()?->is_admin)
         <flux:button href="{{ route('clubs.create') }}" variant="primary" icon="plus">Neuer Verein</flux:button>
+        @endif
     </div>
 
     @php
@@ -106,6 +108,7 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('clubs.show', $club) }}" size="sm" variant="ghost" icon="eye"/>
+                            @if(auth()->user()?->is_admin)
                             <flux:button href="{{ route('clubs.edit', $club) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('clubs.destroy', $club) }}"
@@ -114,6 +117,7 @@
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

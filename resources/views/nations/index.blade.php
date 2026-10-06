@@ -5,7 +5,9 @@
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Nationen</h1>
+        @if(auth()->user()?->is_admin)
         <flux:button href="{{ route('nations.create') }}" variant="primary" icon="plus">Neue Nation</flux:button>
+        @endif
     </div>
 
     @if(session('success'))
@@ -83,6 +85,7 @@
                     </flux:table.cell>
                     <flux:table.cell class="text-right">
                         <div class="flex items-center justify-end gap-1">
+                            @if(auth()->user()?->is_admin)
                             <flux:button href="{{ route('nations.edit', $nation) }}" size="xs" variant="ghost"
                                          icon="pencil" class="text-amber-500!"
                                          title="Bearbeiten" aria-label="{{ $nation->code }} bearbeiten"/>
@@ -96,6 +99,7 @@
                                 <flux:button type="submit" size="xs" variant="ghost" icon="trash" class="text-red-500!"
                                              title="Löschen" aria-label="{{ $nation->code }} löschen"/>
                             </form>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
