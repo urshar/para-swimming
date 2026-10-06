@@ -23,6 +23,7 @@ class SwimEvent extends Model
         'style_code',
         'style_name',
         'sport_classes',
+        'is_scored',
         'prev_event_id',
         'timing',
         'lenex_event_id',
@@ -97,5 +98,13 @@ class SwimEvent extends Model
     public function isRelay(): bool
     {
         return $this->relay_count > 1;
+    }
+
+    protected function casts(): array
+    {
+        return [
+            // false = Rahmenbewerb (z. B. Schnupperbewerb): wird nicht gewertet, Ergebnisse/Meldungen nicht importiert.
+            'is_scored' => 'boolean',
+        ];
     }
 }

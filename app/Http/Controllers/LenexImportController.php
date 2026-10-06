@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Athlete;
+use App\Models\Club;
 use App\Models\Meet;
+use App\Models\SwimEvent;
+use App\Services\ImportSuggestionService;
 use App\Services\LenexParserService;
 use App\Services\LenexResolverService;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -18,6 +24,7 @@ class LenexImportController extends Controller
     public function __construct(
         private readonly LenexParserService $parser,
         private readonly LenexResolverService $resolver,
+        private readonly ImportSuggestionService $suggestions,
     ) {}
 
     public function showForm(): View
@@ -49,7 +56,8 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Schritt 1c: Meet-Auswahl bestätigen und Import starten.
+     * Schritt 1c: Meet-Auswahl bestätigen. Enthält die Datei neue Einzelbewerbe ohne jede Klassenangabe (mögliche
+     * Rahmenbewerbe, z. B. Schnupperbewerbe), wird vor dem ersten Lauf nachgefragt; sonst startet der Import direkt.
      * meet_id = bestehende Meet-ID, oder leer = neues Meet anlegen.
      */
     public function runImport(Request $request): RedirectResponse
@@ -62,36 +70,59 @@ class LenexImportController extends Controller
                 ->withErrors(['import' => 'Import-Session abgelaufen. Bitte Datei erneut hochladen.']);
         }
 
-        $meetId = $request->input('meet_id'); // null = neues Meet
-        $fullPath = Storage::disk('local')->path($importData['path']);
+        $meetId = (int) $request->input('meet_id') ?: null; // null = neues Meet
 
         try {
-            $result = $this->parser->import($fullPath, $this->resolver, $meetId ?: null);
+            $pendingEvents = $this->newUnclassifiedEvents($importData['path'], $meetId);
+            Session::forget($sessionKey);
 
-            // Gibt es unaufgelöste Clubs oder Athleten?
-            if ($this->resolver->hasUnresolved()) {
+            if ($pendingEvents !== []) {
                 $newSessionKey = uniqid('lenex_import_', true);
                 Session::put($newSessionKey, [
                     'path' => $importData['path'],
-                    'force_meet_id' => $meetId ?: null,
-                    'partial_result' => $result,
-                    'unresolved_clubs' => $this->resolver->getUnresolvedClubs(),
-                    'unresolved_athletes' => $this->resolver->getUnresolvedAthletes(),
+                    'meet_id' => $meetId,
+                    'pending_events' => $pendingEvents,
                 ]);
-
-                Session::forget($sessionKey);
 
                 return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
             }
 
-            Session::forget($sessionKey);
-            Storage::disk('local')->delete($importData['path']);
-
-            return $this->redirectAfterImport($result);
+            return $this->startImport($importData['path'], $meetId, []);
 
         } catch (Exception $e) {
             return back()->withErrors([
                 'import' => 'Import fehlgeschlagen: '.$e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Schritt 1d: Rahmenbewerbe festlegen (angekreuzte Bewerbe werden als nicht gewertet angelegt) → Import starten.
+     */
+    public function resolveEvents(Request $request): RedirectResponse
+    {
+        $sessionKey = $request->input('import_session');
+        $importData = Session::get($sessionKey);
+
+        if (! $importData) {
+            return redirect()->route('lenex.import')
+                ->withErrors(['import' => 'Import-Session abgelaufen.']);
+        }
+
+        $offered = array_column($importData['pending_events'], 'number');
+        $unscored = array_values(array_intersect(
+            $offered,
+            array_map('intval', (array) $request->input('unscored_events', []))
+        ));
+
+        try {
+            Session::forget($sessionKey);
+
+            return $this->startImport($importData['path'], $importData['meet_id'], $unscored);
+
+        } catch (Exception $e) {
+            return back()->withErrors([
+                'resolve' => 'Import fehlgeschlagen: '.$e->getMessage(),
             ]);
         }
     }
@@ -153,7 +184,8 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Schritt 2: Review — unbekannte Clubs und Athleten anzeigen.
+     * Schritt 2: Klärungsseite — unbekannte Vereine bzw. Athleten mit Vorschlägen und der Möglichkeit, sie einem
+     * bestehenden Datensatz zuzuordnen (wie beim Rekord-Import).
      */
     public function review(Request $request): RedirectResponse|View
     {
@@ -165,16 +197,56 @@ class LenexImportController extends Controller
                 ->withErrors(['import' => 'Import-Session abgelaufen. Bitte Datei erneut hochladen.']);
         }
 
+        $clubs = Club::orderBy('name')->get(['id', 'name', 'short_name', 'code']);
+
+        $unresolvedClubs = array_map(function (array $club) use ($clubs): array {
+            $suggestions = $this->suggestions->suggestClubs($club['code'], $club['name'], $clubs);
+
+            return $club + [
+                'suggestions' => $suggestions->map(fn (Club $c): array => ['id' => $c->id, 'label' => self::clubLabel($c)])->all(),
+                'preselect' => $suggestions->count() === 1 ? $suggestions->first()->id : null,
+            ];
+        }, $importData['unresolved_clubs'] ?? []);
+
+        $clubNames = $clubs->pluck('name', 'id');
+        $unresolvedAthletes = array_map(function (array $athlete) use ($clubNames): array {
+            $suggestions = $this->suggestions->suggestAthletes(
+                $athlete['last_name'], $athlete['first_name'], $athlete['birth_date'], $athlete['gender']
+            );
+
+            return $athlete + [
+                'club_name' => $clubNames[$athlete['club_id']] ?? null,
+                'birth_date_display' => $athlete['birth_date'] !== '' ? Carbon::parse($athlete['birth_date'])->format('d.m.Y') : '',
+                'suggestions' => $suggestions->map(fn (Athlete $a): array => [
+                    'id' => $a->id,
+                    'label' => self::athleteLabel($a, $clubNames),
+                ])->all(),
+                'preselect' => $athlete['birth_date'] !== '' && $suggestions->count() === 1 ? $suggestions->first()->id : null,
+            ];
+        }, $importData['unresolved_athletes'] ?? []);
+
+        $athletes = empty($unresolvedAthletes) ? collect() : Athlete::orderBy('last_name')->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'birth_date', 'license', 'club_id'])
+            ->map(fn (Athlete $a): array => [
+                'id' => $a->id,
+                'initial' => mb_strtoupper(mb_substr($a->last_name, 0, 1)),
+                'label' => self::athleteLabel($a, $clubNames),
+            ]);
+
         return view('lenex.review', [
             'importSession' => $sessionKey,
-            'unresolvedClubs' => $importData['unresolved_clubs'],
-            'unresolvedAthletes' => $importData['unresolved_athletes'],
+            'pendingEvents' => $importData['pending_events'] ?? [],
+            'unresolvedClubs' => $unresolvedClubs,
+            'unresolvedAthletes' => $unresolvedAthletes,
+            'clubOptions' => $clubs->map(fn (Club $c): array => ['id' => $c->id, 'label' => self::clubLabel($c)]),
+            'athletes' => $athletes,
         ]);
     }
 
     /**
-     * Schritt 3a: Clubs anlegen → Athleten der neu angelegten Clubs aus dem XML laden
-     * und zur Review anzeigen. KEIN Import-Durchlauf hier.
+     * Schritt 3a: Vereine klären (neu anlegen, bestehendem zuordnen oder überspringen). Danach läuft der Import mit
+     * diesen Zuordnungen erneut (wiederholbar dank Ergebnis-Abgleich) und ermittelt die noch unbekannten Athleten —
+     * auch die eines zugeordneten bestehenden Vereins.
      */
     public function resolveClubs(Request $request): RedirectResponse
     {
@@ -187,71 +259,50 @@ class LenexImportController extends Controller
         }
 
         try {
-            $newClubIds = []; // lenex_id → neue DB-Club-ID
-
-            foreach ($request->input('clubs', []) as $clubData) {
-                if (($clubData['action'] ?? 'skip') !== 'create') {
-                    continue;
-                }
-                $club = $this->resolver->createClub([
-                    'name' => $clubData['name'],
-                    'short_name' => $clubData['short_name'] ?? null,
-                    'code' => $clubData['code'] ?? null,
-                    'nation_id' => $clubData['nation_id'],
-                    'type' => $clubData['type'] ?? 'CLUB',
-                    'cache_key' => $clubData['cache_key'] ?? null,
-                    'regional_association' => $clubData['regional_association'] ?? null,
-                ]);
-                // cache_key ist der stabile Schlüssel (lenex_id oder "code:BSRO")
-                // Er muss mit dem übereinstimmen der in resolveClub() berechnet wurde
-                $cacheKey = $clubData['cache_key'] ?? '';
-                if ($cacheKey) {
-                    $newClubIds[$cacheKey] = $club->id;
-                    $this->resolver->addToClubCache($cacheKey, $club->id);
+            $clubMap = $importData['club_map'] ?? [];
+            foreach ($importData['unresolved_clubs'] ?? [] as $index => $clubData) {
+                $selection = (string) $request->input("clubs.$index.selection", 'skip');
+                $club = match (true) {
+                    $selection === 'new' => $this->resolver->createClub($clubData),
+                    ctype_digit($selection) => Club::find((int) $selection),
+                    default => null,
+                };
+                if ($club && $clubData['cache_key'] !== '') {
+                    $clubMap[$clubData['cache_key']] = $club->id;
                 }
             }
 
-            // Athleten der neu angelegten Clubs aus dem XML lesen
-            $fullPath = Storage::disk('local')->path($importData['path']);
-            $newAthletes = $this->parser->extractAthletesForClubs(
-                $fullPath,
-                array_keys($newClubIds),
-                $newClubIds
-            );
+            $result = $this->importWithAssignments($importData, $clubMap, []);
+            $unresolvedAthletes = $this->resolver->getUnresolvedAthletes();
 
-            // Session aktualisieren: bereits bekannte unresolved_athletes + neue
-            $allUnresolvedAthletes = array_merge(
-                $importData['unresolved_athletes'] ?? [],
-                $newAthletes
-            );
+            if (empty($unresolvedAthletes)) {
+                Session::forget($sessionKey);
+                Storage::disk('local')->delete($importData['path']);
+
+                return $this->redirectAfterImport($result);
+            }
 
             $newSessionKey = uniqid('lenex_import_', true);
             Session::put($newSessionKey, [
                 'path' => $importData['path'],
                 'force_meet_id' => $importData['force_meet_id'] ?? null,
-                'resolved_club_ids' => $newClubIds,
+                'club_map' => $clubMap,
                 'unresolved_clubs' => [],
-                'unresolved_athletes' => $allUnresolvedAthletes,
+                'unresolved_athletes' => $unresolvedAthletes,
             ]);
             Session::forget($sessionKey);
-
-            if (empty($allUnresolvedAthletes)) {
-                // Keine neuen Athleten — direkt finalen Import starten
-                return $this->runFinalImport($newSessionKey, $newClubIds);
-            }
 
             return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
 
         } catch (Exception $e) {
             return back()->withErrors([
-                'resolve' => 'Fehler beim Anlegen der Vereine: '.$e->getMessage(),
+                'resolve' => 'Fehler beim Klären der Vereine: '.$e->getMessage(),
             ]);
         }
     }
 
     /**
-     * Schritt 3b: Athleten anlegen → finalen Import starten.
-     * Kein weiterer Parser-Lauf für die Review — nur noch der finale Import.
+     * Schritt 3b: Athleten klären (neu anlegen, bestehendem zuordnen oder überspringen) → finaler Import.
      */
     public function resolveAthletes(Request $request): RedirectResponse
     {
@@ -264,33 +315,29 @@ class LenexImportController extends Controller
         }
 
         try {
-            // Neu angelegte Club-IDs aus der Session in den Cache laden
-            foreach ($importData['resolved_club_ids'] ?? [] as $lenexId => $clubId) {
-                $this->resolver->addToClubCache((string) $lenexId, $clubId);
-            }
-
-            // Athleten anlegen
-            foreach ($request->input('athletes', []) as $athleteData) {
-                if (($athleteData['action'] ?? 'skip') !== 'create') {
-                    continue;
+            $athleteMap = [];
+            foreach ($importData['unresolved_athletes'] ?? [] as $index => $athleteData) {
+                $selection = (string) $request->input("athletes.$index.selection", 'skip');
+                $athlete = match (true) {
+                    $selection === 'new' => $this->resolver->createAthlete($athleteData),
+                    ctype_digit($selection) => Athlete::find((int) $selection),
+                    default => null,
+                };
+                if ($athlete && $athleteData['lenex_id'] !== '') {
+                    $athleteMap[$athleteData['lenex_id']] = $athlete->id;
                 }
-                $this->resolver->createAthlete([
-                    'first_name' => $athleteData['first_name'],
-                    'last_name' => $athleteData['last_name'],
-                    'birth_date' => $athleteData['birth_date'] ?? null,
-                    'gender' => $athleteData['gender'] ?? 'M',
-                    'nation_id' => $athleteData['nation_id'],
-                    'club_id' => $athleteData['club_id'] ?? null,
-                    'license' => $athleteData['license'] ?? null,
-                    'license_ipc' => $athleteData['license_ipc'] ?? null,
-                ]);
             }
 
-            return $this->runFinalImport($sessionKey, $importData['resolved_club_ids'] ?? []);
+            $result = $this->importWithAssignments($importData, $importData['club_map'] ?? [], $athleteMap);
+
+            Session::forget($sessionKey);
+            Storage::disk('local')->delete($importData['path']);
+
+            return $this->redirectAfterImport($result);
 
         } catch (Exception $e) {
             return back()->withErrors([
-                'resolve' => 'Fehler beim Anlegen der Athleten: '.$e->getMessage(),
+                'resolve' => 'Fehler beim Klären der Athleten: '.$e->getMessage(),
             ]);
         }
     }
@@ -354,38 +401,92 @@ class LenexImportController extends Controller
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
 
     /**
-     * Finaler Import-Durchlauf — wird genau einmal aufgerufen,
-     * nachdem alle Clubs und Athleten angelegt sind.
+     * Erster Import-Lauf. Gibt es unbekannte Vereine oder Athleten, folgt die Klärungsseite; die dabei angelegte bzw.
+     * gewählte Veranstaltung wird gemerkt, damit die Folgeschritte keine weitere anlegen.
+     *
+     * @param  list<int>  $unscoredEventNumbers
+     *
+     * @throws Exception
      */
-    private function runFinalImport(string $sessionKey, array $resolvedClubIds): RedirectResponse
+    private function startImport(string $path, ?int $meetId, array $unscoredEventNumbers): RedirectResponse
     {
-        $importData = Session::get($sessionKey);
+        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, $unscoredEventNumbers);
 
-        if (! $importData) {
-            return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen.']);
-        }
-
-        // Club-Cache aus der Session wiederherstellen (cache_key → club_id)
-        foreach ($resolvedClubIds as $cacheKey => $clubId) {
-            $this->resolver->addToClubCache((string) $cacheKey, $clubId);
-        }
-
-        $fullPath = Storage::disk('local')->path($importData['path']);
-        $forceMeetId = $importData['force_meet_id'] ?? null;
-
-        try {
-            $result = $this->parser->import($fullPath, $this->resolver, $forceMeetId);
-
-            Session::forget($sessionKey);
-            Storage::disk('local')->delete($importData['path']);
+        if (! $this->resolver->hasUnresolved()) {
+            Storage::disk('local')->delete($path);
 
             return $this->redirectAfterImport($result);
-
-        } catch (Exception $e) {
-            return back()->withErrors([
-                'import' => 'Finaler Import fehlgeschlagen: '.$e->getMessage(),
-            ]);
         }
+
+        $newSessionKey = uniqid('lenex_import_', true);
+        Session::put($newSessionKey, [
+            'path' => $path,
+            'force_meet_id' => $meetId ?: $result['meet']->id,
+            'unresolved_clubs' => $this->resolver->getUnresolvedClubs(),
+            'unresolved_athletes' => $this->resolver->getUnresolvedAthletes(),
+        ]);
+
+        return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
+    }
+
+    /**
+     * Einzelbewerbe der Datei ohne Klassenangabe, die in der Ziel-Veranstaltung noch nicht existieren. Bestehende
+     * Bewerbe behalten ihre Kennzeichnung (Disziplin-Formular), beim Nachimport wird also nicht erneut gefragt.
+     *
+     * @return list<array{number: int, label: string, groups: string}>
+     *
+     * @throws Exception
+     */
+    private function newUnclassifiedEvents(string $path, ?int $meetId): array
+    {
+        $events = $this->parser->unclassifiedEvents(Storage::disk('local')->path($path));
+        if ($meetId === null || $events === []) {
+            return $events;
+        }
+
+        $existing = SwimEvent::where('meet_id', $meetId)->pluck('event_number')->all();
+
+        return array_values(array_filter($events, fn (array $e): bool => ! in_array($e['number'], $existing, true)));
+    }
+
+    /**
+     * Import-Durchlauf mit den Zuordnungen der Klärungsseite: Verein (cache_key → Club-ID) und Athlet
+     * (LENEX athleteid → Athleten-ID).
+     *
+     * @param  array<int|string, int>  $clubMap  numerische Schlüssel macht PHP zu int
+     * @param  array<int|string, int>  $athleteMap
+     *
+     * @throws Exception
+     */
+    private function importWithAssignments(array $importData, array $clubMap, array $athleteMap): array
+    {
+        foreach ($clubMap as $cacheKey => $clubId) {
+            $this->resolver->addToClubCache((string) $cacheKey, $clubId);
+        }
+        foreach ($athleteMap as $lenexId => $athleteId) {
+            $this->resolver->assignAthlete((string) $lenexId, $athleteId);
+        }
+
+        return $this->parser->import(
+            Storage::disk('local')->path($importData['path']),
+            $this->resolver,
+            $importData['force_meet_id'] ?? null
+        );
+    }
+
+    /** "Name (Code)" für Auswahllisten — eindeutiger als der Kurzname (display_name). */
+    private static function clubLabel(Club $club): string
+    {
+        return $club->name.($club->code ? ' ('.$club->code.')' : '');
+    }
+
+    /** "Nachname, Vorname (*TT.MM.JJJJ) · Lizenz · Verein" für Auswahllisten. */
+    private static function athleteLabel(Athlete $athlete, SupportCollection $clubNames): string
+    {
+        return implode(' · ', array_filter([
+            $athlete->display_name.($athlete->birth_date ? ' (*'.$athlete->birth_date->format('d.m.Y').')' : ''),
+            $athlete->license,
+            $clubNames[$athlete->club_id] ?? null,
+        ]));
     }
 }

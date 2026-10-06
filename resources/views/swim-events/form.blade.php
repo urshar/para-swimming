@@ -27,14 +27,21 @@
             ])->values()->all()
             : []);
         $groupConfig = ['groups' => array_values($groupRows)];
+        // Rahmenbewerb: Checkbox sendet "0" = nicht gewertet.
+        $unscored = (string) old('is_scored', isset($event) && ! $event->is_scored ? '0' : '1') === '0';
+        $resultCount = isset($event) ? $event->results()->count() + $event->relayResults()->count() : 0;
         $inputClass = 'w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-900 dark:text-zinc-100';
     @endphp
     <div class="max-w-4xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen' }}
-            </h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ $meet->name }}</p>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left" size="sm"
+                             title="Zurück" aria-label="Zurück"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    {{ isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen' }}
+                </h1>
+            </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{{ $meet->name }}</p>
 
             @if(session('success'))
                 <div class="mt-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800
@@ -42,12 +49,6 @@
                     {{ session('success') }}
                 </div>
             @endif
-
-            <div class="mt-4">
-                <flux:button href="{{ route('meets.show', $meet) }}" variant="filled" icon="arrow-left" size="sm">
-                    Zurück
-                </flux:button>
-            </div>
         </div>
 
         <form method="POST"
@@ -147,6 +148,35 @@
                         @endforeach
                     </flux:select>
                 </flux:field>
+
+                {{-- Rahmenbewerb: Hidden-Feld liefert "1", wenn das Häkchen fehlt (unchecked Checkboxen werden nicht gesendet). --}}
+                <div>
+                    <input type="hidden" name="is_scored" value="1">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="is_scored" value="0" @checked($unscored)
+                               class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
+                        <span>
+                            <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Rahmenbewerb – nicht gewertet</span>
+                            <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                Z. B. Schnupperbewerb für nicht klassifizierte Schwimmer. Der Bewerb bleibt Teil der
+                                Veranstaltung und des LENEX-Exports; Ergebnisse und Meldungen werden nicht importiert.
+                            </span>
+                        </span>
+                    </label>
+                    @if($resultCount > 0 && ! $unscored)
+                        <p class="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                            Achtung: Dieser Bewerb hat {{ $resultCount }} {{ $resultCount === 1 ? 'Ergebnis' : 'Ergebnisse' }}.
+                            Wird er als nicht gewertet markiert, werden diese beim Speichern gelöscht.
+                        </p>
+                    @endif
+                    @error('confirm_delete_results')
+                        <label class="flex items-start gap-3 mt-3 p-3 rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 cursor-pointer">
+                            <input type="checkbox" name="confirm_delete_results" value="1"
+                                   class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
+                            <span class="text-sm text-red-700 dark:text-red-400">{{ $message }}</span>
+                        </label>
+                    @enderror
+                </div>
 
             </div>
 

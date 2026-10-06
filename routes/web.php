@@ -470,6 +470,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/import/confirm-meet', [LenexImportController::class, 'confirmMeet'])->name('import.confirm-meet');
         Route::post('/import/run', [LenexImportController::class, 'runImport'])->name('import.run');
         Route::get('/import/review', [LenexImportController::class, 'review'])->name('import.review');
+        Route::post('/import/resolve-events',
+            [LenexImportController::class, 'resolveEvents'])->name('import.resolve-events');
         Route::post('/import/resolve-clubs',
             [LenexImportController::class, 'resolveClubs'])->name('import.resolve-clubs');
         Route::post('/import/resolve-athletes',

@@ -254,6 +254,10 @@
                                 </flux:table.cell>
                                 <flux:table.cell class="font-medium">
                                     {{ $event->display_name }}
+                                    @unless($event->is_scored)
+                                        <flux:badge size="sm" color="amber" class="ml-1"
+                                                    title="Rahmenbewerb: Ergebnisse und Meldungen werden nicht importiert">nicht gewertet</flux:badge>
+                                    @endunless
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <flux:badge size="sm"

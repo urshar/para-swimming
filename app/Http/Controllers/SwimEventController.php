@@ -9,7 +9,9 @@ use App\Models\SwimEvent;
 use App\Services\ScoringGroupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Throwable;
 
 class SwimEventController extends Controller
 {
@@ -59,12 +61,31 @@ class SwimEventController extends Controller
         ]);
     }
 
+    /**
+     * @throws Throwable
+     */
     public function update(Request $request, SwimEvent $event): RedirectResponse
     {
         $data = $this->validateSwimEvent($request);
         $groups = $this->validateScoringGroups($request);
 
-        $event->update($data);
+        // Rahmenbewerb: vorhandene Ergebnisse werden gelöscht, aber nur nach ausdrücklicher Bestätigung.
+        $resultCount = $event->results()->count() + $event->relayResults()->count();
+        if (! $data['is_scored'] && $event->is_scored && $resultCount > 0 && ! $request->boolean('confirm_delete_results')) {
+            return back()->withInput()->withErrors([
+                'confirm_delete_results' => "Dieser Bewerb hat $resultCount ".($resultCount === 1 ? 'Ergebnis' : 'Ergebnisse')
+                    .'. Bestätigen, dass sie beim Kennzeichnen als nicht gewertet gelöscht werden.',
+            ]);
+        }
+
+        DB::transaction(function () use ($event, $data) {
+            if (! $data['is_scored']) {
+                // Einzeln löschen, damit cascadeOnDelete (Zwischenzeiten, Staffelschwimmer) und Model-Events greifen.
+                $event->results()->get()->each->delete();
+                $event->relayResults()->get()->each->delete();
+            }
+            $event->update($data);
+        });
         $this->saveScoringGroups($event, $groups);
 
         return redirect()
@@ -179,7 +200,7 @@ class SwimEventController extends Controller
 
     private function validateSwimEvent(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'stroke_type_id' => 'required|exists:stroke_types,id',
             'event_number' => 'nullable|integer|min:1',
             'session_number' => 'required|integer|min:1',
@@ -192,6 +213,12 @@ class SwimEventController extends Controller
             'style_name' => 'nullable|string|max:255',
             'sport_classes' => 'nullable|string|max:100',
             'timing' => 'nullable|in:AUTOMATIC,SEMIAUTOMATIC,MANUAL3,MANUAL2,MANUAL1',
+            'is_scored' => 'nullable|boolean',
         ]);
+
+        // Fehlt das Feld (z. B. ältere Formulare), gilt der Bewerb als gewertet.
+        $data['is_scored'] = $request->boolean('is_scored', true);
+
+        return $data;
     }
 }

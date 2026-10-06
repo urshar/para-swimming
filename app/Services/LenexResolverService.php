@@ -49,6 +49,18 @@ class LenexResolverService
     /** Unbekannte Athleten die manuell aufgelöst werden müssen */
     private array $unresolvedAthletes = [];
 
+    /**
+     * Auf der Klärungsseite gewählte Zuordnungen: LENEX athleteid → bestehender Athlet. Beim ersten Auftreten wie ein
+     * automatisch gefundener Athlet behandelt (HANDICAP-Abgleich), danach im athleteCache.
+     *
+     * @var array<string, int>
+     */
+    private array $assignedAthletes = [];
+
+    public function __construct(
+        private readonly ImportSuggestionService $suggestions = new ImportSuggestionService,
+    ) {}
+
     // ── Clubs ─────────────────────────────────────────────────────────────────
 
     public function resolveClub(SimpleXMLElement $clubXml, int $nationId): ?Club
@@ -116,10 +128,10 @@ class LenexResolverService
         $club = Club::create([
             'name' => $data['name'],
             'short_name' => $data['short_name'] ?? null,
-            'code' => $data['code'] ?? null,
+            'code' => ($data['code'] ?? '') ?: null,
             'nation_id' => $data['nation_id'],
             'type' => $data['type'] ?? 'CLUB',
-            'regional_association' => $data['regional_association'] ?? null,
+            'regional_association' => ($data['regional_association'] ?? '') ?: null,
         ]);
 
         if ($data['cache_key'] ?? null) {
@@ -146,16 +158,19 @@ class LenexResolverService
             return Athlete::find($this->athleteCache[$lenexId]);
         }
 
-        $athlete = null;
+        // 0. Auf der Klärungsseite einem bestehenden Athleten zugeordnet
+        $athlete = $lenexId && isset($this->assignedAthletes[$lenexId])
+            ? Athlete::find($this->assignedAthletes[$lenexId])
+            : null;
 
-        // 1. Lizenznummer
-        if ($license) {
-            $athlete = Athlete::where('license', $license)->whereNull('deleted_at')->first();
+        // 1. Lizenznummer (ohne Leerzeichen verglichen: "W - 1653" = "W-1653")
+        if (! $athlete && $license) {
+            $athlete = $this->suggestions->athleteByLicense('license', $license);
         }
 
         // 2. SDMS ID (IPC Lizenznummer) —, nur wenn nicht "0"
         if (! $athlete && $licenseIpc && $licenseIpc !== '0') {
-            $athlete = Athlete::where('license_ipc', $licenseIpc)->whereNull('deleted_at')->first();
+            $athlete = $this->suggestions->athleteByLicense('license_ipc', $licenseIpc);
         }
 
         // 3. Name + Geburtsdatum + Geschlecht + Nation
@@ -209,12 +224,12 @@ class LenexResolverService
         $athlete = Athlete::create([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'birth_date' => $data['birth_date'] ?? null,
-            'gender' => $data['gender'] ?? 'M',
+            'birth_date' => ($data['birth_date'] ?? '') ?: null,
+            'gender' => ($data['gender'] ?? '') ?: 'M',
             'nation_id' => $data['nation_id'],
             'club_id' => $data['club_id'] ?? null,
-            'license' => $data['license'] ?? null,
-            'license_ipc' => $data['license_ipc'] ?? null,
+            'license' => ($data['license'] ?? '') ?: null,
+            'license_ipc' => ($data['license_ipc'] ?? '') ?: null,
             // lenex_athlete_id wird NICHT gespeichert — ist pro Export unterschiedlich
         ]);
 
@@ -242,22 +257,13 @@ class LenexResolverService
         $this->clubCache[$lenexId] = $clubId;
     }
 
-    public function addToAthleteCache(string $lenexId, int $athleteId): void
+    /** Ordnet eine LENEX athleteid einem bestehenden Athleten zu (Auswahl auf der Klärungsseite). */
+    public function assignAthlete(string $lenexId, int $athleteId): void
     {
-        $this->athleteCache[$lenexId] = $athleteId;
+        $this->assignedAthletes[$lenexId] = $athleteId;
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
-
-    public function getClubIdFromCache(string $lenexId): ?int
-    {
-        return $this->clubCache[$lenexId] ?? null;
-    }
-
-    public function getAthleteIdFromCache(string $lenexId): ?int
-    {
-        return $this->athleteCache[$lenexId] ?? null;
-    }
 
     public function getUnresolvedClubs(): array
     {
@@ -274,11 +280,6 @@ class LenexResolverService
     public function hasUnresolved(): bool
     {
         return ! empty($this->unresolvedClubs) || ! empty($this->unresolvedAthletes);
-    }
-
-    public function unresolvedCount(): int
-    {
-        return count($this->unresolvedClubs) + count($this->unresolvedAthletes);
     }
 
     // ── Unaufgelöste Einträge ─────────────────────────────────────────────────
