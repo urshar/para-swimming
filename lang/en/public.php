@@ -157,6 +157,9 @@ return [
             'empty' => 'No results have been published for this meet yet.',
             'class_heading' => 'Sport class :class',
             'class_heading_none' => 'No sport class',
+            'scoring_heading' => ':gender – :name',
+            'scoring_unassigned' => 'No scoring group',
+            'genders' => ['M' => 'Men', 'F' => 'Women', 'X' => 'Mixed'],
             'columns' => [
                 'place' => 'Place',
                 'name' => 'Name',

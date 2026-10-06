@@ -11,6 +11,7 @@ use App\Models\MeetSession;
 use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
 use App\Models\Result;
+use App\Models\ScoringGroup;
 use App\Models\SwimEvent;
 use App\Support\RelayNames;
 use DOMDocument;
@@ -73,7 +74,7 @@ class LenexExportService
      */
     private function buildMeet(Meet $meet): DOMElement
     {
-        $meet->load(['nation', 'swimEvents.strokeType']);
+        $meet->load(['nation', 'swimEvents.strokeType', 'swimEvents.scoringGroups']);
 
         $el = $this->dom->createElement('MEET');
         $el->setAttribute('name', $meet->name);
@@ -216,14 +217,23 @@ class LenexExportService
     }
 
     /**
-     * Baut AGEGROUPS aus den sport_classes des Events.
-     * Pro Sportklasse eine AGEGROUP mit agegroupid, agemax/agemin=-1, handicap.
+     * Baut die AGEGROUPS eines Bewerbs.
+     *
+     * Mit Wertungsgruppen: je Gruppe eine AGEGROUP mit Name, Geschlecht, Klassen (handicap, kommagetrennt) und Alter;
+     * beim Ergebnisexport zusätzlich die RANKINGS der Einzelergebnisse je Gruppe (Platz wie in der Ergebnisliste,
+     * place -1 für nicht gewertete). Staffel-RANKINGS folgen mit dem Export der Staffelergebnisse.
+     *
+     * Ohne Wertungsgruppen (Altbestand): pro Sportklasse eine AGEGROUP mit agegroupid, agemax/agemin=-1, handicap.
      *
      * @throws DOMException
      */
     private function buildAgeGroups(SwimEvent $event): DOMElement
     {
         $ageGroupsEl = $this->dom->createElement('AGEGROUPS');
+
+        if ($event->scoringGroups->isNotEmpty()) {
+            return $this->buildScoringGroupAgeGroups($event, $ageGroupsEl);
+        }
 
         if (! $event->sport_classes || trim($event->sport_classes) === '') {
             return $ageGroupsEl;
@@ -240,6 +250,53 @@ class LenexExportService
             $ag->setAttribute('agemax', '-1');
             $ag->setAttribute('agemin', '-1');
             $ag->setAttribute('handicap', $classNum);
+            $ageGroupsEl->appendChild($ag);
+        }
+
+        return $ageGroupsEl;
+    }
+
+    /**
+     * @throws DOMException
+     */
+    private function buildScoringGroupAgeGroups(SwimEvent $event, DOMElement $ageGroupsEl): DOMElement
+    {
+        // Rangliste je Gruppe nur beim Ergebnisexport und nur für Einzelbewerbe.
+        $rowsByGroup = [];
+        if ($this->exportType === 'results' && $event->relay_count <= 1) {
+            $results = Result::where('swim_event_id', $event->id)->with('athlete')->get();
+            $meetYear = (int) $event->meet->start_date->format('Y');
+            foreach ((new ScoringGroupService)->rankedGroups($event, $results, $meetYear) as $ranked) {
+                if ($ranked['group'] !== null) {
+                    $rowsByGroup[$ranked['group']->id] = $ranked['rows'];
+                }
+            }
+        }
+
+        foreach ($event->scoringGroups as $group) {
+            /** @var ScoringGroup $group */
+            $ag = $this->dom->createElement('AGEGROUP');
+            $ag->setAttribute('agegroupid', $group->lenex_agegroup_id ?? 'G'.$group->id);
+            $ag->setAttribute('name', $group->name);
+            $ag->setAttribute('gender', $group->gender);
+            $ag->setAttribute('agemin', (string) ($group->age_min ?? -1));
+            $ag->setAttribute('agemax', (string) ($group->age_max ?? -1));
+            if ($group->classNumbers() !== []) {
+                $ag->setAttribute('handicap', implode(',', $group->classNumbers()));
+            }
+
+            if (! empty($rowsByGroup[$group->id])) {
+                $rankingsEl = $this->dom->createElement('RANKINGS');
+                foreach ($rowsByGroup[$group->id] as $order => $row) {
+                    $ranking = $this->dom->createElement('RANKING');
+                    $ranking->setAttribute('order', (string) ($order + 1));
+                    $ranking->setAttribute('place', (string) ($row['place'] ?? -1));
+                    $ranking->setAttribute('resultid', $row['result']->lenex_result_id ?? (string) $row['result']->id);
+                    $rankingsEl->appendChild($ranking);
+                }
+                $ag->appendChild($rankingsEl);
+            }
+
             $ageGroupsEl->appendChild($ag);
         }
 

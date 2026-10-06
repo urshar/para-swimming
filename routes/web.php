@@ -382,6 +382,9 @@ Route::middleware(['auth'])->group(function () {
         ->shallow()
         ->except(['index', 'show'])
         ->parameters(['events' => 'event']);
+    Route::post('events/{event}/scoring-groups/copy', [SwimEventController::class, 'copyScoringGroups'])
+        ->name('events.scoring-groups.copy')
+        ->middleware(RequireAdmin::class);
 
     // Meldungen — die verbandsweite Meldungsliste (Admin-Cockpit "Was ist zu tun"),
     // Anlegen/Bearbeiten/Löschen sowie die meet-weite Gesamtübersicht sind Admin-Sache;

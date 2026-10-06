@@ -50,9 +50,38 @@ class SwimEvent extends Model
         return $this->hasMany(Result::class);
     }
 
+    public function relayResults(): HasMany
+    {
+        return $this->hasMany(RelayResult::class);
+    }
+
+    /** Wertungsgruppen des Bewerbs in ihrer Reihenfolge (LENEX AGEGROUPs). */
+    public function scoringGroups(): HasMany
+    {
+        return $this->hasMany(ScoringGroup::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function previousEvent(): BelongsTo
     {
         return $this->belongsTo(SwimEvent::class, 'prev_event_id');
+    }
+
+    /**
+     * Setzt sport_classes (Grundlage der Meldeberechtigung) auf die Vereinigung der Klassen aller Wertungsgruppen.
+     * Umfasst eine Gruppe alle Klassen (leer), bleibt sport_classes leer (= keine Einschränkung). Ohne Gruppen bleibt
+     * der bisherige Wert stehen.
+     */
+    public function syncSportClassesFromGroups(): void
+    {
+        $groups = $this->scoringGroups()->get();
+        if ($groups->isEmpty()) {
+            return;
+        }
+
+        $open = $groups->contains(fn (ScoringGroup $g): bool => $g->classNumbers() === []);
+        $classes = $groups->flatMap(fn (ScoringGroup $g): array => $g->classNumbers())->unique()->sort()->values();
+
+        $this->update(['sport_classes' => $open ? null : $classes->implode(' ')]);
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

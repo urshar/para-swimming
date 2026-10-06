@@ -5,6 +5,7 @@ namespace App\Services\Public;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\SwimEvent;
+use App\Services\ScoringGroupService;
 use Illuminate\Support\Collection;
 
 /**
@@ -14,16 +15,20 @@ use Illuminate\Support\Collection;
  */
 final readonly class PublicResultService
 {
+    public function __construct(
+        private ScoringGroupService $scoring,
+    ) {}
+
     /**
-     * Ergebnisse gruppiert nach Bewerb (Session/Bewerbsnummer), darin nach Sportklasse
-     * (Ergebnis-Feld, nicht Athlet-Stammdaten — kann laut LENEX abweichen), sortiert.
+     * Ergebnisse gruppiert nach Bewerb (Session/Bewerbsnummer), darin nach Wertungsgruppen mit Platz je Gruppe
+     * (ScoringGroupService; ohne definierte Gruppen je Geschlecht und Sportklasse).
      *
-     * @return Collection<int, object{event: SwimEvent, classes: Collection<string, Collection<int, Result>>}>
+     * @return Collection<int, object{event: SwimEvent, scoring: list<array{gender: ?string, name: string, rows: list<array{place: ?int, result: Result}>}>}>
      */
     public function forMeet(Meet $meet): Collection
     {
         $swimEvents = $meet->swimEvents()
-            ->with('strokeType')
+            ->with(['strokeType', 'scoringGroups'])
             ->whereHas('results')
             ->orderBy('session_number')
             ->orderBy('event_number')
@@ -34,38 +39,17 @@ final readonly class PublicResultService
             ->get()
             ->groupBy('swim_event_id');
 
-        return $swimEvents->map(function (SwimEvent $swimEvent) use ($results): object {
-            $classes = ($results->get($swimEvent->id) ?? collect())
-                ->sortBy(fn (Result $result): string => $this->sortKey($result))
-                ->values()
-                ->groupBy(fn (Result $result): string => $result->sport_class ?? '');
+        $meetYear = (int) $meet->start_date->format('Y');
 
-            return (object) ['event' => $swimEvent, 'classes' => $classes];
-        });
+        return $swimEvents->map(fn (SwimEvent $swimEvent): object => (object) [
+            'event' => $swimEvent,
+            'scoring' => $this->scoring->rankedGroups($swimEvent, $results->get($swimEvent->id) ?? collect(), $meetYear),
+        ]);
     }
 
     /** Ob für dieses Meet überhaupt Ergebnisse veröffentlicht sind (für den Link auf der Detailseite). */
     public function hasResults(Meet $meet): bool
     {
         return $meet->results()->exists();
-    }
-
-    /**
-     * Zusammengesetzter Sortierschlüssel statt sortBy() mit Closure-Array (CLAUDE.md):
-     * Sportklasse zuerst, darin gültige Zeiten nach Platz/Zeit, DNS/DNF/DSQ/SICK/WDR ans Ende.
-     * EXH bleibt bei seiner reell erzielten Zeit einsortiert.
-     */
-    private function sortKey(Result $result): string
-    {
-        $invalidStatuses = ['DNS', 'DNF', 'DSQ', 'SICK', 'WDR'];
-        $isInvalid = in_array($result->status, $invalidStatuses, true);
-
-        return sprintf(
-            '%s|%s|%010d|%010d',
-            $result->sport_class ?? '',
-            $isInvalid ? '1' : '0',
-            $isInvalid ? 0 : ($result->place ?? 9999999999),
-            $isInvalid ? 0 : ($result->swim_time ?? 9999999999)
-        );
     }
 }

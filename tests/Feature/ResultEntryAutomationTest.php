@@ -178,7 +178,7 @@ it('rechnet beim Bearbeiten neu, wenn die Punkte unverändert mitgeschickt werde
 
 // ── Ergebnisliste (PDF) ───────────────────────────────────────────────────────
 
-it('gruppiert die Ergebnisliste nach Sportklasse mit eigener Platzierung und gleichem Platz bei gleicher Zeit', function () {
+it('gruppiert die Ergebnisliste ohne Wertungsgruppen nach Geschlecht und Sportklasse mit eigener Platzierung und gleichem Platz bei gleicher Zeit', function () {
     [$meet, $club, , $event] = setup_rea();
     $a = result_rea($meet, $event, makeAthlete_p5($club), 6500, 'S9', null);
     $b = result_rea($meet, $event, makeAthlete_p5($club), 6400, 'S9', null);
@@ -189,9 +189,9 @@ it('gruppiert die Ergebnisliste nach Sportklasse mit eigener Platzierung und gle
     $s4 = result_rea($meet, $event, makeAthlete_p5($club), 9000, 'S4', null);
 
     $groups = groups_rea($meet);
-    $s9 = collect($groups)->firstWhere('label', 'Sportklasse S9')['rows'];
+    $s9 = collect($groups)->firstWhere('label', 'Herren – S9')['rows'];
 
-    expect(array_column($groups, 'label'))->toBe(['Sportklasse S4', 'Sportklasse S9', 'Sportklasse S10'])
+    expect(array_column($groups, 'label'))->toBe(['Herren – S4', 'Herren – S9', 'Herren – S10'])
         ->and(array_column($s9, 'place'))->toBe([1, 2, 2, null, null])
         ->and(array_map(fn (array $r) => $r['result']->id, $s9))
         ->sequence(

@@ -1,6 +1,6 @@
 {{--
     Staffelergebnisse eines Staffelbewerbs in der Ergebnis-Sammelansicht (meets/results-overview).
-    Erwartet: $relayResults (RelayResult mit club und members.athlete), $pointColumns.
+    Erwartet: $rows (je Zeile place und result = RelayResult mit club und members.athlete), $pointColumns.
 --}}
 <div class="p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
@@ -19,10 +19,11 @@
             <flux:table.column></flux:table.column>
         </flux:table.columns>
         <flux:table.rows>
-            @foreach($relayResults as $relayResult)
+            @foreach($rows as $row)
+                @php $relayResult = $row['result']; @endphp
                 <flux:table.row>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
-                        {{ $relayResult->place ?: '–' }}
+                        {{ $row['place'] ?: '–' }}
                     </flux:table.cell>
                     <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
                         {{ $relayResult->display_name }}

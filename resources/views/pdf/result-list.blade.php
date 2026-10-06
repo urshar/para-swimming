@@ -71,7 +71,7 @@
         @if($block['isRelay'])
             {{-- Staffeln: Wertung (Herren/Damen/Mixed) und Staffelklasse, darunter die Schwimmer. --}}
             @foreach($block['groups'] as $group)
-                <div class="group-title">{{ $group['label'] }}</div>
+                <div class="group-title">{{ $group['label'] }}@if($group['missingPoints'] > 0) <span style="font-weight: normal; color: #b00;">({{ $group['missingPoints'] }} ohne Punkte, nicht platziert)</span>@endif</div>
                 <table class="res">
                     <tr>
                         <th class="col-pl">Pl.</th>
@@ -115,7 +115,7 @@
             @endforeach
         @else
         @foreach($block['groups'] as $group)
-            <div class="group-title">{{ $group['label'] }}</div>
+            <div class="group-title">{{ $group['label'] }}@if($group['missingPoints'] > 0) <span style="font-weight: normal; color: #b00;">({{ $group['missingPoints'] }} ohne Punkte, nicht platziert)</span>@endif</div>
             <table class="res">
                 <tr>
                     <th class="col-pl">Pl.</th>

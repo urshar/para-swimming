@@ -72,9 +72,10 @@ und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`). Umg
 `feature/meet-results-overview`:
 Ergebnis-Sammelansicht je Veranstaltung mit Filtern, Erfassen ("Speichern und nächstes", Sportklasse aus dem Athleten,
 automatische Punkte), Löschen einzeln oder je Disziplin und Ergebnisliste als PDF; Ergebnis-Routen jetzt nur Admin
-(dokumentiert in `specs/meet-results.md`). Die PDF gliedert vorläufig nach Sportklasse, bis die Wertungsgruppen (#3)
-abgebildet sind. Umgesetzt in `feature/relay-results`: Staffelergebnisse Phase 1 (Datenmodell, LENEX-Import,
-Erfassung, Rekorde, PDF, Statistik); Phase 2 und der Nachimport alter Dateien siehe #6.
+(dokumentiert in `specs/meet-results.md`). Umgesetzt in `feature/relay-results`: Staffelergebnisse Phase 1 (Datenmodell, LENEX-Import,
+Erfassung, Rekorde, PDF, Statistik); Phase 2 und der Nachimport alter Dateien siehe #5. Umgesetzt in `feature/scoring-groups`:
+Wertungsgruppen je Bewerb (Open Point "Meetstruktur / Wertungsgruppen", LENEX-Export mit korrekter Wertung),
+dokumentiert in `specs/scoring-groups.md`.
 
 **Sicherheit, vorrangig:** "Sicherheit: LENEX-Import nur für Admins" unten.
 
@@ -83,15 +84,14 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 
 1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
 2. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-3. "Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus" unten
-4. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-5. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-6. "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen" unten (Phase 1 erledigt)
-7. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #6
-8. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-9. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-10. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-11. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+3. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+4. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+5. "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen" unten (Phase 1 erledigt)
+6. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #5
+7. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+8. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+9. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+10. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -209,8 +209,9 @@ Ergebnis-Sammelansicht, Staffel-Rekordprüfung mit den echten Schwimmern, PDF-Er
 nach Typ" nach der Wertung der Mannschaft. Dokumentiert in `specs/meet-results.md`, `specs/records.md`,
 `specs/lenex-import-export.md`.
 
-**Reihenfolge (vereinbart 04.10.2026):** zuerst die Wertungsgruppen (#3), dann Variante (b) unten und der Nachimport
-der alten LENEX-Dateien (damit die Wertungsgruppen aus den AGEGROUPs gleich mitkommen), danach Phase 2.
+**Reihenfolge (vereinbart 04.10.2026):** Die Wertungsgruppen sind umgesetzt (`feature/scoring-groups`). Als Nächstes
+Variante (b) unten und der Nachimport der alten LENEX-Dateien (die Wertungsgruppen kommen aus den AGEGROUPs gleich
+mit), danach Phase 2.
 
 **Offen (Phase 2, eigener Branch):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX
 (`CLUB > RELAYS > RELAY > ENTRIES`, bisher übersprungen), WA-Punkte für Staffeln, Staffeln auf der öffentlichen
@@ -229,6 +230,11 @@ Athlet ab, wenn das vorhandene Ergebnis keinen Lauf/keine Bahn hat, und ergänzt
 Staffelergebnisse. Vor dem Umsetzen klären, ob derselbe Athlet im selben Bewerb mehrfach vorkommen kann (Stechen,
 mehrere Läufe); dann darf nur ein eindeutiger Treffer übernommen werden. Ausländische Vereine und unbekannte Athleten
 laufen dabei wie bisher über die Klärungsseite des Imports.
+
+**Befund Meet 160 (05.10.2026):** Die vorhandenen Ergebnisse weichen teils von der offiziellen LENEX-Datei ab (z. B.
+Hummel 50m Freistil 33,72 statt 32,97, Zakaroff 46,36 statt 42,08, dazu gespeicherter Platz -1 = nicht gewertet).
+Nach der Punkteberechnung stimmen 247 von 266 Plätzen mit der Datei überein, die 19 Abweichungen gehen alle auf diese
+Datenunterschiede zurück. Der Nachimport mit (b) gleicht die Ergebnisse auf die Datei an.
 
 **Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Erik hat beim Bau des Jahresvergleichs
 weitere sinnvolle Auswertungen als "für später" freigegeben — erst wenn eine belastbare Datenbasis vorhanden ist
@@ -465,29 +471,6 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `APP_LOCALE=en`/`APP_FALLBACK_LOCALE=en` (`config/app.php` fällt sonst auf `env('APP_LOCALE', 'en')` zurück), obwohl
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
-
-## Meetstruktur / Wertungsgruppen beim Anlegen überarbeiten + LENEX-Export gibt falsche Wertung aus
-
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Rückmeldung Erik.
-
-**Was gemeldet wurde:** (1) Beim Anlegen einer Veranstaltung soll die Struktur rund um die **Wertungsgruppen**
-überarbeitet werden. (2) Der **LENEX-Export gibt die falsche Wertung aus** — eine korrekte Wertungsgruppe soll im
-LENEX korrekt abgebildet werden.
-
-**Warum zurückgestellt / was gebraucht wird:** Ohne ein konkretes Beispiel ist die Soll-Struktur nicht eindeutig.
-Gebraucht wird von Erik: **(a)** ein Beispiel einer *richtigen* Wertungsgruppe (wie sie fachlich aussehen soll —
-Alters-/Sportklassen-/Geschlechts-Zuschnitt), **(b)** eine **LENEX-Beispieldatei**, die diese Wertungsgruppe korrekt
-enthält, und **(c)** eine Beschreibung, was der aktuelle Export *stattdessen* ausgibt (welches Feld/welche Struktur
-falsch ist). Betrifft voraussichtlich `SwimEvent`/`sport_classes`-Zuordnung, die Wertungsgruppen-Logik beim
-Meet-Anlegen und `LenexExportService` (AGEGROUP/ranking-Struktur).
-
-**Wer entscheidet / liefert:** Erik — die drei Artefakte oben (Beispiel-Wertungsgruppe, korrekte LENEX-Datei,
-Beschreibung des Fehlers), erst danach ist die Umsetzung eindeutig planbar.
-
-**Zum Schließen nötig:** Nach Erhalt der Beispiele: Soll-Struktur der Wertungsgruppen festlegen, Meet-Anlage-UI
-anpassen, LENEX-Export gegen die Beispieldatei prüfen und die falsch erzeugte Wertung korrigieren.
-Danach die Ergebnisliste (PDF) auf die Wertungsgruppen umstellen: sie gliedert bisher vorläufig nach Sportklasse
-(`MeetResultListService::groupKey()`/`groupLabel()`, siehe `specs/meet-results.md`).
 
 ## Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern
 

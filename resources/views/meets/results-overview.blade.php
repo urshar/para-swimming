@@ -14,6 +14,15 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
+                {{-- Wertungsgruppen werten nach Punkten: ÖBSV-Punkte (World-Aquatics-Formel) für alle Ergebnisse neu berechnen. --}}
+                <form method="POST" action="{{ route('meets.recalculate-points', $meet) }}"
+                      x-data="{ submit() { if (confirm('ÖBSV-Punkte für alle Ergebnisse dieser Veranstaltung neu berechnen?')) this.$el.submit() } }"
+                      @submit.prevent="submit()">
+                    @csrf
+                    <flux:button type="submit" variant="filled" icon="calculator" size="sm" class="text-blue-500!">
+                        ÖBSV-Punkte berechnen
+                    </flux:button>
+                </form>
                 <form method="POST" action="{{ route('records.check', $meet) }}"
                       x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
                       @submit.prevent="submit()">
@@ -107,9 +116,9 @@
         @php
             // Staffelbewerbe zeigen Staffelergebnisse (relay_results), Einzelbewerbe Einzelergebnisse.
             $isRelayEvent = $event->relay_count > 1;
-            $eventResults = $isRelayEvent ? ($relayResultsByEvent[$event->id] ?? null) : ($resultsByEvent[$event->id] ?? null);
+            $block = $blocks[$event->id] ?? null;
         @endphp
-        @if($eventResults)
+        @if($block)
             @php $anyResults = true; @endphp
             <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden mb-4">
                 <div class="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700
@@ -118,7 +127,7 @@
                         {{ $event->event_number ? 'Nr. ' . $event->event_number . ' – ' : '' }}{{ $event->display_name }}
                     </h2>
                     <x-gender-icon :gender="$event->gender"/>
-                    <span class="ml-auto text-xs text-zinc-400">{{ $eventResults->count() }} {{ $eventResults->count() === 1 ? 'Ergebnis' : 'Ergebnisse' }}</span>
+                    <span class="ml-auto text-xs text-zinc-400">{{ $block['count'] }} {{ $block['count'] === 1 ? 'Ergebnis' : 'Ergebnisse' }}</span>
                     <flux:button href="{{ route($isRelayEvent ? 'meets.relay-results.create' : 'meets.results.create', ['meet' => $meet, 'swim_event_id' => $event->id]) }}"
                                  size="xs" variant="ghost" icon="plus" class="text-blue-500!"
                                  title="Ergebnis in dieser Disziplin erfassen"
@@ -126,7 +135,7 @@
                     @php
                         $eventTotal = (int) ($eventTotals[$event->id] ?? 0);
                         $deleteAllConfirm = 'Alle ' . $eventTotal . ' ' . ($eventTotal === 1 ? 'Ergebnis' : 'Ergebnisse')
-                            . ' von "' . $event->display_name . '" löschen' . ($eventTotal > $eventResults->count() ? ' (auch die durch den Filter ausgeblendeten)' : '')
+                            . ' von "' . $event->display_name . '" löschen' . ($eventTotal > $block['count'] ? ' (auch die durch den Filter ausgeblendeten)' : '')
                             . '? Das kann nicht rückgängig gemacht werden.';
                     @endphp
                     <form method="POST"
@@ -140,8 +149,21 @@
                                      aria-label="Alle Ergebnisse dieser Disziplin löschen"/>
                     </form>
                 </div>
+                @foreach($block['groups'] as $scoring)
+                <div class="px-4 pt-3 flex items-center gap-2">
+                    <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{{ $scoring['label'] }}</h3>
+                    @if($scoring['group']?->title)
+                        <flux:badge size="sm" color="amber">{{ $scoring['group']->title === 'OSTM' ? 'ÖSTM' : 'ÖM' }}</flux:badge>
+                    @endif
+                    {{-- Mit Wertungsgruppen wird nach Punkten gewertet: Ergebnisse ohne Punkte bekommen keinen Platz. --}}
+                    @if($scoring['missingPoints'] > 0)
+                        <flux:badge size="sm" color="red" title="Ohne Punkte kein Platz — ÖBSV-Punkte berechnen">
+                            {{ $scoring['missingPoints'] }} ohne Punkte
+                        </flux:badge>
+                    @endif
+                </div>
                 @if($isRelayEvent)
-                    @include('meets._relay-results-table', ['relayResults' => $eventResults])
+                    @include('meets._relay-results-table', ['rows' => $scoring['rows']])
                 @else
                 <div class="p-4 [--flux-bleed:1rem]">
                     <flux:table bleed>
@@ -163,10 +185,11 @@
                             <flux:table.column></flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
-                            @foreach($eventResults as $result)
+                            @foreach($scoring['rows'] as $row)
+                                @php $result = $row['result']; @endphp
                                 <flux:table.row>
                                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
-                                        {{ $result->place ?: '–' }}
+                                        {{ $row['place'] ?: '–' }}
                                     </flux:table.cell>
                                     <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
                                         <a href="{{ route('athletes.show', $result->athlete) }}"
@@ -258,6 +281,7 @@
                     </flux:table>
                 </div>
                 @endif
+                @endforeach
             </div>
         @endif
     @endforeach

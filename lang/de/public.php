@@ -164,6 +164,9 @@ return [
             'empty' => 'Für diese Veranstaltung sind noch keine Ergebnisse veröffentlicht.',
             'class_heading' => 'Sportklasse :class',
             'class_heading_none' => 'Ohne Sportklasse',
+            'scoring_heading' => ':gender – :name',
+            'scoring_unassigned' => 'Ohne Wertungsgruppe',
+            'genders' => ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'],
             'columns' => [
                 'place' => 'Platz',
                 'name' => 'Name',

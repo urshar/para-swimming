@@ -32,17 +32,23 @@
                 <section>
                     <h3 class="mb-3 text-lg font-semibold">{{ $group->event->display_name }}</h3>
 
-                    @foreach ($group->classes as $sportClass => $results)
+                    @foreach ($group->scoring as $scoring)
                         @php
+                            $results = collect($scoring['rows'])->pluck('result');
                             $hasPoints = $results->contains(fn ($r) => $r->points !== null);
                             $hasWpsPoints = $results->contains(fn ($r) => $r->wps_points !== null);
+                            // Wertungsgruppe: übersetztes Geschlecht + Gruppenname; ohne Klasse bzw. ohne Gruppe eigene Texte.
+                            $groupName = match (true) {
+                                $scoring['gender'] === null => __('public.meets.results.scoring_unassigned'),
+                                $scoring['name'] === '' => __('public.meets.results.class_heading_none'),
+                                default => $scoring['name'],
+                            };
+                            $heading = in_array($scoring['gender'], ['M', 'F', 'X'], true)
+                                ? __('public.meets.results.scoring_heading', ['gender' => __('public.meets.results.genders.' . $scoring['gender']), 'name' => $groupName])
+                                : $groupName;
                         @endphp
                         <div class="mb-6 last:mb-0">
-                            <h4 class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                                {{ $sportClass === ''
-                                    ? __('public.meets.results.class_heading_none')
-                                    : __('public.meets.results.class_heading', ['class' => $sportClass]) }}
-                            </h4>
+                            <h4 class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-400">{{ $heading }}</h4>
 
                             <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
                                  aria-label="{{ $group->event->display_name }}">
@@ -84,9 +90,10 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($results as $result)
+                                        @foreach ($scoring['rows'] as $row)
+                                            @php $result = $row['result']; @endphp
                                             <tr class="even:bg-gray-50 dark:even:bg-gray-900/50">
-                                                <td class="p-3 whitespace-nowrap">{{ $result->place ?? '—' }}</td>
+                                                <td class="p-3 whitespace-nowrap">{{ $row['place'] ?? '—' }}</td>
                                                 <td class="p-3">{{ $result->athlete?->full_name }}</td>
                                                 <td class="p-3">{{ $result->club?->display_name }}</td>
                                                 <td class="p-3 whitespace-nowrap">{{ $result->athlete?->birth_date?->year }}</td>

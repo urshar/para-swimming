@@ -78,6 +78,9 @@ Platzierungen stehen in LENEX nicht am Result, sondern in
 `resultid → place` (`buildRankingIndex`). Da ein Result in mehreren AGEGROUPs auftauchen kann (Gesamt- +
 Klassenwertung), **gewinnt die erste gefundene Platzierung** (die spezifischere AGEGROUP kommt zuerst).
 
+Die AGEGROUPs selbst werden als Wertungsgruppen des Bewerbs übernommen (`importScoringGroups`), der Export schreibt
+sie zurück, beim Ergebnisexport mit RANKINGS — siehe [scoring-groups.md](scoring-groups.md).
+
 ### Staffelergebnisse
 
 `CLUB > RELAYS > RELAY > RESULTS > RESULT` wird nach allen Athleten importiert (`importRelayResult`), weil die

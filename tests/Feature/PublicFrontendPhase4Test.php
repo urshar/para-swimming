@@ -154,16 +154,16 @@ it('verlinkt Athlet- und Vereinsname nirgends', function () {
 
 // ── PublicResultService: Gruppierung und Sortierung ─────────────────────────────
 
-it('gruppiert Ergebnisse nach Bewerb und Sportklasse', function () {
+it('gruppiert Ergebnisse nach Bewerb und (ohne Wertungsgruppen) nach Geschlecht und Sportklasse', function () {
     $meet = makeMeet_p4();
     $swimEvent = makeSwimEvent_p4($meet);
     makeResult_p4($meet, $swimEvent, ['sport_class' => 'S4', 'place' => 1]);
     makeResult_p4($meet, $swimEvent, ['sport_class' => 'S5', 'place' => 1]);
 
-    $groups = (new PublicResultService)->forMeet($meet);
+    $groups = app(PublicResultService::class)->forMeet($meet);
 
     expect($groups)->toHaveCount(1)
-        ->and($groups->first()->classes->keys()->all())->toEqualCanonicalizing(['S4', 'S5']);
+        ->and(array_column($groups->first()->scoring, 'name'))->toEqualCanonicalizing(['S4', 'S5']);
 });
 
 it('sortiert gültige Ergebnisse nach Platz und schiebt DNS/DNF/DSQ ans Ende, EXH bleibt sichtbar', function () {
@@ -175,8 +175,8 @@ it('sortiert gültige Ergebnisse nach Platz und schiebt DNS/DNF/DSQ ans Ende, EX
     $exh = makeResult_p4($meet, $swimEvent, ['place' => null, 'swim_time' => 5900, 'status' => 'EXH']);
     $first = makeResult_p4($meet, $swimEvent, ['place' => 1, 'swim_time' => 6000]);
 
-    $groups = (new PublicResultService)->forMeet($meet);
-    $ordered = $groups->first()->classes->first();
+    $groups = app(PublicResultService::class)->forMeet($meet);
+    $ordered = collect($groups->first()->scoring[0]['rows'])->pluck('result');
 
     expect($ordered->pluck('id')->all())->toBe([$first->id, $second->id, $exh->id, $dsq->id]);
 });

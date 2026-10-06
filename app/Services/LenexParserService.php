@@ -11,6 +11,7 @@ use App\Models\Nation;
 use App\Models\RelayResult;
 use App\Models\RelayResultMember;
 use App\Models\Result;
+use App\Models\ScoringGroup;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Support\TimeParser;
@@ -570,6 +571,10 @@ class LenexParserService
             ]
         );
 
+        if (isset($eventXml->AGEGROUPS)) {
+            $this->importScoringGroups($swimEvent, $eventXml->AGEGROUPS);
+        }
+
         // Resolver-Cache für spätere Entry/Result-Zuordnung.
         // Splash verwendet in Entries-Exporten eventid = number * 10 (10, 20, 30, ...)
         // daher befüllen wir den Cache mit beiden Keys.
@@ -580,6 +585,49 @@ class LenexParserService
         $resolver->addToEventCache('num:'.$eventNumber, $swimEvent->id);
 
         $this->stats['events']++;
+    }
+
+    /**
+     * Legt die Wertungsgruppen eines Bewerbs aus seinen AGEGROUPs an bzw. aktualisiert sie (über die agegroupid).
+     * Manuell angelegte Gruppen (ohne LENEX-ID) bleiben unberührt.
+     *
+     * - Geschlecht aus gender (fehlt es: A = alle), Klassen aus handicap ("1,2,3" bzw. Leerzeichen-getrennt),
+     *   Alter aus agemin/agemax (-1 = keine Grenze).
+     * - Titel aus dem Namen: "ÖSTM…" → Staatsmeisterschaft, "ÖM…" → Meisterschaft.
+     */
+    private function importScoringGroups(SwimEvent $swimEvent, SimpleXMLElement $ageGroupsXml): void
+    {
+        $order = 0;
+        foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+            $order++;
+            $lenexId = trim((string) ($ageGroupXml['agegroupid'] ?? ''));
+            $name = trim((string) ($ageGroupXml['name'] ?? ''));
+            $gender = strtoupper(trim((string) ($ageGroupXml['gender'] ?? '')));
+            $ageMin = (int) ($ageGroupXml['agemin'] ?? -1);
+            $ageMax = (int) ($ageGroupXml['agemax'] ?? -1);
+            $classes = ScoringGroup::parseClassNumbers((string) ($ageGroupXml['handicap'] ?? ''));
+            $normalizedName = mb_strtoupper(str_replace(' ', '', $name));
+
+            $values = [
+                'name' => $name !== '' ? $name : ($classes !== [] ? 'Klassen '.implode(', ', $classes) : 'Alle'),
+                'gender' => in_array($gender, ['M', 'F', 'X'], true) ? $gender : 'A',
+                'sport_classes' => $classes !== [] ? implode(',', $classes) : null,
+                'age_min' => $ageMin >= 0 ? $ageMin : null,
+                'age_max' => $ageMax >= 0 ? $ageMax : null,
+                'title' => match (true) {
+                    str_starts_with($normalizedName, 'ÖSTM') => ScoringGroup::TITLE_STATE,
+                    str_starts_with($normalizedName, 'ÖM') => ScoringGroup::TITLE_NATIONAL,
+                    default => null,
+                },
+                'sort_order' => $order,
+            ];
+
+            if ($lenexId !== '') {
+                ScoringGroup::updateOrCreate(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId], $values);
+            } else {
+                ScoringGroup::create(['swim_event_id' => $swimEvent->id] + $values);
+            }
+        }
     }
 
     /**
