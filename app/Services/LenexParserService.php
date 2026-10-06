@@ -36,6 +36,8 @@ class LenexParserService
         'events' => 0,
         'entries' => 0,
         'results' => 0,
+        'results_new' => 0,
+        'results_ambiguous' => 0,
         'relay_results' => 0,
     ];
 
@@ -63,6 +65,14 @@ class LenexParserService
      */
     private array $rankingIndex = [];
 
+    /**
+     * LENEX heatid → Laufnummer aus EVENT > HEATS > HEAT. ENTRY/RESULT verweisen per heatid auf den Lauf, die
+     * Laufnummer steht nur im HEAT-Element (z. B. heatid 2168 = Lauf 1).
+     *
+     * @var array<string, int>
+     */
+    private array $heatIndex = [];
+
     // LenexResolverService wird als Parameter an import() übergeben,
     // nicht per Constructor — der Import ist zustandslos pro Aufruf.
 
@@ -76,14 +86,17 @@ class LenexParserService
         // Stats und Index für jeden Import-Aufruf zurücksetzen
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
-            'events' => 0, 'entries' => 0, 'results' => 0, 'relay_results' => 0,
+            'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
+            'relay_results' => 0,
         ];
         $this->rankingIndex = [];
         $this->rankingGroupIndex = [];
         $this->athleteIndex = [];
+        $this->heatIndex = [];
 
         $xml = $this->loadXml($filePath);
         $type = $this->detectType($xml);
+        $this->buildHeatIndex($xml->MEETS->MEET[0]);
 
         // Ranking-Index aufbauen bevor Clubs/Results importiert werden
         if ($type === 'results') {
@@ -295,6 +308,33 @@ class LenexParserService
         }
 
         return 'structure';
+    }
+
+    /** Baut den heatid → Laufnummer Index aus EVENT > HEATS > HEAT. */
+    private function buildHeatIndex(SimpleXMLElement $meetXml): void
+    {
+        foreach ($meetXml->SESSIONS->SESSION ?? [] as $sessionXml) {
+            foreach ($sessionXml->EVENTS->EVENT ?? [] as $eventXml) {
+                foreach ($eventXml->HEATS->HEAT ?? [] as $heatXml) {
+                    $heatId = (string) ($heatXml['heatid'] ?? '');
+                    $number = (int) ($heatXml['number'] ?? 0);
+                    if ($heatId !== '' && $number > 0) {
+                        $this->heatIndex[$heatId] = $number;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Laufnummer zu ENTRY/RESULT heatid. Ohne passendes HEAT-Element (Datei ohne HEATS) bleibt der Rohwert, wie ihn
+     * manche Programme als Laufnummer schreiben.
+     */
+    private function heatNumber(SimpleXMLElement $xml): ?int
+    {
+        $heatId = (string) ($xml['heatid'] ?? '');
+
+        return $this->heatIndex[$heatId] ?? ((int) $heatId ?: null);
     }
 
     /**
@@ -832,7 +872,7 @@ class LenexParserService
                 'entry_course' => $this->mapCourse((string) ($entryXml['entrycourse'] ?? '')),
                 'sport_class' => (string) ($entryXml['handicap'] ?? '') ?: null,
                 'status' => $this->mapEntryStatus((string) ($entryXml['status'] ?? '')),
-                'heat' => (int) ($entryXml['heatid'] ?? 0) ?: null,
+                'heat' => $this->heatNumber($entryXml),
                 'lane' => (int) ($entryXml['lane'] ?? 0) ?: null,
             ]
         );
@@ -928,24 +968,36 @@ class LenexParserService
         $sportClass = $this->deriveSportClass($swimEventId, $handicapXml)
             ?: ((string) ($resultXml['handicap'] ?? '') ?: null); // Fallback standard LENEX
 
-        $result = Result::updateOrCreate(
-            [
-                'meet_id' => $meet->id,
-                'swim_event_id' => $swimEventId,
-                'athlete_id' => $athleteId,
-                'heat' => (int) ($resultXml['heatid'] ?? 0) ?: null,
-                'lane' => (int) ($resultXml['lane'] ?? 0) ?: null,
-            ],
-            [
-                'club_id' => $clubId,
-                'swim_time' => $swimTime,
-                'status' => $statusCode,
-                'sport_class' => $sportClass,
-                'place' => $place,
-                'reaction_time' => $this->parseReactionTime((string) ($resultXml['reactiontime'] ?? '')),
-                'lenex_result_id' => $lenexResultId,
-            ] + $this->sharedResultValues($resultXml)
-        );
+        $heat = $this->heatNumber($resultXml);
+        $lane = (int) ($resultXml['lane'] ?? 0) ?: null;
+
+        $values = [
+            'swim_event_id' => $swimEventId,
+            'athlete_id' => $athleteId,
+            'club_id' => $clubId,
+            'heat' => $heat,
+            'lane' => $lane,
+            'swim_time' => $swimTime,
+            'status' => $statusCode,
+            'sport_class' => $sportClass,
+            'place' => $place,
+            'reaction_time' => $this->parseReactionTime((string) ($resultXml['reactiontime'] ?? '')),
+            'lenex_result_id' => $lenexResultId,
+        ] + $this->sharedResultValues($resultXml);
+
+        $result = $this->findExistingResult($meet, $swimEventId, $athleteId, $heat, $lane, $lenexResultId);
+        if ($result) {
+            // Die Datei gewinnt; fehlen darin Punkte, Platz oder Sportklasse, bleiben die vorhandenen Werte stehen.
+            foreach (['points', 'place', 'sport_class'] as $keep) {
+                if ($values[$keep] === null) {
+                    unset($values[$keep]);
+                }
+            }
+            $result->update($values);
+        } else {
+            $result = Result::create(['meet_id' => $meet->id] + $values);
+            $this->stats['results_new']++;
+        }
 
         // Splits importieren
         if (isset($resultXml->SPLITS)) {
@@ -953,6 +1005,51 @@ class LenexParserService
         }
 
         $this->stats['results']++;
+    }
+
+    /**
+     * Vorhandenes Einzelergebnis zu einem importierten RESULT, in dieser Reihenfolge:
+     *   1. Veranstaltung + LENEX-resultid (erneuter Import derselben Datei),
+     *   2. Veranstaltung + Bewerb + Athlet + Lauf + Bahn,
+     *   3. Veranstaltung + Bewerb + Athlet, wenn das vorhandene Ergebnis keinen Lauf und keine Bahn hat (Altbestand
+     *      aus anderer Quelle) — nur bei genau einem Treffer; mehrere Treffer werden gezählt und nicht zugeordnet.
+     * Vorlauf, Finale und Stechen sind in LENEX eigene Bewerbe, je Bewerb kommt ein Athlet also nur einmal vor.
+     */
+    private function findExistingResult(
+        Meet $meet,
+        int $swimEventId,
+        int $athleteId,
+        ?int $heat,
+        ?int $lane,
+        ?string $lenexResultId
+    ): ?Result {
+        if ($lenexResultId !== null) {
+            $byLenexId = Result::where('meet_id', $meet->id)
+                ->where('swim_event_id', $swimEventId)
+                ->where('lenex_result_id', $lenexResultId)
+                ->first();
+            if ($byLenexId) {
+                return $byLenexId;
+            }
+        }
+
+        $sameAthlete = Result::where('meet_id', $meet->id)
+            ->where('swim_event_id', $swimEventId)
+            ->where('athlete_id', $athleteId);
+
+        $exact = (clone $sameAthlete)->where('heat', $heat)->where('lane', $lane)->first();
+        if ($exact) {
+            return $exact;
+        }
+
+        $withoutHeatAndLane = (clone $sameAthlete)->whereNull('heat')->whereNull('lane')->limit(2)->get();
+        if ($withoutHeatAndLane->count() > 1) {
+            $this->stats['results_ambiguous']++;
+
+            return null;
+        }
+
+        return $withoutHeatAndLane->first();
     }
 
     /**
@@ -1016,7 +1113,7 @@ class LenexParserService
             'swim_time' => $swimTime,
             'status' => $statusCode,
             'place' => $lenexResultId !== null ? ($this->rankingIndex[$lenexResultId] ?? null) : null,
-            'heat' => (int) ($resultXml['heatid'] ?? 0) ?: null,
+            'heat' => $this->heatNumber($resultXml),
             'lane' => (int) ($resultXml['lane'] ?? 0) ?: null,
         ] + $this->sharedResultValues($resultXml));
 

@@ -81,6 +81,27 @@ Klassenwertung), **gewinnt die erste gefundene Platzierung** (die spezifischere 
 Die AGEGROUPs selbst werden als Wertungsgruppen des Bewerbs übernommen (`importScoringGroups`), der Export schreibt
 sie zurück, beim Ergebnisexport mit RANKINGS — siehe [scoring-groups.md](scoring-groups.md).
 
+### Einzelergebnisse: Abgleich mit vorhandenen Ergebnissen
+
+Damit ein erneuter oder nachträglicher Import (auch in eine Veranstaltung, deren Ergebnisse aus einer anderen Quelle
+stammen) nichts doppelt anlegt, sucht `findExistingResult` ein vorhandenes Ergebnis in dieser Reihenfolge:
+
+1. Veranstaltung + Bewerb + `lenex_result_id` (erneuter Import derselben Datei),
+2. Veranstaltung + Bewerb + Athlet + Lauf + Bahn,
+3. Veranstaltung + Bewerb + Athlet, wenn das vorhandene Ergebnis **keinen Lauf und keine Bahn** hat (Altbestand) —
+   nur bei genau einem Treffer. Mehrere Treffer werden nicht zugeordnet, sondern neu angelegt und gezählt.
+
+Vorlauf, Finale und Stechen sind in LENEX eigene Bewerbe; je Bewerb kommt ein Athlet also nur einmal vor. Beim
+Abgleich gewinnt die Datei (Zeit, Status, Lauf, Bahn, Reaktionszeit, Zwischenzeiten, Rekordkürzel,
+`lenex_result_id`); fehlen darin Punkte, Platz oder Sportklasse, bleiben die vorhandenen Werte stehen. Ergebnisse, die
+nur in der Datenbank stehen (z. B. manuell erfasste), bleiben unberührt. Die Import-Rückmeldung nennt, wie viele
+Ergebnisse neu angelegt und wie viele abgeglichen wurden.
+
+**Lauf:** `ENTRY`/`RESULT heatid` ist ein Verweis auf `EVENT > HEATS > HEAT`, nicht die Laufnummer. Der Parser
+übersetzt ihn über `HEAT number` (`buildHeatIndex`, z. B. heatid 2168 → Lauf 1); ohne HEATS in der Datei bleibt der
+Rohwert. Bis Oktober 2026 wurde die heatid direkt als Lauf gespeichert (betraf Meets 160, 183, 191); ein erneuter
+Import korrigiert das über die `lenex_result_id`.
+
 ### Staffelergebnisse
 
 `CLUB > RELAYS > RELAY > RESULTS > RESULT` wird nach allen Athleten importiert (`importRelayResult`), weil die

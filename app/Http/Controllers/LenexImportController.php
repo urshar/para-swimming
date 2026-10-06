@@ -334,10 +334,21 @@ class LenexImportController extends Controller
             .$stats['meets'].' Wettkampf/Wettkämpfe, '
             .$stats['athletes'].' Athlet(en), '
             .$stats['entries'].' Meldungen, '
-            .$stats['results'].' Ergebnisse, '
+            .$stats['results'].' Ergebnisse'
+            .($stats['results'] > 0 ? self::resultMatchSummary($stats) : '').', '
             .($stats['relay_results'] ?? 0).' Staffelergebnisse.';
 
         return redirect()->route('meets.index')->with('success', $message);
+    }
+
+    /** "(davon X neu, Y mit vorhandenen abgeglichen[, Z mehrdeutig])" für die Import-Rückmeldung. */
+    private static function resultMatchSummary(array $stats): string
+    {
+        $new = $stats['results_new'] ?? 0;
+        $ambiguous = $stats['results_ambiguous'] ?? 0;
+
+        return ' (davon '.$new.' neu, '.($stats['results'] - $new).' mit vorhandenen abgeglichen'
+            .($ambiguous > 0 ? ', '.$ambiguous.' mehrdeutig und neu angelegt' : '').')';
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
