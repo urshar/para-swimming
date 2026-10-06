@@ -118,6 +118,19 @@ keine Ergebnisse, wurde die Datei als reine Struktur importiert.
 Rohwert. Bis Oktober 2026 wurde die heatid direkt als Lauf gespeichert (betraf Meets 160, 183, 191); ein erneuter
 Import korrigiert das über die `lenex_result_id`.
 
+### Staffelmeldungen
+
+`CLUB > RELAYS > RELAY > ENTRIES > ENTRY` wird bei Meldedateien nach allen Athleten importiert
+(`importRelayEntry`):
+
+- Abgleich über Veranstaltung + Bewerb + Verein + `relay_number` (RELAY number); App-Meldungen ohne Nummer werden als
+  n-te Meldung des Vereins im Bewerb (nach Anlage) zugeordnet — genau so nummeriert der Meldeexport, das Zurückspielen
+  einer exportierten Meldedatei erzeugt also keine Doppelten.
+- Staffelklasse aus `RELAY handicap`, sonst aus den Klassen der Schwimmer (`RelayClassValidator::resolveRelayClass`).
+- Neue Meldungen sind bestätigt (`status = confirmed`); `ENTRY status="EXH"` = außer Konkurrenz.
+- Schwimmer aus `RELAYPOSITIONS`; nicht aufgelöste Athleten werden ausgelassen (`relay_entry_members.athlete_id` ist
+  Pflicht). Rahmenbewerbe (`is_scored = false`) werden übersprungen.
+
 ### Staffelergebnisse
 
 `CLUB > RELAYS > RELAY > RESULTS > RESULT` wird nach allen Athleten importiert (`importRelayResult`), weil die

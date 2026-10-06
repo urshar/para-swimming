@@ -819,8 +819,9 @@ class LenexExportService
         foreach ($relayEntries as $relayEntry) {
             $eid = $relayEntry->swim_event_id;
             $eventCounters[$eid] = ($eventCounters[$eid] ?? 0) + 1;
+            // Importierte Meldungen behalten ihre RELAY number, App-Meldungen zählen nach Anlage.
             $relaysEl->appendChild(
-                $this->buildRelay($relayEntry, $eventCounters[$eid], $relayNames[$relayEntry->id])
+                $this->buildRelay($relayEntry, $relayEntry->relay_number ?? $eventCounters[$eid], $relayNames[$relayEntry->id])
             );
         }
 

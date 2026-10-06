@@ -127,7 +127,8 @@ einem **SwimRecord** referenziert werden.
 
 **ResultSplit** — `result_id`, `distance`, `split_time`.
 
-**RelayEntry** (Staffelmeldung) — `meet_id`, `swim_event_id`, `club_id`, `name` (frei vergebbar, nullable; Anzeigename
+**RelayEntry** (Staffelmeldung) — `meet_id`, `swim_event_id`, `club_id`, `relay_number` (LENEX RELAY number, beim
+Import gesetzt; leer bei App-Meldungen), `name` (frei vergebbar, nullable; Anzeigename
 über `App\Support\RelayNames`), `relay_class`, `entry_time`, `entry_time_code`, `entry_course`, `status`, `is_late_entry` (wie bei Entry), `is_exhibition` (außer Konkurrenz; bei Entry über `status = 'EXH'`). → hat viele
 **RelayEntryMember**
 (`athlete_id`, `sport_class`), unique je
