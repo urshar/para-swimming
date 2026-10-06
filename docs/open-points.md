@@ -216,9 +216,8 @@ gleich mit), danach Phase 2.
 
 **Offen (Phase 2, eigener Branch):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX
 (`CLUB > RELAYS > RELAY > ENTRIES`, bisher übersprungen), WA-Punkte für Staffeln, Staffeln auf der öffentlichen
-Ergebnisseite. Dabei auch `EVENT > HEATS > HEAT` exportieren: Der Export schreibt bisher die Laufnummer als
-`heatid`, ohne zugehöriges HEAT-Element (der eigene Import kommt damit zurecht, andere Programme erwarten den
-Verweis).
+Ergebnisseite. In Arbeit auf `feature/relay-results-phase2`: Schritt 1 (Export der Staffelergebnisse samt Ranglisten
+und `EVENT > HEATS`) ist umgesetzt.
 
 **Wichtig vor dem Nachimport alter LENEX-Dateien (Befund Live-Test 04.10.2026):** Ein erneuter Ergebnis-Import in
 eine bestehende Veranstaltung legt die **Einzelergebnisse doppelt an**, wenn diese nicht aus derselben LENEX-Datei

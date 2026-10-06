@@ -293,13 +293,13 @@ class LenexParserService
 
         $meet = $meet[0];
 
-        // Results vorhanden?
-        if (isset($meet->CLUBS->CLUB->ATHLETES->ATHLETE->RESULTS->RESULT)) {
+        // Über alle Vereine, Athleten und Staffeln suchen: SimpleXMLs Kettenzugriff ($meet->CLUBS->CLUB->...) prüft
+        // nur jeweils das erste Element — hat der erste Athlet keine Ergebnisse, wäre die ganze Datei "structure".
+        if ($meet->xpath('CLUBS/CLUB/ATHLETES/ATHLETE/RESULTS/RESULT | CLUBS/CLUB/RELAYS/RELAY/RESULTS/RESULT')) {
             return 'results';
         }
 
-        // Entries vorhanden?
-        if (isset($meet->CLUBS->CLUB->ATHLETES->ATHLETE->ENTRIES->ENTRY)) {
+        if ($meet->xpath('CLUBS/CLUB/ATHLETES/ATHLETE/ENTRIES/ENTRY | CLUBS/CLUB/RELAYS/RELAY/ENTRIES/ENTRY')) {
             return 'entries';
         }
 
@@ -1108,6 +1108,10 @@ class LenexParserService
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
 
         $handicap = $lenexResultId !== null ? ($this->rankingGroupIndex[$lenexResultId]['handicap'] ?? '') : '';
+        // Gruppe mit mehreren oder ohne Klassen: Staffelklasse aus RELAY handicap (schreibt auch der eigene Export).
+        if (! is_numeric($handicap)) {
+            $handicap = trim((string) ($relayXml['handicap'] ?? ''));
+        }
         $relayNumber = (int) ($relayXml['number'] ?? 0) ?: null;
 
         $members = [];

@@ -10,6 +10,8 @@ use App\Models\MeetFee;
 use App\Models\MeetSession;
 use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
+use App\Models\RelayResult;
+use App\Models\RelayResultMember;
 use App\Models\Result;
 use App\Models\ScoringGroup;
 use App\Models\SwimEvent;
@@ -24,6 +26,21 @@ class LenexExportService
     private DOMDocument $dom;
 
     private string $exportType;
+
+    /**
+     * Verwendete Läufe je Bewerb (swim_event_id → sortierte Laufnummern) für EVENT > HEATS.
+     *
+     * @var array<int, list<int>>
+     */
+    private array $heatsByEvent = [];
+
+    /**
+     * Ergebnisexport: Schwimmer, die nur in Staffeln starten (club_id → Athleten). Sie stehen unter ihrem eigenen
+     * Verein in ATHLETES, damit RELAYPOSITION athleteid auflösbar ist.
+     *
+     * @var array<int, Collection<int, Athlete>>
+     */
+    private array $relayOnlyAthletesByClub = [];
 
     /**
      * @throws DOMException
@@ -75,6 +92,7 @@ class LenexExportService
     private function buildMeet(Meet $meet): DOMElement
     {
         $meet->load(['nation', 'swimEvents.strokeType', 'swimEvents.scoringGroups']);
+        $this->heatsByEvent = $this->collectHeats($meet);
 
         $el = $this->dom->createElement('MEET');
         $el->setAttribute('name', $meet->name);
@@ -213,15 +231,56 @@ class LenexExportService
             $el->appendChild($ageGroupsEl);
         }
 
+        // EVENT > HEATS: ENTRY/RESULT heatid verweisen auf diese Elemente, die Laufnummer steht in HEAT number.
+        if (! empty($this->heatsByEvent[$event->id])) {
+            $heatsEl = $this->dom->createElement('HEATS');
+            foreach ($this->heatsByEvent[$event->id] as $heat) {
+                $heatEl = $this->dom->createElement('HEAT');
+                $heatEl->setAttribute('heatid', $this->heatId($event->id, $heat));
+                $heatEl->setAttribute('number', (string) $heat);
+                $heatEl->setAttribute('order', (string) $heat);
+                $heatsEl->appendChild($heatEl);
+            }
+            $el->appendChild($heatsEl);
+        }
+
         return $el;
+    }
+
+    /**
+     * Laufnummern je Bewerb aus Meldungen (Meldeexport) bzw. Einzel- und Staffelergebnissen (Ergebnisexport).
+     *
+     * @return array<int, list<int>>
+     */
+    private function collectHeats(Meet $meet): array
+    {
+        $rows = match ($this->exportType) {
+            'entries' => Entry::where('meet_id', $meet->id)->whereNotNull('heat')->get(['swim_event_id', 'heat']),
+            'results' => Result::where('meet_id', $meet->id)->whereNotNull('heat')->get(['swim_event_id', 'heat'])
+                ->concat(RelayResult::where('meet_id', $meet->id)->whereNotNull('heat')->get(['swim_event_id', 'heat'])),
+            default => collect(),
+        };
+
+        return $rows->groupBy('swim_event_id')
+            ->map(fn ($group) => $group->pluck('heat')->map(fn ($h) => (int) $h)->filter()->unique()->sort()->values()->all())
+            ->all();
+    }
+
+    /** Eindeutige LENEX heatid je Bewerb und Lauf (z. B. Bewerb 1821, Lauf 2 → "1821002"). */
+    private function heatId(int $swimEventId, int $heat): string
+    {
+        return (string) ($swimEventId * 1000 + $heat);
     }
 
     /**
      * Baut die AGEGROUPS eines Bewerbs.
      *
      * Mit Wertungsgruppen: je Gruppe eine AGEGROUP mit Name, Geschlecht, Klassen (handicap, kommagetrennt) und Alter;
-     * beim Ergebnisexport zusätzlich die RANKINGS der Einzelergebnisse je Gruppe (Platz wie in der Ergebnisliste,
-     * place -1 für nicht gewertete). Staffel-RANKINGS folgen mit dem Export der Staffelergebnisse.
+     * beim Ergebnisexport zusätzlich die RANKINGS der Einzel- bzw. Staffelergebnisse je Gruppe (Platz wie in der
+     * Ergebnisliste, place -1 für nicht gewertete).
+     *
+     * Staffelbewerbe ohne Wertungsgruppen (Ergebnisexport): je Wertung und Staffelklasse eine AGEGROUP mit handicap
+     * und RANKINGS — daraus liest der Import Staffelklasse und Platz.
      *
      * Ohne Wertungsgruppen (Altbestand): pro Sportklasse eine AGEGROUP mit agegroupid, agemax/agemin=-1, handicap.
      *
@@ -233,6 +292,13 @@ class LenexExportService
 
         if ($event->scoringGroups->isNotEmpty()) {
             return $this->buildScoringGroupAgeGroups($event, $ageGroupsEl);
+        }
+
+        if ($event->relay_count > 1 && $this->exportType === 'results') {
+            $this->appendRelayFallbackAgeGroups($event, $ageGroupsEl);
+            if ($ageGroupsEl->hasChildNodes()) {
+                return $ageGroupsEl;
+            }
         }
 
         if (! $event->sport_classes || trim($event->sport_classes) === '') {
@@ -261,12 +327,10 @@ class LenexExportService
      */
     private function buildScoringGroupAgeGroups(SwimEvent $event, DOMElement $ageGroupsEl): DOMElement
     {
-        // Rangliste je Gruppe nur beim Ergebnisexport und nur für Einzelbewerbe.
+        // Rangliste je Gruppe nur beim Ergebnisexport.
         $rowsByGroup = [];
-        if ($this->exportType === 'results' && $event->relay_count <= 1) {
-            $results = Result::where('swim_event_id', $event->id)->with('athlete')->get();
-            $meetYear = (int) $event->meet->start_date->format('Y');
-            foreach ((new ScoringGroupService)->rankedGroups($event, $results, $meetYear) as $ranked) {
+        if ($this->exportType === 'results') {
+            foreach ($this->rankedGroups($event) as $ranked) {
                 if ($ranked['group'] !== null) {
                     $rowsByGroup[$ranked['group']->id] = $ranked['rows'];
                 }
@@ -286,21 +350,72 @@ class LenexExportService
             }
 
             if (! empty($rowsByGroup[$group->id])) {
-                $rankingsEl = $this->dom->createElement('RANKINGS');
-                foreach ($rowsByGroup[$group->id] as $order => $row) {
-                    $ranking = $this->dom->createElement('RANKING');
-                    $ranking->setAttribute('order', (string) ($order + 1));
-                    $ranking->setAttribute('place', (string) ($row['place'] ?? -1));
-                    $ranking->setAttribute('resultid', $row['result']->lenex_result_id ?? (string) $row['result']->id);
-                    $rankingsEl->appendChild($ranking);
-                }
-                $ag->appendChild($rankingsEl);
+                $ag->appendChild($this->buildRankings($rowsByGroup[$group->id]));
             }
 
             $ageGroupsEl->appendChild($ag);
         }
 
         return $ageGroupsEl;
+    }
+
+    /**
+     * Staffelbewerb ohne Wertungsgruppen: je Wertung (M/F/X) und Staffelklasse eine AGEGROUP samt RANKINGS.
+     *
+     * @throws DOMException
+     */
+    private function appendRelayFallbackAgeGroups(SwimEvent $event, DOMElement $ageGroupsEl): void
+    {
+        $lenexEventId = $event->lenex_event_id ?? (string) $event->id;
+        foreach ($this->rankedGroups($event) as $index => $ranked) {
+            $ag = $this->dom->createElement('AGEGROUP');
+            $ag->setAttribute('agegroupid', $lenexEventId.'_R'.($index + 1));
+            $ag->setAttribute('name', $ranked['label']);
+            $ag->setAttribute('gender', $ranked['gender'] ?? 'A');
+            $ag->setAttribute('agemin', '-1');
+            $ag->setAttribute('agemax', '-1');
+            $classNumber = preg_replace('/\D+/', '', $ranked['name']);
+            if ($classNumber !== '') {
+                $ag->setAttribute('handicap', $classNumber);
+            }
+            $ag->appendChild($this->buildRankings($ranked['rows']));
+            $ageGroupsEl->appendChild($ag);
+        }
+    }
+
+    /**
+     * Gewertete Gruppen eines Bewerbs (Einzel- bzw. Staffelergebnisse) wie in der Ergebnisliste.
+     *
+     * @return list<array{group: ?ScoringGroup, gender: ?string, name: string, label: string, missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}>
+     */
+    private function rankedGroups(SwimEvent $event): array
+    {
+        $results = $event->relay_count > 1
+            ? RelayResult::where('swim_event_id', $event->id)->with('members')->get()
+            : Result::where('swim_event_id', $event->id)->with('athlete')->get();
+
+        return (new ScoringGroupService)->rankedGroups($event, $results, (int) $event->meet->start_date->format('Y'));
+    }
+
+    /**
+     * RANKINGS einer Gruppe: order, place (-1 = nicht gewertet), resultid.
+     *
+     * @param  list<array{place: ?int, result: Result|RelayResult}>  $rows
+     *
+     * @throws DOMException
+     */
+    private function buildRankings(array $rows): DOMElement
+    {
+        $rankingsEl = $this->dom->createElement('RANKINGS');
+        foreach ($rows as $order => $row) {
+            $ranking = $this->dom->createElement('RANKING');
+            $ranking->setAttribute('order', (string) ($order + 1));
+            $ranking->setAttribute('place', (string) ($row['place'] ?? -1));
+            $ranking->setAttribute('resultid', $row['result']->lenex_result_id ?? (string) $row['result']->id);
+            $rankingsEl->appendChild($ranking);
+        }
+
+        return $rankingsEl;
     }
 
     /**
@@ -311,6 +426,10 @@ class LenexExportService
         // Vereine aus den tatsächlichen Daten, nicht nur aus meet_club: Meldungen und
         // manuell erfasste Ergebnisse ordnen den Verein dort nicht zu.
         $clubIds = $this->exportType === 'entries' ? $meet->entryClubIds() : $meet->resultClubIds();
+        if ($this->exportType === 'results') {
+            $this->relayOnlyAthletesByClub = $this->relayOnlyAthletes($meet);
+            $clubIds = $clubIds->merge(array_keys($this->relayOnlyAthletesByClub))->unique()->values();
+        }
 
         $clubsEl = $this->dom->createElement('CLUBS');
         foreach ($meet->clubsByIds($clubIds) as $club) {
@@ -347,14 +466,39 @@ class LenexExportService
             $el->appendChild($athletesEl);
         }
 
-        if ($this->exportType === 'entries') {
-            $relaysEl = $this->buildRelays($club, $meet);
-            if ($relaysEl->hasChildNodes()) {
-                $el->appendChild($relaysEl);
-            }
+        $relaysEl = $this->exportType === 'entries'
+            ? $this->buildRelays($club, $meet)
+            : $this->buildRelayResults($club, $meet);
+        if ($relaysEl->hasChildNodes()) {
+            $el->appendChild($relaysEl);
         }
 
         return $el;
+    }
+
+    /**
+     * Schwimmer aus Staffelergebnissen ohne eigenes Einzelergebnis, gruppiert nach ihrem Verein (ohne Verein: Verein
+     * der Staffel). Schwimmer ohne Athleten-Datensatz (nur Namenskopie) lassen sich nicht referenzieren.
+     *
+     * @return array<int, Collection<int, Athlete>>
+     */
+    private function relayOnlyAthletes(Meet $meet): array
+    {
+        $withResults = Result::where('meet_id', $meet->id)->pluck('athlete_id')->flip();
+        $members = RelayResultMember::whereNotNull('athlete_id')
+            ->whereHas('relayResult', fn ($q) => $q->where('meet_id', $meet->id))
+            ->with(['athlete.sportClasses', 'relayResult'])
+            ->get();
+
+        $byClub = [];
+        foreach ($members as $member) {
+            if (! $member->athlete || $withResults->has($member->athlete_id)) {
+                continue;
+            }
+            $byClub[$member->athlete->club_id ?? $member->relayResult->club_id][$member->athlete_id] = $member->athlete;
+        }
+
+        return array_map(fn (array $athletes) => collect(array_values($athletes)), $byClub);
     }
 
     /**
@@ -385,7 +529,9 @@ class LenexExportService
         return Result::where('meet_id', $meet->id)
             ->where('club_id', $club->id)
             ->with('athlete.sportClasses')->get()
-            ->pluck('athlete')->filter()->unique('id')->values();
+            ->pluck('athlete')->filter()
+            ->merge($this->relayOnlyAthletesByClub[$club->id] ?? collect())
+            ->unique('id')->values();
     }
 
     /**
@@ -498,7 +644,7 @@ class LenexExportService
             $el->setAttribute('status', $entry->status);
         }
         if ($entry->heat) {
-            $el->setAttribute('heatid', (string) $entry->heat);
+            $el->setAttribute('heatid', $this->heatId($entry->swim_event_id, $entry->heat));
         }
         if ($entry->lane) {
             $el->setAttribute('lane', (string) $entry->lane);
@@ -523,64 +669,136 @@ class LenexExportService
     /**
      * @throws DOMException
      */
-    private function buildResult($result): DOMElement
+    private function buildResult(Result $result): DOMElement
     {
         $el = $this->dom->createElement('RESULT');
-        $lenexEventId = $result->swimEvent?->lenex_event_id ?? (string) $result->swim_event_id;
-        $el->setAttribute('eventid', $lenexEventId);
+        $this->applyResultAttributes($el, $result);
+        if ($result->sport_class) {
+            $el->setAttribute('handicap', $result->sport_class);
+        }
+        if ($result->place) {
+            $el->setAttribute('place', (string) $result->place);
+        }
+        if ($result->reaction_time !== null) {
+            $el->setAttribute('reactiontime', ($result->reaction_time >= 0 ? '+' : '').$result->reaction_time);
+        }
+        $this->appendSplits($el, $result);
+
+        return $el;
+    }
+
+    /** Gemeinsame RESULT-Attribute von Einzel- und Staffelergebnis. */
+    private function applyResultAttributes(DOMElement $el, Result|RelayResult $result): void
+    {
+        $el->setAttribute('eventid', $result->swimEvent?->lenex_event_id ?? (string) $result->swim_event_id);
         $el->setAttribute('resultid', $result->lenex_result_id ?? (string) $result->id);
         $el->setAttribute('swimtime', $result->swim_time ? $this->formatTime($result->swim_time) : 'NT');
         if ($result->status) {
             $el->setAttribute('status', $result->status);
         }
-        if ($result->sport_class) {
-            $el->setAttribute('handicap', $result->sport_class);
-        }
         if ($result->points) {
             $el->setAttribute('points', (string) $result->points);
         }
-        if ($result->place) {
-            $el->setAttribute('place', (string) $result->place);
-        }
         if ($result->heat) {
-            $el->setAttribute('heatid', (string) $result->heat);
+            $el->setAttribute('heatid', $this->heatId($result->swim_event_id, $result->heat));
         }
         if ($result->lane) {
             $el->setAttribute('lane', (string) $result->lane);
-        }
-        if ($result->reaction_time !== null) {
-            $el->setAttribute('reactiontime', ($result->reaction_time >= 0 ? '+' : '').$result->reaction_time);
         }
         if ($result->comment) {
             $el->setAttribute('comment', $result->comment);
         }
 
-        $records = [];
-        if ($result->is_world_record) {
-            $records[] = 'WR';
-        }
-        if ($result->is_european_record) {
-            $records[] = 'ER';
-        }
-        if ($result->is_national_record) {
-            $records[] = 'NR';
-        }
-        if (! empty($records)) {
+        $records = array_keys(array_filter([
+            'WR' => $result->is_world_record,
+            'ER' => $result->is_european_record,
+            'NR' => $result->is_national_record,
+        ]));
+        if ($records !== []) {
             $el->setAttribute('recordtype', implode(' ', $records));
         }
+    }
 
-        if ($result->splits->isNotEmpty()) {
-            $splitsEl = $this->dom->createElement('SPLITS');
-            foreach ($result->splits as $split) {
-                $splitEl = $this->dom->createElement('SPLIT');
-                $splitEl->setAttribute('distance', (string) $split->distance);
-                $splitEl->setAttribute('swimtime', $this->formatTime($split->split_time));
-                $splitsEl->appendChild($splitEl);
-            }
-            $el->appendChild($splitsEl);
+    /**
+     * @throws DOMException
+     */
+    private function appendSplits(DOMElement $el, Result|RelayResult $result): void
+    {
+        if ($result->splits->isEmpty()) {
+            return;
         }
 
-        return $el;
+        $splitsEl = $this->dom->createElement('SPLITS');
+        foreach ($result->splits as $split) {
+            $splitEl = $this->dom->createElement('SPLIT');
+            $splitEl->setAttribute('distance', (string) $split->distance);
+            $splitEl->setAttribute('swimtime', $this->formatTime($split->split_time));
+            $splitsEl->appendChild($splitEl);
+        }
+        $el->appendChild($splitsEl);
+    }
+
+    /**
+     * Ergebnisexport: RELAYS des Vereins mit je einem RESULT (Zeit, Status, Punkte, Lauf/Bahn, Zwischenzeiten,
+     * RELAYPOSITIONS). Die Staffelklasse steht in RELAY handicap und in der AGEGROUP der Rangliste.
+     *
+     * @throws DOMException
+     */
+    private function buildRelayResults(Club $club, Meet $meet): DOMElement
+    {
+        $relaysEl = $this->dom->createElement('RELAYS');
+        $relayResults = RelayResult::where('meet_id', $meet->id)
+            ->where('club_id', $club->id)
+            ->with(['swimEvent', 'members.athlete', 'splits'])
+            ->orderBy('swim_event_id')->orderBy('relay_number')->orderBy('id')->get();
+
+        $eventCounters = [];
+        foreach ($relayResults as $relayResult) {
+            $eid = $relayResult->swim_event_id;
+            $eventCounters[$eid] = ($eventCounters[$eid] ?? 0) + 1;
+
+            $relayEl = $this->dom->createElement('RELAY');
+            $relayEl->setAttribute('number', (string) ($relayResult->relay_number ?? $eventCounters[$eid]));
+            if ($relayResult->name) {
+                $relayEl->setAttribute('name', $relayResult->name);
+            }
+            $relayEl->setAttribute('gender', $relayResult->gender);
+            $relayEl->setAttribute('agemax', '-1');
+            $relayEl->setAttribute('agemin', '-1');
+            $relayEl->setAttribute('agetotalmax', '-1');
+            $relayEl->setAttribute('agetotalmin', '-1');
+            $classNumber = preg_replace('/\D+/', '', (string) $relayResult->relay_class);
+            if ($classNumber !== '') {
+                $relayEl->setAttribute('handicap', $classNumber);
+            }
+
+            $resultEl = $this->dom->createElement('RESULT');
+            $this->applyResultAttributes($resultEl, $relayResult);
+            $this->appendSplits($resultEl, $relayResult);
+
+            // Nur Schwimmer mit Athleten-Datensatz sind über athleteid referenzierbar.
+            $members = $relayResult->members->filter(fn (RelayResultMember $m) => $m->athlete !== null);
+            if ($members->isNotEmpty()) {
+                $positionsEl = $this->dom->createElement('RELAYPOSITIONS');
+                foreach ($members as $member) {
+                    $positionEl = $this->dom->createElement('RELAYPOSITION');
+                    $positionEl->setAttribute('number', (string) $member->position);
+                    $positionEl->setAttribute('athleteid', $member->athlete->lenex_athlete_id ?? (string) $member->athlete_id);
+                    if ($member->reaction_time !== null) {
+                        $positionEl->setAttribute('reactiontime', ($member->reaction_time >= 0 ? '+' : '').$member->reaction_time);
+                    }
+                    $positionsEl->appendChild($positionEl);
+                }
+                $resultEl->appendChild($positionsEl);
+            }
+
+            $resultsEl = $this->dom->createElement('RESULTS');
+            $resultsEl->appendChild($resultEl);
+            $relayEl->appendChild($resultsEl);
+            $relaysEl->appendChild($relayEl);
+        }
+
+        return $relaysEl;
     }
 
     /**

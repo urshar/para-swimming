@@ -58,11 +58,11 @@ er nicht gefunden, wird er zur **manuellen Bestätigung** vorgemerkt (`unresolve
 
 **Matching-Priorität Athleten:**
 
-0. Zuordnung auf der Klärungsseite (`assignAthlete`, LENEX athleteid → bestehender Athlet)
-1. `license` — ohne Leerzeichen verglichen (in der Datenbank oft "W - 1653", in Dateien "W-1653")
-2. `license_ipc` (SDMS-ID), ebenfalls ohne Leerzeichen
-3. `lenex_athlete_id` + `club_id`
-4. `last_name` + `first_name` + `birth_date` + `gender` + `nation_id`
+1. Zuordnung auf der Klärungsseite (`assignAthlete`, LENEX athleteid → bestehender Athlet)
+2. `license` — ohne Leerzeichen verglichen (in der Datenbank oft "W - 1653", in Dateien "W-1653")
+3. `license_ipc` (SDMS-ID), ebenfalls ohne Leerzeichen
+4. `lenex_athlete_id` + `club_id`
+5. `last_name` + `first_name` + `birth_date` + `gender` + `nation_id`
 
 Lizenzvergleich und Vorschläge liegen in `ImportSuggestionService`, den auch der Rekord-Import nutzt.
 
@@ -108,6 +108,10 @@ Abgleich gewinnt die Datei (Zeit, Status, Lauf, Bahn, Reaktionszeit, Zwischenzei
 `lenex_result_id`); fehlen darin Punkte, Platz oder Sportklasse, bleiben die vorhandenen Werte stehen. Ergebnisse, die
 nur in der Datenbank stehen (z. B. manuell erfasste), bleiben unberührt. Die Import-Rückmeldung nennt, wie viele
 Ergebnisse neu angelegt und wie viele abgeglichen wurden.
+
+**Dateityp:** `detectType` sucht Ergebnisse bzw. Meldungen per XPath in allen Vereinen, Athleten und Staffeln. Bis
+Oktober 2026 prüfte es per SimpleXML-Kettenzugriff nur den ersten Verein und dessen ersten Athleten — hatte dieser
+keine Ergebnisse, wurde die Datei als reine Struktur importiert.
 
 **Lauf:** `ENTRY`/`RESULT heatid` ist ein Verweis auf `EVENT > HEATS > HEAT`, nicht die Laufnummer. Der Parser
 übersetzt ihn über `HEAT number` (`buildHeatIndex`, z. B. heatid 2168 → Lauf 1); ohne HEATS in der Datei bleibt der
@@ -168,6 +172,16 @@ CONSTRUCTOR und
 - **Staffelmeldungen**: `CLUB > RELAYS > RELAY` mit `ENTRIES > ENTRY`
   (`entrytime`) und `RELAYPOSITIONS > RELAYPOSITION` je Mitglied — gespeist aus
   `relay_entries` / `relay_entry_members` (siehe [club-entries.md](club-entries.md)).
+- **Staffelergebnisse** (`results`): `CLUB > RELAYS > RELAY` (number, name, gender, handicap = Staffelklasse) mit
+  `RESULTS > RESULT` (Zeit, Status, Punkte, Lauf/Bahn, Kommentar, Rekordkürzel, `SPLITS`) und `RELAYPOSITIONS`.
+  Schwimmer, die nur in Staffeln starten, stehen unter ihrem eigenen Verein in `ATHLETES` (der Verein kommt dafür
+  ggf. dazu), damit `RELAYPOSITION athleteid` auflösbar ist; Schwimmer ohne Athleten-Datensatz (nur Namenskopie)
+  fehlen in den Positionen.
+- **Ranglisten** (`results`): `AGEGROUP > RANKINGS` je Wertungsgruppe für Einzel- und Staffelbewerbe; Staffelbewerbe
+  ohne Wertungsgruppen bekommen je Wertung und Staffelklasse eine AGEGROUP mit `handicap` und RANKINGS (daraus liest
+  der Import Staffelklasse und Platz).
+- **Läufe**: `EVENT > HEATS > HEAT` (heatid, number) aus den verwendeten Läufen; `ENTRY`/`RESULT heatid` verweist
+  darauf (heatid = Bewerbs-ID × 1000 + Lauf).
 
 `build()` gibt reines XML zurück; die Verpackung als `.lxf` übernimmt der Controller: das XML wird per `ZipArchive` als
 innere `.lef` in ein ZIP gelegt und als `application/zip` mit Dateiname `<Meet>_<Datum>_<Typ>.lxf` ausgeliefert.
