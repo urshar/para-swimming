@@ -94,10 +94,8 @@ class NationController extends Controller
                 $references
             );
 
-            return back()->withErrors([
-                'nation' => 'Nation '.$nation->code.' kann nicht gelöscht werden — es hängen noch '
-                    .implode(', ', $parts).' daran (einschließlich gelöschter Einträge).',
-            ]);
+            return back()->with('error', 'Nation '.$nation->code.' kann nicht gelöscht werden — es hängen noch '
+                    .implode(', ', $parts).' daran (einschließlich gelöschter Einträge).');
         }
 
         $nation->delete();

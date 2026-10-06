@@ -406,6 +406,8 @@
             Inhaltsbereich. Genau das betraf die Einstellungsseiten.
 
          $slot ?? '' ist notwendig, weil die Variable bei Weg 1 nicht existiert. --}}
+    <x-flash/>
+
     {{ $slot ?? '' }}
 
     @yield('content')

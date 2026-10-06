@@ -1,23 +1,10 @@
-@php use App\Livewire\Admin\UserManager; @endphp
 {{-- resources/views/admin/users/index.blade.php --}}
 {{-- Livewire-View für UserManager-Component --}}
 
-<?php /** @var UserManager $this */ ?>
-
 <div>
-    {{-- Flash Messages --}}
-    @if(session('success'))
-        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
-             class="mb-4 p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-300">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div
-            class="mb-4 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
-            {{ session('error') }}
-        </div>
-    @endif
+    {{-- Livewire-Aktionen rendern nur diese Komponente neu, nicht das Layout: die Meldungen (session()->now)
+         zeigt deshalb die Komponente selbst an, nicht das x-flash im Layout. --}}
+    <x-flash/>
 
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">

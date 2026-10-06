@@ -86,7 +86,7 @@ it('löscht keinen Staffelbewerb mit Staffelergebnissen', function () {
 
     test()->actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
         ->delete(route('events.destroy', $event))
-        ->assertSessionHasErrors('event');
+        ->assertSessionHas('error');
 
     expect(SwimEvent::find($event->id))->not->toBeNull()
         ->and(RelayResult::count())->toBe(2);

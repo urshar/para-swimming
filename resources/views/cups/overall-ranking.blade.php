@@ -47,13 +47,6 @@
             </div>
         @endif
 
-        @if(session('success'))
-            <div
-                class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-                {{ session('success') }}
-            </div>
-        @endif
-
         {{--
             Filter statt Tabs (Design-Feedback Erik, 15.09.2026: "auf Tabs aufteilen ... oder
             einen Filter ... was am besten geeignet ist"): Bei bis zu einigen Dutzend Kategorien

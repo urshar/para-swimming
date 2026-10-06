@@ -243,7 +243,7 @@ class RecordController extends Controller
                 $record->delete();
             });
         } catch (Throwable $e) {
-            return back()->withErrors(['record' => 'Löschen fehlgeschlagen: '.$e->getMessage()]);
+            return back()->with('error', 'Löschen fehlgeschlagen: '.$e->getMessage());
         }
 
         $message = $wasCurrent && $supersedes_id
@@ -294,9 +294,7 @@ class RecordController extends Controller
         try {
             $result = $this->checker->checkMeet($meet);
         } catch (Throwable $e) {
-            return back()->withErrors([
-                'check' => 'Rekord-Check fehlgeschlagen: '.$e->getMessage(),
-            ]);
+            return back()->with('error', 'Rekord-Check fehlgeschlagen: '.$e->getMessage());
         }
 
         $newCount = count($result['new_records']);
@@ -400,7 +398,7 @@ class RecordController extends Controller
     public function restore(SwimRecord $record): RedirectResponse
     {
         if ($record->is_current) {
-            return back()->withErrors(['record' => 'Dieser Rekord ist bereits aktuell.']);
+            return back()->with('error', 'Dieser Rekord ist bereits aktuell.');
         }
 
         DB::transaction(function () use ($record) {

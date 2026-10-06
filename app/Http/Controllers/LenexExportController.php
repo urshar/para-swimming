@@ -41,7 +41,7 @@ class LenexExportController extends Controller
         try {
             $xml = $this->exportService->build($meet, $exportType);
         } catch (DOMException $e) {
-            return back()->withErrors(['export' => 'LENEX Export fehlgeschlagen: '.$e->getMessage()]);
+            return back()->with('error', 'LENEX Export fehlgeschlagen: '.$e->getMessage());
         }
 
         $innerFilename = $this->buildInnerFilename($meet, $exportType);

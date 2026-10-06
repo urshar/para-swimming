@@ -12,12 +12,6 @@
             </flux:button>
         </div>
 
-        @if(session('success'))
-            <div class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <div class="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
             <p class="font-medium mb-1">Wozu diese Faktoren dienen</p>
             <p>

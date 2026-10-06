@@ -122,13 +122,13 @@ class UserManager extends Component
     {
         // Eigenen Account nicht löschbar
         if ($userId === auth()->id()) {
-            session()->flash('error', 'Sie können Ihren eigenen Account nicht löschen.');
+            session()->now('error', 'Sie können Ihren eigenen Account nicht löschen.');
 
             return;
         }
 
         User::findOrFail($userId)->delete();
-        session()->flash('success', 'Benutzer gelöscht.');
+        session()->now('success', 'Benutzer gelöscht.');
     }
 
     public function render(): View
@@ -179,7 +179,7 @@ class UserManager extends Component
         $user->update($updateData);
 
         $this->closeModal();
-        session()->flash('success', 'Benutzer erfolgreich aktualisiert.');
+        session()->now('success', 'Benutzer erfolgreich aktualisiert.');
     }
 
     private function create(): void
@@ -207,6 +207,6 @@ class UserManager extends Component
         ]);
 
         $this->closeModal();
-        session()->flash('success', 'Benutzer erfolgreich angelegt.');
+        session()->now('success', 'Benutzer erfolgreich angelegt.');
     }
 }

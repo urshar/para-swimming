@@ -105,10 +105,8 @@ class ClubController extends Controller
     {
         // Prüfen ob Athleten zugeordnet sind
         if ($club->athletes()->exists()) {
-            return back()->withErrors([
-                'club' => 'Club kann nicht gelöscht werden — es sind noch '.
-                    $club->athletes()->count().' Athleten zugeordnet.',
-            ]);
+            return back()->with('error', 'Club kann nicht gelöscht werden — es sind noch '.
+                    $club->athletes()->count().' Athleten zugeordnet.');
         }
 
         $club->delete();

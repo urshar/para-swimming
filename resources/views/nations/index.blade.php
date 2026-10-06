@@ -10,20 +10,6 @@
         @endif
     </div>
 
-    @if(session('success'))
-        <div role="status"
-             class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @error('nation')
-        <div role="alert"
-             class="mb-4 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
-            {{ $message }}
-        </div>
-    @enderror
-
     @php
         // Sortierbare Spalten-Header ohne Livewire: flux:table.sortable rendert einen <button> ohne
         // eigene Navigation (für wire:click gedacht) — <a> darin wäre ungültiges HTML (interaktiver

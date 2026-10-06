@@ -402,7 +402,7 @@ describe('Versionsverwaltung', function () {
         $result->update(['wps_points' => 900, 'wps_point_version_id' => $version->id]);
 
         $this->actingAs(admin_wps3())->delete(route('wps.versions.destroy', $version))
-            ->assertSessionHasErrors('version');
+            ->assertSessionHas('error');
 
         expect(WpsPointVersion::count())->toBe(1)
             ->and($result->fresh()->wps_points)->toBe(900);

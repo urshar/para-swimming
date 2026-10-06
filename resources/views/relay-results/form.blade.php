@@ -49,13 +49,6 @@
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{{ $meet->name }}</p>
         </div>
 
-        @if(session('success'))
-            <div class="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800
-                        rounded-xl text-sm text-green-700 dark:text-green-400" role="status">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
             <form method="POST"
                   action="{{ $relayResult ? route('relay-results.update', $relayResult) : route('meets.relay-results.store', $meet) }}"

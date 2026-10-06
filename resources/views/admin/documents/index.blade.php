@@ -32,13 +32,6 @@
         @endif
     </div>
 
-    @if(session('success'))
-        <div
-            class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-            {{ session('success') }}
-        </div>
-    @endif
-
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
         <flux:table.columns>

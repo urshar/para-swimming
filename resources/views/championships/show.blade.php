@@ -69,13 +69,6 @@
             </a>
         </div>
 
-        @if(session('success'))
-            <div
-                class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-                {{ session('success') }}
-            </div>
-        @endif
-
         @if($championship->notes)
             <div
                 class="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-line">{{ $championship->notes }}</div>
