@@ -8,6 +8,7 @@ use App\Models\BaseTimeDiscipline;
 use App\Models\BaseTimeSportClass;
 use App\Models\BaseTimeVersion;
 use App\Models\Meet;
+use App\Models\RelayResult;
 use App\Models\Result;
 use Illuminate\Support\Collection;
 
@@ -34,10 +35,7 @@ class WorldAquaticsPointsService
      */
     public function recalculateForMeet(Meet $meet, ?BaseTimeVersion $version = null): array
     {
-        $results = Result::query()
-            ->with(['swimEvent.strokeType', 'athlete'])
-            ->where('meet_id', $meet->id)
-            ->get();
+        $results = $this->meetResults($meet);
 
         $updated = 0;
         $skippedReasons = [];
@@ -48,7 +46,11 @@ class WorldAquaticsPointsService
 
             if ($points === null) {
                 $skippedReasons[$reason] = ($skippedReasons[$reason] ?? 0) + 1;
-                $skippedResults[$result->id] = $reason;
+                // Liste der übersprungenen Ergebnisse (Ergebnisübersicht) nur für Einzelergebnisse; Staffeln zählen
+                // in den Gründen mit.
+                if ($result instanceof Result) {
+                    $skippedResults[$result->id] = $reason;
+                }
 
                 continue;
             }
@@ -83,15 +85,12 @@ class WorldAquaticsPointsService
      * geändert hat, seit die Punkte zuletzt berechnet wurden — vgl. den Fall
      * bei Result #964). Rein lesend, speichert nichts.
      *
-     * @return Collection<int, Result>
+     * @return Collection<int, Result|RelayResult>
      */
     public function findOutdatedResults(Meet $meet, ?BaseTimeVersion $version = null): Collection
     {
-        return Result::query()
-            ->with(['swimEvent.strokeType', 'athlete'])
-            ->where('meet_id', $meet->id)
-            ->get()
-            ->filter(function (Result $result) use ($meet, $version) {
+        return $this->meetResults($meet)
+            ->filter(function (Result|RelayResult $result) use ($meet, $version) {
                 $recalculated = $this->calculatePoints($result, $meet, $version);
 
                 return $recalculated !== null && $recalculated !== $result->points;
@@ -99,8 +98,8 @@ class WorldAquaticsPointsService
             ->values();
     }
 
-    /** Berechnet die Punkte für ein einzelnes Result, ohne zu speichern. */
-    public function calculatePoints(Result $result, Meet $meet, ?BaseTimeVersion $version = null): ?int
+    /** Berechnet die Punkte für ein einzelnes Ergebnis, ohne zu speichern. */
+    public function calculatePoints(Result|RelayResult $result, Meet $meet, ?BaseTimeVersion $version = null): ?int
     {
         [$points] = $this->resolvePoints($result, $meet, $version);
 
@@ -112,7 +111,7 @@ class WorldAquaticsPointsService
      *
      * @return array{0: ?int, 1: string} [Punkte oder null, Grund falls null]
      */
-    public function resolvePoints(Result $result, Meet $meet, ?BaseTimeVersion $version = null): array
+    public function resolvePoints(Result|RelayResult $result, Meet $meet, ?BaseTimeVersion $version = null): array
     {
         if (! $result->swim_time || $result->swim_time <= 0) {
             return [null, 'keine gültige Schwimmzeit'];
@@ -132,20 +131,23 @@ class WorldAquaticsPointsService
             return [null, 'Result ohne SwimEvent'];
         }
 
-        // Bei Einzelbewerben zählt das Geschlecht des Athleten (Mixed als Basiswert-Kategorie gibt es
-        // nur für Staffeln — manche Meets listen Einzelbewerbe organisatorisch trotzdem als "Mixed").
-        $genderSource = $event->relay_count > 1 ? $event->gender : $result->athlete?->gender;
+        // Staffelergebnis: Wertung der Mannschaft (Damen/Herren/Mixed) und Staffelklasse. Bei Einzelbewerben zählt
+        // das Geschlecht des Athleten (Mixed als Basiswert-Kategorie gibt es nur für Staffeln — manche Meets listen
+        // Einzelbewerbe organisatorisch trotzdem als "Mixed").
+        $isRelay = $result instanceof RelayResult;
+        $genderSource = $isRelay ? $result->gender : ($event->relay_count > 1 ? $event->gender : $result->athlete?->gender);
+        $classSource = $isRelay ? $result->relay_class : $result->sport_class;
 
         $gender = match (strtoupper((string) $genderSource)) {
             'M' => 'M',
             'F' => 'F',
-            'X', 'A' => $event->relay_count > 1 ? 'X' : null,
+            'X', 'A' => $isRelay || $event->relay_count > 1 ? 'X' : null,
             default => null,
         };
         if ($gender === null) {
             return [
-                null, $event->relay_count > 1
-                    ? 'Geschlecht des Bewerbs nicht zuordenbar'
+                null, $isRelay || $event->relay_count > 1
+                    ? 'Wertung der Staffel nicht zuordenbar'
                     : 'Geschlecht des Athleten nicht zuordenbar (M/F erforderlich)',
             ];
         }
@@ -168,9 +170,9 @@ class WorldAquaticsPointsService
             ];
         }
 
-        $sportClassCode = $this->normalizeSportClassCode($result->sport_class);
+        $sportClassCode = $this->normalizeSportClassCode($classSource);
         if ($sportClassCode === null) {
-            return [null, "Sportklasse \"$result->sport_class\" nicht erkennbar"];
+            return [null, ($isRelay ? 'Staffelklasse' : 'Sportklasse')." \"$classSource\" nicht erkennbar"];
         }
 
         $sportClass = BaseTimeSportClass::where('code', $sportClassCode)->first();
@@ -199,6 +201,21 @@ class WorldAquaticsPointsService
         $points = 1000 * ($baseTime->value_centiseconds / $result->swim_time) ** 3;
 
         return [(int) round($points), ''];
+    }
+
+    /**
+     * Einzel- und Staffelergebnisse einer Veranstaltung.
+     *
+     * @return Collection<int, Result|RelayResult>
+     */
+    private function meetResults(Meet $meet): Collection
+    {
+        return Result::query()
+            ->with(['swimEvent.strokeType', 'athlete'])
+            ->where('meet_id', $meet->id)
+            ->get()
+            ->toBase()
+            ->concat(RelayResult::query()->with('swimEvent.strokeType')->where('meet_id', $meet->id)->get());
     }
 
     // ── Zuordnung & Berechnung ────────────────────────────────────────────────

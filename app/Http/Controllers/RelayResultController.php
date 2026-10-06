@@ -10,6 +10,7 @@ use App\Models\RelayResult;
 use App\Models\RelayResultMember;
 use App\Models\SwimEvent;
 use App\Services\RelayClassValidator;
+use App\Services\ResultPointsService;
 use App\Services\ScoringGroupService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
@@ -35,6 +36,7 @@ class RelayResultController extends Controller
     public function __construct(
         private readonly RelayClassValidator $relayValidator,
         private readonly ScoringGroupService $scoring,
+        private readonly ResultPointsService $resultPoints,
     ) {}
 
     public function create(Request $request, Meet $meet): View
@@ -51,21 +53,26 @@ class RelayResultController extends Controller
     {
         $data = $this->validated($request, $meet);
 
-        DB::transaction(function () use ($meet, $data) {
+        $relayResult = DB::transaction(function () use ($meet, $data) {
             $relayResult = RelayResult::create($data['result'] + ['meet_id' => $meet->id]);
             $this->storeMembers($relayResult, $data['members']);
+
+            return $relayResult;
         });
+        // Punkte vor den Plätzen: Mit Wertungsgruppen wird nach Punkten platziert.
+        $notes = $this->resultPoints->calculate($relayResult, $data['result']['points'] !== null);
         $this->scoring->syncPlaces(SwimEvent::findOrFail($data['result']['swim_event_id']));
+        $message = self::withNotes('Staffelergebnis gespeichert.', $notes);
 
         if ($request->boolean('save_next')) {
             return redirect()
                 ->route('meets.relay-results.create', ['meet' => $meet, 'swim_event_id' => $data['result']['swim_event_id']])
-                ->with('success', 'Staffelergebnis gespeichert.');
+                ->with('success', $message);
         }
 
         return redirect()
             ->to(MeetResultsOverviewController::backUrl($meet))
-            ->with('success', 'Staffelergebnis gespeichert.');
+            ->with('success', $message);
     }
 
     public function edit(RelayResult $relayResult): View
@@ -88,6 +95,8 @@ class RelayResultController extends Controller
             $this->storeMembers($relayResult, $data['members']);
         });
 
+        $notes = $this->resultPoints->calculate($relayResult, $data['result']['points'] !== null);
+
         $event = SwimEvent::findOrFail($data['result']['swim_event_id']);
         $this->scoring->syncPlaces($event);
         if ($previousEvent && $previousEvent->id !== $event->id) {
@@ -96,7 +105,7 @@ class RelayResultController extends Controller
 
         return redirect()
             ->to(ListUrl::to('results'))
-            ->with('success', 'Staffelergebnis aktualisiert.');
+            ->with('success', self::withNotes('Staffelergebnis aktualisiert.', $notes));
     }
 
     public function destroy(RelayResult $relayResult): RedirectResponse
@@ -160,6 +169,12 @@ class RelayResultController extends Controller
      *
      * @throws ValidationException
      */
+    /** Hängt die Hinweise der Punkteberechnung an die Erfolgsmeldung an. */
+    private static function withNotes(string $message, array $notes): string
+    {
+        return $notes === [] ? $message : $message.' '.implode('. ', $notes).'.';
+    }
+
     private function validated(Request $request, Meet $meet): array
     {
         $validated = $request->validate([
