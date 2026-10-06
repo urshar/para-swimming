@@ -139,10 +139,10 @@ it('blockiert das Löschen, solange Datensätze auf die Nation verweisen', funct
         ->from(route('nations.index'))
         ->delete(route('nations.destroy', $nation))
         ->assertRedirect(route('nations.index'))
-        ->assertSessionHasErrors('nation');
+        ->assertSessionHas('error');
 
     expect(Nation::find($nation->id))->not->toBeNull()
-        ->and(session('errors')->first('nation'))->toContain($expected);
+        ->and(session('error'))->toContain($expected);
 })->with([
     'Athlet' => [fn (Nation $n) => Athlete::create([
         'nation_id' => $n->id, 'first_name' => 'Max', 'last_name' => 'Muster', 'gender' => 'M',
@@ -168,10 +168,10 @@ it('zählt auch soft-gelöschte Datensätze und nennt mehrere Arten im Plural', 
 
     $this->actingAs(makeAdmin_nat1())
         ->delete(route('nations.destroy', $nation))
-        ->assertSessionHasErrors('nation');
+        ->assertSessionHas('error');
 
     expect(Nation::find($nation->id))->not->toBeNull()
-        ->and(session('errors')->first('nation'))->toContain('1 Athlet, 2 Vereine');
+        ->and(session('error'))->toContain('1 Athlet, 2 Vereine');
 });
 
 it('zeigt den Lösch-Hinweis auf der Nationenliste an', function () {

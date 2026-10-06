@@ -15,25 +15,25 @@ Stand: Sicherheits-Audit 06.10.2026 (`fix/admin-route-guard`). Ergänzt `CLAUDE.
 
 ## Rechte-Matrix (Verwaltungsbereich)
 
-| Bereich | Vereinsnutzer | Admin |
-|---|---|---|
-| Wettkämpfe (Liste, Detail, Cup-Tageswertung ansehen) | lesen | alles |
-| Wettkampf, Abschnitte, Disziplinen, Meldegelder pflegen | — | ✓ |
-| ÖBSV- und WPS-Punkte berechnen, Rekorde prüfen, Cup-Wertungen berechnen | — | ✓ |
-| Eigene Einzel- und Staffelmeldungen | ✓ (eigener Verein, Fristen) | ✓ |
-| Meldungs-Cockpit, Meldungen aller Vereine, Ergebnisverwaltung | — | ✓ |
-| Meldelisten / Meldegeld (PDF/Excel) | eigener Verein | alle |
-| Athleten, Vereine, Nationen, Klassifizierer | lesen | alles |
-| Rekorde | lesen, exportieren | alles inkl. Import |
-| Richtzeiten / Qualifikationen | lesen (inkl. PDF) | alles |
-| Meisterschaften | lesen, Auswertungen (eigener Verein, siehe Controller) | alles inkl. Normimport |
-| Cup-Gesamt- und Vereinswertung | lesen | alles |
-| WPS-Auswertungen | lesen (Vereinsauswertung: eigener Verein) | alles inkl. Import, Versionen, Faktoren |
-| Statistik | — | ✓ |
-| Basiswerte | Kategorien/Exporte lesen | alles inkl. Import |
-| LENEX | Export | Import + Export |
-| Kadertypen, Altersgruppen, Sportklassen-Gruppen, Cups (Stammdaten) | — | ✓ |
-| Benutzer, Dokumente (`admin.*`) | — | ✓ |
+| Bereich                                                                 | Vereinsnutzer                                          | Admin                                   |
+|-------------------------------------------------------------------------|--------------------------------------------------------|-----------------------------------------|
+| Wettkämpfe (Liste, Detail, Cup-Tageswertung ansehen)                    | lesen                                                  | alles                                   |
+| Wettkampf, Abschnitte, Disziplinen, Meldegelder pflegen                 | —                                                      | ✓                                      |
+| ÖBSV- und WPS-Punkte berechnen, Rekorde prüfen, Cup-Wertungen berechnen | —                                                      | ✓                                      |
+| Eigene Einzel- und Staffelmeldungen                                     | ✓ (eigener Verein, Fristen)                           | ✓                                      |
+| Meldungs-Cockpit, Meldungen aller Vereine, Ergebnisverwaltung           | —                                                      | ✓                                      |
+| Meldelisten / Meldegeld (PDF/Excel)                                     | eigener Verein                                         | alle                                    |
+| Athleten, Vereine, Nationen, Klassifizierer                             | lesen                                                  | alles                                   |
+| Rekorde                                                                 | lesen, exportieren                                     | alles inkl. Import                      |
+| Richtzeiten / Qualifikationen                                           | lesen (inkl. PDF)                                      | alles                                   |
+| Meisterschaften                                                         | lesen, Auswertungen (eigener Verein, siehe Controller) | alles inkl. Normimport                  |
+| Cup-Gesamt- und Vereinswertung                                          | lesen                                                  | alles                                   |
+| WPS-Auswertungen                                                        | lesen (Vereinsauswertung: eigener Verein)              | alles inkl. Import, Versionen, Faktoren |
+| Statistik                                                               | —                                                      | ✓                                      |
+| Basiswerte                                                              | Kategorien/Exporte lesen                               | alles inkl. Import                      |
+| LENEX                                                                   | Export                                                 | Import + Export                         |
+| Kadertypen, Altersgruppen, Sportklassen-Gruppen, Cups (Stammdaten)      | —                                                      | ✓                                      |
+| Benutzer, Dokumente (`admin.*`)                                         | —                                                      | ✓                                      |
 
 Schreib-Schaltflächen in den lesbaren Ansichten (Anlegen, Bearbeiten, Löschen, Importieren, Berechnen) sind für
 Nicht-Admins ausgeblendet (`@if(auth()->user()?->is_admin)`), ebenso die Menüpunkte "Ergebnisse", "Rekord-Import"

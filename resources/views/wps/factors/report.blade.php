@@ -23,12 +23,6 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-                {{ session('success') }}
-            </div>
-        @endif
-
         <div class="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400">
             <p>
                 Gegenübergestellt wird der tatsächlich <strong>angesetzte</strong> Faktor und der aus

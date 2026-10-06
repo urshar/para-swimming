@@ -62,9 +62,7 @@ class EntryController extends Controller
     public function create(Meet $meet): RedirectResponse|View
     {
         if (! $meet->is_open) {
-            return back()->withErrors([
-                'meet' => 'Dieser Wettkampf ist nicht offen für Club-Meldungen.',
-            ]);
+            return back()->with('error', 'Dieser Wettkampf ist nicht offen für Club-Meldungen.');
         }
 
         $swimEvents = $meet->swimEvents()

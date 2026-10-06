@@ -38,7 +38,7 @@ class WpsTalentReportController extends Controller
 
         if ($config === null) {
             return redirect()->route('wps.talent-report')
-                ->withErrors(['reference' => 'Ohne Referenznorm lässt sich keine Auswertung erstellen.']);
+                ->with('error', 'Ohne Referenznorm lässt sich keine Auswertung erstellen.');
         }
 
         return $this->pdfExportService->stream(

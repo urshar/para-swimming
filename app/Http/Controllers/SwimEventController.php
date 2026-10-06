@@ -132,9 +132,7 @@ class SwimEventController extends Controller
         // mitgelöscht.
         if ($event->entries()->exists() || $event->results()->exists()
             || $event->relayEntries()->exists() || $event->relayResults()->exists()) {
-            return back()->withErrors([
-                'event' => 'Disziplin kann nicht gelöscht werden — es gibt bereits Meldungen oder Ergebnisse.',
-            ]);
+            return back()->with('error', 'Disziplin kann nicht gelöscht werden — es gibt bereits Meldungen oder Ergebnisse.');
         }
 
         $event->delete();

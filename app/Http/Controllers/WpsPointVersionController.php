@@ -100,11 +100,9 @@ class WpsPointVersionController extends Controller
     {
         if (! $version->isDeletable()) {
             return redirect()->route('wps.versions.index')
-                ->withErrors([
-                    'version' => "Version \"$version->label\" wird von bereits berechneten ".
+                ->with('error', "Version \"$version->label\" wird von bereits berechneten ".
                         'Ergebnissen verwendet und kann nicht gelöscht werden. '.
-                        'Sie kann stattdessen archiviert werden.',
-                ]);
+                        'Sie kann stattdessen archiviert werden.');
         }
 
         $label = $version->label;

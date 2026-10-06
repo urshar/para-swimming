@@ -103,6 +103,13 @@ composer lint:check   # Pint nur prüfen
   bisher auf die Liste ging → gemerkte Liste. Mehrere Listen können denselben Bereich setzen (Meldungen:
   Cockpit und "Alle Meldungen"). In Tests die erwartete Listen-URL mit sortierten Query-Parametern bauen —
   `$request->fullUrl()` normalisiert die Reihenfolge alphabetisch (siehe `ContextBackNavigationTest`).
+- **Flash-Meldungen nur zentral** über `<x-flash/>` im Layout (`resources/views/components/flash.blade.php`):
+  `->with('success', ...)` für Bestätigungen, `->with('error', ...)` für Fehler **ohne Feldbezug** (blockiertes
+  Löschen, fehlgeschlagener Export usw.). `withErrors([...])` nur für Fehler, die ein Formularfeld (`flux:error`)
+  oder ein eigener Block mit Handlungsoptionen anzeigt (z. B. `wps` auf `meets/show`). Keine eigenen
+  `@if(session('success'))`-Blöcke in Views — sonst erscheint die Meldung doppelt. Ausnahme Livewire: Aktionen
+  rendern das Layout nicht neu, deshalb dort `session()->now(...)` und `<x-flash/>` in der Komponente selbst
+  (siehe `admin/users/index.blade.php`).
 - **Mehrkriterien-Sortierung**: `sortBy()` mit Closure-Arrays ist unzuverlässig – stattdessen zusammengesetzte
   `sprintf()`-Sortierschlüssel.
 - **Zugriffskontrolle** nach `docs/access-control.md`: Vereinsnutzer lesen, schreiben nur eigene Meldungen; jede

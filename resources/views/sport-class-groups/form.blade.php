@@ -23,13 +23,6 @@
             </div>
         @endif
 
-        @if(session('success'))
-            <div
-                class="mb-4 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400">
-                {{ session('success') }}
-            </div>
-        @endif
-
         {{-- Nebeneinander statt untereinander, sobald es eine "Zugeordnete Sportklassen"-Karte
              gibt (Design-Feedback Erik, 04.09.2026: "kann man die Sportklassen recht[s]
              hinzufügen, so dass es übersichtlich bleibt?") — beim Anlegen oder bei virtuellen

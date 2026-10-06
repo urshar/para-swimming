@@ -31,13 +31,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800
-                    rounded-xl text-sm text-green-700 dark:text-green-400">
-            {{ session('success') }}
-        </div>
-    @endif
-
     @include('club-entries._deadline-notice')
 
     @if($relayEntries->isEmpty())
