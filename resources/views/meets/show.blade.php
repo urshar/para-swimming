@@ -237,14 +237,16 @@
                     @endif
                 </div>
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
-                <flux:table bleed>
+                {{-- Feste Spaltenbreiten (table-fixed), damit die Tabellen der Abschnitte untereinander gleich ausgerichtet
+                     sind; die Disziplin nimmt den Rest. --}}
+                <flux:table bleed class="w-full min-w-160">
                     <flux:table.columns>
-                        <flux:table.column>Nr.</flux:table.column>
+                        <flux:table.column class="w-14">Nr.</flux:table.column>
                         <flux:table.column>Disziplin</flux:table.column>
-                        <flux:table.column>Geschlecht</flux:table.column>
-                        <flux:table.column>Runde</flux:table.column>
-                        <flux:table.column>Klassen</flux:table.column>
-                        <flux:table.column></flux:table.column>
+                        <flux:table.column class="w-28">Geschlecht</flux:table.column>
+                        <flux:table.column class="w-20">Runde</flux:table.column>
+                        <flux:table.column class="w-48">Klassen</flux:table.column>
+                        <flux:table.column class="w-24"></flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
                         @foreach($events as $event)
@@ -252,7 +254,7 @@
                                 <flux:table.cell class="text-zinc-400 text-sm">
                                     {{ $event->event_number ?? '–' }}
                                 </flux:table.cell>
-                                <flux:table.cell class="font-medium">
+                                <flux:table.cell class="font-medium truncate">
                                     {{ $event->display_name }}
                                     @unless($event->is_scored)
                                         <flux:badge size="sm" color="amber" class="ml-1"
@@ -268,7 +270,7 @@
                                 <flux:table.cell class="text-zinc-500 text-sm">
                                     {{ $event->round !== 'TIM' ? $event->round : '–' }}
                                 </flux:table.cell>
-                                <flux:table.cell class="text-zinc-500 text-sm">
+                                <flux:table.cell class="text-zinc-500 text-sm truncate" title="{{ $event->sport_classes }}">
                                     {{ $event->sport_classes ?? '–' }}
                                 </flux:table.cell>
                                 <flux:table.cell>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
+use App\Models\Nation;
 use App\Models\SwimEvent;
 use App\Services\ImportSuggestionService;
 use App\Services\LenexParserService;
@@ -47,9 +48,16 @@ class LenexImportController extends Controller
 
         $candidates = $this->findMeetCandidates($importData['meta']);
 
+        $nations = $importData['meta']['nations'] ?? [];
+
         return view('lenex.confirm-meet', [
             'importSession' => $sessionKey,
             'meta' => $importData['meta'],
+            'nations' => $nations,
+            // Fehlt die Nation der Veranstaltung in der Datei, wird sie für eine neue Veranstaltung abgefragt.
+            'meetNations' => ($importData['meta']['meet_nation_known'] ?? true) ? collect() : Nation::orderBy('name_de')->get(['code', 'name_de']),
+            // Vorauswahl Österreich, wenn die Datei mehrere Nationen enthält.
+            'defaultNation' => count($nations) > 1 && in_array('AUT', $nations, true) ? 'AUT' : 'ALL',
             'type' => $importData['type'],
             'candidates' => $candidates,
         ]);
@@ -71,9 +79,21 @@ class LenexImportController extends Controller
         }
 
         $meetId = (int) $request->input('meet_id') ?: null; // null = neues Meet
+        // Nationenfilter: nur eine Nation aus der Datei; "ALL" (Sentinel statt leerem Wert, siehe CLAUDE.md) = alle.
+        $onlyNation = $request->input('only_nation');
+        $onlyNation = in_array($onlyNation, $importData['meta']['nations'] ?? [], true) ? $onlyNation : null;
+
+        // Nation der Veranstaltung fehlt in der Datei: Pflicht, wenn eine neue Veranstaltung angelegt wird.
+        $meetNation = Nation::where('code', (string) $request->input('meet_nation'))->value('code');
+        if ($meetId === null && ! ($importData['meta']['meet_nation_known'] ?? true) && $meetNation === null) {
+            return back()->withErrors([
+                'meet_nation' => 'Die Datei enthält keine bekannte Nation der Veranstaltung — bitte auswählen.',
+            ]);
+        }
 
         try {
-            $pendingEvents = $this->newUnclassifiedEvents($importData['path'], $meetId);
+            // Internationale Veranstaltungen (Nationenfilter) haben keine Rahmenbewerbe — keine Abfrage.
+            $pendingEvents = $onlyNation === null ? $this->newUnclassifiedEvents($importData['path'], $meetId) : [];
             Session::forget($sessionKey);
 
             if ($pendingEvents !== []) {
@@ -81,13 +101,14 @@ class LenexImportController extends Controller
                 Session::put($newSessionKey, [
                     'path' => $importData['path'],
                     'meet_id' => $meetId,
+                    'meet_nation' => $meetNation,
                     'pending_events' => $pendingEvents,
                 ]);
 
                 return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
             }
 
-            return $this->startImport($importData['path'], $meetId, []);
+            return $this->startImport($importData['path'], $meetId, [], $onlyNation, $meetNation);
 
         } catch (Exception $e) {
             return back()->withErrors([
@@ -118,7 +139,7 @@ class LenexImportController extends Controller
         try {
             Session::forget($sessionKey);
 
-            return $this->startImport($importData['path'], $importData['meet_id'], $unscored);
+            return $this->startImport($importData['path'], $importData['meet_id'], $unscored, null, $importData['meet_nation'] ?? null);
 
         } catch (Exception $e) {
             return back()->withErrors([
@@ -151,7 +172,8 @@ class LenexImportController extends Controller
         try {
             // Typ erkennen ohne zu importieren
             $type = $this->parser->detectTypeFromFile($fullPath);
-            $meta = $this->parser->extractMeetMeta($fullPath);
+            $meta = $this->parser->extractMeetMeta($fullPath) + ['nations' => $this->parser->fileNations($fullPath)];
+            $meta['meet_nation_known'] = Nation::where('code', $meta['nation'])->exists();
 
             // Bei structure: direkt importieren — keine Meet-Auswahl nötig
             if ($type === 'structure') {
@@ -286,6 +308,7 @@ class LenexImportController extends Controller
             Session::put($newSessionKey, [
                 'path' => $importData['path'],
                 'force_meet_id' => $importData['force_meet_id'] ?? null,
+                'only_nation' => $importData['only_nation'] ?? null,
                 'club_map' => $clubMap,
                 'unresolved_clubs' => [],
                 'unresolved_athletes' => $unresolvedAthletes,
@@ -384,7 +407,8 @@ class LenexImportController extends Controller
             .($stats['relay_entries'] ?? 0).' Staffelmeldungen, '
             .$stats['results'].' Ergebnisse'
             .($stats['results'] > 0 ? self::resultMatchSummary($stats) : '').', '
-            .($stats['relay_results'] ?? 0).' Staffelergebnisse.';
+            .($stats['relay_results'] ?? 0).' Staffelergebnisse.'
+            .(! empty($stats['without_club']) ? ' '.$stats['without_club'].' Meldung(en)/Ergebnis(se) übersprungen: Athlet ohne Verein.' : '');
 
         return redirect()->route('meets.index')->with('success', $message);
     }
@@ -406,12 +430,23 @@ class LenexImportController extends Controller
      * gewählte Veranstaltung wird gemerkt, damit die Folgeschritte keine weitere anlegen.
      *
      * @param  list<int>  $unscoredEventNumbers
+     * @param  string|null  $onlyNation  Nationenfilter (nur Schwimmer dieser Nation), null = alle
+     * @param  string|null  $meetNation  Nation der Veranstaltung, wenn sie in der Datei fehlt
      *
      * @throws Exception
      */
-    private function startImport(string $path, ?int $meetId, array $unscoredEventNumbers): RedirectResponse
-    {
-        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, $unscoredEventNumbers);
+    private function startImport(
+        string $path,
+        ?int $meetId,
+        array $unscoredEventNumbers,
+        ?string $onlyNation,
+        ?string $meetNation
+    ): RedirectResponse {
+        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, [
+            'unscored_events' => $unscoredEventNumbers,
+            'only_nation' => $onlyNation,
+            'meet_nation' => $meetNation,
+        ]);
 
         if (! $this->resolver->hasUnresolved()) {
             Storage::disk('local')->delete($path);
@@ -423,6 +458,7 @@ class LenexImportController extends Controller
         Session::put($newSessionKey, [
             'path' => $path,
             'force_meet_id' => $meetId ?: $result['meet']->id,
+            'only_nation' => $onlyNation,
             'unresolved_clubs' => $this->resolver->getUnresolvedClubs(),
             'unresolved_athletes' => $this->resolver->getUnresolvedAthletes(),
         ]);
@@ -468,10 +504,14 @@ class LenexImportController extends Controller
             $this->resolver->assignAthlete((string) $lenexId, $athleteId);
         }
 
+        // Session-Werte sind untypisiert — für den Parser auf ?string bringen.
+        $onlyNation = isset($importData['only_nation']) ? (string) $importData['only_nation'] : null;
+
         return $this->parser->import(
             Storage::disk('local')->path($importData['path']),
             $this->resolver,
-            $importData['force_meet_id'] ?? null
+            $importData['force_meet_id'] ?? null,
+            ['only_nation' => $onlyNation]
         );
     }
 

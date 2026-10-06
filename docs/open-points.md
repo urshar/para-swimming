@@ -262,23 +262,29 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
 
-## Plätze internationaler Veranstaltungen aus der Datei erhalten
+## Untereinanderstehende Tabellen einheitlich ausrichten
 
-**Seit:** Analyse der EM Kocaeli 2026 (06.10.2026), zusammen mit dem geplanten Nationenfilter beim LENEX-Import
-(eigener Branch).
+**Seit:** Rückmeldung Erik (06.10.2026) zu den Abschnitts-Tabellen auf `meets/show`; dort und in der
+Ergebnis-Sammelansicht (`meets/results-overview`, inkl. Staffeltabelle) umgesetzt in
+`feature/lenex-nation-filter`.
 
-**Ausgangslage:** Bei internationalen Meisterschaften stehen in der LENEX-Datei die europäischen bzw. internationalen
-Plätze (RANKINGS je Klasse und Runde), importiert werden aber nur die österreichischen Schwimmer. Die Wertungsgruppen
-sind dort meist offen ("Open Class", Klasse nur im Bewerbsnamen). Unsere Wertung (`ScoringGroupService::syncPlaces`)
-rechnet mit Wertungsgruppen nach Punkten innerhalb der importierten Ergebnisse — sobald ÖBSV-Punkte berechnet sind,
-überschreibt jedes Speichern, "ÖBSV-Punkte berechnen" oder Ändern der Wertungsgruppen den Platz aus der Datei mit
-dem Platz der Österreicher untereinander.
+**Ausgangslage:** Wo mehrere Tabellen gleicher Struktur untereinander stehen (je Abschnitt, Bewerb, Wertungsgruppe,
+Klasse ...), richtet sich jede Tabelle nach ihrem eigenen Inhalt — die Spalten springen von Tabelle zu Tabelle.
 
-**Entscheidung Erik (06.10.2026):** Der Platz aus der Datei bleibt erhalten.
+**Muster (wie `meets/show.blade.php` "Disziplinen", `cups/overall-ranking.blade.php`,
+`public/regulations/index.blade.php`):** `table-fixed` (bei Flux bereits gesetzt) plus `w-full` und feste Breiten je
+Spalte außer einer, die den Rest nimmt (`<flux:table.column class="w-24">`); lange Inhalte in festen Spalten mit
+`truncate` + `title`. Für die horizontale Scroll-Breite auf schmalen Bildschirmen eine `min-w-*` am Table.
 
-**Was fehlt:** Eine Kennzeichnung (z. B. an der Veranstaltung "Plätze aus der Datei übernehmen" bzw. automatisch bei
-Import mit Nationenfilter), bei der `syncPlaces` die gespeicherten Plätze nicht anfasst und Sammelansicht, PDF und
-öffentliche Seite den gespeicherten Platz statt des berechneten zeigen.
+**Kandidaten** (Tabellen in Schleifen, je Datei prüfen, ob sie wirklich untereinander stehen):
+
+- Admin: `meets/entries-overview`, `championships/selection`,
+  `livewire/admin/championship-qualification-table`, `livewire/cup-club-ranking`, `qualifying-time-lists/show`,
+  `qualifying-time-lists/qualifications`, `qualifying-time-lists/form`, `statistics/partials/sections`
+- Öffentlich (Tailkit, nicht Flux): `public/meets/results`, `public/annual-best/index`, `public/base-times/index`,
+  `public/cup-ranking/index`, `public/qualifying-times/index`, `public/records/index`
+- PDF (dompdf, eigene `<colgroup>`/Breiten): `pdf/result-list`, `pdf/entry-lists/*`, `pdf/championship-*`,
+  `pdf/cup-club-ranking`, `pdf/public-records`, `pdf/qualifying-times`, `pdf/wps-*`, `pdf/year-comparison`
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 

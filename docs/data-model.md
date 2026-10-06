@@ -85,7 +85,8 @@ Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Res
 `entries_deadline`, `entries_reopened_until` / `entries_reopened_by` / `entries_reopened_at` (Meldeschluss befristet
 wiedereröffnet; nur das letzte Öffnen), `timing`, `entry_type` (OPEN/INVITATION), `is_open`,
 `lenex_meet_id`, sowie später ergänzt `cup_id`, `qualifying_time_list_id` und
-`wps_approved` / `wps_approved_note`. Soft-deletes. → hat viele **SwimEvent**;
+`wps_approved` / `wps_approved_note`, `keep_file_places` (Plätze aus der Ergebnisdatei behalten, internationale
+Veranstaltungen). Soft-deletes. → hat viele **SwimEvent**;
 n:m zu **Club** über `meet_club` (nur vom LENEX-Import befüllt; die teilnehmenden Vereine leitet
 `Meet::participatingClubs()` aus Meldungen und Ergebnissen ab); optional einem **Cup** und einer **QualifyingTimeList** zugeordnet.
 

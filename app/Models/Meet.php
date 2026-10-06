@@ -39,6 +39,7 @@ class Meet extends Model
         'qualifying_time_list_id',
         'livetiming_url',
         'is_published',
+        'keep_file_places',
     ];
 
     /**
@@ -48,6 +49,7 @@ class Meet extends Model
     protected $attributes = [
         'wps_approved' => false,
         'is_published' => false,
+        'keep_file_places' => false,
     ];
 
     protected $casts = [
@@ -59,6 +61,8 @@ class Meet extends Model
         'entries_reopened_until' => 'datetime',
         'entries_reopened_at' => 'datetime',
         'is_published' => 'boolean',
+        // Internationale Veranstaltung: Plätze aus der Ergebnisdatei behalten (ScoringGroupService).
+        'keep_file_places' => 'boolean',
     ];
 
     /**

@@ -212,6 +212,7 @@ class MeetController extends Controller
         // Nicht angehakte Checkboxen werden gar nicht übertragen; ohne diese Zeile ließe
         // sich die WPS-Anerkennung nie wieder zurücknehmen.
         $data['wps_approved'] = $request->boolean('wps_approved');
+        $data['keep_file_places'] = $request->boolean('keep_file_places');
 
         if (auth()->user()?->is_admin) {
             // Steuert die tatsächliche öffentliche Sichtbarkeit (Spec public-frontend §4.2) —
@@ -241,6 +242,7 @@ class MeetController extends Controller
             'entry_type' => 'nullable|in:OPEN,INVITATION',
             'is_open' => 'boolean',
             'wps_approved' => 'boolean',
+            'keep_file_places' => 'boolean',
             'wps_approved_note' => 'nullable|string|max:255',
             'livetiming_url' => 'nullable|url|max:255',
             // is_published bewusst nicht hier: Es wird ausschließlich über den admin-gated

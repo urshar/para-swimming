@@ -203,6 +203,20 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6">
+                            <flux:field>
+                                <flux:label>Plätze aus der Ergebnisdatei</flux:label>
+                                <flux:switch name="keep_file_places" value="1"
+                                             :checked="old('keep_file_places', $meet->keep_file_places ?? false)"
+                                             label="Plätze aus der LENEX-Ergebnisdatei übernehmen, nicht neu berechnen"/>
+                                <flux:description class="mt-1!">
+                                    Für internationale Veranstaltungen (z. B. EM, WM), bei denen nur die österreichischen Schwimmer
+                                    importiert werden: Der internationale Platz bleibt erhalten. Wird beim Import mit Nationenfilter
+                                    automatisch gesetzt.
+                                </flux:description>
+                            </flux:field>
+                        </div>
                     </flux:tab.panel>
                 </flux:tab.group>
             @else

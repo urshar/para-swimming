@@ -72,3 +72,11 @@ Gruppe), PDF-Ergebnisliste (`MeetResultListService`), öffentlicher Ergebnisseit
 ## Tests
 
 `tests/Feature/ScoringGroupsTest.php`.
+
+## Plätze aus der Ergebnisdatei (internationale Veranstaltungen)
+
+Ist an der Veranstaltung `keep_file_places` gesetzt (automatisch beim LENEX-Import mit Nationenfilter, sonst im
+Veranstaltungsformular unter "Punkteberechnung"), rechnet `ScoringGroupService` die Plätze nicht neu: `rankedGroups`
+übernimmt den gespeicherten `place` (sortiert danach, ohne Platz nach Status und Zeit, kein "ohne Punkte"-Hinweis),
+und `syncPlaces` lässt die gespeicherten Plätze unangetastet. Damit bleibt z. B. der EM-Platz in Sammelansicht, PDF,
+öffentlicher Seite und LENEX-Export erhalten, auch nach "ÖBSV-Punkte berechnen".

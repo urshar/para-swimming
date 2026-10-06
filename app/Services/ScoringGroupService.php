@@ -50,10 +50,12 @@ final readonly class ScoringGroupService
         }
 
         $groups = $event->relationLoaded('scoringGroups') ? $event->scoringGroups : $event->scoringGroups()->get();
+        // Internationale Veranstaltung: gespeicherte Plätze aus der Ergebnisdatei statt einer Neuberechnung.
+        $keepFilePlaces = (bool) $event->meet?->keep_file_places;
 
         return $groups->isEmpty()
-            ? $this->fallbackGroups($results, $meetYear)
-            : $this->definedGroups($groups, $results, $meetYear);
+            ? $this->fallbackGroups($results, $meetYear, $keepFilePlaces)
+            : $this->definedGroups($groups, $results, $meetYear, $keepFilePlaces);
     }
 
     /**
@@ -63,6 +65,11 @@ final readonly class ScoringGroupService
      */
     public function syncPlaces(SwimEvent $event): void
     {
+        // Plätze aus der Ergebnisdatei (internationale Veranstaltung) bleiben unangetastet.
+        if ($event->meet->keep_file_places) {
+            return;
+        }
+
         $meetYear = (int) $event->meet->start_date->format('Y');
         $results = $event->relay_count > 1
             ? RelayResult::where('swim_event_id', $event->id)->with('members')->get()
@@ -114,7 +121,7 @@ final readonly class ScoringGroupService
      * @param  Collection<int, Result|RelayResult>  $results
      * @return list<array{group: ?ScoringGroup, gender: ?string, name: string, label: string, missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}>
      */
-    private function definedGroups(Collection $groups, Collection $results, int $meetYear): array
+    private function definedGroups(Collection $groups, Collection $results, int $meetYear, bool $keepFilePlaces): array
     {
         $assigned = [];
         $out = [];
@@ -129,13 +136,15 @@ final readonly class ScoringGroupService
                 return $match;
             });
             if ($members->isNotEmpty()) {
-                $out[] = ['group' => $group, 'gender' => $group->gender, 'name' => $group->name, 'label' => $group->label()] + $this->rank($members, true);
+                $out[] = ['group' => $group, 'gender' => $group->gender, 'name' => $group->name, 'label' => $group->label()]
+                    + ($keepFilePlaces ? $this->keepStoredPlaces($members) : $this->rank($members, true));
             }
         }
 
         $unassigned = $results->reject(fn (Result|RelayResult $r): bool => isset($assigned[spl_object_id($r)]));
         if ($unassigned->isNotEmpty()) {
-            $out[] = ['group' => null, 'gender' => null, 'name' => self::UNASSIGNED_LABEL, 'label' => self::UNASSIGNED_LABEL] + $this->rank($unassigned, true);
+            $out[] = ['group' => null, 'gender' => null, 'name' => self::UNASSIGNED_LABEL, 'label' => self::UNASSIGNED_LABEL]
+                + ($keepFilePlaces ? $this->keepStoredPlaces($unassigned) : $this->rank($unassigned, true));
         }
 
         return $out;
@@ -147,7 +156,7 @@ final readonly class ScoringGroupService
      * @param  Collection<int, Result|RelayResult>  $results
      * @return list<array{group: ?ScoringGroup, gender: ?string, name: string, label: string, missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}>
      */
-    private function fallbackGroups(Collection $results, int $meetYear): array
+    private function fallbackGroups(Collection $results, int $meetYear, bool $keepFilePlaces): array
     {
         return $results
             ->groupBy(function (Result|RelayResult $r) use ($meetYear): string {
@@ -158,7 +167,7 @@ final readonly class ScoringGroupService
                 return implode('#', [self::GENDER_ORDER[$gender ?? 'A'] ?? 9, self::classSortKey($class), $gender ?? '', $class]);
             })
             ->sortKeys()
-            ->map(function (Collection $members, string $key): array {
+            ->map(function (Collection $members, string $key) use ($keepFilePlaces): array {
                 [, , $gender, $class] = explode('#', $key, 4);
                 $group = new ScoringGroup([
                     'name' => $class !== '' ? $class : 'Ohne Sportklasse',
@@ -166,7 +175,8 @@ final readonly class ScoringGroupService
                     'sport_classes' => $class,
                 ]);
 
-                return ['group' => null, 'gender' => $group->gender, 'name' => $class, 'label' => $group->label()] + $this->rank($members, false);
+                return ['group' => null, 'gender' => $group->gender, 'name' => $class, 'label' => $group->label()]
+                    + ($keepFilePlaces ? $this->keepStoredPlaces($members) : $this->rank($members, false));
             })
             ->values()
             ->all();
@@ -218,6 +228,28 @@ final readonly class ScoringGroupService
         }
 
         return '8|'.$class;
+    }
+
+    /**
+     * Gespeicherte Plätze (aus der Ergebnisdatei) übernehmen und danach sortieren; ohne Platz nach Status und Zeit.
+     *
+     * @param  Collection<int, Result|RelayResult>  $results
+     * @return array{missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}
+     */
+    private function keepStoredPlaces(Collection $results): array
+    {
+        $sorted = $results->sortBy(fn (Result|RelayResult $r): string => sprintf(
+            '%d|%06d|%d|%010d',
+            $r->place > 0 ? 0 : 1,
+            $r->place > 0 ? $r->place : 0,
+            $r->status === null ? 0 : 1 + (self::UNRANKED_ORDER[$r->status] ?? 9),
+            $r->swim_time ?? 9999999999,
+        ))->values();
+
+        return [
+            'missingPoints' => 0,
+            'rows' => $sorted->map(fn (Result|RelayResult $r): array => ['place' => $r->place > 0 ? $r->place : null, 'result' => $r])->all(),
+        ];
     }
 
     /**

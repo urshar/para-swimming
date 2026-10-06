@@ -166,23 +166,25 @@
                     @include('meets._relay-results-table', ['rows' => $scoring['rows']])
                 @else
                 <div class="p-4 [--flux-bleed:1rem]">
-                    <flux:table bleed>
+                    {{-- Feste Spaltenbreiten (table-fixed), damit die Tabellen der Bewerbe und Wertungsgruppen untereinander
+                         gleich ausgerichtet sind; der Athlet nimmt den Rest. --}}
+                    <flux:table bleed class="w-full min-w-260">
                         <flux:table.columns>
-                            <flux:table.column>Platz</flux:table.column>
+                            <flux:table.column class="w-14">Platz</flux:table.column>
                             <flux:table.column>Athlet</flux:table.column>
-                            <flux:table.column>Verein</flux:table.column>
-                            <flux:table.column>Klasse</flux:table.column>
-                            <flux:table.column>Zeit</flux:table.column>
+                            <flux:table.column class="w-44">Verein</flux:table.column>
+                            <flux:table.column class="w-20">Klasse</flux:table.column>
+                            <flux:table.column class="w-24">Zeit</flux:table.column>
                             @if($pointColumns['points'])
-                                <flux:table.column>Punkte</flux:table.column>
+                                <flux:table.column class="w-20">Punkte</flux:table.column>
                             @endif
                             @if($pointColumns['wps'])
-                                <flux:table.column>WPS</flux:table.column>
+                                <flux:table.column class="w-20">WPS</flux:table.column>
                             @endif
-                            <flux:table.column>Rekorde</flux:table.column>
-                            <flux:table.column>Status</flux:table.column>
-                            <flux:table.column>Herkunft</flux:table.column>
-                            <flux:table.column></flux:table.column>
+                            <flux:table.column class="w-28">Rekorde</flux:table.column>
+                            <flux:table.column class="w-16">Status</flux:table.column>
+                            <flux:table.column class="w-20">Herkunft</flux:table.column>
+                            <flux:table.column class="w-28"></flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach($scoring['rows'] as $row)
@@ -191,13 +193,14 @@
                                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
                                         {{ $row['place'] ?: '–' }}
                                     </flux:table.cell>
-                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
+                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white truncate">
                                         <a href="{{ route('athletes.show', $result->athlete) }}"
                                            class="hover:text-blue-600 dark:hover:text-blue-400">
                                             {{ $result->athlete?->display_name }}
                                         </a>
                                     </flux:table.cell>
-                                    <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
+                                    <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 truncate"
+                                                     title="{{ $result->club?->name }}">
                                         {{ $result->club?->display_name }}
                                     </flux:table.cell>
                                     <flux:table.cell>

@@ -96,6 +96,43 @@
 
             </div>
 
+            {{-- Nation der Veranstaltung fehlt in der Datei: für eine neue Veranstaltung Pflicht (meets.nation_id). --}}
+            @if($meetNations->isNotEmpty())
+                <div class="mt-5 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                    <flux:field>
+                        <flux:label>Nation der Veranstaltung</flux:label>
+                        <flux:select variant="listbox" searchable name="meet_nation" placeholder="Bitte wählen…" class="max-w-xs">
+                            @foreach($meetNations as $meetNation)
+                                <flux:select.option value="{{ $meetNation->code }}">{{ $meetNation->name_de }} ({{ $meetNation->code }})</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:description>Die Datei enthält keine bekannte Nation der Veranstaltung. Nur nötig, wenn sie neu angelegt wird.</flux:description>
+                        <flux:error name="meet_nation"/>
+                    </flux:field>
+                </div>
+            @endif
+
+            {{-- Nationenfilter: nur bei Dateien mit mehreren Nationen (internationale Veranstaltungen, Gäste). --}}
+            @if(count($nations) > 1)
+                <div class="mt-5 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                    <flux:field>
+                        <flux:label>Nur Schwimmer dieser Nation importieren</flux:label>
+                        <flux:select variant="listbox" name="only_nation" class="max-w-xs">
+                            <flux:select.option value="ALL" :selected="$defaultNation === 'ALL'">Alle Nationen</flux:select.option>
+                            @foreach($nations as $nationCode)
+                                <flux:select.option value="{{ $nationCode }}"
+                                                    :selected="$defaultNation === $nationCode">{{ $nationCode }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:description>
+                            Die Datei enthält {{ count($nations) }} Nationen. Mit Filter werden nur deren Schwimmer, Staffeln und
+                            Bewerbe importiert; nicht gefundene Vereine (z. B. Nationalteams) werden nicht abgefragt — die
+                            Ergebnisse gehen an den Heimverein der Schwimmer.
+                        </flux:description>
+                    </flux:field>
+                </div>
+            @endif
+
             @error('import')
             <p class="text-sm text-red-500 mt-3">{{ $message }}</p>
             @enderror
