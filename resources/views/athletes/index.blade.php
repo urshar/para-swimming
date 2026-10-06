@@ -6,9 +6,11 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
+        @if(auth()->user()?->is_admin)
         <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
             Neuer Athlet
         </flux:button>
+        @endif
     </div>
 
     {{-- Filter --}}
@@ -146,6 +148,7 @@
                                 title="WPS-Analyse"/>
                             <flux:button href="{{ route('athletes.show', $athlete) }}" size="sm" variant="ghost"
                                          icon="eye"/>
+                            @if(auth()->user()?->is_admin)
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"
@@ -154,6 +157,7 @@
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash" class="text-red-500!"/>
                             </form>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

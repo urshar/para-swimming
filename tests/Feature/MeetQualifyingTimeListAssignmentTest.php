@@ -55,14 +55,14 @@ describe('store', function () {
         expect(Meet::where('name', 'Testmeet')->firstOrFail()->qualifying_time_list_id)->toBe($list->id);
     })->group('qualifying-time-lists-p2');
 
-    it('qualifying_time_list_id eines Club-Users wird ignoriert', function () {
+    it('Club-User darf keinen Wettkampf anlegen (auch nicht mit Richtzeitenliste)', function () {
         $list = makeQualifyingTimeList_qtl3();
 
         $this->actingAs(makeClubUser_qtl3())
             ->post(route('meets.store'), meetPayload_qtl3(['qualifying_time_list_id' => $list->id]))
-            ->assertRedirect();
+            ->assertForbidden();
 
-        expect(Meet::where('name', 'Testmeet')->firstOrFail()->qualifying_time_list_id)->toBeNull();
+        expect(Meet::where('name', 'Testmeet')->exists())->toBeFalse();
     })->group('qualifying-time-lists-p2');
 });
 
@@ -91,13 +91,13 @@ describe('update', function () {
         expect($meet->fresh()->qualifying_time_list_id)->toBeNull();
     })->group('qualifying-time-lists-p2');
 
-    it('Änderung eines Club-Users wird ignoriert', function () {
+    it('Club-User darf die Richtzeitenlisten-Zuordnung nicht ändern', function () {
         $meet = Meet::create(meetPayload_qtl3());
         $list = makeQualifyingTimeList_qtl3();
 
         $this->actingAs(makeClubUser_qtl3())
             ->put(route('meets.update', $meet), meetPayload_qtl3(['qualifying_time_list_id' => $list->id]))
-            ->assertRedirect();
+            ->assertForbidden();
 
         expect($meet->fresh()->qualifying_time_list_id)->toBeNull();
     })->group('qualifying-time-lists-p2');

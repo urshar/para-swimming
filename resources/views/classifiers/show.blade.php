@@ -26,10 +26,12 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+            @if(auth()->user()?->is_admin)
             <flux:button href="{{ route('classifiers.edit', $classifier) }}" variant="filled" icon="pencil"
                          size="sm" class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            @endif
         </div>
     </div>
 

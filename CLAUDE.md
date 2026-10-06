@@ -105,6 +105,11 @@ composer lint:check   # Pint nur prüfen
   `$request->fullUrl()` normalisiert die Reihenfolge alphabetisch (siehe `ContextBackNavigationTest`).
 - **Mehrkriterien-Sortierung**: `sortBy()` mit Closure-Arrays ist unzuverlässig – stattdessen zusammengesetzte
   `sprintf()`-Sortierschlüssel.
+- **Zugriffskontrolle** nach `docs/access-control.md`: Vereinsnutzer lesen, schreiben nur eigene Meldungen; jede
+  neue schreibende Route (und jedes Anlege-/Bearbeiten-/Import-Formular) gehört in eine `RequireAdmin`-Gruppe —
+  `AccessControlTest` prüft das über alle Routen. Werden Lese- und Admin-Routen einer Ressource getrennt registriert,
+  die Admin-Gruppe (mit `create`) **vor** der lesenden `show`-Route registrieren, sonst bindet Laravel "create" als
+  `{id}` und liefert 404.
 - **Alpine-Doppelinitialisierung** vermeiden: kein `import Alpine` / `Alpine.start()`
   in `app.js`; Plugins/Data in `document.addEventListener('alpine:init', …)` auf
   `window.Alpine` registrieren.

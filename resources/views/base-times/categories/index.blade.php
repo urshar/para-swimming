@@ -16,10 +16,12 @@
             </p>
 
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                @if(auth()->user()?->is_admin)
                 <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
                              variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
                     Importieren
                 </flux:button>
+                @endif
                 {{-- Gesamte Version (alle Kategorien); je Kategorie: Buttons in der Detailansicht. --}}
                 <flux:button href="{{ route('base-times.export', $version) }}"
                              variant="filled" icon="arrow-down-tray" size="sm" class="text-emerald-500!">

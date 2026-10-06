@@ -249,14 +249,14 @@ describe('Berechtigungen', function () {
         expect($result->fresh()->wps_points)->toBeNull();
     });
 
-    it('lässt Vereins-User mit Meldungsrecht durch', function () {
+    it('verweigert Vereins-Usern die Neuberechnung (nur Admin, Sicherheits-Audit 06.10.2026)', function () {
         parameter_wps2();
         $result = result_wps2();
         enableWps_wps4($result->meet);
 
         $this->actingAs(clubUser_wps4())
             ->post(route('meets.wps-points.recalculate', $result->meet))
-            ->assertRedirect();
+            ->assertForbidden();
     });
 
     it('leitet nicht angemeldete Besucher zur Anmeldung', function () {

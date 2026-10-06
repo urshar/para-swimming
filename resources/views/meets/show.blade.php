@@ -75,6 +75,7 @@
                          icon="arrow-down-tray" size="sm" class="text-blue-500!">
                 LENEX Export
             </flux:button>
+            @if(auth()->user()?->is_admin)
             <form method="POST" action="{{ route('records.check', $meet) }}"
                   x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
                   @submit.prevent="submit()">
@@ -83,7 +84,8 @@
                     Rekorde prüfen
                 </flux:button>
             </form>
-            @if($meet->hasWpsPointsEnabled() && auth()->user()?->can('manageEntries', $meet))
+            @endif
+            @if($meet->hasWpsPointsEnabled() && auth()->user()?->is_admin)
                 <form method="POST" action="{{ route('meets.wps-points.recalculate', $meet) }}"
                       x-data="{ submit() { if (confirm('WPS-Punkte für alle Ergebnisse neu berechnen?')) this.$el.submit() } }"
                       @submit.prevent="submit()">
@@ -93,10 +95,12 @@
                     </flux:button>
                 </form>
             @endif
+            @if(auth()->user()?->is_admin)
             <flux:button href="{{ route('meets.edit', $meet) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            @endif
         </div>
     </div>
 
@@ -132,9 +136,11 @@
             <p>{{ $errors->first('wps') }}</p>
 
             <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                @if(auth()->user()?->is_admin)
                 <a href="{{ route('meets.edit', $meet) }}" class="font-medium underline">
                     Punkteberechnung dieses Wettkampfs bearbeiten
                 </a>
+                @endif
                 @if(auth()->user()?->is_admin)
                     <a href="{{ route('wps.versions.index') }}" class="font-medium underline">
                         WPS-Versionen verwalten
@@ -198,27 +204,33 @@
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Disziplinen</h2>
         <div class="flex items-center gap-2">
             @if($swimEvents->isNotEmpty())
+                @if(auth()->user()?->is_admin)
                 <flux:button href="{{ route('meets.sessions.edit', $meet) }}" variant="ghost" icon="calendar-days" size="sm">
                     Abschnitte bearbeiten
                 </flux:button>
+                @endif
                 @if(auth()->user()?->is_admin)
                     <flux:button href="{{ route('meets.fees.edit', $meet) }}" variant="ghost" icon="banknotes" size="sm">
                         Meldegelder
                     </flux:button>
                 @endif
             @endif
+            @if(auth()->user()?->is_admin)
             <flux:button href="{{ route('meets.events.create', $meet) }}" variant="ghost" icon="plus" size="sm">
                 Disziplin hinzufügen
             </flux:button>
+            @endif
         </div>
     </div>
 
     @if($swimEvents->isEmpty())
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
             <p class="text-zinc-400 text-sm mb-3">Noch keine Disziplinen angelegt.</p>
+            @if(auth()->user()?->is_admin)
             <flux:button href="{{ route('meets.events.create', $meet) }}" variant="primary" icon="plus" size="sm">
                 Erste Disziplin anlegen
             </flux:button>
+            @endif
         </div>
     @else
         @foreach($swimEvents->groupBy('session_number') as $session => $events)
@@ -275,6 +287,7 @@
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <div class="flex items-center gap-1 justify-end">
+                                        @if(auth()->user()?->is_admin)
                                         <flux:button href="{{ route('events.edit', $event) }}" size="sm"
                                                      variant="ghost" icon="pencil" class="text-amber-500!"/>
                                         <form method="POST" action="{{ route('events.destroy', $event) }}"
@@ -284,6 +297,7 @@
                                             <flux:button type="submit" size="sm" variant="ghost" icon="trash"
                                                          class="text-red-500!"/>
                                         </form>
+                                        @endif
                                     </div>
                                 </flux:table.cell>
                             </flux:table.row>

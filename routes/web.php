@@ -80,12 +80,15 @@ Route::middleware(['auth'])->group(function () {
 
     // ── BaseTimes tools ──────────────────────────────────────────────────
     Route::prefix('base-times')->name('base-times.')->group(function () {
-        Route::get('import', [BaseTimeImportController::class, 'showForm'])->name('import');
-        Route::post('import/preview', [BaseTimeImportController::class, 'preview'])->name('import.preview');
-        Route::post('import/run', [BaseTimeImportController::class, 'run'])->name('import.run');
+        // Import und Versionsverwaltung nur Admin; die Ansichten und Exporte darunter sind lesend.
+        Route::middleware(RequireAdmin::class)->group(function () {
+            Route::get('import', [BaseTimeImportController::class, 'showForm'])->name('import');
+            Route::post('import/preview', [BaseTimeImportController::class, 'preview'])->name('import.preview');
+            Route::post('import/run', [BaseTimeImportController::class, 'run'])->name('import.run');
 
-        Route::resource('versions', BaseTimeVersionController::class)
-            ->except(['show'])->names('versions');
+            Route::resource('versions', BaseTimeVersionController::class)
+                ->except(['show'])->names('versions');
+        });
 
         Route::get('{version}/categories', [BaseTimeCategoryController::class, 'index'])->name('categories.index');
         Route::get('{version}/categories/{category}',
@@ -133,39 +136,56 @@ Route::middleware(['auth'])->group(function () {
         [ClubEntryController::class, 'pickMeetRelay'])->name('club-entries.relay.pick-meet');
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
-    Route::resource('nations', NationController::class)
-        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+    // Ansehen für alle Angemeldeten, Pflege nur Admin (lesende Routen weiter unten). Vereinsnutzer bekommen die Pflege
+    // eigener Athleten und Vereinsdaten erst mit dem Rollenmodell (Open Point "Vereins-Rollen"), dann auf den eigenen
+    // Verein beschränkt.
+
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::resource('nations', NationController::class)->only(['create', 'store', 'edit', 'update', 'destroy']);
+        Route::resource('clubs', ClubController::class)->except(['index', 'show']);
+        Route::resource('athletes', AthleteController::class)->except(['index', 'show']);
+
+        Route::post('athletes/{athlete}/transfer-club',
+            [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
+
+        Route::post('athletes/{athlete}/classifications',
+            [AthleteController::class, 'storeClassification'])->name('athletes.classifications.store');
+        Route::put('athletes/{athlete}/classifications/{classification}',
+            [AthleteController::class, 'updateClassification'])->name('athletes.classifications.update');
+        Route::delete('athletes/{athlete}/classifications/{classification}',
+            [AthleteController::class, 'destroyClassification'])->name('athletes.classifications.destroy');
+
+        Route::post('athletes/{athlete}/levels',
+            [AthleteController::class, 'storeLevel'])->name('athletes.levels.store');
+
+        Route::post('athletes/{athlete}/kader-memberships',
+            [AthleteController::class, 'storeKaderMembership'])->name('athletes.kader-memberships.store');
+        Route::delete('athletes/{athlete}/kader-memberships/{kaderMembership}',
+            [AthleteController::class, 'destroyKaderMembership'])->name('athletes.kader-memberships.destroy');
+
+        // ── ÖBSV Cup Wertung — Stammdaten und Berechnung ──────────────────────
+        Route::resource('cups', CupController::class)->except(['show']);
+        Route::post('cups/{cup}/classify-top-group',
+            [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
+        Route::post('cups/{cup}/overall-ranking/calculate',
+            [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
+
+        Route::resource('kader-types', KaderTypeController::class)->except(['show']);
+        Route::resource('age-groups', AgeGroupController::class)->except(['show']);
+        Route::resource('sport-class-groups', SportClassGroupController::class)->except(['show']);
+        Route::post('sport-class-groups/{sportClassGroup}/members',
+            [SportClassGroupController::class, 'storeMember'])->name('sport-class-groups.members.store');
+        Route::delete('sport-class-groups/{sportClassGroup}/members/{member}',
+            [SportClassGroupController::class, 'destroyMember'])->name('sport-class-groups.members.destroy');
+    });
+
+    // Lesende Ressourcen NACH der Admin-Gruppe: sonst bindet Laravel "create" als {athlete}/{club} (404).
+    Route::resource('nations', NationController::class)->only(['index'])
         ->middlewareFor('index', 'remember.list:nations');
-
-    Route::resource('clubs', ClubController::class)
+    Route::resource('clubs', ClubController::class)->only(['index', 'show'])
         ->middlewareFor('index', 'remember.list:clubs');
-
-    Route::resource('athletes', AthleteController::class)
+    Route::resource('athletes', AthleteController::class)->only(['index', 'show'])
         ->middlewareFor('index', 'remember.list:athletes');
-
-    Route::post('athletes/{athlete}/transfer-club',
-        [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
-
-    Route::post('athletes/{athlete}/classifications',
-        [AthleteController::class, 'storeClassification'])->name('athletes.classifications.store');
-    Route::put('athletes/{athlete}/classifications/{classification}',
-        [AthleteController::class, 'updateClassification'])->name('athletes.classifications.update');
-    Route::delete('athletes/{athlete}/classifications/{classification}',
-        [AthleteController::class, 'destroyClassification'])->name('athletes.classifications.destroy');
-
-    Route::post('athletes/{athlete}/levels',
-        [AthleteController::class, 'storeLevel'])->name('athletes.levels.store');
-
-    Route::post('athletes/{athlete}/kader-memberships',
-        [AthleteController::class, 'storeKaderMembership'])->name('athletes.kader-memberships.store');
-    Route::delete('athletes/{athlete}/kader-memberships/{kaderMembership}',
-        [AthleteController::class, 'destroyKaderMembership'])->name('athletes.kader-memberships.destroy');
-
-    // ── ÖBSV Cup Wertung — Stammdaten (Phase 1, admin-only) ────────────────────
-    Route::resource('cups', CupController::class)->except(['show']);
-    Route::post('cups/{cup}/classify-top-group',
-        [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
-
     Route::get('cup-wertung',
         [CupOverallRankingController::class, 'index'])->name('cups.overall-ranking.index');
 
@@ -173,8 +193,6 @@ Route::middleware(['auth'])->group(function () {
         [CupOverallRankingController::class, 'show'])->name('cups.overall-ranking.show');
     Route::get('cups/{cup}/overall-ranking/pdf',
         [CupOverallRankingController::class, 'pdf'])->name('cups.overall-ranking.pdf');
-    Route::post('cups/{cup}/overall-ranking/calculate',
-        [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
 
     // ── ÖBSV Cup Wertung — Vereinswertung (Phase 3) ────────────────────────────
     Route::get('vereinswertung',
@@ -184,51 +202,48 @@ Route::middleware(['auth'])->group(function () {
     Route::get('cups/{cup}/club-ranking/pdf',
         [CupClubRankingController::class, 'pdf'])->name('cups.club-ranking.pdf');
 
-    Route::resource('kader-types', KaderTypeController::class)->except(['show']);
-
-    Route::resource('age-groups', AgeGroupController::class)->except(['show']);
-
-    Route::resource('sport-class-groups', SportClassGroupController::class)->except(['show']);
-    Route::post('sport-class-groups/{sportClassGroup}/members',
-        [SportClassGroupController::class, 'storeMember'])->name('sport-class-groups.members.store');
-    Route::delete('sport-class-groups/{sportClassGroup}/members/{member}',
-        [SportClassGroupController::class, 'destroyMember'])->name('sport-class-groups.members.destroy');
-
     // ── Richtzeiten ÖSTM & ÖM (Phase 1: Verwaltung) ─────────────────────────────
-    Route::resource('qualifying-time-lists', QualifyingTimeListController::class);
+    // Ansehen (Liste, Richtzeiten, Qualifikationen, PDFs) für alle Angemeldeten; Pflege und Berechnung nur Admin.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::resource('qualifying-time-lists', QualifyingTimeListController::class)->except(['index', 'show']);
+        Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
+            [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
+        Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',
+            [
+                QualifyingTimeListController::class, 'destroyTargetPoint',
+            ])->name('qualifying-time-lists.target-points.destroy');
+        Route::post('qualifying-time-lists/{qualifyingTimeList}/times',
+            [QualifyingTimeListController::class, 'storeTime'])->name('qualifying-time-lists.times.store');
+        Route::delete('qualifying-time-lists/{qualifyingTimeList}/times/{time}',
+            [QualifyingTimeListController::class, 'destroyTime'])->name('qualifying-time-lists.times.destroy');
+        Route::post('qualifying-time-lists/{qualifyingTimeList}/calculate',
+            [QualifyingTimeListController::class, 'calculate'])->name('qualifying-time-lists.calculate');
+        Route::post('qualifying-time-lists/{qualifyingTimeList}/qualifications/calculate',
+            [
+                QualifyingTimeListController::class, 'calculateQualifications',
+            ])->name('qualifying-time-lists.qualifications.calculate');
+
+        // Ausgeschlossene Bewerbe (z.B. 25m, 800m/1500m Frei)
+        Route::get('qualifying-excluded-disciplines',
+            [QualifyingExcludedDisciplineController::class, 'index'])->name('qualifying-excluded-disciplines.index');
+        Route::post('qualifying-excluded-disciplines/{discipline}',
+            [QualifyingExcludedDisciplineController::class, 'store'])->name('qualifying-excluded-disciplines.store');
+        Route::delete('qualifying-excluded-disciplines/{discipline}',
+            [QualifyingExcludedDisciplineController::class, 'destroy'])->name('qualifying-excluded-disciplines.destroy');
+    });
+    Route::resource('qualifying-time-lists', QualifyingTimeListController::class)->only(['index', 'show']);
     Route::get('qualifying-time-lists/{qualifyingTimeList}/qualifications',
         [QualifyingTimeListController::class, 'qualifications'])->name('qualifying-time-lists.qualifications');
     Route::get('qualifying-time-lists/{qualifyingTimeList}/pdf',
         [QualifyingTimeListController::class, 'pdfTimes'])->name('qualifying-time-lists.pdf');
     Route::get('qualifying-time-lists/{qualifyingTimeList}/qualifications/pdf',
         [QualifyingTimeListController::class, 'pdfQualifications'])->name('qualifying-time-lists.qualifications.pdf');
-    Route::post('qualifying-time-lists/{qualifyingTimeList}/target-points',
-        [QualifyingTimeListController::class, 'storeTargetPoint'])->name('qualifying-time-lists.target-points.store');
-    Route::delete('qualifying-time-lists/{qualifyingTimeList}/target-points/{targetPoint}',
-        [
-            QualifyingTimeListController::class, 'destroyTargetPoint',
-        ])->name('qualifying-time-lists.target-points.destroy');
-    Route::post('qualifying-time-lists/{qualifyingTimeList}/times',
-        [QualifyingTimeListController::class, 'storeTime'])->name('qualifying-time-lists.times.store');
-    Route::delete('qualifying-time-lists/{qualifyingTimeList}/times/{time}',
-        [QualifyingTimeListController::class, 'destroyTime'])->name('qualifying-time-lists.times.destroy');
-    Route::post('qualifying-time-lists/{qualifyingTimeList}/calculate',
-        [QualifyingTimeListController::class, 'calculate'])->name('qualifying-time-lists.calculate');
-    Route::post('qualifying-time-lists/{qualifyingTimeList}/qualifications/calculate',
-        [
-            QualifyingTimeListController::class, 'calculateQualifications',
-        ])->name('qualifying-time-lists.qualifications.calculate');
-
-    // ── Richtzeiten ÖSTM & ÖM: Ausgeschlossene Bewerbe (z.B. 25m, 800m/1500m Frei) ──
-    Route::get('qualifying-excluded-disciplines',
-        [QualifyingExcludedDisciplineController::class, 'index'])->name('qualifying-excluded-disciplines.index');
-    Route::post('qualifying-excluded-disciplines/{discipline}',
-        [QualifyingExcludedDisciplineController::class, 'store'])->name('qualifying-excluded-disciplines.store');
-    Route::delete('qualifying-excluded-disciplines/{discipline}',
-        [QualifyingExcludedDisciplineController::class, 'destroy'])->name('qualifying-excluded-disciplines.destroy');
 
     // ── Klassifizierer ────────────────────────────────────────────────────────
-    Route::resource('classifiers', ClassifierController::class)
+    // Admin-Routen zuerst, sonst bindet {classifier} das Wort "create".
+    Route::resource('classifiers', ClassifierController::class)->except(['index', 'show'])
+        ->middleware(RequireAdmin::class);
+    Route::resource('classifiers', ClassifierController::class)->only(['index', 'show'])
         ->middlewareFor('index', 'remember.list:classifiers');
 
     // ── Meisterschaften und Qualifikationsnormen ──────────────────────────────
@@ -347,19 +362,36 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ── Wettkämpfe ────────────────────────────────────────────────────────────
-    Route::resource('meets', MeetController::class)
+    // Pflege (Wettkampf, Abschnitte, Disziplinen, Berechnungen) nur Admin; create vor {meet}-Show registrieren.
+    Route::middleware(RequireAdmin::class)->group(function () {
+        Route::resource('meets', MeetController::class)->except(['index', 'show']);
+
+        Route::post('meets/{meet}/cup-daily-ranking/calculate',
+            [CupDailyRankingController::class, 'calculate'])->name('meets.cup-daily-ranking.calculate');
+
+        // Abschnitte (Datum + Startzeit je Session) — eine Seite für alle Abschnitte der Veranstaltung.
+        Route::get('meets/{meet}/sessions/edit', [MeetSessionController::class, 'edit'])->name('meets.sessions.edit');
+        Route::put('meets/{meet}/sessions', [MeetSessionController::class, 'update'])->name('meets.sessions.update');
+
+        Route::resource('meets.events', SwimEventController::class)
+            ->shallow()
+            ->except(['index', 'show'])
+            ->parameters(['events' => 'event']);
+        Route::post('events/{event}/scoring-groups/copy', [SwimEventController::class, 'copyScoringGroups'])
+            ->name('events.scoring-groups.copy');
+
+        Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
+            ->name('meets.recalculate-points');
+        Route::post('meets/{meet}/recalculate-wps-points',
+            [WpsPointCalculationController::class, 'recalculate'])->name('meets.wps-points.recalculate');
+    });
+    Route::resource('meets', MeetController::class)->only(['index', 'show'])
         ->middlewareFor('index', 'remember.list:meets');
 
     Route::get('meets/{meet}/cup-daily-ranking',
         [CupDailyRankingController::class, 'show'])->name('meets.cup-daily-ranking.show');
     Route::get('meets/{meet}/cup-daily-ranking/pdf',
         [CupDailyRankingController::class, 'pdf'])->name('meets.cup-daily-ranking.pdf');
-    Route::post('meets/{meet}/cup-daily-ranking/calculate',
-        [CupDailyRankingController::class, 'calculate'])->name('meets.cup-daily-ranking.calculate');
-
-    // Abschnitte (Datum + Startzeit je Session) — eine Seite für alle Abschnitte der Veranstaltung.
-    Route::get('meets/{meet}/sessions/edit', [MeetSessionController::class, 'edit'])->name('meets.sessions.edit');
-    Route::put('meets/{meet}/sessions', [MeetSessionController::class, 'update'])->name('meets.sessions.update');
 
     // Meldegelder — Gebühren je Veranstaltung/Abschnitt (meet_fees) und je Bewerb (swim_events.fee_cents).
     // Meldegeld-Abrechnung online. Admin: Übersicht aller Vereine + Detail; Verein: nur die eigene.
@@ -377,14 +409,6 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('meets/{meet}/entries-reopen', [MeetEntriesReopenController::class, 'destroy'])
             ->name('meets.entries-reopen.destroy');
     });
-
-    Route::resource('meets.events', SwimEventController::class)
-        ->shallow()
-        ->except(['index', 'show'])
-        ->parameters(['events' => 'event']);
-    Route::post('events/{event}/scoring-groups/copy', [SwimEventController::class, 'copyScoringGroups'])
-        ->name('events.scoring-groups.copy')
-        ->middleware(RequireAdmin::class);
 
     // Meldungen — die verbandsweite Meldungsliste (Admin-Cockpit "Was ist zu tun"),
     // Anlegen/Bearbeiten/Löschen sowie die meet-weite Gesamtübersicht sind Admin-Sache;
@@ -458,13 +482,9 @@ Route::middleware(['auth'])->group(function () {
             ->parameters(['results' => 'result']);
     });
 
-    Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
-        ->name('meets.recalculate-points');
-    Route::post('meets/{meet}/recalculate-wps-points',
-        [WpsPointCalculationController::class, 'recalculate'])->name('meets.wps-points.recalculate');
-
     // ── LENEX ─────────────────────────────────────────────────────────────────
-    Route::prefix('lenex')->name('lenex.')->group(function () {
+    // Import nur Admin (Entscheidung Erik 04.10.2026); Export lesend für alle Angemeldeten.
+    Route::prefix('lenex')->name('lenex.')->middleware(RequireAdmin::class)->group(function () {
         Route::get('/import', [LenexImportController::class, 'showForm'])->name('import');
         Route::post('/import', [LenexImportController::class, 'import'])->name('import.store');
         Route::get('/import/confirm-meet', [LenexImportController::class, 'confirmMeet'])->name('import.confirm-meet');
@@ -476,7 +496,8 @@ Route::middleware(['auth'])->group(function () {
             [LenexImportController::class, 'resolveClubs'])->name('import.resolve-clubs');
         Route::post('/import/resolve-athletes',
             [LenexImportController::class, 'resolveAthletes'])->name('import.resolve-athletes');
-
+    });
+    Route::prefix('lenex')->name('lenex.')->group(function () {
         Route::get('export', [LenexExportController::class, 'showForm'])->name('export');
         Route::post('export/download', [LenexExportController::class, 'download'])->name('export.download');
     });
@@ -485,25 +506,30 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('records')->name('records.')->group(function () {
         Route::get('/', [RecordController::class, 'index'])->name('index')
             ->middleware('remember.list:records');
-        Route::get('create', [RecordController::class, 'createManual'])->name('create');
-        Route::post('/', [RecordController::class, 'storeManual'])->name('store');
 
-        Route::get('import', [RecordImportController::class, 'showForm'])->name('import');
-        Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
-        Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
+        // Pflege, Import und Rekordprüfung nur Admin; Ansehen und Export für alle Angemeldeten.
+        Route::middleware(RequireAdmin::class)->group(function () {
+            Route::get('create', [RecordController::class, 'createManual'])->name('create');
+            Route::post('/', [RecordController::class, 'storeManual'])->name('store');
+
+            Route::get('import', [RecordImportController::class, 'showForm'])->name('import');
+            Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
+            Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
+
+            Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
+
+            Route::patch('{record}/status', [RecordController::class, 'updateStatus'])->name('status.update');
+
+            Route::get('{record}/edit', [RecordController::class, 'edit'])->name('edit');
+            Route::put('{record}', [RecordController::class, 'update'])->name('update');
+            Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
+            Route::post('{record}/restore', [RecordController::class, 'restore'])->name('restore');
+        });
 
         Route::get('export', [RecordExportController::class, 'showForm'])->name('export');
         Route::post('export/download', [RecordExportController::class, 'download'])->name('export.download');
 
-        Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
-
-        Route::patch('{record}/status', [RecordController::class, 'updateStatus'])->name('status.update');
-
-        Route::get('{record}/edit', [RecordController::class, 'edit'])->name('edit');
-        Route::put('{record}', [RecordController::class, 'update'])->name('update');
         Route::get('{record}', [RecordController::class, 'show'])->name('show');
-        Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
-        Route::post('{record}/restore', [RecordController::class, 'restore'])->name('restore');
     });
 
 });

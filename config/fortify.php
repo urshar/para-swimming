@@ -144,7 +144,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Keine Selbstregistrierung: Benutzer legt der Admin in der Benutzerverwaltung an (Sicherheits-Audit
+        // 06.10.2026, siehe docs/access-control.md). Ohne das Feature gibt es die Routen register/register.store nicht.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

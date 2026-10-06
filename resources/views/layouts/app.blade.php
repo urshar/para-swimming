@@ -154,10 +154,12 @@
                     Meldungen
                 </flux:navlist.item>
             @endif
+            @if(auth()->user()?->is_admin)
             <flux:navlist.item icon="chart-bar" href="{{ route('results.index') }}"
                                :current="request()->routeIs('results.*')">
                 Ergebnisse
             </flux:navlist.item>
+            @endif
         </flux:navlist.group>
 
         {{-- Zusammengeführt aus den früher getrennten Gruppen "Cup Wertung" (Ranglisten, für alle
@@ -255,10 +257,12 @@
                                :current="request()->routeIs('records.index') || request()->routeIs('records.show') || request()->routeIs('records.create') || request()->routeIs('records.edit')">
                 Rekorde
             </flux:navlist.item>
+            @if(auth()->user()?->is_admin)
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('records.import') }}"
                                :current="request()->routeIs('records.import*')">
                 Rekorde importieren
             </flux:navlist.item>
+            @endif
             <flux:navlist.item icon="arrow-down-tray" href="{{ route('records.export') }}"
                                :current="request()->routeIs('records.export*')">
                 Rekorde exportieren
@@ -339,10 +343,12 @@
 
         <flux:navlist.group heading="LENEX" expandable
                             :expanded="request()->routeIs('lenex.import*') || request()->routeIs('lenex.export*')">
+            @if(auth()->user()?->is_admin)
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('lenex.import') }}"
                                :current="request()->routeIs('lenex.import*')">
                 Import
             </flux:navlist.item>
+            @endif
             <flux:navlist.item icon="arrow-down-tray" href="{{ route('lenex.export') }}"
                                :current="request()->routeIs('lenex.export*')">
                 Export
