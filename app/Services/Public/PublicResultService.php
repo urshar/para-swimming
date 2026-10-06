@@ -3,6 +3,7 @@
 namespace App\Services\Public;
 
 use App\Models\Meet;
+use App\Models\RelayResult;
 use App\Models\Result;
 use App\Models\SwimEvent;
 use App\Services\ScoringGroupService;
@@ -21,15 +22,16 @@ final readonly class PublicResultService
 
     /**
      * Ergebnisse gruppiert nach Bewerb (Session/Bewerbsnummer), darin nach Wertungsgruppen mit Platz je Gruppe
-     * (ScoringGroupService; ohne definierte Gruppen je Geschlecht und Sportklasse).
+     * (ScoringGroupService; ohne definierte Gruppen je Geschlecht und Sportklasse bzw. Wertung und Staffelklasse).
+     * Staffelbewerbe liefern Staffelergebnisse samt Schwimmern.
      *
-     * @return Collection<int, object{event: SwimEvent, scoring: list<array{gender: ?string, name: string, rows: list<array{place: ?int, result: Result}>}>}>
+     * @return Collection<int, object{event: SwimEvent, isRelay: bool, scoring: list<array{gender: ?string, name: string, rows: list<array{place: ?int, result: Result|RelayResult}>}>}>
      */
     public function forMeet(Meet $meet): Collection
     {
         $swimEvents = $meet->swimEvents()
             ->with(['strokeType', 'scoringGroups'])
-            ->whereHas('results')
+            ->where(fn ($q) => $q->whereHas('results')->orWhereHas('relayResults'))
             ->orderBy('session_number')
             ->orderBy('event_number')
             ->get();
@@ -38,18 +40,28 @@ final readonly class PublicResultService
             ->with(['athlete', 'club'])
             ->get()
             ->groupBy('swim_event_id');
+        $relayResults = $meet->relayResults()
+            ->with(['club', 'members.athlete'])
+            ->get()
+            ->groupBy('swim_event_id');
 
         $meetYear = (int) $meet->start_date->format('Y');
 
-        return $swimEvents->map(fn (SwimEvent $swimEvent): object => (object) [
-            'event' => $swimEvent,
-            'scoring' => $this->scoring->rankedGroups($swimEvent, $results->get($swimEvent->id) ?? collect(), $meetYear),
-        ]);
+        return $swimEvents->map(function (SwimEvent $swimEvent) use ($results, $relayResults, $meetYear): object {
+            $isRelay = $swimEvent->relay_count > 1;
+            $eventResults = ($isRelay ? $relayResults : $results)->get($swimEvent->id) ?? collect();
+
+            return (object) [
+                'event' => $swimEvent,
+                'isRelay' => $isRelay,
+                'scoring' => $this->scoring->rankedGroups($swimEvent, $eventResults, $meetYear),
+            ];
+        });
     }
 
-    /** Ob für dieses Meet überhaupt Ergebnisse veröffentlicht sind (für den Link auf der Detailseite). */
+    /** Ob für dieses Meet überhaupt Ergebnisse (Einzel oder Staffel) veröffentlicht sind (Link auf der Detailseite). */
     public function hasResults(Meet $meet): bool
     {
-        return $meet->results()->exists();
+        return $meet->results()->exists() || $meet->relayResults()->exists();
     }
 }

@@ -36,7 +36,7 @@
                         @php
                             $results = collect($scoring['rows'])->pluck('result');
                             $hasPoints = $results->contains(fn ($r) => $r->points !== null);
-                            $hasWpsPoints = $results->contains(fn ($r) => $r->wps_points !== null);
+                            $hasWpsPoints = ! $group->isRelay && $results->contains(fn ($r) => $r->wps_points !== null);
                             // Wertungsgruppe: übersetztes Geschlecht + Gruppenname; ohne Klasse bzw. ohne Gruppe eigene Texte.
                             $groupName = match (true) {
                                 $scoring['gender'] === null => __('public.meets.results.scoring_unassigned'),
@@ -50,6 +50,63 @@
                         <div class="mb-6 last:mb-0">
                             <h4 class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-400">{{ $heading }}</h4>
 
+                            @if ($group->isRelay)
+                            <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
+                                 aria-label="{{ $group->event->display_name }}">
+                                <table class="min-w-full text-sm">
+                                    <caption class="sr-only">{{ $group->event->display_name }}</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.place') }}</th>
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.relay') }}</th>
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.swimmers') }}</th>
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.relay_class') }}</th>
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.time') }}</th>
+                                            @if ($hasPoints)
+                                                <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.points') }}</th>
+                                            @endif
+                                            <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">{{ __('public.meets.results.columns.record') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($scoring['rows'] as $row)
+                                            @php $result = $row['result']; @endphp
+                                            <tr class="even:bg-gray-50 dark:even:bg-gray-900/50 align-top">
+                                                <td class="p-3 whitespace-nowrap">{{ $row['place'] ?? '—' }}</td>
+                                                <td class="p-3">{{ $result->display_name }}</td>
+                                                <td class="p-3">
+                                                    {{-- Schwimmer in Startreihenfolge mit Jahrgang; unverlinkt wie die Namen der Einzelergebnisse. --}}
+                                                    <ol class="flex flex-col gap-0.5">
+                                                        @foreach ($result->members as $member)
+                                                            <li>
+                                                                {{ $member->display_name }}
+                                                                @if ($member->athlete?->birth_date)
+                                                                    <span class="text-gray-500 dark:text-gray-400">({{ $member->athlete->birth_date->year }})</span>
+                                                                @endif
+                                                            </li>
+                                                        @endforeach
+                                                    </ol>
+                                                </td>
+                                                <td class="p-3">{{ $result->relay_class ?? '—' }}</td>
+                                                <td class="p-3 whitespace-nowrap">
+                                                    @if ($result->swim_time)
+                                                        {{ $result->formatted_swim_time }}
+                                                    @elseif ($result->status)
+                                                        {{ __('public.meets.results.status.'.$result->status) }}
+                                                    @else
+                                                        —
+                                                    @endif
+                                                </td>
+                                                @if ($hasPoints)
+                                                    <td class="p-3 whitespace-nowrap">{{ $result->points ?? '—' }}</td>
+                                                @endif
+                                                <td class="p-3 whitespace-nowrap">@include('public.meets._records', ['result' => $result])</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            @else
                             <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
                                  aria-label="{{ $group->event->display_name }}">
                                 <table class="min-w-full text-sm">
@@ -116,40 +173,13 @@
                                                 @if ($hasWpsPoints)
                                                     <td class="p-3 whitespace-nowrap">{{ $result->wps_points ?? '—' }}</td>
                                                 @endif
-                                                <td class="p-3 whitespace-nowrap">
-                                                    @if ($result->hasRecords())
-                                                        {{-- Ausgeschriebene Bezeichnung statt Kürzel-Badge mit title=: title= wird von
-                                                             Screenreadern nicht zuverlässig vorgelesen (wie beim Flaggen-Fix, siehe
-                                                             components/flag.blade.php). --}}
-                                                        <ul class="flex flex-col gap-0.5 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                                            @if ($result->is_world_record)
-                                                                <li>{{ __('public.meets.results.records.world') }}</li>
-                                                            @endif
-                                                            @if ($result->is_european_record)
-                                                                <li>{{ __('public.meets.results.records.european') }}</li>
-                                                            @endif
-                                                            @if ($result->is_national_record)
-                                                                <li>{{ __('public.meets.results.records.national') }}</li>
-                                                            @endif
-                                                            @if ($result->is_junior_record)
-                                                                <li>{{ __('public.meets.results.records.junior') }}</li>
-                                                            @endif
-                                                            @if ($result->is_regional_record)
-                                                                <li>{{ __('public.meets.results.records.regional') }}</li>
-                                                            @endif
-                                                            @if ($result->is_regional_junior_record)
-                                                                <li>{{ __('public.meets.results.records.regional_junior') }}</li>
-                                                            @endif
-                                                        </ul>
-                                                    @else
-                                                        <span class="text-gray-400 dark:text-gray-500">—</span>
-                                                    @endif
-                                                </td>
+                                                <td class="p-3 whitespace-nowrap">@include('public.meets._records', ['result' => $result])</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
+                            @endif
                         </div>
                     @endforeach
                 </section>

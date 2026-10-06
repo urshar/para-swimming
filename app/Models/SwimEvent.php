@@ -56,6 +56,11 @@ class SwimEvent extends Model
         return $this->hasMany(RelayResult::class);
     }
 
+    public function relayEntries(): HasMany
+    {
+        return $this->hasMany(RelayEntry::class);
+    }
+
     /** Wertungsgruppen des Bewerbs in ihrer Reihenfolge (LENEX AGEGROUPs). */
     public function scoringGroups(): HasMany
     {

@@ -177,6 +177,9 @@ return [
                 'points' => 'Punkte',
                 'wps_points' => 'WPS-Punkte',
                 'record' => 'Rekord',
+                'relay' => 'Staffel',
+                'swimmers' => 'Schwimmer',
+                'relay_class' => 'Staffelklasse',
             ],
             'status' => [
                 'DSQ' => 'Disqualifiziert',

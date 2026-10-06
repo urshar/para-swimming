@@ -108,8 +108,11 @@ Eigene Tabellen `relay_results`, `relay_result_members`, `relay_result_splits` (
 - **Rekorde:** siehe [records.md](records.md) "Staffelrekorde"; Herrenstaffeln mit Damenbeteiligung und Staffeln mit
   vereinsfremden Schwimmern stellen keinen Rekord auf.
 - **Phase 2** (`feature/relay-results-phase2`): LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen**
-  (siehe [lenex-import-export.md](lenex-import-export.md)), ÖBSV-Punkte für Staffeln (oben); offen: öffentliche
-  Ergebnisseite.
+  (siehe [lenex-import-export.md](lenex-import-export.md)), ÖBSV-Punkte für Staffeln (oben) und Staffeln auf der
+  öffentlichen Ergebnisseite (`PublicResultService`, gleiche Wertungsgruppen; Spalten Staffel, Schwimmer mit
+  Jahrgang, Staffelklasse, Zeit, Punkte, Rekord; Schwimmer unverlinkt wie bei Einzelergebnissen). Eine Veranstaltung
+  nur mit Staffelergebnissen zeigt den Ergebnis-Link ebenfalls. Ein Staffelbewerb mit Staffelmeldungen oder
+  -ergebnissen lässt sich nicht löschen (sonst würden sie per Kaskade mitgelöscht).
 
 ## Zugriff
 
