@@ -97,7 +97,9 @@ Altbestand: `true` behauptete über jeden bestehenden Wettkampf eine Anerkennung
 **SwimEvent** — `meet_id`, `stroke_type_id`, `event_number`, `session_number`,
 `gender` (M/F/A/X), `round`, `distance`, `relay_count` (1 = Einzel, >1 = Staffel),
 `sport_classes` (leerzeichensepariert), `lenex_event_id`, `fee_cents` (Meldegebühr je Meldung im Bewerb, LENEX
-`EVENT > FEE`, nullable). → gehört zu **Meet** und **StrokeType**; hat viele **Entry**, **Result**.
+`EVENT > FEE`, nullable), `is_scored` (false = Rahmenbewerb, z. B. Schnupperbewerb für nicht klassifizierte
+Schwimmer: gehört zur Veranstaltung und zum LENEX-Export, Ergebnisse und Meldungen werden aber nicht importiert).
+→ gehört zu **Meet** und **StrokeType**; hat viele **Entry**, **Result**.
 
 **MeetFee** (Meldegebühr) — `meet_id`, `session_number` (leer = ganze Veranstaltung, sonst dieser Abschnitt), `type`
 (LENEX `CLUB`/`ATHLETE`/`RELAY`/`TEAM`/`LATEENTRY.INDIVIDUAL`/`LATEENTRY.RELAY`), `amount_cents`, `currency`. Unique je

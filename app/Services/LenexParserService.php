@@ -73,16 +73,40 @@ class LenexParserService
      */
     private array $heatIndex = [];
 
+    /**
+     * Nummern der Bewerbe, die beim Anlegen als Rahmenbewerb (nicht gewertet) markiert werden — Auswahl auf der
+     * Klärungsseite des Imports.
+     *
+     * @var list<int>
+     */
+    private array $unscoredEventNumbers = [];
+
+    /**
+     * IDs der nicht gewerteten Bewerbe der Veranstaltung (swim_event_id → true). Ihre Ergebnisse und Meldungen werden
+     * nicht importiert.
+     *
+     * @var array<int, true>
+     */
+    private array $unscoredEventIds = [];
+
     // LenexResolverService wird als Parameter an import() übergeben,
     // nicht per Constructor — der Import ist zustandslos pro Aufruf.
 
     // ── Öffentliche Methoden ──────────────────────────────────────────────────
 
     /**
+     * @param  list<int>  $unscoredEventNumbers  Bewerbe, die beim Anlegen als nicht gewertet markiert werden
+     *
      * @throws Exception
      */
-    public function import(string $filePath, LenexResolverService $resolver, ?int $forceMeetId = null): array
-    {
+    public function import(
+        string $filePath,
+        LenexResolverService $resolver,
+        ?int $forceMeetId = null,
+        array $unscoredEventNumbers = []
+    ): array {
+        $this->unscoredEventNumbers = $unscoredEventNumbers;
+        $this->unscoredEventIds = [];
         // Stats und Index für jeden Import-Aufruf zurücksetzen
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
@@ -110,76 +134,6 @@ class LenexParserService
             'meet' => $meet,
             'stats' => $this->stats,
         ];
-    }
-
-    /**
-     * Liest Athleten aus der XML für die angegebenen Club-cache_keys.
-     * Wird nach dem Anlegen neuer Clubs aufgerufen, um deren Athleten
-     * für die Review-Seite zu sammeln — ohne vollständigen Import-Durchlauf.
-     *
-     * @param  string[]  $clubCacheKeys  cache_keys der neu angelegten Clubs
-     * @param  array<string,int>  $clubIdMap  cache_key → DB-Club-ID
-     * @return array Liste von unresolved_athlete Arrays
-     *
-     * @throws Exception
-     */
-    public function extractAthletesForClubs(
-        string $filePath,
-        array $clubCacheKeys,
-        array $clubIdMap
-    ): array {
-        if (empty($clubCacheKeys)) {
-            return [];
-        }
-
-        $xml = $this->loadXml($filePath);
-        $meetXml = $xml->MEETS->MEET[0];
-
-        if (! isset($meetXml->CLUBS)) {
-            return [];
-        }
-
-        $athletes = [];
-
-        foreach ($meetXml->CLUBS->CLUB as $clubXml) {
-            // Splash verwendet 'clubid', LENEX-Standard wäre 'id'
-            $lenexClubId = (string) ($clubXml['clubid'] ?? $clubXml['id'] ?? '');
-            $code = (string) ($clubXml['code'] ?? '');
-            // Denselben cache_key wie resolveClub() berechnen
-            $cacheKey = $lenexClubId ?: ('code:'.$code);
-
-            if (! isset($clubIdMap[$cacheKey])) {
-                continue;
-            }
-
-            $dbClubId = $clubIdMap[$cacheKey];
-            $nationCode = (string) ($clubXml['nation'] ?? '');
-            $nation = Nation::where('code', $nationCode)->first();
-            $nationId = $nation?->id ?? 0;
-
-            if (! isset($clubXml->ATHLETES)) {
-                continue;
-            }
-
-            foreach ($clubXml->ATHLETES->ATHLETE as $athleteXml) {
-                $athletes[] = [
-                    'lenex_id' => (string) ($athleteXml['athleteid'] ?? ''),
-                    'license' => (string) ($athleteXml['license'] ?? ''),
-                    'license_ipc' => (string) ($athleteXml['license_ipc'] ?? ''),
-                    'last_name' => (string) ($athleteXml['lastname'] ?? ''),
-                    'first_name' => (string) ($athleteXml['firstname'] ?? ''),
-                    'birth_date' => (string) ($athleteXml['birthdate'] ?? ''),
-                    'gender' => (string) ($athleteXml['gender'] ?? ''),
-                    'nation_id' => $nationId,
-                    'club_id' => $dbClubId,
-                    'sport_class' => isset($athleteXml->HANDICAP)
-                        ? $this->extractPrimaryClassFromHandicap($athleteXml->HANDICAP)
-                        : null,
-                ];
-            }
-        }
-
-        return $athletes;
     }
 
     /**
@@ -218,6 +172,48 @@ class LenexParserService
             'start_date' => $startDate ?: null,
             'nation' => (string) ($meetXml['nation'] ?? ''),
         ];
+    }
+
+    /**
+     * Einzelbewerbe der Datei ohne jede Klassenangabe (keine AGEGROUP mit handicap) — mögliche Rahmenbewerbe, die auf
+     * der Klärungsseite abgefragt werden. Staffeln bleiben außen vor.
+     *
+     * @return list<array{number: int, label: string, groups: string}>
+     *
+     * @throws Exception
+     */
+    public function unclassifiedEvents(string $filePath): array
+    {
+        $meetXml = $this->loadXml($filePath)->MEETS->MEET[0];
+        $events = [];
+
+        foreach ($meetXml->SESSIONS->SESSION ?? [] as $sessionXml) {
+            foreach ($sessionXml->EVENTS->EVENT ?? [] as $eventXml) {
+                $styleXml = $eventXml->SWIMSTYLE ?? null;
+                if (! $styleXml || (int) ($styleXml['relaycount'] ?? 1) > 1) {
+                    continue;
+                }
+
+                $groupNames = [];
+                $hasClasses = false;
+                foreach ($eventXml->AGEGROUPS->AGEGROUP ?? [] as $groupXml) {
+                    $groupNames[] = (string) ($groupXml['name'] ?? '');
+                    $hasClasses = $hasClasses || trim((string) ($groupXml['handicap'] ?? '')) !== '';
+                }
+                if ($hasClasses) {
+                    continue;
+                }
+
+                $stroke = StrokeType::findByLenexCode((string) ($styleXml['stroke'] ?? ''));
+                $events[] = [
+                    'number' => (int) ($eventXml['number'] ?? 0),
+                    'label' => trim(((int) ($styleXml['distance'] ?? 0)).' m '.($stroke?->name_de ?? (string) ($styleXml['stroke'] ?? ''))),
+                    'groups' => implode(', ', array_filter($groupNames)),
+                ];
+            }
+        }
+
+        return $events;
     }
 
     // ── Typ-Erkennung ─────────────────────────────────────────────────────────
@@ -308,6 +304,33 @@ class LenexParserService
         }
 
         return 'structure';
+    }
+
+    /**
+     * true, wenn der Athlet Ergebnisse (bzw. bei Meldedateien Meldungen) hat und alle in nicht gewerteten Bewerben
+     * liegen. Ohne Ergebnisse/Meldungen wird er normal behandelt.
+     */
+    private function onlyInUnscoredEvents(
+        Meet $meet,
+        SimpleXMLElement $athleteXml,
+        string $type,
+        LenexResolverService $resolver
+    ): bool {
+        if ($this->unscoredEventIds === []) {
+            return false;
+        }
+
+        $items = $type === 'entries' ? ($athleteXml->ENTRIES->ENTRY ?? []) : ($athleteXml->RESULTS->RESULT ?? []);
+        $count = 0;
+        foreach ($items as $itemXml) {
+            $count++;
+            $swimEventId = $this->resolveSwimEventId($meet, (string) ($itemXml['eventid'] ?? ''), $resolver);
+            if (! $swimEventId || ! isset($this->unscoredEventIds[$swimEventId])) {
+                return false;
+            }
+        }
+
+        return $count > 0;
     }
 
     /** Baut den heatid → Laufnummer Index aus EVENT > HEATS > HEAT. */
@@ -447,6 +470,10 @@ class LenexParserService
         if (isset($meetXml->SESSIONS)) {
             $this->importSessions($meet, $meetXml->SESSIONS, $resolver);
         }
+
+        // Rahmenbewerbe (nicht gewertet): deren Ergebnisse/Meldungen und Schwimmer werden übersprungen.
+        $this->unscoredEventIds = SwimEvent::where('meet_id', $meet->id)->where('is_scored', false)
+            ->pluck('id')->mapWithKeys(fn (int $id) => [$id => true])->all();
 
         // Clubs + Athletes + Entries/Results
         if (in_array($type, ['entries', 'results']) && isset($meetXml->CLUBS)) {
@@ -608,7 +635,7 @@ class LenexParserService
                 'sport_classes' => $sportClasses,
                 'timing' => $this->mapTiming((string) ($eventXml['timing'] ?? '')),
                 'lenex_event_id' => $lenexEventId ?: null,
-            ]
+            ] + (in_array($eventNumber, $this->unscoredEventNumbers, true) ? ['is_scored' => false] : [])
         );
 
         if (isset($eventXml->AGEGROUPS)) {
@@ -803,6 +830,12 @@ class LenexParserService
         LenexResolverService $resolver,
         string $type
     ): void {
+        // Schwimmt jemand nur in Rahmenbewerben (z. B. Schnupperbewerb), wird er weder gesucht noch zur Klärung
+        // vorgemerkt — diese Schwimmer kommen nicht ins System.
+        if ($this->onlyInUnscoredEvents($meet, $athleteXml, $type, $resolver)) {
+            return;
+        }
+
         $nationCode = (string) ($athleteXml['nation'] ?? $club->nation?->code ?? '');
         $nation = Nation::where('code', $nationCode)->first();
 
@@ -855,7 +888,7 @@ class LenexParserService
     ): void {
         $swimEventId = $this->resolveSwimEventId($meet, (string) ($entryXml['eventid'] ?? ''), $resolver);
 
-        if (! $swimEventId) {
+        if (! $swimEventId || isset($this->unscoredEventIds[$swimEventId])) {
             return;
         }
 
@@ -953,7 +986,7 @@ class LenexParserService
         ?SimpleXMLElement $handicapXml = null
     ): void {
         $header = $this->resultHeader($meet, $resultXml, $resolver);
-        if ($header === null) {
+        if ($header === null || isset($this->unscoredEventIds[$header['swimEventId']])) {
             return;
         }
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
@@ -1068,7 +1101,8 @@ class LenexParserService
         LenexResolverService $resolver
     ): void {
         $header = $this->resultHeader($meet, $resultXml, $resolver);
-        if ($header === null || (! $header['swimTime'] && $header['status'] === null)) {
+        if ($header === null || (! $header['swimTime'] && $header['status'] === null)
+            || isset($this->unscoredEventIds[$header['swimEventId']])) {
             return;
         }
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;

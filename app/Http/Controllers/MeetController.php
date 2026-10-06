@@ -23,12 +23,14 @@ class MeetController extends Controller
         $query = Meet::with('nation')
             ->withCount([
                 'swimEvents',
-                // Disziplinen OHNE Wertungsgruppen: sport_classes null oder leer (identische Definition
-                // wie LenexExportService). Die OR-Bedingung MUSS in eine eigene Closure, sonst bricht sie
+                // Nicht eingerichtete Disziplinen: gewertet, ohne Wertungsgruppen und ohne Sportklassen (null oder
+                // leer). Eine Gruppe ohne Klassen-Einschränkung ("Offen") gilt als eingerichtet; Rahmenbewerbe
+                // (is_scored = false) zählen nicht. Die OR-Bedingung MUSS in eine eigene Closure, sonst bricht sie
                 // aus der korrelierten meet_id-Bedingung der withCount-Subquery aus und zählt meet-übergreifend.
-                'swimEvents as unconfigured_events_count' => fn ($q) => $q->where(
-                    fn ($q2) => $q2->whereNull('sport_classes')->orWhere('sport_classes', '')
-                ),
+                'swimEvents as unconfigured_events_count' => fn ($q) => $q
+                    ->where('is_scored', true)
+                    ->whereDoesntHave('scoringGroups')
+                    ->where(fn ($q2) => $q2->whereNull('sport_classes')->orWhere('sport_classes', '')),
             ])
             ->withExists(['entries', 'relayEntries', 'results'])
             ->latest('start_date');

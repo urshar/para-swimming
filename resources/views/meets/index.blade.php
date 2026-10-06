@@ -122,14 +122,15 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         @php
-                            // I = alle angelegten Disziplinen haben Wertungsgruppen (und es gibt überhaupt welche)
+                            // I = alle gewerteten Disziplinen haben Wertungsgruppen oder Sportklassen (und es gibt
+                            // überhaupt welche); Rahmenbewerbe zählen nicht.
                             $ierDisciplines = $meet->swim_events_count > 0 && ! $meet->unconfigured_events_count;
                             $ierEntries = $meet->entries_exists || $meet->relay_entries_exists;
                             $ierResults = $meet->results_exists;
                         @endphp
                         <div class="flex items-center gap-1">
                             <flux:badge size="sm" color="{{ $ierDisciplines ? 'emerald' : 'zinc' }}"
-                                        title="I — alle Disziplinen mit Wertungsgruppen angelegt">I</flux:badge>
+                                        title="I — alle gewerteten Disziplinen mit Wertungsgruppen bzw. Sportklassen angelegt">I</flux:badge>
                             <flux:badge size="sm" color="{{ $ierEntries ? 'emerald' : 'zinc' }}"
                                         title="E — Meldungen liegen vor">E</flux:badge>
                             <flux:badge size="sm" color="{{ $ierResults ? 'emerald' : 'zinc' }}"

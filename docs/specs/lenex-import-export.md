@@ -58,18 +58,30 @@ er nicht gefunden, wird er zur **manuellen Bestätigung** vorgemerkt (`unresolve
 
 **Matching-Priorität Athleten:**
 
-1. `license`
-2. `license_ipc` (SDMS-ID)
+0. Zuordnung auf der Klärungsseite (`assignAthlete`, LENEX athleteid → bestehender Athlet)
+1. `license` — ohne Leerzeichen verglichen (in der Datenbank oft "W - 1653", in Dateien "W-1653")
+2. `license_ipc` (SDMS-ID), ebenfalls ohne Leerzeichen
 3. `lenex_athlete_id` + `club_id`
 4. `last_name` + `first_name` + `birth_date` + `gender` + `nation_id`
+
+Lizenzvergleich und Vorschläge liegen in `ImportSuggestionService`, den auch der Rekord-Import nutzt.
 
 Wichtig: `lenex_athlete_id` ist über Exporte hinweg **instabil** und wird **nicht persistiert** — es dient nur als
 In-Memory-Cache-Schlüssel innerhalb eines Import-Vorgangs. Der Resolver hält Caches für Clubs, Athleten, Events und
 Ausnahmecodes; HANDICAP-Werte werden gegen die `exception_codes`-Tabelle gematcht. Öffentliche Fläche u. a.:
-`resolveClub()`, `createClub()`,
-`resolveAthlete()`, `createAthlete()`, `addToEventCache()`,
-`getEventIdFromCache()`, `getUnresolvedClubs()`, `getUnresolvedAthletes()`,
-`hasUnresolved()`, `unresolvedCount()`.
+`resolveClub()`, `createClub()`, `addToClubCache()`,
+`resolveAthlete()`, `createAthlete()`, `assignAthlete()`, `addToEventCache()`,
+`getEventIdFromCache()`, `getUnresolvedClubs()`, `getUnresolvedAthletes()`, `hasUnresolved()`.
+
+## Rahmenbewerbe (nicht gewertet)
+
+Bewerbe mit `is_scored = false` (z. B. Schnupperbewerbe für nicht klassifizierte Schwimmer) werden wie alle Bewerbe
+importiert und exportiert, aber: Ihre Ergebnisse, Staffelergebnisse und Meldungen werden übersprungen, und wer
+**nur** in solchen Bewerben schwimmt, wird weder gesucht noch auf der Klärungsseite vorgemerkt. Die Kennzeichnung
+entsteht beim ersten Import (Abfrage auf der Klärungsseite) oder im Disziplin-Formular; dort werden vorhandene
+Ergebnisse beim Kennzeichnen nach ausdrücklicher Bestätigung gelöscht. In der Wettkampfliste zählen Rahmenbewerbe für
+die Anzeige "I" nicht; ein gewerteter Bewerb gilt dort als eingerichtet, wenn er Wertungsgruppen oder Sportklassen
+hat.
 
 ## Platzierungen
 
@@ -170,10 +182,25 @@ Der Zwischenstand wird unter einem Session-Key gehalten (nur IDs/Arrays, keine E
 2. `import(Request)` — Datei hochladen und validieren (nur `.lxf`/`.lef`/`.xml`), parsen, Ergebnis in der Session
    ablegen → Weiterleitung zu **confirm-meet**.
 3. `confirmMeet(Request)` — Meet auswählen bzw. Ziel-Meet bestätigen (`lenex.confirm-meet`).
-4. `runImport(Request)` — führt den Import via Parser + Resolver aus. Gibt es ungelöste Clubs/Athleten, folgt
-   **review**; sonst ist der Import fertig.
-5. `review(Request)` — zeigt die ungelösten Entitäten (`lenex.review`).
-6. `resolveClubs(Request)` / `resolveAthletes(Request)` — wenden die manuellen Zuordnungen an.
+4. `runImport(Request)` — enthält die Datei Einzelbewerbe ohne jede Klassenangabe (keine AGEGROUP mit `handicap`,
+   `unclassifiedEvents`), die in der Ziel-Veranstaltung noch nicht existieren, fragt die Klärungsseite zuerst nach
+   **Rahmenbewerben** (`resolveEvents`: angekreuzte werden mit `is_scored = false` angelegt). Bestehende Bewerbe
+   behalten ihre Kennzeichnung, beim Nachimport wird also nicht erneut gefragt. Danach (`startImport`) läuft der
+   Import via Parser + Resolver. Gibt es ungelöste Clubs/Athleten, folgt **review**; sonst ist der Import fertig.
+   Wurde keine bestehende Veranstaltung gewählt, wird die beim ersten Lauf angelegte für die Folgeschritte gemerkt.
+5. `review(Request)` — Klärungsseite (`lenex.review`), wie beim Rekord-Import: je unbekanntem Verein bzw. Athleten
+   "Neu anlegen", "Überspringen", Vorschläge (Verein: Name/Kurzname/Code; Athlet: Name + Geburtsjahr, bei genau
+   einem Treffer vorbelegt) oder "Bestehendem zuordnen" (Vereine: alle; Athleten: gleicher Anfangsbuchstabe des
+   Nachnamens). Angezeigt werden Geburtsdatum, Lizenz, Verein und Klasse zum Vergleich.
+6. `resolveClubs(Request)` — legt an bzw. merkt die Zuordnung (cache_key → Club-ID) und lässt den Import mit diesen
+   Zuordnungen erneut laufen (wiederholbar dank Ergebnis-Abgleich). Die dann noch unbekannten Athleten — auch die
+   eines zugeordneten bestehenden Vereins — kommen auf die Klärungsseite.
+7. `resolveAthletes(Request)` — legt an bzw. merkt die Zuordnung (athleteid → Athlet) und führt den finalen Import
+   aus. Ein zugeordneter Athlet wird wie ein automatisch gefundener behandelt (HANDICAP-Abgleich), seine Stammdaten
+   bleiben unverändert. Übersprungene Vereine und Athleten werden samt Ergebnissen nicht importiert.
+
+Die Daten der unbekannten Einträge stehen in der Session; das Formular schickt nur die Auswahl je Eintrag
+(`clubs[i][selection]`, `athletes[i][selection]`: `new`, `skip` oder eine ID).
 
 ### Export
 
@@ -197,6 +224,9 @@ Alle unter `auth`, Prefix `lenex`:
 
 ## Tests
 
+- `tests/Feature/LenexImportReviewTest.php` — Klärungsseite: Lizenz ohne Leerzeichen, Vorschläge, Zuordnung zu
+  bestehenden Vereinen/Athleten, Neuanlage, Überspringen; Rahmenbewerbe (Abfrage, Nachimport, Formular, Anzeige "I").
+- `tests/Feature/LenexResultMatchingTest.php` — Abgleich mit vorhandenen Einzelergebnissen, Laufnummer aus HEATS.
 - `tests/Feature/LenexRelayExportTest.php` — Export von Staffelmeldungen als LENEX-`RELAY`-Elemente.
 - `tests/Feature/LenexExportClubsTest.php` — Vereine im Export ohne `meet_club`-Eintrag (Meldungen, Ergebnisse,
   Import-Zuordnungen) und "Teilnehmende Vereine" auf `meets/show`.
