@@ -63,7 +63,10 @@ class LenexResolverService
 
     // ── Clubs ─────────────────────────────────────────────────────────────────
 
-    public function resolveClub(SimpleXMLElement $clubXml, int $nationId): ?Club
+    /**
+     * @param  bool  $recordUnresolved  false = nicht gefundenen Verein nicht zur Klärung vormerken (Nationenfilter)
+     */
+    public function resolveClub(SimpleXMLElement $clubXml, int $nationId, bool $recordUnresolved = true): ?Club
     {
         $lenexId = (string) ($clubXml['clubid'] ?? $clubXml['id'] ?? '');
         $code = (string) ($clubXml['code'] ?? '');
@@ -109,6 +112,10 @@ class LenexResolverService
             return $club;
         }
 
+        if (! $recordUnresolved) {
+            return null;
+        }
+
         // Nicht gefunden → vormerken — cache_key und region mitgeben
         $this->unresolvedClubs[] = [
             'cache_key' => $cacheKey,
@@ -141,9 +148,13 @@ class LenexResolverService
         return $club;
     }
 
+    /**
+     * @param  int|null  $clubId  Verein aus der Datei; null bei Nationalteams (Nationenfilter) — neu angelegte Athleten
+     *                            bekommen dann keinen Verein
+     */
     public function resolveAthlete(
         SimpleXMLElement $athleteXml,
-        int $clubId,
+        ?int $clubId,
         int $nationId
     ): ?Athlete {
         $lenexId = (string) ($athleteXml['athleteid'] ?? '');
@@ -177,7 +188,7 @@ class LenexResolverService
         if (! $athlete && $lastName && $firstName && $birthDate) {
             $athlete = Athlete::where(DB::raw('LOWER(last_name)'), '=', mb_strtolower($lastName))
                 ->where(DB::raw('LOWER(first_name)'), '=', mb_strtolower($firstName))
-                ->where('birth_date', $birthDate)
+                ->whereDate('birth_date', $birthDate)
                 ->where('gender', $gender)
                 ->where('nation_id', $nationId)
                 ->whereNull('deleted_at')

@@ -3,20 +3,21 @@
     Erwartet: $rows (je Zeile place und result = RelayResult mit club und members.athlete), $pointColumns.
 --}}
 <div class="p-4 [--flux-bleed:1rem]">
-    <flux:table bleed>
+    {{-- Feste Spaltenbreiten wie bei den Einzeltabellen; die Schwimmer nehmen den Rest. --}}
+    <flux:table bleed class="w-full min-w-280">
         <flux:table.columns>
-            <flux:table.column>Platz</flux:table.column>
-            <flux:table.column>Staffel</flux:table.column>
-            <flux:table.column>Wertung</flux:table.column>
+            <flux:table.column class="w-14">Platz</flux:table.column>
+            <flux:table.column class="w-44">Staffel</flux:table.column>
+            <flux:table.column class="w-28">Wertung</flux:table.column>
             <flux:table.column>Schwimmer</flux:table.column>
-            <flux:table.column>Zeit</flux:table.column>
+            <flux:table.column class="w-24">Zeit</flux:table.column>
             @if($pointColumns['points'])
-                <flux:table.column>Punkte</flux:table.column>
+                <flux:table.column class="w-20">Punkte</flux:table.column>
             @endif
-            <flux:table.column>Rekorde</flux:table.column>
-            <flux:table.column>Status</flux:table.column>
-            <flux:table.column>Herkunft</flux:table.column>
-            <flux:table.column></flux:table.column>
+            <flux:table.column class="w-28">Rekorde</flux:table.column>
+            <flux:table.column class="w-16">Status</flux:table.column>
+            <flux:table.column class="w-20">Herkunft</flux:table.column>
+            <flux:table.column class="w-28"></flux:table.column>
         </flux:table.columns>
         <flux:table.rows>
             @foreach($rows as $row)
@@ -25,7 +26,7 @@
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
                         {{ $row['place'] ?: '–' }}
                     </flux:table.cell>
-                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
+                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white truncate">
                         {{ $relayResult->display_name }}
                     </flux:table.cell>
                     <flux:table.cell class="whitespace-nowrap">
@@ -34,7 +35,7 @@
                             <flux:badge size="sm" color="blue" class="font-mono">{{ $relayResult->relay_class }}</flux:badge>
                         @endif
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-300">
+                    <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-300 whitespace-normal">
                         @forelse($relayResult->members as $member)
                             <span class="whitespace-nowrap">
                                 <span class="text-zinc-400 font-mono text-xs">{{ $member->position }}.</span>

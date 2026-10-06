@@ -62,7 +62,7 @@ er nicht gefunden, wird er zur **manuellen Bestätigung** vorgemerkt (`unresolve
 2. `license` — ohne Leerzeichen verglichen (in der Datenbank oft "W - 1653", in Dateien "W-1653")
 3. `license_ipc` (SDMS-ID), ebenfalls ohne Leerzeichen
 4. `lenex_athlete_id` + `club_id`
-5. `last_name` + `first_name` + `birth_date` + `gender` + `nation_id`
+5. `last_name` + `first_name` + `birth_date` (per `whereDate`, portabel) + `gender` + `nation_id`
 
 Lizenzvergleich und Vorschläge liegen in `ImportSuggestionService`, den auch der Rekord-Import nutzt.
 
@@ -72,6 +72,29 @@ Ausnahmecodes; HANDICAP-Werte werden gegen die `exception_codes`-Tabelle gematch
 `resolveClub()`, `createClub()`, `addToClubCache()`,
 `resolveAthlete()`, `createAthlete()`, `assignAthlete()`, `addToEventCache()`,
 `getEventIdFromCache()`, `getUnresolvedClubs()`, `getUnresolvedAthletes()`, `hasUnresolved()`.
+
+## Nationenfilter (internationale Veranstaltungen)
+
+Enthält eine Melde- oder Ergebnisdatei mehrere Nationen, bietet "Wettkampf zuordnen" die Auswahl **"Nur Schwimmer
+dieser Nation importieren"** an (Vorauswahl Österreich, `ALL` = alle). Option `only_nation` von
+`LenexParserService::import()`:
+
+- Importiert werden nur Schwimmer der Nation (Athlet `nation`, sonst Verein `nation`), Staffeln nur von Vereinen der
+  Nation, und nur die Bewerbe, in denen sie starten (`collectNationEventIds`; der Splash-Rückfall
+  eventid = number × 10 gilt dabei nur für Meldedateien).
+- Vereine anderer Nationen werden gar nicht erst gesucht. Ein nicht gefundener Verein der Nation (typisch:
+  Nationalteam "Austria") wird **nicht** zur Klärung vorgemerkt (`resolveClub(..., recordUnresolved: false)`):
+  Meldungen und Ergebnisse gehen an den **Heimverein** der Schwimmer. Fehlt auch der (neu angelegter Athlet ohne
+  Verein), werden sie gezählt übersprungen ("Athlet ohne Verein" in der Rückmeldung; `club_id` ist Pflicht).
+- Mit Filter entfällt die Abfrage der Rahmenbewerbe (internationale Meisterschaften haben keine).
+- Die Plätze aus der Datei (RANKINGS) sind die internationalen Plätze (z. B. EM-Platz). Ein Import mit Nationenfilter
+  auf einer Ergebnisdatei setzt an der Veranstaltung `keep_file_places` ("Plätze aus der Ergebnisdatei übernehmen",
+  im Veranstaltungsformular unter "Punkteberechnung" änderbar): Die Wertung rechnet dann nicht neu, sondern sortiert
+  nach dem gespeicherten Platz — siehe [scoring-groups.md](scoring-groups.md).
+
+**Nation der Veranstaltung:** Fehlt sie in der Datei oder ist sie unbekannt (EM Kocaeli 2026: `nation=""`), fragt
+"Wettkampf zuordnen" sie ab — Pflicht, wenn die Veranstaltung neu angelegt wird (`meets.nation_id`), Option
+`meet_nation`.
 
 ## Rahmenbewerbe (nicht gewertet)
 

@@ -42,6 +42,7 @@ class LenexParserService
         'results_ambiguous' => 0,
         'relay_results' => 0,
         'relay_entries' => 0,
+        'without_club' => 0,
     ];
 
     /**
@@ -85,6 +86,25 @@ class LenexParserService
     private array $unscoredEventNumbers = [];
 
     /**
+     * Nationenfilter (z. B. "AUT"): Nur Schwimmer dieser Nation werden importiert, siehe import().
+     */
+    private ?string $onlyNation = null;
+
+    /** Nation der Veranstaltung, falls sie in der Datei fehlt oder unbekannt ist (Auswahl beim Import). */
+    private ?string $meetNationFallback = null;
+
+    /** Nationenfilter auf einer Meldedatei (Splash-eventid-Rückfall erlaubt). */
+    private bool $nationEventIdsAreEntries = false;
+
+    /**
+     * Bei Nationenfilter: LENEX eventids, in denen Schwimmer bzw. Staffeln der Nation starten (eventid → true). Nur
+     * diese Bewerbe werden angelegt.
+     *
+     * @var array<string, true>
+     */
+    private array $nationEventIds = [];
+
+    /**
      * IDs der nicht gewerteten Bewerbe der Veranstaltung (swim_event_id → true). Ihre Ergebnisse und Meldungen werden
      * nicht importiert.
      *
@@ -98,7 +118,14 @@ class LenexParserService
     // ── Öffentliche Methoden ──────────────────────────────────────────────────
 
     /**
-     * @param  list<int>  $unscoredEventNumbers  Bewerbe, die beim Anlegen als nicht gewertet markiert werden
+     * Importiert eine LENEX-Datei (Struktur, Meldungen oder Ergebnisse). Optionen:
+     *   - unscored_events: Bewerbsnummern, die beim Anlegen als nicht gewertet (Rahmenbewerb) markiert werden.
+     *   - only_nation: Nationenfilter für Melde-/Ergebnisdateien internationaler Veranstaltungen — nur Schwimmer dieser
+     *     Nation (Athlet nation, sonst Verein nation) samt deren Bewerben; nicht gefundene Vereine (z. B. Nationalteams)
+     *     werden nicht zur Klärung vorgemerkt, Meldungen und Ergebnisse gehen an den Heimverein.
+     *   - meet_nation: Nation der Veranstaltung, wenn sie in der Datei fehlt oder unbekannt ist.
+     *
+     * @param  array{unscored_events?: list<int>, only_nation?: ?string, meet_nation?: ?string}  $options
      *
      * @throws Exception
      */
@@ -106,15 +133,19 @@ class LenexParserService
         string $filePath,
         LenexResolverService $resolver,
         ?int $forceMeetId = null,
-        array $unscoredEventNumbers = []
+        array $options = []
     ): array {
-        $this->unscoredEventNumbers = $unscoredEventNumbers;
+        $onlyNation = $options['only_nation'] ?? null;
+        $this->meetNationFallback = $options['meet_nation'] ?? null;
+        $this->unscoredEventNumbers = $options['unscored_events'] ?? [];
         $this->unscoredEventIds = [];
+        $this->onlyNation = null;
+        $this->nationEventIds = [];
         // Stats und Index für jeden Import-Aufruf zurücksetzen
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
             'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
-            'relay_results' => 0, 'relay_entries' => 0,
+            'relay_results' => 0, 'relay_entries' => 0, 'without_club' => 0,
         ];
         $this->rankingIndex = [];
         $this->rankingGroupIndex = [];
@@ -125,12 +156,24 @@ class LenexParserService
         $type = $this->detectType($xml);
         $this->buildHeatIndex($xml->MEETS->MEET[0]);
 
+        // Nationenfilter nur bei Melde-/Ergebnisdateien — eine Strukturdatei hat keine Schwimmer.
+        if ($onlyNation !== null && $type !== 'structure') {
+            $this->onlyNation = strtoupper($onlyNation);
+            $this->nationEventIds = $this->collectNationEventIds($xml->MEETS->MEET[0]);
+            $this->nationEventIdsAreEntries = $type === 'entries';
+        }
+
         // Ranking-Index aufbauen bevor Clubs/Results importiert werden
         if ($type === 'results') {
             $this->buildRankingIndex($xml->MEETS->MEET[0]);
         }
 
         $meet = $this->importMeet($xml, $resolver, $type, $forceMeetId);
+
+        // Internationale Veranstaltung (Nationenfilter auf einer Ergebnisdatei): Plätze aus der Datei behalten.
+        if ($this->onlyNation !== null && $type === 'results' && ! $meet->keep_file_places) {
+            $meet->update(['keep_file_places' => true]);
+        }
 
         return [
             'type' => $type,
@@ -217,6 +260,22 @@ class LenexParserService
         }
 
         return $events;
+    }
+
+    /**
+     * Alle Nationen der Vereine einer Datei (für die Auswahl des Nationenfilters), sortiert.
+     *
+     * @return list<string>
+     *
+     * @throws Exception
+     */
+    public function fileNations(string $filePath): array
+    {
+        $nations = array_map('strval', $this->loadXml($filePath)->xpath('MEETS/MEET/CLUBS/CLUB/@nation'));
+        $nations = array_values(array_unique(array_filter(array_map('strtoupper', $nations))));
+        sort($nations);
+
+        return $nations;
     }
 
     // ── Typ-Erkennung ─────────────────────────────────────────────────────────
@@ -336,6 +395,40 @@ class LenexParserService
         return $count > 0;
     }
 
+    /** Nation eines Athleten: eigenes nation-Attribut, sonst das seines Vereins. */
+    private static function athleteNation(SimpleXMLElement $athleteXml, SimpleXMLElement $clubXml): string
+    {
+        return strtoupper((string) ($athleteXml['nation'] ?? '') ?: (string) ($clubXml['nation'] ?? ''));
+    }
+
+    /**
+     * Nationenfilter: eventids der Ergebnisse bzw. Meldungen von Schwimmern der Nation und der Staffeln von Vereinen
+     * der Nation.
+     *
+     * @return array<string, true>
+     */
+    private function collectNationEventIds(SimpleXMLElement $meetXml): array
+    {
+        $ids = [];
+        foreach ($meetXml->CLUBS->CLUB ?? [] as $clubXml) {
+            foreach ($clubXml->ATHLETES->ATHLETE ?? [] as $athleteXml) {
+                if (self::athleteNation($athleteXml, $clubXml) !== $this->onlyNation) {
+                    continue;
+                }
+                foreach ($athleteXml->xpath('RESULTS/RESULT/@eventid | ENTRIES/ENTRY/@eventid') as $eventId) {
+                    $ids[(string) $eventId] = true;
+                }
+            }
+            if (strtoupper((string) ($clubXml['nation'] ?? '')) === $this->onlyNation) {
+                foreach ($clubXml->xpath('RELAYS/RELAY/RESULTS/RESULT/@eventid | RELAYS/RELAY/ENTRIES/ENTRY/@eventid') as $eventId) {
+                    $ids[(string) $eventId] = true;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
     /** Baut den heatid → Laufnummer Index aus EVENT > HEATS > HEAT. */
     private function buildHeatIndex(SimpleXMLElement $meetXml): void
     {
@@ -420,7 +513,8 @@ class LenexParserService
         $meetXml = $xml->MEETS->MEET[0];
 
         $nationCode = (string) ($meetXml['nation'] ?? '');
-        $nation = Nation::where('code', $nationCode)->first();
+        $nation = Nation::where('code', $nationCode)->first()
+            ?? ($this->meetNationFallback !== null ? Nation::where('code', $this->meetNationFallback)->first() : null);
 
         // startdate kann fehlen (z.B. Splash Entries-Export) — Fallback auf erstes Session-Datum
         $startDate = (string) ($meetXml['startdate'] ?? '');
@@ -591,6 +685,15 @@ class LenexParserService
     ): void {
         $swimStyleXml = $eventXml->SWIMSTYLE ?? null;
         if (! $swimStyleXml) {
+            return;
+        }
+
+        // Nationenfilter: nur Bewerbe, in denen die Nation startet. Splash-Meldedateien verweisen mit
+        // eventid = number × 10 — dieser Rückfall nur bei Meldedateien, in Ergebnisdateien träfe er fremde Bewerbe.
+        if ($this->onlyNation !== null
+            && ! isset($this->nationEventIds[(string) ($eventXml['eventid'] ?? '')])
+            && ! ($this->nationEventIdsAreEntries
+                && isset($this->nationEventIds[(string) ((int) ($eventXml['number'] ?? 0) * 10)]))) {
             return;
         }
 
@@ -786,29 +889,41 @@ class LenexParserService
 
         foreach ($clubsXml->CLUB as $clubXml) {
             $nationCode = (string) ($clubXml['nation'] ?? '');
+
+            // Nationenfilter: Vereine ohne Schwimmer der Nation gar nicht erst suchen.
+            $athletesXml = $this->onlyNation === null
+                ? iterator_to_array($clubXml->ATHLETES->ATHLETE ?? [], false)
+                : array_values(array_filter(
+                    iterator_to_array($clubXml->ATHLETES->ATHLETE ?? [], false),
+                    fn (SimpleXMLElement $a): bool => self::athleteNation($a, $clubXml) === $this->onlyNation
+                ));
+            $clubOfNation = $this->onlyNation === null || strtoupper($nationCode) === $this->onlyNation;
+            if (! $clubOfNation && $athletesXml === []) {
+                continue;
+            }
+
             $nation = Nation::where('code', $nationCode)->first();
+            // Mit Nationenfilter wird ein nicht gefundener Verein (z. B. Nationalteam "Austria") nicht zur Klärung
+            // vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer.
+            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0, $this->onlyNation === null);
 
-            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0);
-
-            if (! $club) {
+            if (! $club && $this->onlyNation === null) {
                 // Unbekannter Club — wird in Review-Seite aufgelöst
                 continue;
             }
 
-            // Club dem Meet zuordnen
-            $meet->clubs()->syncWithoutDetaching([$club->id]);
-            $this->stats['clubs']++;
+            if ($club) {
+                // Club dem Meet zuordnen
+                $meet->clubs()->syncWithoutDetaching([$club->id]);
+                $this->stats['clubs']++;
 
-            if (in_array($type, ['entries', 'results'], true) && isset($clubXml->RELAYS)) {
-                $relayClubs[] = [$clubXml, $club];
+                if ($clubOfNation && in_array($type, ['entries', 'results'], true) && isset($clubXml->RELAYS)) {
+                    $relayClubs[] = [$clubXml, $club];
+                }
             }
 
-            if (! isset($clubXml->ATHLETES)) {
-                continue;
-            }
-
-            foreach ($clubXml->ATHLETES->ATHLETE as $athleteXml) {
-                $this->importAthlete($meet, $athleteXml, $club, $resolver, $type);
+            foreach ($athletesXml as $athleteXml) {
+                $this->importAthlete($meet, $athleteXml, $club, $nationCode, $resolver, $type);
             }
         }
 
@@ -831,10 +946,15 @@ class LenexParserService
 
     // ── Event-ID Auflösung ────────────────────────────────────────────────────
 
+    /**
+     * @param  Club|null  $club  Verein aus der Datei; null bei Nationenfilter und nicht gefundenem Verein
+     *                           (Nationalteam) — dann zählt der Heimverein des Athleten
+     */
     private function importAthlete(
         Meet $meet,
         SimpleXMLElement $athleteXml,
-        Club $club,
+        ?Club $club,
+        string $clubNationCode,
         LenexResolverService $resolver,
         string $type
     ): void {
@@ -844,10 +964,10 @@ class LenexParserService
             return;
         }
 
-        $nationCode = (string) ($athleteXml['nation'] ?? $club->nation?->code ?? '');
+        $nationCode = (string) ($athleteXml['nation'] ?? '') ?: $clubNationCode;
         $nation = Nation::where('code', $nationCode)->first();
 
-        $athlete = $resolver->resolveAthlete($athleteXml, $club->id, $nation?->id ?? 0);
+        $athlete = $resolver->resolveAthlete($athleteXml, $club?->id, $nation?->id ?? 0);
 
         $lenexAthleteId = (string) ($athleteXml['athleteid'] ?? '');
         if ($lenexAthleteId !== '') {
@@ -869,16 +989,27 @@ class LenexParserService
 
         $this->stats['athletes']++;
 
+        // Ohne Verein aus der Datei (Nationalteam) gilt der Heimverein; fehlt auch der, lassen sich Meldungen und
+        // Ergebnisse keinem Verein zuordnen (club_id ist Pflicht) und werden gezählt übersprungen.
+        $clubId = $club?->id ?? $athlete->club_id;
+        if (! $clubId) {
+            $this->stats['without_club'] += $type === 'entries'
+                ? count($athleteXml->ENTRIES->ENTRY ?? [])
+                : count($athleteXml->RESULTS->RESULT ?? []);
+
+            return;
+        }
+
         if ($type === 'entries' && isset($athleteXml->ENTRIES)) {
             foreach ($athleteXml->ENTRIES->ENTRY as $entryXml) {
-                $this->importEntry($meet, $entryXml, $athlete->id, $club->id, $resolver);
+                $this->importEntry($meet, $entryXml, $athlete->id, $clubId, $resolver);
             }
         }
 
         if ($type === 'results' && isset($athleteXml->RESULTS)) {
             foreach ($athleteXml->RESULTS->RESULT as $resultXml) {
                 $this->importResult(
-                    $meet, $resultXml, $athlete->id, $club->id, $resolver,
+                    $meet, $resultXml, $athlete->id, $clubId, $resolver,
                     $athleteXml->HANDICAP ?? null
                 );
             }

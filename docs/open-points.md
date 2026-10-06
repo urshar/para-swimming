@@ -73,9 +73,14 @@ und Ergebnissen abgeleitet (dokumentiert in `specs/lenex-import-export.md`). Umg
 Ergebnis-Sammelansicht je Veranstaltung mit Filtern, Erfassen ("Speichern und nächstes", Sportklasse aus dem Athleten,
 automatische Punkte), Löschen einzeln oder je Disziplin und Ergebnisliste als PDF; Ergebnis-Routen jetzt nur Admin
 (dokumentiert in `specs/meet-results.md`). Umgesetzt in `feature/relay-results`: Staffelergebnisse Phase 1 (Datenmodell, LENEX-Import,
-Erfassung, Rekorde, PDF, Statistik); Phase 2 und der Nachimport alter Dateien siehe #5. Umgesetzt in `feature/scoring-groups`:
+Erfassung, Rekorde, PDF, Statistik). Umgesetzt in `feature/scoring-groups`:
 Wertungsgruppen je Bewerb (Open Point "Meetstruktur / Wertungsgruppen", LENEX-Export mit korrekter Wertung),
-dokumentiert in `specs/scoring-groups.md`.
+dokumentiert in `specs/scoring-groups.md`. Umgesetzt in `feature/lenex-result-matching` (PR #37),
+`feature/lenex-import-review` (PR #38) und `feature/relay-results-phase2` (PR #39): Abgleich mit vorhandenen
+Ergebnissen beim Nachimport (Variante b), Klärungsseite mit Auswahl bestehender Vereine/Athleten, Rahmenbewerbe,
+Staffeln Phase 2 (LENEX-Export, Import der Staffelmeldungen, ÖBSV-Punkte, öffentliche Seite) — vormals Punkt 5
+"Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen"; den Nachimport der alten Dateien macht Erik
+selbst. Übrig: "Basiszeiten der Herrenstaffeln S14 prüfen" unten.
 
 **Sicherheit, vorrangig:** "Sicherheit: LENEX-Import nur für Admins" unten.
 
@@ -86,12 +91,14 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 2. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
 3. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
 4. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-5. "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen" unten (Phase 1 erledigt)
-6. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — hängt an #5
-7. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-8. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
-9. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-10. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+5. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
+   Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
+6. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+7. "Erfolgs-/Fehlermeldungen (Flash) werden auf vielen Admin-Seiten nicht angezeigt" unten
+8. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+9. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+10. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
+11. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -200,45 +207,21 @@ gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener
 Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
 akzeptiert zusätzlich `.xml`.
 
-## Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen
+## Basiszeiten der Herrenstaffeln S14 prüfen
 
-**Seit:** `feature/relay-results` (04.10.2026). Phase 1 ist umgesetzt: eigene Tabellen `relay_results` (+ Schwimmer,
-Zwischenzeiten), LENEX-Import der Staffelergebnisse, Wertung D/H/X (nur Frauen = Damen, 2 + 2 = Mixed, sonst Herren,
-Herren mit Damenbeteiligung ohne Rekord), Staffelklasse aus AGEGROUP bzw. Schwimmern, manuelle Erfassung in der
-Ergebnis-Sammelansicht, Staffel-Rekordprüfung mit den echten Schwimmern, PDF-Ergebnisliste, Statistik "Staffelstarts
-nach Typ" nach der Wertung der Mannschaft. Dokumentiert in `specs/meet-results.md`, `specs/records.md`,
-`specs/lenex-import-export.md`.
+**Seit:** `feature/relay-results-phase2` (PR #39, 06.10.2026) — ÖBSV-Punkte für Staffeln.
 
-**Reihenfolge (vereinbart 04.10.2026):** Die Wertungsgruppen sind umgesetzt (`feature/scoring-groups`), Variante (b)
-ebenfalls (`feature/lenex-result-matching`, siehe `specs/lenex-import-export.md` "Abgleich mit vorhandenen
-Ergebnissen"). Als Nächstes der Nachimport der alten LENEX-Dateien (die Wertungsgruppen kommen aus den AGEGROUPs
-gleich mit), danach Phase 2.
+**Befund:** Damen- und Mixed-Staffeln stimmen mit den Punkten aus den Splash-Dateien exakt überein. Bei Herrenstaffeln
+S14 rechnet Splash mit anderen Basiszeiten als unsere Basiswert-Tabelle (Version 2020-2027, Kurzbahn): 4x50 m Freistil
+1:47,44 statt 1:42,62, 4x100 m Freistil 3:52,80 statt 3:50,49 (aus den Datei-Punkten zurückgerechnet). Eine
+Neuberechnung ("ÖBSV-Punkte berechnen") senkt die Punkte der Herrenstaffeln daher um rund 3–13 % gegenüber der Datei.
 
-**Offen (Phase 2, eigener Branch):** LENEX-Export der Staffelergebnisse, Import der Staffel**meldungen** aus LENEX
-(`CLUB > RELAYS > RELAY > ENTRIES`, bisher übersprungen), WA-Punkte für Staffeln, Staffeln auf der öffentlichen
-Ergebnisseite. In Arbeit auf `feature/relay-results-phase2`: Schritt 1 (Export der Staffelergebnisse samt Ranglisten
-und `EVENT > HEATS`) Schritt 2 (Import der Staffelmeldungen), Schritt 3 (ÖBSV-Punkte für Staffeln) und Schritt 4 (öffentliche
-Ergebnisseite) sind umgesetzt. Offen: Herren-
-staffel-Basiszeiten S14 weichen von Splash ab (siehe `specs/meet-results.md` "Staffelpunkte") — Basiswert-Tabelle prüfen.
+**Wer entscheidet:** Erik — welche Werte stimmen (ÖBSV-Basiswerttabelle prüfen).
 
-**Wichtig vor dem Nachimport alter LENEX-Dateien (Befund Live-Test 04.10.2026):** Ein erneuter Ergebnis-Import in
-eine bestehende Veranstaltung legt die **Einzelergebnisse doppelt an**, wenn diese nicht aus derselben LENEX-Datei
-stammen. Der Einzel-Import erkennt vorhandene Ergebnisse an Veranstaltung + Bewerb + Athlet + Lauf + Bahn; bei Meet 160
-(ÖSTM 2025) haben die 266 vorhandenen Ergebnisse keinen Lauf, keine Bahn und keine `lenex_result_id` (andere Quelle),
-also entstanden 282 neue Zeilen und ein zusätzlicher Bewerb (Nr. 17, 150 m). Beides wurde wieder entfernt; die 12
-importierten Staffelergebnisse sind geblieben. Die Staffeln selbst sind wiederholbar (über `lenex_result_id`).
+**Zum Schließen nötig:** Ggf. die Werte in der Basiswerte-Verwaltung korrigieren; sonst als bekannte Abweichung von
+Splash schließen. Details in `specs/meet-results.md` "Staffelpunkte".
 
-**Entscheidung Erik (04.10.2026):** Variante (b) — der Einzel-Import gleicht zusätzlich über Veranstaltung + Bewerb +
-Athlet ab, wenn das vorhandene Ergebnis keinen Lauf/keine Bahn hat, und ergänzt dann Lauf, Bahn und `lenex_result_id`
-(statt eine neue Zeile anzulegen). Damit lassen sich alte Dateien vollständig nachimportieren, Einzel- und
-Staffelergebnisse. Vor dem Umsetzen klären, ob derselbe Athlet im selben Bewerb mehrfach vorkommen kann (Stechen,
-mehrere Läufe); dann darf nur ein eindeutiger Treffer übernommen werden. Ausländische Vereine und unbekannte Athleten
-laufen dabei wie bisher über die Klärungsseite des Imports.
-
-**Befund Meet 160 (05.10.2026):** Die vorhandenen Ergebnisse weichen teils von der offiziellen LENEX-Datei ab (z. B.
-Hummel 50m Freistil 33,72 statt 32,97, Zakaroff 46,36 statt 42,08, dazu gespeicherter Platz -1 = nicht gewertet).
-Nach der Punkteberechnung stimmen 247 von 266 Plätzen mit der Datei überein, die 19 Abweichungen gehen alle auf diese
-Datenunterschiede zurück. Der Nachimport mit (b) gleicht die Ergebnisse auf die Datei an.
+## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 
 **Seit:** Umsetzung `feature/statistics-multi-year-chart` (27.09.2026): Erik hat beim Bau des Jahresvergleichs
 weitere sinnvolle Auswertungen als "für später" freigegeben — erst wenn eine belastbare Datenbasis vorhanden ist
@@ -262,23 +245,29 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
 
-## Plätze internationaler Veranstaltungen aus der Datei erhalten
+## Untereinanderstehende Tabellen einheitlich ausrichten
 
-**Seit:** Analyse der EM Kocaeli 2026 (06.10.2026), zusammen mit dem geplanten Nationenfilter beim LENEX-Import
-(eigener Branch).
+**Seit:** Rückmeldung Erik (06.10.2026) zu den Abschnitts-Tabellen auf `meets/show`; dort und in der
+Ergebnis-Sammelansicht (`meets/results-overview`, inkl. Staffeltabelle) umgesetzt in
+`feature/lenex-nation-filter`.
 
-**Ausgangslage:** Bei internationalen Meisterschaften stehen in der LENEX-Datei die europäischen bzw. internationalen
-Plätze (RANKINGS je Klasse und Runde), importiert werden aber nur die österreichischen Schwimmer. Die Wertungsgruppen
-sind dort meist offen ("Open Class", Klasse nur im Bewerbsnamen). Unsere Wertung (`ScoringGroupService::syncPlaces`)
-rechnet mit Wertungsgruppen nach Punkten innerhalb der importierten Ergebnisse — sobald ÖBSV-Punkte berechnet sind,
-überschreibt jedes Speichern, "ÖBSV-Punkte berechnen" oder Ändern der Wertungsgruppen den Platz aus der Datei mit
-dem Platz der Österreicher untereinander.
+**Ausgangslage:** Wo mehrere Tabellen gleicher Struktur untereinander stehen (je Abschnitt, Bewerb, Wertungsgruppe,
+Klasse ...), richtet sich jede Tabelle nach ihrem eigenen Inhalt — die Spalten springen von Tabelle zu Tabelle.
 
-**Entscheidung Erik (06.10.2026):** Der Platz aus der Datei bleibt erhalten.
+**Muster (wie `meets/show.blade.php` "Disziplinen", `cups/overall-ranking.blade.php`,
+`public/regulations/index.blade.php`):** `table-fixed` (bei Flux bereits gesetzt) plus `w-full` und feste Breiten je
+Spalte außer einer, die den Rest nimmt (`<flux:table.column class="w-24">`); lange Inhalte in festen Spalten mit
+`truncate` + `title`. Für die horizontale Scroll-Breite auf schmalen Bildschirmen eine `min-w-*` am Table.
 
-**Was fehlt:** Eine Kennzeichnung (z. B. an der Veranstaltung "Plätze aus der Datei übernehmen" bzw. automatisch bei
-Import mit Nationenfilter), bei der `syncPlaces` die gespeicherten Plätze nicht anfasst und Sammelansicht, PDF und
-öffentliche Seite den gespeicherten Platz statt des berechneten zeigen.
+**Kandidaten** (Tabellen in Schleifen, je Datei prüfen, ob sie wirklich untereinander stehen):
+
+- Admin: `meets/entries-overview`, `championships/selection`,
+  `livewire/admin/championship-qualification-table`, `livewire/cup-club-ranking`, `qualifying-time-lists/show`,
+  `qualifying-time-lists/qualifications`, `qualifying-time-lists/form`, `statistics/partials/sections`
+- Öffentlich (Tailkit, nicht Flux): `public/meets/results`, `public/annual-best/index`, `public/base-times/index`,
+  `public/cup-ranking/index`, `public/qualifying-times/index`, `public/records/index`
+- PDF (dompdf, eigene `<colgroup>`/Breiten): `pdf/result-list`, `pdf/entry-lists/*`, `pdf/championship-*`,
+  `pdf/cup-club-ranking`, `pdf/public-records`, `pdf/qualifying-times`, `pdf/wps-*`, `pdf/year-comparison`
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 
