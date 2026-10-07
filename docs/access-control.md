@@ -36,8 +36,8 @@ Stand: Sicherheits-Audit 06.10.2026 (`fix/admin-route-guard`). Ergänzt `CLAUDE.
 | Benutzer, Dokumente (`admin.*`)                                         | —                                                      | ✓                                      |
 
 Schreib-Schaltflächen in den lesbaren Ansichten (Anlegen, Bearbeiten, Löschen, Importieren, Berechnen) sind für
-Nicht-Admins ausgeblendet (`@if(auth()->user()?->is_admin)`), ebenso die Menüpunkte "Ergebnisse", "Rekord-Import"
-und "LENEX-Import".
+Nicht-Admins ausgeblendet (`@if(auth()->user()?->is_admin)`), ebenso die Menüpunkte "Ergebnisse", "Rekorde →
+Importieren", "Rekorde → Import Prüfliste" und "LENEX-Import".
 
 ## Absicherung neuer Routen
 

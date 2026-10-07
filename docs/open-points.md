@@ -88,20 +88,26 @@ für Admins, Selbstregistrierung abgeschaltet, Routen-Audit als Test — siehe `
 **Flash-Meldungen — erledigt** (`feature/flash-messages`, 06.10.2026): zentrale Komponente `x-flash` im Layout,
 Einzel-Blöcke entfernt, Fehler ohne Feldbezug als `session('error')` — siehe `CLAUDE.md`.
 
+**Post-Import Review-Liste — erledigt** (`feature/record-import-review`, 07.10.2026): Vereinskonflikte und
+abweichende Geburtsdaten nach dem Rekordimport in einer gespeicherten Prüfliste, inkl. Bestandsprüfung — siehe
+`docs/specs/records.md` "Prüfliste nach dem Import". Datenpflege offen (Erik): Verbände, die als Verein angelegt
+sind (`ÖBSV`, `ÖSBV`, `SBSV`, `VVBSV`), auf Typ `VERBAND` umstellen, damit deren Rekorde nicht als Vereinskonflikt
+zählen.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
-1. `feature/record-import-review` — "Post-Import Review-Liste" unten (größter/komplexester Punkt)
-2. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-3. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-4. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-5. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
+1. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
+2. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+3. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+4. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
-6. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-7. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-8. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
-9. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
-10. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
+5. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+6. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
+9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
+10. "Regionalrekord nach dem Verein im Ergebnis statt dem aktuellen Verein" unten (Bugfix, als Nächstes vereinbart)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -284,77 +290,20 @@ Mitgliedern? Bezug zu Staffeln?).
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
 
-## Post-Import Review-Liste: Club-Konflikte + Jahres-Fallback-Matches (LENEX-Rekordimport)
+## Regionalrekord nach dem Verein im Ergebnis statt dem aktuellen Verein
 
-**Teil B (Matching-Vorschläge) erledigt (19.09.2026, `feature/record-import-match-suggestions`):** Der
-Jahres-Fallback für Athleten ist umgesetzt (Name + Geschlecht + Geburtsjahr bei `JJJJ-01-01`-Platzhalter/
-Datums-Abweichung; Name + Geschlecht bei leerem Datum), zusätzlich **Vereins-Vorschläge** (exakter
-normalisierter Name/Code oder Wortgrenzen-Präfix) und eine **Namens-Normalisierung** (Leerraum um
-Bindestriche, "Weber-Treiber" ↔ "Weber - Treiber"). Nicht exakt gefundene Athleten/Vereine bekommen in der
-Import-Vorschau **vorbelegte Zuordnungs-Vorschläge** (nur bei genau einem eindeutigen Treffer), das volle
-Geburtsdatum wird angezeigt — siehe `RecordImportService::suggestAthletes()`/`suggestClubs()` und
-`docs/specs/records.md`. **Offen bleibt dieser Punkt für:** Teil A (Club-Konflikt-Erkennung nach dem Import,
-also `Athlete.club_id` ≠ LENEX-Verein) **und** die persistierte, jederzeit abarbeitbare Review-Liste (eigene
-Tabelle/Report statt nur Flash/Vorschau).
+**Seit:** `feature/record-import-review` (07.10.2026), Nebenbefund beim Fall Komarov.
 
-**Seit:** Admin-UI-Rework Phase 10, Rückfragen zu Saram Stephan / Hochenberger Philip / Rottmann Kilian in
-`oebsv.lxf` (31.08.2026). Ursprünglich zwei getrennte Punkte, auf Wunsch von Erik zusammengelegt ("sodass wir das in
-einem machen können") — beide brauchen dieselbe Grundlage: Eine persistierte, abarbeitbare Review-Liste nach dem
-Rekord-Import.
+**Was falsch ist:** `RecordCheckerService` leitet den regionalen Rekordtyp (`AUT.KLSV`, `AUT.STBSV` …) vom
+**aktuellen** Verein des Athleten ab (`$result->athlete?->club?->regional_record_type`), nicht vom Verein im Ergebnis.
+Ein Ergebnis für den Grazer VSC wurde dadurch als Kärntner Regionalrekord eingetragen, weil der Athlet heute beim
+Kärntner BSV gemeldet ist (bzw. umgekehrt je nach Zeitpunkt der Prüfung).
 
-**Teil A — Club-Konflikte:** Bei einem Rekord-Import gilt laut Erik der im LENEX-File genannte Verein als bindend,
-sofern der Verein selbst bereits in der DB existiert ("Initial-Rekordfile"). Aktuell gibt es aber keine Stelle, die nach
-dem Import anzeigt, bei welchen Athleten der LENEX-Verein vom aktuell gespeicherten
-`Athlete.club_id` abweicht — weder für bereits bekannte Athleten (sofort gematcht in `preview()`/`findAthlete()`, siehe
-`RecordImportService.php:342`) noch für zuvor unbekannte Athleten, die im Import-Vorschau-Schritt einem bestehenden
-Athleten zugeordnet wurden (`resolveAthletes()`,
-[RecordImportService.php:774](app/Services/RecordImportService.php:774) — dort wird `Athlete.club_id` bewusst nicht
-angefasst, siehe auch "Import-Vorschau: Vereinsname bei unbekannten Athleten live aktualisieren" unten). Diskrepanzen
-wie "Zimmermann, Elfriede steht noch mit dem alten Vereinsnamen in der Liste" fallen nur zufällig beim manuellen
-Durchsehen auf.
-
-Vereinswechsel selbst sind dabei kein Fehler — jeder `SwimRecord` trägt bereits seinen eigenen `club_id`
-unabhängig vom Athleten (`SwimRecord::club_id`), Rekorde bei unterschiedlichen Vereinen für denselben Athleten (z. B.
-Saram Stephan) sind also schon heute korrekt historisch abgebildet. Es geht ausschließlich um den
-*aktuellen/Stamm-Verein* am `Athlete`-Datensatz selbst. Eriks Vorschlag: eine Checkbox pro betroffenem Athleten im
-Import-Vorschau-Schritt ("Aktuellen Verein des Athleten auf den LENEX-Verein aktualisieren"), plus eine **persistierte**
-Liste aller solchen Fälle nach dem Import (nicht nur eine Flash-Message für die aktuelle Session).
-
-**Teil B — Jahres-Fallback-Matches:** Kein Bug in `findAthlete()` — die Namens-Suche ist bereits case-insensitiv
-([RecordImportService.php:645-646](app/Services/RecordImportService.php:645)). Geprüft direkt am beigefügten
-`oebsv.lxf`: Hochenberger Philip und Rottmann Kilian stehen dort mit `birthdate="1992-01-01"` bzw.
-`"2008-01-01"` und leerem `license` — das ÖBSV-File kennt hier offenbar nur das Geburtsjahr und kodiert Tag/Monat als
-Platzhalter `01-01`. In der DB stehen die echten Geburtsdaten (`1992-12-10` bzw. `2008-02-04`). Da `findAthlete()` nach
-Nachname **+** Vorname **+** exaktem `birth_date` **+** Geschlecht sucht, schlägt der Match trotz korrektem Namen fehl →
-beide werden als "unbekannt" eingestuft. **Erik hat der vorgeschlagenen automatischen Jahres-Fallback-Regel zugestimmt**
-("Bei deinem Vorschlag beim Import bin ich bei dir."): Bei
-`birth_date` mit `-01-01`-Endung zusätzlich per portablem `SUBSTR(birth_date, 1, 4) = ?`
-(kein `YEAR()`, läuft auf MySQL wie SQLite) auf Namensgleichheit + Geburtsjahr matchen — aber als *Vorschlag*
-in der bestehenden Zuordnungs-Auswahl, nie automatisch ohne Bestätigung übernommen (Risiko: zwei verschiedene Personen
-mit gleichem Namen und Geburtsjahr).
-
-**Warum zurückgestellt:** Mehrere offene Entscheidungen, keine Bugfix-Zeile:
-
-1. Datenmodell für die Review-Liste — eigene Tabelle (z. B. `import_review_items` mit `athlete_id`, `type`
-   Club-Konflikt/Jahres-Match, `current_club_id`/`lenex_club_id` bzw. `matched_athlete_id`,
-   `import_batch_id`/Datum, `status` offen/übernommen/ignoriert) vs. zwei getrennte, schlankere Tabellen.
-2. Zeitpunkt der Konflikterkennung: nur beim Import-Preview-Schritt (Checkbox-Entscheidung dort direkt in den
-   persistenten Datensatz überführen) oder zusätzlich als eigener Menüpunkt/Report, der jederzeit über alle
-   Athleten/Rekorde hinweg neu berechnet werden kann (unabhängig von einem konkreten Import-Lauf)?
-3. Bei mehreren Rekorden desselben Athleten mit unterschiedlichen Vereinen im selben Import (Saram-Stephan-Fall):
-   welcher Verein gilt als "der aktuelle" für die Checkbox-Vorbelegung — vermutlich der zeitlich jüngste (`set_date`),
-   aber zu bestätigen.
-4. Für den Jahres-Fallback: soll der Namens-Jahres-Treffer in der Import-Vorschau vorbelegt (aber weiter änderbar)
-   erscheinen, oder nur als zusätzliche, unmarkierte Option in der bestehenden Dropdown-Liste?
-
-**Wer entscheidet:** Erik — Datenmodell-Umfang, ob nur Import-Preview oder auch ein jederzeit aufrufbarer Dauer-Report
-gewünscht ist, Vorbelegungsregel bei mehreren Vereinen pro Athlet im selben Import, und ob der Jahres-Fallback-Treffer
-vorbelegt oder nur als Option angezeigt wird.
-
-**Zum Schließen nötig:** Entscheidung zu obigen Punkten, dann Migration (en) für die Review-Tabelle (n), Erkennung in
-`RecordImportService`/`RecordImportController` ergänzen (Club-Vergleich je Rekord + Jahres-Fallback in
-`findAthlete()`), Checkbox/Markierung in `import-preview.blade.php`, neue Review-Seite/-Route zum Abarbeiten der offenen
-Fälle — beide Teile in einem Arbeitsschritt, da sie dieselbe Review-Infrastruktur teilen.
+**Vereinbart (Erik, 07.10.2026):** Eigener Bugfix-Branch nach `feature/record-import-review`: Verband aus
+`$result->club`, Fallback auf den Verein des Athleten nur, wenn das Ergebnis keinen Verein hat (Einzel; Staffeln
+prüfen). Bereits falsch zugeordnete Regionalrekorde werden dadurch nicht rückwirkend korrigiert — wie man sie findet
+(Vergleich Rekordtyp ↔ Verband des Rekord-Vereins `swim_records.club_id`, ggf. als weitere Art in der Import
+Prüfliste), ist dort zu klären.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

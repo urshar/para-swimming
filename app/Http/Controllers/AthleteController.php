@@ -13,8 +13,8 @@ use App\Models\ExceptionCode;
 use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
+use App\Services\AthleteClubTransferService;
 use App\Support\ListUrl;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -190,35 +190,18 @@ class AthleteController extends Controller
      *
      * @throws Throwable
      */
-    public function transferClub(Request $request, Athlete $athlete): RedirectResponse
-    {
+    public function transferClub(
+        Request $request,
+        Athlete $athlete,
+        AthleteClubTransferService $transfers,
+    ): RedirectResponse {
         $validated = $request->validate([
             'club_id' => 'required|exists:clubs,id|different:athlete.club_id',
             'joined_at' => 'required|date',
             'notes' => 'nullable|string|max:500',
         ]);
 
-        DB::transaction(function () use ($athlete, $validated) {
-            // Aktiven Eintrag schließen
-            AthleteClubHistory::where('athlete_id', $athlete->id)
-                ->where('is_active', true)
-                ->update([
-                    'is_active' => false,
-                    'left_at' => Carbon::parse($validated['joined_at'])->subDay()->toDateString(),
-                ]);
-
-            // Neuen Eintrag anlegen
-            AthleteClubHistory::create([
-                'athlete_id' => $athlete->id,
-                'club_id' => $validated['club_id'],
-                'joined_at' => $validated['joined_at'],
-                'is_active' => true,
-                'notes' => $validated['notes'] ?? null,
-            ]);
-
-            // Convenience-Feld am Athleten aktualisieren
-            $athlete->update(['club_id' => $validated['club_id']]);
-        });
+        $transfers->transfer($athlete, (int) $validated['club_id'], $validated['joined_at'], $validated['notes'] ?? null);
 
         return redirect()
             ->route('athletes.show', $athlete)

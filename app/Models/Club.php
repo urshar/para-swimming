@@ -15,6 +15,9 @@ class Club extends Model
 
     // ── regionale Verbandscodes (Österreich) ──────────────────────────────────
 
+    /** Verband statt Verein (Landesverband, ÖBSV); Rekorde dafür zählen nicht für den Stammverein. */
+    public const string TYPE_VERBAND = 'VERBAND';
+
     const array REGIONAL_ASSOCIATIONS = [
         'BBSV' => 'Burgenländischer Behindertensportverband',
         'KBSV' => 'Kärntner Behindertensportverband',

@@ -1,5 +1,6 @@
 @php
     use App\Models\Club;
+    use Illuminate\Support\Carbon;
 @endphp
 
 @extends('layouts.app')
@@ -190,6 +191,50 @@
                                     </flux:select>
                                 </div>
                             </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- ── Vereinskonflikte (Stammverein ≠ Verein laut Rekord) ──────── --}}
+            @if(count($preview['club_conflicts']) > 0)
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-blue-300 dark:border-blue-700 p-5 mb-4">
+                    <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1 flex items-center gap-2">
+                        <flux:icon.arrows-right-left class="size-4 text-blue-500"/>
+                        Vereinskonflikte ({{ count($preview['club_conflicts']) }})
+                    </h2>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                        Der Verein laut Rekord weicht vom Stammverein des Athleten ab (maßgeblich: jüngster Einzelrekord,
+                        sonst jüngste nationale Staffel). Angehakt wird der Stammverein beim Import mit einem
+                        Vereinswechsel zum Rekorddatum aktualisiert. Nicht angehakte Fälle kommen in die Prüfliste.
+                        Nicht vorbelegt (und nicht in die Liste) kommt ein Fall, wenn der Athlet nach dem Rekord
+                        nachweislich schon für den aktuellen Verein angetreten ist (Eintritt oder Wettkampfergebnis).
+                        Rekorde für einen Verband (z. B. ÖBSV) zählen nicht.
+                    </p>
+
+                    <div class="space-y-2">
+                        @foreach($preview['club_conflicts'] as $conflict)
+                            <label
+                                class="flex items-start gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer">
+                                <input type="checkbox" name="club_updates[{{ $conflict['athlete_id'] }}]"
+                                       value="{{ $conflict['lenex_club_id'] }}" class="mt-1"
+                                       @checked($conflict['relevant'])>
+                                <span class="text-sm">
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $conflict['athlete_name'] }}</span>:
+                                    <span class="text-zinc-500 dark:text-zinc-400">{{ $conflict['current_club_name'] ?? 'kein Verein' }}</span>
+                                    →
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $conflict['lenex_club_name'] }}</span>
+                                    <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                        {{ $conflict['relay'] ? 'Staffel' : 'Einzel' }}: {{ $conflict['label'] }}
+                                        @if($conflict['date'])
+                                            · {{ Carbon::parse($conflict['date'])->format('d.m.Y') }}
+                                        @endif
+                                        @unless($conflict['relevant'])
+                                            · danach schon für den aktuellen Verein angetreten
+                                        @endunless
+                                    </span>
+                                </span>
+                            </label>
                         @endforeach
                     </div>
                 </div>

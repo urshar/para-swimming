@@ -53,6 +53,7 @@ class RecordImportController extends Controller
         }
 
         Session::put('record_import_path', $path);
+        Session::put('record_import_name', $file->getClientOriginalName());
 
         return view('records.import-preview', [
             'preview' => $preview,
@@ -91,6 +92,7 @@ class RecordImportController extends Controller
         $newAthleteData = $request->input('new_athletes', []);
         $approvedRegional = $request->input('regional', []);
         $approvedPending = $request->input('pending', []);   // ['pending_key' => 'import'|'skip']
+        $clubUpdates = $request->input('club_updates', []);  // ['athlete_id' => club_id]
 
         try {
             $result = $this->importService->import(
@@ -101,17 +103,27 @@ class RecordImportController extends Controller
                 $newAthleteData,
                 $approvedRegional,
                 $approvedPending,
+                $clubUpdates,
+                Session::get('record_import_name', basename($path)),
+                $request->user()->id,
             );
         } catch (Throwable $e) {
             return redirect()->route('records.import')
                 ->withErrors(['lenex_file' => 'Import fehlgeschlagen: '.$e->getMessage()]);
         }
 
-        Session::forget('record_import_path');
+        Session::forget(['record_import_path', 'record_import_name']);
 
         $msg = "{$result['imported']} Rekord(e) importiert, {$result['skipped']} übersprungen";
         if (($result['regional_auto'] ?? 0) > 0) {
             $msg .= ", {$result['regional_auto']} Regionalrekord(e) automatisch gesetzt";
+        }
+        if ($result['club_updated'] > 0) {
+            $msg .= ", {$result['club_updated']} Stammverein(e) aktualisiert";
+        }
+        if ($result['review_open'] > 0) {
+            $msg .= ', '.$result['review_open'].($result['review_open'] === 1 ? ' neuer Fall' : ' neue Fälle')
+                .' in der Import Prüfliste';
         }
 
         return redirect()

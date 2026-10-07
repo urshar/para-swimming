@@ -37,6 +37,7 @@ use App\Http\Controllers\QualifyingTimeListController;
 use App\Http\Controllers\RecordController;
 use App\Http\Controllers\RecordExportController;
 use App\Http\Controllers\RecordImportController;
+use App\Http\Controllers\RecordImportReviewController;
 use App\Http\Controllers\RelayEntryController;
 use App\Http\Controllers\RelayResultController;
 use App\Http\Controllers\ResultController;
@@ -515,6 +516,14 @@ Route::middleware(['auth'])->group(function () {
             Route::get('import', [RecordImportController::class, 'showForm'])->name('import');
             Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
             Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
+
+            // Prüfliste nach dem Rekordimport (Vereinskonflikte, abweichende Geburtsdaten)
+            Route::prefix('import-review')->name('import-review.')->group(function () {
+                Route::get('/', [RecordImportReviewController::class, 'index'])->name('index');
+                Route::post('scan', [RecordImportReviewController::class, 'scan'])->name('scan');
+                Route::post('{item}/apply', [RecordImportReviewController::class, 'apply'])->name('apply');
+                Route::post('{item}/ignore', [RecordImportReviewController::class, 'ignore'])->name('ignore');
+            });
 
             Route::post('check/{meet}', [RecordController::class, 'checkMeet'])->name('check');
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Athlete;
 use App\Models\AthleteSportClass;
 use App\Models\Club;
+use App\Models\ImportReviewItem;
 use App\Models\Nation;
 use App\Models\RecordSplit;
 use App\Models\RelayTeamMember;
@@ -71,8 +72,12 @@ class RecordImportService
     /** Vereins-Cache für die Vorschlagssuche (suggestClubs) */
     private ?Collection $clubsCache = null;
 
+    /** StrokeType-Namen für die Prüfliste: id → name_de */
+    private array $strokeNameCache = [];
+
     public function __construct(
         private readonly ImportSuggestionService $suggestions = new ImportSuggestionService,
+        private readonly RecordImportReviewService $review = new RecordImportReviewService,
     ) {}
 
     // ── Öffentliche API ───────────────────────────────────────────────────────
@@ -86,6 +91,9 @@ class RecordImportService
      * $newAthleteData:   ['athlete_key' => ['first_name'=>...,'last_name'=>...,...]]
      * $approvedRegional: ['WBSV' => 'import'|'skip', ...]
      * $approvedPending:  ['rec_key' => 'import'|'skip']  — ausstehende Rekorde (Nationalität unklar)
+     * $clubUpdates:      ['athlete_id' => club_id] — in der Vorschau angehakte Vereinskonflikte: Stammverein
+     *                    übernehmen. Alle übrigen relevanten Konflikte landen offen in der Prüfliste.
+     * $source:           Bezeichnung für die Prüfliste (Dateiname)
      *
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann
      * @throws Exception wenn der XML-Inhalt ungültig ist
@@ -99,6 +107,9 @@ class RecordImportService
         array $newAthleteData,
         array $approvedRegional = [],
         array $approvedPending = [],   // ['pending_key' => 'import'|'skip']
+        array $clubUpdates = [],
+        string $source = '',
+        ?int $userId = null,
     ): array {
         $preview = $this->preview($filePath);
 
@@ -108,6 +119,9 @@ class RecordImportService
         // Athleten anlegen die als 'new' markiert wurden
         $athleteIdMap = $this->resolveAthletes($preview['unknown_athletes'], $approvedAthletes, $newAthleteData,
             $clubIdMap);
+
+        // Zuordnungen auf bestehende Personen mit abweichendem Geburtsdatum zur Kontrolle in die Prüfliste.
+        $this->logYearMatches($preview['unknown_athletes'], $approvedAthletes, $source);
 
         $imported = 0;
         $skipped = 0;
@@ -137,14 +151,25 @@ class RecordImportService
             }
         }
 
+        $clubUpdated = 0;
+        $reviewOpen = 0;
+
         DB::transaction(function () use (
             $allRecords,
             $clubIdMap,
             $athleteIdMap,
+            $clubUpdates,
+            $source,
+            $userId,
             &$imported,
             &$skipped,
-            &$regionalImported
+            &$regionalImported,
+            &$clubUpdated,
+            &$reviewOpen
         ) {
+            $observations = [];
+            $createdRecordIds = [];
+
             foreach ($allRecords as $rec) {
                 $athleteId = null;
                 $nationId = $this->getNationId('AUT');
@@ -178,14 +203,16 @@ class RecordImportService
                     ->where('is_current', true)
                     ->first();
 
-                // Nur importieren wenn besser als aktueller Rekord
+                $clubId = $this->resolveClubId($rec['club'] ?? null, $clubIdMap);
+
+                // Nur importieren wenn besser als aktueller Rekord. Für die Vereinsprüfung zählt der Rekord trotzdem:
+                // Er belegt den Verein des Athleten zum Rekorddatum.
                 if ($current && $current->swim_time <= $rec['swim_time']) {
                     $skipped++;
+                    array_push($observations, ...$this->observations($rec, $athleteId, $clubId, null));
 
                     continue;
                 }
-
-                $clubId = $this->resolveClubId($rec['club'] ?? null, $clubIdMap);
 
                 $newRecord = SwimRecord::create([
                     'stroke_type_id' => $rec['stroke_type_id'],
@@ -256,11 +283,34 @@ class RecordImportService
                     ]);
                 }
 
+                array_push($observations, ...$this->observations($rec, $athleteId, $clubId, $newRecord->id));
+                $createdRecordIds[] = $newRecord->id;
+
                 $imported++;
+            }
+
+            // ── Neue Rekorde von Athleten, deren Nationalität nicht AUT ist ──
+            $reviewOpen += $this->review->logNationalityIssues($createdRecordIds, $source);
+
+            // ── Vereinskonflikte: angehakte übernehmen, übrige relevante in die Prüfliste ──
+            foreach ($this->review->conflicts($observations) as $athleteId => $conflict) {
+                if ((int) ($clubUpdates[$athleteId] ?? 0) === $conflict['lenex_club_id']) {
+                    $this->review->applyConflict($conflict, $source, $userId);
+                    $clubUpdated++;
+                } elseif ($conflict['relevant']
+                    && $this->review->logConflict($conflict, $source, ImportReviewItem::STATUS_OPEN, null) !== null) {
+                    $reviewOpen++;
+                }
             }
         });
 
-        return ['imported' => $imported, 'skipped' => $skipped, 'regional_auto' => $regionalImported];
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'regional_auto' => $regionalImported,
+            'club_updated' => $clubUpdated,
+            'review_open' => $reviewOpen,
+        ];
     }
 
     /**
@@ -273,6 +323,7 @@ class RecordImportService
      *     unknown_clubs: array,
      *     unknown_athletes: array,
      *     skipped: int,
+     *     club_conflicts: array,
      * }
      *
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann
@@ -496,7 +547,17 @@ class RecordImportService
             }
         }
 
+        // ── Vereinskonflikte (nur bereits bekannte Athleten und Vereine) ─────
+        // Unbekannte werden erst beim Import aufgelöst; deren Konflikte landen dann direkt in der Prüfliste.
+        $observations = [];
+        foreach ($records as $rec) {
+            $clubId = $rec['club']['db_id'] ?? null;
+            array_push($observations, ...$this->observations(
+                $rec, $rec['athlete']['db_id'] ?? null, $clubId !== null ? (int) $clubId : null, null));
+        }
+
         return [
+            'club_conflicts' => array_values($this->review->conflicts($observations)),
             'records' => $standardRecords,
             'regional_records' => $regionalRecords,   // ['WBSV' => [...recs], ...]
             'pending_records' => $pendingRecords,     // Rekorde mit unbekannter Nationalität
@@ -507,6 +568,62 @@ class RecordImportService
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
+
+    /**
+     * Beobachtungen für die Vereinsprüfung aus einem Rekord: beim Einzelrekord der Athlet, bei der Staffel die in der
+     * DB gefundenen Mitglieder (RecordImportReviewService filtert internationale Staffeln heraus).
+     */
+    private function observations(array $rec, ?int $athleteId, ?int $clubId, ?int $swimRecordId): array
+    {
+        if ($clubId === null) {
+            return [];
+        }
+
+        $relay = $rec['relay_count'] > 1;
+        $athleteIds = $relay
+            ? array_filter(array_column($rec['relay_members'] ?? [], 'db_id'))
+            : array_filter([$athleteId]);
+
+        if ($athleteIds === []) {
+            return [];
+        }
+
+        $label = $this->review->recordLabel($rec['distance'], $rec['relay_count'],
+            $this->strokeName($rec['stroke_type_id']), $rec['sport_class'], $rec['course'], $rec['record_type']);
+        $date = TimeParser::sanitizeDate($rec['set_date']);
+
+        $observations = [];
+        foreach ($athleteIds as $id) {
+            $observation = $this->review->observation((int) $id, $clubId, $date, $relay, $rec['record_type'], $label,
+                $swimRecordId);
+            if ($observation !== null) {
+                $observations[] = $observation;
+            }
+        }
+
+        return $observations;
+    }
+
+    private function strokeName(int $strokeTypeId): ?string
+    {
+        return $this->strokeNameCache[$strokeTypeId] ??= StrokeType::whereKey($strokeTypeId)->value('name_de');
+    }
+
+    /** Unbekannte Athleten, die einer bestehenden Person zugeordnet wurden, für die Geburtsdatums-Kontrolle. */
+    private function logYearMatches(array $unknownAthletes, array $approvedAthletes, string $source): void
+    {
+        foreach ($unknownAthletes as $athlete) {
+            $decision = $approvedAthletes[$athlete['key']] ?? 'skip';
+            if (! ctype_digit((string) $decision)) {
+                continue;
+            }
+
+            $existing = Athlete::find((int) $decision);
+            if ($existing !== null) {
+                $this->review->logYearMatch($existing, $athlete, $source);
+            }
+        }
+    }
 
     /**
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann

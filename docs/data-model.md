@@ -162,6 +162,12 @@ sich über `supersedes_id`/`superseded_by_id` zur Historie.
 **RelayTeamMember** — `swim_record_id`, `position`, `first_name`, `last_name`,
 `birth_date`, `gender`, optional `athlete_id`.
 
+**ImportReviewItem** (`import_review_items`) — Prüfliste nach dem Rekordimport: `type` (`club_conflict` |
+`year_match` | `nationality`), `athlete_id`, `current_club_id` / `lenex_club_id` (Stammverein bzw. Verein laut Rekord),
+optional `swim_record_id` (Beleg bzw. der zu prüfende Rekord), `source` (Dateiname oder "Bestandsprüfung"), `details` (JSON: Rekord-Bezeichnung und
+-datum bzw. Geburtsdaten laut Datei/DB), `status` (`open` | `applied` | `ignored`), `resolved_at`, `resolved_by`.
+Siehe `docs/specs/records.md` "Prüfliste nach dem Import".
+
 ## World-Aquatics-Basiszeiten
 
 **BaseTimeVersion** — `label`, `valid_from`, `valid_until` (Versionierung). **BaseTimeCategory** — `code`, `course`,
