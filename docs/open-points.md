@@ -98,6 +98,10 @@ zählen.
 dem Verein im Ergebnis, Kärnten-Codes `AUT.KLSV*` → `AUT.KBSV*` migriert, Altfälle als "Regionalrekord: falscher
 Verband" in der Import Prüfliste.
 
+**ÖBSV-Typen `AUT.IND` / `AUT.REL` — erledigt** (`fix/merge-national-record-types`, 07.10.2026): Import ordnet
+sie `AUT`/`AUT.JR` zu; Bestand per `php artisan records:merge-national-types` (Probelauf + Bericht) zusammenführen —
+siehe `docs/specs/records.md`. Ausführung auf den Daten: Erik nach Prüfung des Berichts.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -111,8 +115,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
 9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
-10. "ÖBSV-Rekordimport: Typen `AUT.IND` / `AUT.REL` in die AUT-Ketten zusammenführen" unten (Datenkorrektur, wichtig:
-    237 Kategorien mit zwei aktuellen Nationalrekorden)
+10. "Staffel-Rekordprüfung verlangt die heutige Vereinszugehörigkeit" unten (Bugfix)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -295,27 +298,16 @@ Mitgliedern? Bezug zu Staffeln?).
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
 
-## ÖBSV-Rekordimport: Typen `AUT.IND` / `AUT.REL` in die AUT-Ketten zusammenführen
+## Staffel-Rekordprüfung verlangt die heutige Vereinszugehörigkeit
 
-**Seit:** `fix/regional-record-club` (07.10.2026), Befund bei der Prüfung der Regionalrekorde.
+**Seit:** `fix/regional-record-club` (07.10.2026), Nebenbefund.
 
-**Was falsch ist:** Der LENEX-Rekordimport vom 19.09.2026 (ÖBSV-Rekordfile) hat 559 Rekorde mit den Typen
-`AUT.IND` (316), `AUT.IND.JG` (221), `AUT.REL` (18) und `AUT.REL.JG` (4) angelegt. `RecordImportService::TYPE_MAP`
-kennt nur `AUT.JG` → `AUT.JR`. Laut Erik (07.10.2026) sind das die **nationalen Einzel- (`IND`) bzw. Staffelrekorde
-(`REL`)**, `JG` = Jugend — gehören also zu `AUT` bzw. `AUT.JR`. Sie bilden heute eigene Ketten neben den AUT-Rekorden
-aus den Ergebnissen: in 237 Kategorien gibt es zwei "aktuelle" Nationalrekorde; in Filtern, öffentlichem Rekordbrett
-und Statistik zählen die `AUT.IND`-Rekorde nicht als Nationalrekord.
+**Was falsch ist:** `RecordCheckerService::checkRelayResult()` verlangt, dass alle Staffelmitglieder **heute** beim
+Staffelverein sind (`$athlete->club_id !== $relayResult->club_id`). Nach einem Vereinswechsel liefert eine erneute
+Rekordprüfung einer alten Staffel deshalb keinen Rekord mehr (gleiche Fehlerklasse wie der behobene Regional-Bug).
 
-**Zum Schließen nötig:** `TYPE_MAP` um `AUT.IND` → `AUT`, `AUT.IND.JG` → `AUT.JR`, `AUT.REL` → `AUT`,
-`AUT.REL.JG` → `AUT.JR` ergänzen (künftige Importe); Bestand je Kategorie zusammenführen — beide Ketten nach Zeit und
-Datum zu einer Historie verknüpfen, genau ein aktueller Rekord (schnellste Zeit), Statusfelder (`APPROVED.HISTORY`)
-und `superseded_by_id`/`supersedes_id` konsistent; Tests mit überlappenden Ketten. Vorab klären: Was gilt bei gleicher
-Zeit in beiden Ketten (älteres Datum gewinnt?).
-
-**Nebenbefund (gleiche Fehlerklasse wie der Regional-Bug):** `RecordCheckerService::checkRelayResult()` verlangt, dass
-alle Staffelmitglieder **heute** beim Staffelverein sind (`$athlete->club_id !== $relayResult->club_id`). Nach einem
-Vereinswechsel liefert eine erneute Rekordprüfung einer alten Staffel deshalb keinen Rekord mehr. Beim Zusammenführen
-mit prüfen (Zugehörigkeit zum Zeitpunkt des Starts, z. B. über die Ergebnisse der Mitglieder im selben Wettkampf).
+**Zum Schließen nötig:** Zugehörigkeit zum Zeitpunkt des Starts prüfen, z. B. über die Einzelergebnisse der Mitglieder
+im selben Wettkampf (`results.club_id`) oder die Vereins-History; Test mit Vereinswechsel nach dem Start.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

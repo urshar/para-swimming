@@ -230,6 +230,31 @@ ignorierter Eintrag kommt nicht wieder.
 und nimmt neue relevante Konflikte und Nationalitäts-Befunde offen auf (Quelle "Bestandsprüfung"). Beim Import werden
 nur die neu angelegten Rekorde auf die Nationalität geprüft.
 
+## Zusammenführung der ÖBSV-Typen — `NationalRecordMergeService`
+
+Das ÖBSV-Rekordfile verwendet `AUT.IND` / `AUT.REL` (nationale Einzel- bzw. Staffelrekorde) und `AUT.IND.JG` /
+`AUT.REL.JG` (Jugend). Der Import ordnet sie seit `fix/merge-national-record-types` (07.10.2026) über
+`RecordImportService::TYPE_MAP` direkt `AUT` bzw. `AUT.JR` zu. Den Bestand aus dem Import vom 19.09.2026 führt der
+Befehl `php artisan records:merge-national-types` (erst mit `--dry-run`) zusammen. Er schreibt immer einen
+CSV-Bericht nach `storage/app/private/record-merge/` (je Rekord: Aktion, Grund, Typ alt/neu, aktuell vorher/nachher).
+
+Regeln je Kategorie (Zieltyp, Schwimmart, Sportklasse, Geschlecht, Bahn, Strecke, Staffelgröße):
+
+- **Nur Import-Rekorde:** Typ umbenennen, die Kette aus der Datei bleibt.
+- **Doppelt** (gleicher Athlet bzw. Staffelverein, gleiche Zeit, Datum darf abweichen): Der Rekord aus dem Ergebnis
+  bleibt (Verknüpfung zum Ergebnis), der Import-Rekord entfällt.
+- **Kette nach Datum** (gleicher Tag: langsamere zuerst): Ein Rekord bleibt nur, wenn er schneller ist als alles davor;
+  Gleichstand zählt nicht (wie bei Rekordprüfung und Import).
+- **ÖBSV-Liste maßgeblich bis zu ihrem Stand** (jüngstes Datum der Import-Rekorde, 19.05.2019): Ein Ergebnis-Rekord
+  aus dieser Zeit, der schneller ist als der beste offizielle Rekord der Kategorie, wird entfernt — von der Liste nicht
+  anerkannt (z. B. Nationalität, Klassifizierung).
+- Entfernte Rekorde werden gelöscht (Splits/Staffelmitglieder mit), ihr Rekord-Flag am Ergebnis zurückgesetzt; die
+  Kette wird neu verknüpft, genau ein aktueller Rekord (`APPROVED`, sonst `APPROVED.HISTORY`).
+- Kategorien ohne Import-Rekord und Regionalrekorde bleiben unverändert.
+
+Probelauf auf Dev (07.10.2026): 554 Kategorien, 703 Rekorde entfernt (510 Ergebnis-Rekorde ohne echten Rekord, 117
+Doppelte, 72 nicht in der Liste, 4 Import-Einträge ohne Verbesserung), in 203 Kategorien wechselt der aktuelle Rekord.
+
 ## LENEX-Export — `RecordLenexExportService`
 
 `build(...)` erzeugt aus den (gefilterten) Rekorden ein LENEX-Dokument; die Auslieferung als Download übernimmt
