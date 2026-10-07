@@ -12,7 +12,8 @@ use Throwable;
 
 /**
  * Prüfliste nach dem LENEX-Rekordimport: Vereinskonflikte, Zuordnungen mit abweichendem Geburtsdatum und Rekorde von
- * Athleten, deren Nationalität nicht AUT ist (docs/specs/records.md "Prüfliste nach dem Import").
+ * Athleten, deren Nationalität nicht AUT ist, sowie Regionalrekorde mit falschem Verband (docs/specs/records.md
+ * "Prüfliste nach dem Import").
  */
 class RecordImportReviewController extends Controller
 {
@@ -28,6 +29,7 @@ class RecordImportReviewController extends Controller
         ImportReviewItem::TYPE_CLUB_CONFLICT => 'Vereinskonflikte',
         ImportReviewItem::TYPE_YEAR_MATCH => 'Geburtsdatum abweichend',
         ImportReviewItem::TYPE_NATIONALITY => 'Nationalität nicht AUT',
+        ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
     ];
 
     public function __construct(
@@ -80,6 +82,8 @@ class RecordImportReviewController extends Controller
             ImportReviewItem::TYPE_CLUB_CONFLICT => 'Stammverein von '.$item->athlete->display_name.' aktualisiert.',
             ImportReviewItem::TYPE_NATIONALITY => 'Rekord von '.$item->athlete->display_name
                 .' entfernt; die Rekord-Historie wurde neu verknüpft.',
+            ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord von '.$item->athlete->display_name
+                .' entfernt. Für den richtigen Regionalrekord die Rekordprüfung des Wettkampfs erneut starten.',
             default => 'Zuordnung von '.$item->athlete->display_name.' als geprüft markiert.',
         });
     }

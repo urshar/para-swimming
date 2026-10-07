@@ -94,6 +94,10 @@ abweichende Geburtsdaten nach dem Rekordimport in einer gespeicherten Prüfliste
 sind (`ÖBSV`, `ÖSBV`, `SBSV`, `VVBSV`), auf Typ `VERBAND` umstellen, damit deren Rekorde nicht als Vereinskonflikt
 zählen.
 
+**Regionalrekord nach dem Verein im Ergebnis — erledigt** (`fix/regional-record-club`, 07.10.2026): Verband aus
+dem Verein im Ergebnis, Kärnten-Codes `AUT.KLSV*` → `AUT.KBSV*` migriert, Altfälle als "Regionalrekord: falscher
+Verband" in der Import Prüfliste.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -107,7 +111,8 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
 9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
-10. "Regionalrekord nach dem Verein im Ergebnis statt dem aktuellen Verein" unten (Bugfix, als Nächstes vereinbart)
+10. "ÖBSV-Rekordimport: Typen `AUT.IND` / `AUT.REL` in die AUT-Ketten zusammenführen" unten (Datenkorrektur, wichtig:
+    237 Kategorien mit zwei aktuellen Nationalrekorden)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -290,20 +295,27 @@ Mitgliedern? Bezug zu Staffeln?).
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
 
-## Regionalrekord nach dem Verein im Ergebnis statt dem aktuellen Verein
+## ÖBSV-Rekordimport: Typen `AUT.IND` / `AUT.REL` in die AUT-Ketten zusammenführen
 
-**Seit:** `feature/record-import-review` (07.10.2026), Nebenbefund beim Fall Komarov.
+**Seit:** `fix/regional-record-club` (07.10.2026), Befund bei der Prüfung der Regionalrekorde.
 
-**Was falsch ist:** `RecordCheckerService` leitet den regionalen Rekordtyp (`AUT.KLSV`, `AUT.STBSV` …) vom
-**aktuellen** Verein des Athleten ab (`$result->athlete?->club?->regional_record_type`), nicht vom Verein im Ergebnis.
-Ein Ergebnis für den Grazer VSC wurde dadurch als Kärntner Regionalrekord eingetragen, weil der Athlet heute beim
-Kärntner BSV gemeldet ist (bzw. umgekehrt je nach Zeitpunkt der Prüfung).
+**Was falsch ist:** Der LENEX-Rekordimport vom 19.09.2026 (ÖBSV-Rekordfile) hat 559 Rekorde mit den Typen
+`AUT.IND` (316), `AUT.IND.JG` (221), `AUT.REL` (18) und `AUT.REL.JG` (4) angelegt. `RecordImportService::TYPE_MAP`
+kennt nur `AUT.JG` → `AUT.JR`. Laut Erik (07.10.2026) sind das die **nationalen Einzel- (`IND`) bzw. Staffelrekorde
+(`REL`)**, `JG` = Jugend — gehören also zu `AUT` bzw. `AUT.JR`. Sie bilden heute eigene Ketten neben den AUT-Rekorden
+aus den Ergebnissen: in 237 Kategorien gibt es zwei "aktuelle" Nationalrekorde; in Filtern, öffentlichem Rekordbrett
+und Statistik zählen die `AUT.IND`-Rekorde nicht als Nationalrekord.
 
-**Vereinbart (Erik, 07.10.2026):** Eigener Bugfix-Branch nach `feature/record-import-review`: Verband aus
-`$result->club`, Fallback auf den Verein des Athleten nur, wenn das Ergebnis keinen Verein hat (Einzel; Staffeln
-prüfen). Bereits falsch zugeordnete Regionalrekorde werden dadurch nicht rückwirkend korrigiert — wie man sie findet
-(Vergleich Rekordtyp ↔ Verband des Rekord-Vereins `swim_records.club_id`, ggf. als weitere Art in der Import
-Prüfliste), ist dort zu klären.
+**Zum Schließen nötig:** `TYPE_MAP` um `AUT.IND` → `AUT`, `AUT.IND.JG` → `AUT.JR`, `AUT.REL` → `AUT`,
+`AUT.REL.JG` → `AUT.JR` ergänzen (künftige Importe); Bestand je Kategorie zusammenführen — beide Ketten nach Zeit und
+Datum zu einer Historie verknüpfen, genau ein aktueller Rekord (schnellste Zeit), Statusfelder (`APPROVED.HISTORY`)
+und `superseded_by_id`/`supersedes_id` konsistent; Tests mit überlappenden Ketten. Vorab klären: Was gilt bei gleicher
+Zeit in beiden Ketten (älteres Datum gewinnt?).
+
+**Nebenbefund (gleiche Fehlerklasse wie der Regional-Bug):** `RecordCheckerService::checkRelayResult()` verlangt, dass
+alle Staffelmitglieder **heute** beim Staffelverein sind (`$athlete->club_id !== $relayResult->club_id`). Nach einem
+Vereinswechsel liefert eine erneute Rekordprüfung einer alten Staffel deshalb keinen Rekord mehr. Beim Zusammenführen
+mit prüfen (Zugehörigkeit zum Zeitpunkt des Starts, z. B. über die Ergebnisse der Mitglieder im selben Wettkampf).
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

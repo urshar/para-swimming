@@ -40,6 +40,12 @@
             Athleten. "Rekord entfernen" löscht den Rekord und verknüpft die Rekord-Historie neu (ein Vorgänger wird
             wieder aktuell). Ist die Nationalität falsch eingetragen, stattdessen ignorieren und beim Athleten korrigieren.
         </li>
+        <li>
+            <strong>Regionalrekord: falscher Verband:</strong> Der Regionalrekord passt nicht zum Landesverband des
+            Vereins, für den er geschwommen wurde (früher leitete die Rekordprüfung den Verband vom aktuellen Verein des
+            Athleten ab). "Rekord entfernen" löscht ihn; danach auf dem Wettkampf "Rekorde prüfen" erneut starten, damit
+            der richtige Regionalrekord entsteht.
+        </li>
         <li>"Bestand prüfen" wendet diese Prüfungen auch auf bereits gespeicherte Rekorde an.</li>
     </ul>
 
@@ -81,8 +87,15 @@
                             $details = $item->details ?? [];
                             $isConflict = $item->type === ImportReviewItem::TYPE_CLUB_CONFLICT;
                             $isNationality = $item->type === ImportReviewItem::TYPE_NATIONALITY;
-                            $typeColor = $isConflict ? 'blue' : ($isNationality ? 'red' : 'violet');
-                            $applyLabel = $isConflict ? 'Verein übernehmen' : ($isNationality ? 'Rekord entfernen' : 'Geprüft');
+                            $isRegional = $item->type === ImportReviewItem::TYPE_REGIONAL;
+                            $removes = $item->removesRecord();
+                            $typeColor = match (true) {
+                                $isConflict => 'blue',
+                                $isNationality => 'red',
+                                $isRegional => 'orange',
+                                default => 'violet',
+                            };
+                            $applyLabel = $isConflict ? 'Verein übernehmen' : ($removes ? 'Rekord entfernen' : 'Geprüft');
                         @endphp
                         <flux:table.row>
                             <flux:table.cell class="font-medium">
@@ -111,11 +124,29 @@
                                             · {{ Carbon::parse($details['date'])->format('d.m.Y') }}
                                         @endif
                                     </div>
-                                @elseif($isNationality)
-                                    <div>
-                                        <span class="text-zinc-500 dark:text-zinc-400">Nationalität:</span>
-                                        <span class="font-medium">{{ $details['nation'] ?? '' }}</span>
-                                    </div>
+                                @elseif($removes)
+                                    @if($isNationality)
+                                        <div>
+                                            <span class="text-zinc-500 dark:text-zinc-400">Nationalität:</span>
+                                            <span class="font-medium">{{ $details['nation'] ?? '' }}</span>
+                                        </div>
+                                    @else
+                                        <div>
+                                            <span class="text-zinc-500 dark:text-zinc-400">Rekord-Verein:</span>
+                                            {{ $item->currentClub?->display_name ?? '—' }}
+                                            ({{ $details['expected'] ?? '' }})
+                                        </div>
+                                        <div>
+                                            <span class="text-zinc-500 dark:text-zinc-400">eingetragen als:</span>
+                                            <span class="font-medium">{{ $details['record_type'] ?? '' }}</span>
+                                        </div>
+                                        @if(!empty($details['meet_id']))
+                                            <div class="text-xs">
+                                                <a href="{{ route('meets.show', $details['meet_id']) }}"
+                                                   class="text-zinc-500 dark:text-zinc-400 hover:underline">{{ $details['meet_name'] ?? 'Wettkampf' }}</a>
+                                            </div>
+                                        @endif
+                                    @endif
                                     <div class="text-xs text-zinc-500 dark:text-zinc-400">
                                         @if($item->swimRecord)
                                             <a href="{{ route('records.show', $item->swim_record_id) }}"
@@ -159,14 +190,14 @@
                                     <div class="flex items-center justify-end gap-1">
                                         {{-- Rekord entfernen löscht Daten: mit Rückfrage (wie beim Löschen in den Listen). --}}
                                         <form method="POST" action="{{ route('records.import-review.apply', $item) }}"
-                                              @if($isNationality)
+                                              @if($removes)
                                                   x-data="{ submit() { if (confirm('Rekord entfernen? Die Rekord-Historie wird neu verknüpft.')) this.$el.submit() } }"
                                                   @submit.prevent="submit()"
                                               @endif>
                                             @csrf
                                             <flux:button type="submit" size="xs"
-                                                         :variant="$isNationality ? 'danger' : 'primary'"
-                                                         :icon="$isNationality ? 'trash' : 'check'">
+                                                         :variant="$removes ? 'danger' : 'primary'"
+                                                         :icon="$removes ? 'trash' : 'check'">
                                                 {{ $applyLabel }}
                                             </flux:button>
                                         </form>

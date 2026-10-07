@@ -251,7 +251,12 @@ readonly class RecordCheckerService
         $isJunior = ! $nationUnknown && $this->isJunior($result, $meet);
         $recordStatus = $isPending ? 'PENDING' : 'APPROVED';
 
-        $regionalBase = $nationUnknown ? null : $result->athlete?->club?->regional_record_type;
+        // Landesverband aus dem Verein im Ergebnis (Verein zum Zeitpunkt des Starts), nicht aus dem aktuellen Verein
+        // des Athleten — sonst landet nach einem Vereinswechsel ein Rekord im falschen Bundesland. Nur ohne Verein im
+        // Ergebnis der Verein des Athleten. Ein Verein ohne Landesverband (z. B. ÖBSV als Nationalteam): kein
+        // Regionalrekord.
+        $recordClub = $result->club_id !== null ? $result->club : $result->athlete?->club;
+        $regionalBase = $nationUnknown ? null : $recordClub?->regional_record_type;
         $types = ['AUT' => true];
         if (! $nationUnknown) {
             $types['AUT.JR'] = $isJunior;
