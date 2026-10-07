@@ -52,6 +52,9 @@ class RecordImportService
     /** LENEX record_type → interner record_type */
     private const array TYPE_MAP = [
         'AUT.JG' => 'AUT.JR',
+        // ÖBSV-Rekordfile: nationale Einzel- (IND) und Staffelrekorde (REL), JG = Jugend. Bestand aus der Zeit davor
+        // führt "php artisan records:merge-national-types" zusammen (NationalRecordMergeService).
+        ...NationalRecordMergeService::TYPE_MAP,
     ];
 
     /** LENEX SWIMSTYLE.stroke → StrokeType.lenex_code */
