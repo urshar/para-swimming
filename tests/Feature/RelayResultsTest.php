@@ -238,8 +238,12 @@ it('legt für Herrenstaffeln mit Damenbeteiligung und vereinsfremden Schwimmern 
     [$meet, $club, $event] = setup_rr();
     relay_rr($meet, $event, $club, 'M', athletes_rr($club, ['M', 'M', 'M', 'F']), 15000, null);
     $foreign = athletes_rr($club, ['M', 'M', 'M']);
-    $foreign[] = makeAthlete_p5(makeClub_p5(), 'M', ['S14']);
+    $stranger = makeAthlete_p5(makeClub_p5(), 'M', ['S14']);
+    $foreign[] = $stranger;
     relay_rr($meet, $event, $club, 'M', $foreign, 15000, null);
+    // Beleg für den fremden Verein am Starttag: Einzelstart im selben Wettkampf (ohne Beleg wäre der Rekord ausstehend).
+    Result::create(['meet_id' => $meet->id, 'swim_event_id' => makeEvent_p5($meet, ['distance' => 50])->id,
+        'athlete_id' => $stranger->id, 'club_id' => $stranger->club_id, 'sport_class' => 'S14', 'status' => 'DSQ']);
 
     check_rr($meet);
 
