@@ -1,4 +1,4 @@
-@php use App\Models\QualifyingTimeList; @endphp
+@php use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
     
     <!DOCTYPE html>
 {{-- Dark/Light wird komplett über Flux' eigenes $flux.appearance-System gesteuert (Alpine-Magic aus dem
@@ -255,17 +255,27 @@
         <flux:navlist.group heading="Rekorde" expandable :expanded="request()->routeIs('records.*')">
             <flux:navlist.item icon="star" href="{{ route('records.index') }}"
                                :current="request()->routeIs('records.index') || request()->routeIs('records.show') || request()->routeIs('records.create') || request()->routeIs('records.edit')">
-                Rekorde
+                Rekordlisten
             </flux:navlist.item>
             @if(auth()->user()?->is_admin)
             <flux:navlist.item icon="arrow-up-tray" href="{{ route('records.import') }}"
-                               :current="request()->routeIs('records.import*')">
-                Rekorde importieren
+                               :current="request()->routeIs('records.import', 'records.import.*')">
+                Importieren
+            </flux:navlist.item>
+            @php
+                $openReviewCount = ImportReviewItem::open()->count();
+            @endphp
+            <flux:navlist.item icon="clipboard-document-check" href="{{ route('records.import-review.index') }}"
+                               :current="request()->routeIs('records.import-review.*')"
+                               :badge="$openReviewCount > 0 ? $openReviewCount : null"
+                               badge:color="red" badge:variant="solid"
+                               class="[&_[data-content]]:min-w-0 [&_[data-content]]:truncate">
+                Import Prüfliste
             </flux:navlist.item>
             @endif
             <flux:navlist.item icon="arrow-down-tray" href="{{ route('records.export') }}"
                                :current="request()->routeIs('records.export*')">
-                Rekorde exportieren
+                Exportieren
             </flux:navlist.item>
         </flux:navlist.group>
 

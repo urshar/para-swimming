@@ -138,6 +138,61 @@ class SwimRecord extends Model
     }
 
     /**
+     * Löscht einen ungültigen Rekord und hält die Historie konsistent: Hatte er einen Nachfolger, wird dieser direkt
+     * mit dem Vorgänger verknüpft; war er aktuell, wird der Vorgänger wieder aktuell. Das passende Rekord-Flag am
+     * Ergebnis wird zurückgesetzt. Genutzt von der Rekordimport-Prüfliste ("Nationalität nicht AUT").
+     *
+     * @throws Throwable
+     */
+    public function removeFromHistory(): void
+    {
+        DB::transaction(function () {
+            $predecessor = $this->supersedes;
+            $successor = SwimRecord::where('supersedes_id', $this->id)->first();
+
+            if ($successor !== null) {
+                $successor->update(['supersedes_id' => $predecessor?->id]);
+                $predecessor?->update(['superseded_by_id' => $successor->id]);
+            } elseif ($this->is_current && $predecessor !== null) {
+                $predecessor->update([
+                    'is_current' => true,
+                    'superseded_by_id' => null,
+                    'record_status' => match ($predecessor->record_status) {
+                        'APPROVED.HISTORY' => 'APPROVED',
+                        'PENDING.HISTORY' => 'PENDING',
+                        default => $predecessor->record_status,
+                    },
+                ]);
+            }
+
+            $flag = $this->resultFlag();
+            if ($this->result_id !== null && $flag !== null) {
+                $stillFlagged = SwimRecord::where('result_id', $this->result_id)
+                    ->whereKeyNot($this->id)
+                    ->get(['record_type'])
+                    ->contains(fn (SwimRecord $other) => $other->resultFlag() === $flag);
+                if (! $stillFlagged) {
+                    Result::whereKey($this->result_id)->update([$flag => false]);
+                }
+            }
+
+            $this->delete();
+        });
+    }
+
+    /** Rekord-Flag am Ergebnis, das zu diesem Rekordtyp gehört (siehe RecordCheckerService::updateResultFlags). */
+    public function resultFlag(): ?string
+    {
+        return match (true) {
+            $this->record_type === 'AUT' => 'is_national_record',
+            $this->record_type === 'AUT.JR' => 'is_junior_record',
+            (bool) preg_match('/^AUT\.[A-Z]+\.JR$/', $this->record_type) => 'is_regional_junior_record',
+            (bool) preg_match('/^AUT\.[A-Z]+$/', $this->record_type) => 'is_regional_record',
+            default => null,
+        };
+    }
+
+    /**
      * Wird aufgerufen wenn dieser Rekord von einem neueren überboten wird.
      * Setzt is_current = false, record_status und superseded_by_id.
      */

@@ -184,6 +184,42 @@ nur als "unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen �
   unbekannten Athleten verknüpft — eine (auch vorbelegte) Zuordnung aktualisiert den dort gezeigten
   Vereinsnamen sofort.
 
+## Prüfliste nach dem Import — `RecordImportReviewService`
+
+Seit `feature/record-import-review` (07.10.2026). Gespeichert in `import_review_items` (Model `ImportReviewItem`),
+abzuarbeiten unter **Rekorde → Import Prüfliste** (`records.import-review.*`, nur Admin; der Menüpunkt zeigt die
+Zahl offener Einträge). Drei Arten:
+
+- **Vereinskonflikt (`club_conflict`)**: Der Verein laut Rekord weicht vom Stammverein (`Athlete::club_id`) ab.
+  Maßgeblich ist je Athlet der **jüngste Einzelrekord**; nur ohne Einzelrekord der jüngste **Staffelrekord** — dabei
+  zählen die in der DB gefundenen Staffelmitglieder, und nur bei nationalen/regionalen Rekorden (`AUT*`), weil
+  internationale Staffeln als Nationalteam schwimmen. Rekorde für einen **Verband** (`Club::TYPE_VERBAND`, z. B. der
+  ÖBSV als Nationalteam) zählen gar nicht.
+  **Relevant** (vorbelegt und in die Liste) ist ein Konflikt nur, wenn der Athlet nach dem Rekord nicht schon
+  nachweislich für den aktuellen Verein angetreten ist: weder Eintritt (`athlete_club_history.joined_at`) noch ein
+  Wettkampfergebnis beim aktuellen Verein liegt nach dem Rekorddatum. Die Vereins-History ist im Bestand fast leer, die
+  Ergebnisse tragen dagegen immer einen Verein.
+- **Geburtsdatum abweichend (`year_match`)**: Ein unbekannter Athlet aus der Datei wurde in der Vorschau einer
+  bestehenden Person mit anderem Geburtsdatum zugeordnet (typisch: Jahrgang mit `-01-01`, siehe oben). Nur zur
+  Kontrolle; Aktion "Geprüft".
+- **Nationalität nicht AUT (`nationality`)**: AUT- oder Regional-Einzelrekord (aktuell oder historisch) eines Athleten
+  mit bekannter, anderer Nationalität — darf es nicht geben (siehe Nationalitätsregel oben), entsteht typisch, wenn die
+  Nationalität nach der Rekordprüfung korrigiert wird. Aktion "Rekord entfernen" (`SwimRecord::removeFromHistory()`):
+  löscht den Rekord, verknüpft Vorgänger und Nachfolger direkt bzw. macht den Vorgänger wieder aktuell und setzt das
+  Rekord-Flag am Ergebnis zurück. Ist die Nationalität falsch eingetragen: ignorieren und beim Athleten korrigieren.
+  Solche Athleten bekommen keinen Vereinskonflikt.
+
+**Ablauf beim Import:** Die Vorschau zeigt Konflikte bekannter Athleten/Vereine im Abschnitt "Vereinskonflikte" mit
+einer Checkbox je Athlet (`club_updates[athlete_id] = club_id`, vorbelegt = relevant). Angehakte werden beim Import
+übernommen — Vereinswechsel über `AthleteClubTransferService` (History-Eintrag ab Rekorddatum, wie auf der
+Athletenseite) und als "übernommen" protokolliert. Alle übrigen relevanten Konflikte (auch die erst beim Import
+aufgelösten Athleten/Vereine) landen offen in der Liste. Dasselbe Vereinspaar je Athlet wird nur einmal geführt; ein
+ignorierter Eintrag kommt nicht wieder.
+
+**Bestand prüfen** (`scanExisting()`): wendet dieselben Regeln auf alle gespeicherten Rekorde und Staffelmitglieder an
+und nimmt neue relevante Konflikte und Nationalitäts-Befunde offen auf (Quelle "Bestandsprüfung"). Beim Import werden
+nur die neu angelegten Rekorde auf die Nationalität geprüft.
+
 ## LENEX-Export — `RecordLenexExportService`
 
 `build(...)` erzeugt aus den (gefilterten) Rekorden ein LENEX-Dokument; die Auslieferung als Download übernimmt
@@ -201,6 +237,7 @@ Alle unter `auth`, Prefix `records`:
 | `GET /records/import` · `POST /records/import/preview` · `POST /records/import/run` | `records.import` · `records.import.preview` · `records.import.run` | Import             |
 | `GET /records/export` · `POST /records/export/download`                             | `records.export` · `records.export.download`                       | Export             |
 | `POST /records/check/{meet}`                                                        | `records.check`                                                    | Prüflauf über Meet |
+| `GET /records/import-review` · `POST …/scan` · `POST …/{item}/apply` · `…/ignore`   | `records.import-review.index` · `.scan` · `.apply` · `.ignore`     | Prüfliste (Admin)  |
 | `GET /records/{record}/edit` · `PUT /records/{record}`                              | `records.edit` · `records.update`                                  | bearbeiten         |
 | `GET /records/{record}` · `DELETE /records/{record}`                                | `records.show` · `records.destroy`                                 | Detail/Löschen     |
 | `POST /records/{record}/restore`                                                    | `records.restore`                                                  | wiederherstellen   |
@@ -218,5 +255,8 @@ Alle unter `auth`, Prefix `records`:
 
 - `tests/Unit/RecordCheckerServiceTest.php` — Rekord-Erkennung, Nationalitäts- und Ablöselogik.
 - `tests/Unit/RelayClassValidatorTest.php` — Staffelklassen-Auflösung (auch von der Staffel-Rekordprüfung genutzt).
+- `tests/Feature/RecordImportReviewTest.php` — Vereinskonflikte (Vorschau, Import, Staffeln, Verbände, Relevanz),
+  Geburtsdatums-Kontrolle, Nationalität nicht AUT (inkl. Neu-Verknüpfung der Historie), Bestandsprüfung und Aktionen
+  der Prüfliste.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).

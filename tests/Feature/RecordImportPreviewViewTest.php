@@ -18,6 +18,7 @@ function makePreview_rip(): array
         'records' => [],
         'regional_records' => [],
         'pending_records' => [],
+        'club_conflicts' => [],
         'skipped' => 0,
         'unknown_clubs' => [
             ['key' => 'FFST', 'code' => 'FFST', 'name' => 'Flying Flippers Schwimmteam', 'nation' => 'AUT',
