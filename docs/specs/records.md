@@ -79,7 +79,12 @@ ein schnellerer Rekord anerkannt, wandert der bestätigte direkt in die Historie
 
 - **Jugend**: Einzel — `Wettkampfjahr − Geburtsjahr ≤ 18`; Staffel — alle Mitglieder mit bekanntem Geburtsdatum ≤ 18
   (`RelayClassValidator::isJuniorRelay`). AUT.JR wird als APPROVED angelegt (bei `EXH` als PENDING).
-- **Regional**: aus `club.regional_record_type`, jeweils Basis- und JR-Variante.
+- **Regional**: aus `club.regional_record_type` des **Vereins im Ergebnis** (Verein zum Zeitpunkt des Starts), nur
+  ohne Verein im Ergebnis aus dem Verein des Athleten; jeweils Basis- und JR-Variante. Ein Verein ohne Landesverband
+  (z. B. ÖBSV als Nationalteam) ergibt keinen Regionalrekord. Bis `fix/regional-record-club` (07.10.2026) kam der
+  Verband aus dem *aktuellen* Verein des Athleten — falsch zugeordnete Altfälle findet die Import Prüfliste.
+  Kärnten heißt seit 27.07.2026 `KBSV` (vorher `KLSV`); alte `AUT.KLSV*`-Rekorde hat die Migration
+  `2026_10_07_100002_rename_klsv_regional_record_types` umbenannt.
 
 ### Staffelrekorde — `checkRelayResult`
 
@@ -188,7 +193,7 @@ nur als "unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen �
 
 Seit `feature/record-import-review` (07.10.2026). Gespeichert in `import_review_items` (Model `ImportReviewItem`),
 abzuarbeiten unter **Rekorde → Import Prüfliste** (`records.import-review.*`, nur Admin; der Menüpunkt zeigt die
-Zahl offener Einträge). Drei Arten:
+Zahl offener Einträge). Vier Arten:
 
 - **Vereinskonflikt (`club_conflict`)**: Der Verein laut Rekord weicht vom Stammverein (`Athlete::club_id`) ab.
   Maßgeblich ist je Athlet der **jüngste Einzelrekord**; nur ohne Einzelrekord der jüngste **Staffelrekord** — dabei
@@ -208,6 +213,11 @@ Zahl offener Einträge). Drei Arten:
   löscht den Rekord, verknüpft Vorgänger und Nachfolger direkt bzw. macht den Vorgänger wieder aktuell und setzt das
   Rekord-Flag am Ergebnis zurück. Ist die Nationalität falsch eingetragen: ignorieren und beim Athleten korrigieren.
   Solche Athleten bekommen keinen Vereinskonflikt.
+- **Regionalrekord: falscher Verband (`regional_mismatch`)**: Einzel-Regionalrekord, dessen Verband nicht zum
+  Landesverband des Rekord-Vereins (`swim_records.club_id`) passt — Altfälle aus der Zeit vor
+  `fix/regional-record-club`. Vereine ohne Landesverband und unbekannte Typen (z. B. `AUT.IND`) werden nicht bewertet.
+  Aktion "Rekord entfernen"; danach auf dem Wettkampf (verlinkt) "Rekorde prüfen" erneut starten, damit der richtige
+  Regionalrekord entsteht — bei mehreren Wettkämpfen in zeitlicher Reihenfolge.
 
 **Ablauf beim Import:** Die Vorschau zeigt Konflikte bekannter Athleten/Vereine im Abschnitt "Vereinskonflikte" mit
 einer Checkbox je Athlet (`club_updates[athlete_id] = club_id`, vorbelegt = relevant). Angehakte werden beim Import

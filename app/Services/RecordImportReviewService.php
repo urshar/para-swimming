@@ -253,8 +253,9 @@ final readonly class RecordImportReviewService
             }
         }
 
-        // Nationalität: Rekord entfernen (Historie neu verknüpfen). Ist er schon weg, nur als erledigt markieren.
-        if ($item->type === ImportReviewItem::TYPE_NATIONALITY) {
+        // Nationalität/Regionalverband: Rekord entfernen (Historie neu verknüpfen). Ist er schon weg, nur als erledigt
+        // markieren.
+        if ($item->removesRecord()) {
             $item->swimRecord?->removeFromHistory();
         }
 
@@ -269,8 +270,8 @@ final readonly class RecordImportReviewService
     }
 
     /**
-     * Prüft alle vorhandenen Rekorde: Nationalität (logNationalityIssues) und Vereinskonflikte (Einzel und
-     * Staffelmitglieder); neue Befunde kommen offen in die Liste.
+     * Prüft alle vorhandenen Rekorde: Nationalität (logNationalityIssues), Regionalverband (logRegionalMismatches) und
+     * Vereinskonflikte (Einzel und Staffelmitglieder); neue Befunde kommen offen in die Liste.
      *
      * @return int Anzahl neu aufgenommener Einträge
      */
@@ -299,7 +300,8 @@ final readonly class RecordImportReviewService
                 $observations[] = $this->observationFromRecord($member->swimRecord, $member->athlete_id);
             });
 
-        $created = $this->logNationalityIssues(null, self::SOURCE_SCAN);
+        $created = $this->logNationalityIssues(null, self::SOURCE_SCAN)
+            + $this->logRegionalMismatches(self::SOURCE_SCAN);
         foreach ($this->conflicts(array_values(array_filter($observations))) as $conflict) {
             if ($conflict['relevant']
                 && $this->logConflict($conflict, self::SOURCE_SCAN, ImportReviewItem::STATUS_OPEN, null) !== null) {
@@ -346,6 +348,60 @@ final readonly class RecordImportReviewService
                             $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type),
                         'date' => $record->set_date?->toDateString(),
                         'is_current' => $record->is_current,
+                    ],
+                    'status' => ImportReviewItem::STATUS_OPEN,
+                ],
+            );
+            if ($item->wasRecentlyCreated) {
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
+    /**
+     * Nimmt Regionalrekorde (aktuell und historisch) auf, deren Verband nicht zum Landesverband des Rekord-Vereins passt
+     * — typisch aus der Zeit, als die Rekordprüfung den Verband vom aktuellen statt vom damaligen Verein ableitete.
+     * Vereine ohne Landesverband werden nicht bewertet. Je Rekord nur einmal.
+     *
+     * @return int Anzahl neu aufgenommener Einträge
+     */
+    public function logRegionalMismatches(string $source): int
+    {
+        $records = SwimRecord::query()
+            ->where('record_type', 'like', 'AUT.%')
+            ->whereNotNull('club_id')
+            ->with(['club', 'athlete', 'strokeType:id,name_de', 'result.meet:id,name'])
+            ->get();
+
+        $created = 0;
+        foreach ($records as $record) {
+            if (! preg_match('/^AUT\.([A-Z]+)(\.JR)?$/', $record->record_type, $m)
+                || ! isset(Club::REGIONAL_ASSOCIATIONS[$m[1]])) {
+                continue;
+            }
+
+            $expected = $record->club?->regional_association;
+            if ($expected === null || $expected === '' || $expected === $m[1] || $record->athlete_id === null) {
+                continue;
+            }
+
+            $item = ImportReviewItem::firstOrCreate(
+                ['type' => ImportReviewItem::TYPE_REGIONAL, 'swim_record_id' => $record->id],
+                [
+                    'athlete_id' => $record->athlete_id,
+                    'current_club_id' => $record->club_id,
+                    'source' => $source,
+                    'details' => [
+                        'record_type' => $record->record_type,
+                        'expected' => 'AUT.'.$expected.($m[2] ?? ''),
+                        'label' => $this->recordLabel($record->distance, $record->relay_count,
+                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type),
+                        'date' => $record->set_date?->toDateString(),
+                        'is_current' => $record->is_current,
+                        'meet_id' => $record->result?->meet_id,
+                        'meet_name' => $record->result?->meet?->name,
                     ],
                     'status' => ImportReviewItem::STATUS_OPEN,
                 ],

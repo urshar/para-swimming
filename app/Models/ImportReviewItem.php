@@ -28,9 +28,12 @@ class ImportReviewItem extends Model
     /** AUT- oder Regionalrekord eines Athleten, dessen Nationalität nicht AUT ist. */
     public const string TYPE_NATIONALITY = 'nationality';
 
+    /** Regionalrekord, dessen Verband nicht zum Verein des Rekords passt. */
+    public const string TYPE_REGIONAL = 'regional_mismatch';
+
     public const string STATUS_OPEN = 'open';
 
-    /** Vereinskonflikt: Verein übernommen; Jahres-Treffer: als richtig geprüft; Nationalität: Rekord entfernt. */
+    /** Vereinskonflikt: Verein übernommen; Jahres-Treffer: geprüft; Nationalität/Regionalverband: Rekord entfernt. */
     public const string STATUS_APPLIED = 'applied';
 
     public const string STATUS_IGNORED = 'ignored';
@@ -83,6 +86,12 @@ class ImportReviewItem extends Model
         return $query->where('status', self::STATUS_OPEN);
     }
 
+    /** Arten, deren Aktion den Rekord entfernt (SwimRecord::removeFromHistory). */
+    public function removesRecord(): bool
+    {
+        return in_array($this->type, [self::TYPE_NATIONALITY, self::TYPE_REGIONAL], true);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
@@ -93,6 +102,7 @@ class ImportReviewItem extends Model
         return match ($this->type) {
             self::TYPE_CLUB_CONFLICT => 'Vereinskonflikt',
             self::TYPE_NATIONALITY => 'Nationalität nicht AUT',
+            self::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
             default => 'Geburtsdatum abweichend',
         };
     }
@@ -103,7 +113,7 @@ class ImportReviewItem extends Model
             self::STATUS_OPEN => 'Offen',
             self::STATUS_APPLIED => match ($this->type) {
                 self::TYPE_CLUB_CONFLICT => 'Übernommen',
-                self::TYPE_NATIONALITY => 'Entfernt',
+                self::TYPE_NATIONALITY, self::TYPE_REGIONAL => 'Entfernt',
                 default => 'Geprüft',
             },
             default => 'Ignoriert',
