@@ -131,25 +131,25 @@
                 </h3>
                 <div
                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
-                    <flux:table bleed>
+                    <flux:table bleed class="w-full min-w-240">
                         <flux:table.columns>
-                            <flux:table.column>Rang</flux:table.column>
-                            <flux:table.column>Athlet</flux:table.column>
-                            <flux:table.column>Alter</flux:table.column>
-                            <flux:table.column>Verein</flux:table.column>
-                            <flux:table.column>Zeit</flux:table.column>
-                            <flux:table.column>Punkte</flux:table.column>
+                            <flux:table.column class="w-16">Rang</flux:table.column>
+                            <flux:table.column class="w-48">Athlet</flux:table.column>
+                            <flux:table.column class="w-24">Alter</flux:table.column>
+                            <flux:table.column class="w-48">Verein</flux:table.column>
+                            <flux:table.column class="w-24">Zeit</flux:table.column>
+                            <flux:table.column class="w-28">Punkte</flux:table.column>
                             <flux:table.column>Wettkampf</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach(Auswahl::applyLimit($eintraege, $limit) as $eintrag)
                                 <flux:table.row>
                                     <flux:table.cell class="font-mono">{{ $eintrag->rank ?? '–' }}</flux:table.cell>
-                                    <flux:table.cell>{{ $eintrag->athlete->full_name }}</flux:table.cell>
+                                    <flux:table.cell class="truncate" title="{{ $eintrag->athlete->full_name }}">{{ $eintrag->athlete->full_name }}</flux:table.cell>
                                     <flux:table.cell class="text-xs whitespace-nowrap">
                                         {{ AthleteAge::label($eintrag->athlete, $championship->year) ?? '–' }}
                                     </flux:table.cell>
-                                    <flux:table.cell class="text-xs">{{ $eintrag->athlete->club?->display_name }}</flux:table.cell>
+                                    <flux:table.cell class="text-xs truncate" title="{{ $eintrag->athlete->club?->display_name }}">{{ $eintrag->athlete->club?->display_name }}</flux:table.cell>
                                     <flux:table.cell class="font-mono text-xs">
                                         {{ TimeParser::display($eintrag->row->status->swimTime) }}
                                     </flux:table.cell>
@@ -160,7 +160,7 @@
                                             {{ $eintrag->points }}
                                         @endif
                                     </flux:table.cell>
-                                    <flux:table.cell class="text-xs">
+                                    <flux:table.cell class="text-xs truncate" title="{{ $eintrag->row->status->meetName }}">
                                         {{ $eintrag->row->status->meetName }}
                                     </flux:table.cell>
                                 </flux:table.row>

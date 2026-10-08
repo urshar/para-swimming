@@ -169,13 +169,13 @@
                                         {{ $section['group']?->name_de ?? 'Sonstige Sportklassen' }}
                                     </h3>
 
-                                    <flux:table bleed>
+                                    <flux:table bleed class="w-full min-w-130">
                                         <flux:table.columns>
-                                            <flux:table.column>Geschlecht</flux:table.column>
-                                            <flux:table.column>Sportklasse</flux:table.column>
-                                            <flux:table.column>Richtzeit</flux:table.column>
+                                            <flux:table.column class="w-28">Geschlecht</flux:table.column>
+                                            <flux:table.column class="w-28">Sportklasse</flux:table.column>
+                                            <flux:table.column class="w-28">Richtzeit</flux:table.column>
                                             <flux:table.column>Quelle</flux:table.column>
-                                            <flux:table.column></flux:table.column>
+                                            <flux:table.column class="w-16"></flux:table.column>
                                         </flux:table.columns>
                                         <flux:table.rows>
                                             @foreach($section['strokes'] as $strokeGroup)

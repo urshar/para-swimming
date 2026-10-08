@@ -157,24 +157,24 @@
                                 </h3>
                                 <div
                                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
-                                    <flux:table bleed>
+                                    <flux:table bleed class="w-full min-w-240">
                                         <flux:table.columns>
                                             <flux:table.column>Name</flux:table.column>
-                                            <flux:table.column>Verein</flux:table.column>
-                                            <flux:table.column>Geschlecht</flux:table.column>
-                                            <flux:table.column>Sportklasse</flux:table.column>
-                                            <flux:table.column>Zeit</flux:table.column>
-                                            <flux:table.column>Richtzeit</flux:table.column>
-                                            <flux:table.column>Punkte</flux:table.column>
-                                            <flux:table.column>Datum</flux:table.column>
+                                            <flux:table.column class="w-56">Verein</flux:table.column>
+                                            <flux:table.column class="w-24">Geschlecht</flux:table.column>
+                                            <flux:table.column class="w-24">Sportklasse</flux:table.column>
+                                            <flux:table.column class="w-24">Zeit</flux:table.column>
+                                            <flux:table.column class="w-24">Richtzeit</flux:table.column>
+                                            <flux:table.column class="w-16">Punkte</flux:table.column>
+                                            <flux:table.column class="w-24">Datum</flux:table.column>
                                         </flux:table.columns>
                                         <flux:table.rows>
                                             @foreach($strokeGroup['items'] as $q)
                                                 <flux:table.row>
-                                                    <flux:table.cell class="font-medium">
+                                                    <flux:table.cell class="font-medium truncate">
                                                         {{ $q->athlete?->last_name }}, {{ $q->athlete?->first_name }}
                                                     </flux:table.cell>
-                                                    <flux:table.cell>
+                                                    <flux:table.cell class="truncate" title="{{ $q->club?->display_name ?? $q->club?->name }}">
                                                         {{ $q->club?->display_name ?? $q->club?->name ?? '–' }}
                                                     </flux:table.cell>
                                                     <flux:table.cell>{{ $q->qualifyingTime->gender }}</flux:table.cell>

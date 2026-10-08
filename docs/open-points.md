@@ -80,7 +80,7 @@ dokumentiert in `specs/scoring-groups.md`. Umgesetzt in `feature/lenex-result-ma
 Ergebnissen beim Nachimport (Variante b), Klärungsseite mit Auswahl bestehender Vereine/Athleten, Rahmenbewerbe,
 Staffeln Phase 2 (LENEX-Export, Import der Staffelmeldungen, ÖBSV-Punkte, öffentliche Seite) — vormals Punkt 5
 "Staffelergebnisse Phase 2 + erneuter LENEX-Import von Altbeständen"; den Nachimport der alten Dateien macht Erik
-selbst. Übrig: "Basiszeiten der Herrenstaffeln S14 prüfen" unten.
+selbst. Die Abweichung bei den Herrenstaffeln S14 ist geklärt (siehe unten).
 
 **Sicherheit — erledigt** (`fix/admin-route-guard`, 06.10.2026): LENEX-Import und alle weiteren Schreib-Routen nur
 für Admins, Selbstregistrierung abgeschaltet, Routen-Audit als Test — siehe `docs/access-control.md`.
@@ -133,6 +133,11 @@ Vereine ohne `code` und keine Dubletten (Name oder `code` je Nation). Matching �
 Wieder aufgreifen, falls beim Import Dubletten auftauchen oder Splash-Rundreisen (Einladung → Splash → Ergebnisse)
 Vereine nicht sauber zuordnen.
 
+**Basiszeiten der Herrenstaffeln S14 — geklärt, kein Fehler** (`docs/close-s14-base-times`, 08.10.2026): Splash
+rechnet mit der gültigen ÖBSV-Tabelle MM-2021 (Herren S14 Kurzbahn 4x50 Freistil 1:47,40, 4x100 Freistil 3:52,84).
+Die Dev-Version "2020-2027" enthält Staffelwerte aus `OeBSV-Base-Times_2021-2028.xlsx`, einer Tabelle, die beim ÖBSV
+noch in Bearbeitung ist — beim Testen auf Dev durcheinandergeraten. Gültig ist MM-2021; kein Code-Fix nötig.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -143,7 +148,6 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 4. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 5. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 6. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
-7. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -177,20 +181,6 @@ gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener
 (Format erkennen: xlsx vs. xml), Mapping auf Bewerb/Klasse/Geschlecht/MQS/MET, dieselbe Vorschau- und
 Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
 akzeptiert zusätzlich `.xml`.
-
-## Basiszeiten der Herrenstaffeln S14 prüfen
-
-**Seit:** `feature/relay-results-phase2` (PR #39, 06.10.2026) — ÖBSV-Punkte für Staffeln.
-
-**Befund:** Damen- und Mixed-Staffeln stimmen mit den Punkten aus den Splash-Dateien exakt überein. Bei Herrenstaffeln
-S14 rechnet Splash mit anderen Basiszeiten als unsere Basiswert-Tabelle (Version 2020-2027, Kurzbahn): 4x50 m Freistil
-1:47,44 statt 1:42,62, 4x100 m Freistil 3:52,80 statt 3:50,49 (aus den Datei-Punkten zurückgerechnet). Eine
-Neuberechnung ("ÖBSV-Punkte berechnen") senkt die Punkte der Herrenstaffeln daher um rund 3–13 % gegenüber der Datei.
-
-**Wer entscheidet:** Erik — welche Werte stimmen (ÖBSV-Basiswerttabelle prüfen).
-
-**Zum Schließen nötig:** Ggf. die Werte in der Basiswerte-Verwaltung korrigieren; sonst als bekannte Abweichung von
-Splash schließen. Details in `specs/meet-results.md` "Staffelpunkte".
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 

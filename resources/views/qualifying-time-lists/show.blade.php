@@ -137,13 +137,13 @@
                             </h2>
                         </div>
                         <div class="p-4 [--flux-bleed:1rem]">
-                            <flux:table bleed>
+                            <flux:table bleed class="w-full min-w-160">
                                 <flux:table.columns>
                                     <flux:table.column>Lage</flux:table.column>
-                                    <flux:table.column>Geschlecht</flux:table.column>
-                                    <flux:table.column x-show="selectedNumber === 'ALL'">Sportklasse</flux:table.column>
-                                    <flux:table.column>Richtzeit</flux:table.column>
-                                    <flux:table.column>Quelle</flux:table.column>
+                                    <flux:table.column class="w-28">Geschlecht</flux:table.column>
+                                    <flux:table.column class="w-28" x-show="selectedNumber === 'ALL'">Sportklasse</flux:table.column>
+                                    <flux:table.column class="w-28">Richtzeit</flux:table.column>
+                                    <flux:table.column class="w-32">Quelle</flux:table.column>
                                 </flux:table.columns>
                                 <flux:table.rows>
                                     @foreach($section['items'] as $time)
