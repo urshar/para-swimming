@@ -1,5 +1,6 @@
 @php
     use App\Models\ImportReviewItem;
+    use App\Support\TimeParser;
     use Illuminate\Support\Carbon;
 @endphp
 
@@ -17,10 +18,19 @@
                 <flux:badge color="amber" size="sm">{{ $openCount }} offen</flux:badge>
             @endif
         </div>
-        <form method="POST" action="{{ route('records.import-review.scan') }}">
-            @csrf
-            <flux:button type="submit" icon="magnifying-glass" size="sm">Bestand prüfen</flux:button>
-        </form>
+        <div class="flex items-center gap-2">
+            {{-- Löscht nur Erledigte; Ignorierte bleiben als Merker, sonst kämen sie beim nächsten Prüflauf wieder. --}}
+            <form method="POST" action="{{ route('records.import-review.purge') }}"
+                  x-data="{ submit() { if (confirm('Alle erledigten Einträge löschen? Ignorierte bleiben erhalten.')) this.$el.submit() } }"
+                  @submit.prevent="submit()">
+                @csrf
+                <flux:button type="submit" icon="trash" size="sm" variant="ghost">Erledigte löschen</flux:button>
+            </form>
+            <form method="POST" action="{{ route('records.import-review.scan') }}">
+                @csrf
+                <flux:button type="submit" icon="magnifying-glass" size="sm">Bestand prüfen</flux:button>
+            </form>
+        </div>
     </div>
 
     <ul class="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-3xl space-y-1 list-disc ps-5">
@@ -46,7 +56,18 @@
             Athleten ab). "Rekord entfernen" löscht ihn; danach auf dem Wettkampf "Rekorde prüfen" erneut starten, damit
             der richtige Regionalrekord entsteht.
         </li>
-        <li>"Bestand prüfen" wendet diese Prüfungen auch auf bereits gespeicherte Rekorde an.</li>
+        <li>
+            <strong>Abweichung zur Rekordliste:</strong> Die importierte Liste ist maßgeblich. Ihr Eintrag widerspricht
+            Rekorden in der Datenbank — einem schnelleren Rekord am selben Tag oder davor, oder einem nicht schnelleren
+            danach. Der Import hat dafür nichts geändert. "Liste übernehmen" entfernt die widersprechenden Rekorde und
+            hängt den Listeneintrag nach Datum in die Rekord-Historie.
+        </li>
+        <li>
+            <strong>Staffelrekord ohne Verein:</strong> Ein nationaler oder regionaler Staffelrekord hat keinen Verein
+            und keine Mitglieder. Passt ein Staffelergebnis (gleiches Datum, gleiche Zeit, gleicher Bewerb), übernimmt
+            "Mit Staffelergebnis verknüpfen" Verein und Mitglieder; sonst beim Rekord ergänzen und als geprüft markieren.
+        </li>
+        <li>"Bestand prüfen" wendet diese Prüfungen (außer der Rekordliste) auch auf bereits gespeicherte Rekorde an.</li>
     </ul>
 
     {{-- Filter als Links: keine Formular-Selects nötig, Zustand steht in der URL. --}}
@@ -74,7 +95,7 @@
         @else
             <flux:table bleed>
                 <flux:table.columns>
-                    <flux:table.column>Athlet</flux:table.column>
+                    <flux:table.column>Athlet / Rekord</flux:table.column>
                     <flux:table.column>Art</flux:table.column>
                     <flux:table.column>Befund</flux:table.column>
                     <flux:table.column>Quelle</flux:table.column>
@@ -88,19 +109,41 @@
                             $isConflict = $item->type === ImportReviewItem::TYPE_CLUB_CONFLICT;
                             $isNationality = $item->type === ImportReviewItem::TYPE_NATIONALITY;
                             $isRegional = $item->type === ImportReviewItem::TYPE_REGIONAL;
+                            $isListMismatch = $item->type === ImportReviewItem::TYPE_LIST_MISMATCH;
+                            $isRelayNoClub = $item->type === ImportReviewItem::TYPE_RELAY_NO_CLUB;
                             $removes = $item->removesRecord();
+                            $deletes = $item->deletesRecords();
+                            $candidate = $candidates->get($item->id);
                             $typeColor = match (true) {
                                 $isConflict => 'blue',
                                 $isNationality => 'red',
                                 $isRegional => 'orange',
+                                $isListMismatch => 'fuchsia',
+                                $isRelayNoClub => 'cyan',
                                 default => 'violet',
                             };
-                            $applyLabel = $isConflict ? 'Verein übernehmen' : ($removes ? 'Rekord entfernen' : 'Geprüft');
+                            $applyLabel = match (true) {
+                                $isConflict => 'Verein übernehmen',
+                                $removes => 'Rekord entfernen',
+                                $isListMismatch => 'Liste übernehmen',
+                                $candidate !== null => 'Mit Staffelergebnis verknüpfen',
+                                default => 'Geprüft',
+                            };
+                            $confirmText = $isListMismatch
+                                ? 'Rekordliste übernehmen? Die widersprechenden Rekorde werden entfernt.'
+                                : 'Rekord entfernen? Die Rekord-Historie wird neu verknüpft.';
                         @endphp
                         <flux:table.row>
-                            <flux:table.cell class="font-medium">
-                                <a href="{{ route('athletes.show', $item->athlete_id) }}"
-                                   class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $item->athlete?->display_name }}</a>
+                            <flux:table.cell class="font-medium whitespace-normal">
+                                @if($item->athlete_id !== null)
+                                    <a href="{{ route('athletes.show', $item->athlete_id) }}"
+                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $item->athlete?->display_name }}</a>
+                                @elseif($item->swimRecord)
+                                    <a href="{{ route('records.show', $item->swim_record_id) }}"
+                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $details['label'] ?? 'Rekord' }}</a>
+                                @else
+                                    {{ $item->currentClub?->display_name ?? ($details['label'] ?? '—') }}
+                                @endif
                             </flux:table.cell>
                             <flux:table.cell>
                                 <flux:badge size="sm"
@@ -123,6 +166,69 @@
                                         @if(!empty($details['date']))
                                             · {{ Carbon::parse($details['date'])->format('d.m.Y') }}
                                         @endif
+                                    </div>
+                                @elseif($isListMismatch)
+                                    <div>
+                                        <span class="text-zinc-500 dark:text-zinc-400">Liste:</span>
+                                        <span
+                                            class="font-medium tabular-nums">{{ TimeParser::display($details['list']['swim_time'] ?? 0) }}</span>
+                                        @if(!empty($details['list']['set_date']))
+                                            · {{ Carbon::parse($details['list']['set_date'])->format('d.m.Y') }}
+                                        @endif
+                                        @if(!empty($details['list']['meet_name']))
+                                            · {{ $details['list']['meet_name'] }}
+                                        @endif
+                                    </div>
+                                    <div class="text-zinc-500 dark:text-zinc-400">widerspricht:</div>
+                                    <ul class="ps-4 list-disc">
+                                        @foreach($details['contradictions'] ?? [] as $contradiction)
+                                            <li>
+                                                <a href="{{ route('records.show', $contradiction['id']) }}"
+                                                   class="tabular-nums hover:underline">{{ TimeParser::display($contradiction['swim_time']) }}</a>
+                                                @if(!empty($contradiction['date']))
+                                                    · {{ Carbon::parse($contradiction['date'])->format('d.m.Y') }}
+                                                @endif
+                                                @if(!empty($contradiction['holder']))
+                                                    · {{ $contradiction['holder'] }}
+                                                @endif
+                                                @if($contradiction['is_current'] ?? false)
+                                                    <span class="text-xs text-zinc-500 dark:text-zinc-400">(aktuell)</span>
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">{{ $details['label'] ?? '' }}</div>
+                                @elseif($isRelayNoClub)
+                                    <div>
+                                        <span
+                                            class="font-medium tabular-nums">{{ TimeParser::display($details['swim_time'] ?? 0) }}</span>
+                                        @if(!empty($details['date']))
+                                            · {{ Carbon::parse($details['date'])->format('d.m.Y') }}
+                                        @endif
+                                        @if(!empty($details['meet_name']))
+                                            · {{ $details['meet_name'] }}
+                                        @endif
+                                    </div>
+                                    @if($candidate)
+                                        <div>
+                                            <span class="text-zinc-500 dark:text-zinc-400">Staffelergebnis:</span>
+                                            <a href="{{ route('meets.show', $candidate->meet_id) }}"
+                                               class="font-medium hover:underline">{{ $candidate->club?->display_name }}</a>
+                                            · {{ $candidate->meet?->name }}
+                                        </div>
+                                    @elseif($item->isOpen())
+                                        <div class="text-zinc-500 dark:text-zinc-400">
+                                            Kein passendes Staffelergebnis —
+                                            @if($item->swimRecord)
+                                                <a href="{{ route('records.edit', $item->swim_record_id) }}"
+                                                   class="underline">Verein und Mitglieder beim Rekord ergänzen</a>.
+                                            @else
+                                                Rekord gelöscht.
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                                        {{ ($details['is_current'] ?? false) ? 'aktueller Rekord' : 'Historie' }}
                                     </div>
                                 @elseif($removes)
                                     @if($isNationality)
@@ -190,14 +296,15 @@
                                     <div class="flex items-center justify-end gap-1">
                                         {{-- Rekord entfernen löscht Daten: mit Rückfrage (wie beim Löschen in den Listen). --}}
                                         <form method="POST" action="{{ route('records.import-review.apply', $item) }}"
-                                              @if($removes)
-                                                  x-data="{ submit() { if (confirm('Rekord entfernen? Die Rekord-Historie wird neu verknüpft.')) this.$el.submit() } }"
+                                              @if($deletes)
+                                                  data-confirm="{{ $confirmText }}"
+                                                  x-data="{ submit() { if (confirm(this.$el.dataset.confirm)) this.$el.submit() } }"
                                                   @submit.prevent="submit()"
                                               @endif>
                                             @csrf
                                             <flux:button type="submit" size="xs"
-                                                         :variant="$removes ? 'danger' : 'primary'"
-                                                         :icon="$removes ? 'trash' : 'check'">
+                                                         :variant="$deletes ? 'danger' : 'primary'"
+                                                         :icon="$deletes ? 'trash' : 'check'">
                                                 {{ $applyLabel }}
                                             </flux:button>
                                         </form>

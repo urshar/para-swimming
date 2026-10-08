@@ -140,7 +140,7 @@ class SwimRecord extends Model
     /**
      * Löscht einen ungültigen Rekord und hält die Historie konsistent: Hatte er einen Nachfolger, wird dieser direkt
      * mit dem Vorgänger verknüpft; war er aktuell, wird der Vorgänger wieder aktuell. Das passende Rekord-Flag am
-     * Ergebnis wird zurückgesetzt. Genutzt von der Rekordimport-Prüfliste ("Nationalität nicht AUT").
+     * Einzel- bzw. Staffelergebnis wird zurückgesetzt. Genutzt von der Rekordimport-Prüfliste.
      *
      * @throws Throwable
      */
@@ -165,14 +165,18 @@ class SwimRecord extends Model
                 ]);
             }
 
+            // Rekord-Flag am Einzel- bzw. Staffelergebnis zurücksetzen, wenn kein anderer Rekord es trägt.
             $flag = $this->resultFlag();
-            if ($this->result_id !== null && $flag !== null) {
-                $stillFlagged = SwimRecord::where('result_id', $this->result_id)
+            foreach (['result_id' => Result::class, 'relay_result_id' => RelayResult::class] as $column => $model) {
+                if ($this->{$column} === null || $flag === null) {
+                    continue;
+                }
+                $stillFlagged = SwimRecord::where($column, $this->{$column})
                     ->whereKeyNot($this->id)
                     ->get(['record_type'])
                     ->contains(fn (SwimRecord $other) => $other->resultFlag() === $flag);
                 if (! $stillFlagged) {
-                    Result::whereKey($this->result_id)->update([$flag => false]);
+                    $model::whereKey($this->{$column})->update([$flag => false]);
                 }
             }
 

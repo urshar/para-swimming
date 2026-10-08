@@ -163,7 +163,8 @@ sich über `supersedes_id`/`superseded_by_id` zur Historie.
 `birth_date`, `gender`, optional `athlete_id`.
 
 **ImportReviewItem** (`import_review_items`) — Prüfliste nach dem Rekordimport: `type` (`club_conflict` |
-`year_match` | `nationality` | `regional_mismatch`), `athlete_id`, `current_club_id` / `lenex_club_id` (Stammverein bzw. Verein laut Rekord),
+`year_match` | `nationality` | `regional_mismatch` | `list_mismatch` | `relay_no_club`), `athlete_id` (leer bei
+`list_mismatch` ohne Athlet und `relay_no_club`), `current_club_id` / `lenex_club_id` (Stammverein bzw. Verein laut Rekord),
 optional `swim_record_id` (Beleg bzw. der zu prüfende Rekord), `source` (Dateiname oder "Bestandsprüfung"), `details` (JSON: Rekord-Bezeichnung und
 -datum bzw. Geburtsdaten laut Datei/DB), `status` (`open` | `applied` | `ignored`), `resolved_at`, `resolved_by`.
 Siehe `docs/specs/records.md` "Prüfliste nach dem Import".

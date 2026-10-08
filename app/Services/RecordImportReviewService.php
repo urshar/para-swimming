@@ -5,10 +5,14 @@ namespace App\Services;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\ImportReviewItem;
+use App\Models\RecordSplit;
+use App\Models\RelayResult;
 use App\Models\RelayTeamMember;
 use App\Models\Result;
 use App\Models\SwimRecord;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -28,10 +32,22 @@ use Throwable;
  * meldet stattdessen logNationalityIssues() als eigenen Befund (Aktion: Rekord entfernen).
  *
  * Eine Beobachtung ist ein Array {athlete_id, club_id, date (Y-m-d|null), relay, label, swim_record_id}.
+ *
+ * Abweichung zur Rekordliste: Eine importierte Liste ist maßgeblich. Widerspricht ein Listeneintrag der Kette derselben
+ * Kategorie (schnellerer DB-Rekord am selben Tag oder davor, oder nicht schnellerer DB-Rekord danach), ändert der
+ * Import nichts, sondern legt einen Eintrag an; "Liste übernehmen" entfernt die widersprechenden Rekorde und hängt den
+ * Listeneintrag nach Datum in die Kette.
+ *
+ * Staffelrekord ohne Verein: nationale/regionale Staffelrekorde ohne Verein; passt genau ein Staffelergebnis (gleiches
+ * Datum, gleiche Zeit, gleicher Bewerb), übernimmt "Mit Staffelergebnis verknüpfen" Verein und Mitglieder.
  */
 final readonly class RecordImportReviewService
 {
     public const string SOURCE_SCAN = 'Bestandsprüfung';
+
+    /** Felder, die eine Rekordkategorie (eine Rekordkette) bestimmen. */
+    public const array CATEGORY_FIELDS = ['record_type', 'stroke_type_id', 'sport_class', 'gender', 'course',
+        'distance', 'relay_count'];
 
     public function __construct(
         private AthleteClubTransferService $transfers = new AthleteClubTransferService,
@@ -259,7 +275,22 @@ final readonly class RecordImportReviewService
             $item->swimRecord?->removeFromHistory();
         }
 
-        $item->update($this->resolution(ImportReviewItem::STATUS_APPLIED, $userId));
+        $resolution = $this->resolution(ImportReviewItem::STATUS_APPLIED, $userId);
+
+        if ($item->type === ImportReviewItem::TYPE_LIST_MISMATCH) {
+            $this->applyListMismatch($item);
+        }
+
+        // Staffel ohne Verein: mit dem passenden Staffelergebnis verknüpfen, sonst nur als geprüft markieren.
+        if ($item->type === ImportReviewItem::TYPE_RELAY_NO_CLUB && $item->swimRecord !== null) {
+            $relayResult = $this->candidateRelayResult($item->swimRecord);
+            if ($relayResult !== null) {
+                $this->linkRelayResult($item->swimRecord, $relayResult);
+                $resolution['details'] = [...($item->details ?? []), 'linked_relay_result_id' => $relayResult->id];
+            }
+        }
+
+        $item->update($resolution);
 
         return true;
     }
@@ -269,9 +300,19 @@ final readonly class RecordImportReviewService
         $item->update($this->resolution(ImportReviewItem::STATUS_IGNORED, $userId));
     }
 
+    /** Markiert offene Einträge "Staffelrekord ohne Verein" des Rekords als geprüft (Verein beim Rekord ergänzt). */
+    public function resolveRelayWithoutClub(SwimRecord $record, int $userId): void
+    {
+        ImportReviewItem::open()
+            ->where('type', ImportReviewItem::TYPE_RELAY_NO_CLUB)
+            ->where('swim_record_id', $record->id)
+            ->update($this->resolution(ImportReviewItem::STATUS_APPLIED, $userId));
+    }
+
     /**
-     * Prüft alle vorhandenen Rekorde: Nationalität (logNationalityIssues), Regionalverband (logRegionalMismatches) und
-     * Vereinskonflikte (Einzel und Staffelmitglieder); neue Befunde kommen offen in die Liste.
+     * Prüft alle vorhandenen Rekorde: Nationalität (logNationalityIssues), Regionalverband (logRegionalMismatches),
+     * Staffeln ohne Verein (logRelaysWithoutClub) und Vereinskonflikte (Einzel und Staffelmitglieder); neue Befunde
+     * kommen offen in die Liste.
      *
      * @return int Anzahl neu aufgenommener Einträge
      */
@@ -301,7 +342,8 @@ final readonly class RecordImportReviewService
             });
 
         $created = $this->logNationalityIssues(null, self::SOURCE_SCAN)
-            + $this->logRegionalMismatches(self::SOURCE_SCAN);
+            + $this->logRegionalMismatches(self::SOURCE_SCAN)
+            + $this->logRelaysWithoutClub(null, self::SOURCE_SCAN);
         foreach ($this->conflicts(array_values(array_filter($observations))) as $conflict) {
             if ($conflict['relevant']
                 && $this->logConflict($conflict, self::SOURCE_SCAN, ImportReviewItem::STATUS_OPEN, null) !== null) {
@@ -414,6 +456,289 @@ final readonly class RecordImportReviewService
         return $created;
     }
 
+    // ── Abweichung zur Rekordliste ───────────────────────────────────────────
+
+    /**
+     * Rekorde der Kategorie, die nicht ausstehend sind (die Kette aus APPROVED und APPROVED.HISTORY).
+     *
+     * @param  array<string, mixed>  $category  CATEGORY_FIELDS → Wert
+     * @return Collection<int, SwimRecord>
+     */
+    public function chain(array $category): Collection
+    {
+        return SwimRecord::query()
+            ->where($category)
+            ->whereIn('record_status', ['APPROVED', 'APPROVED.HISTORY'])
+            ->with(['athlete:id,first_name,last_name', 'club:id,name,short_name'])
+            ->get();
+    }
+
+    /**
+     * Rekorde der Kette, die einem Listeneintrag ($swimTime am $date) widersprechen: schneller am selben Tag oder davor
+     * (dann wäre der Listeneintrag kein Rekord) bzw. nicht schneller danach (dann waren sie keine Rekorde). Rekorde ohne
+     * Datum und Listeneinträge ohne Datum lassen sich nicht einordnen und widersprechen nie.
+     *
+     * @param  Collection<int, SwimRecord>  $chain
+     * @return Collection<int, SwimRecord>
+     */
+    public function contradictions(Collection $chain, int $swimTime, ?string $date): Collection
+    {
+        if ($date === null) {
+            return collect();
+        }
+
+        return $chain->filter(function (SwimRecord $record) use ($swimTime, $date) {
+            $recordDate = $record->set_date?->toDateString();
+
+            return $recordDate !== null && ($recordDate <= $date
+                ? $record->swim_time < $swimTime
+                : $record->swim_time >= $swimTime);
+        })->values();
+    }
+
+    /**
+     * Legt den Eintrag "Abweichung zur Rekordliste" an (je Kategorie, Zeit und Datum nur einmal, auch ein ignorierter
+     * kommt nicht wieder). $list enthält die Daten, aus denen "Liste übernehmen" den Rekord anlegt.
+     *
+     * @param  array<string, mixed>  $category  CATEGORY_FIELDS → Wert
+     * @param  array<string, mixed>  $list  swim_time, set_date, athlete_id, club_id, nation_id, meet_nation_id,
+     *                                      meet_name, meet_city, meet_course, splits, relay_members
+     * @param  Collection<int, SwimRecord>  $contradictions
+     */
+    public function logListMismatch(
+        array $category,
+        array $list,
+        Collection $contradictions,
+        ?string $strokeName,
+        string $source,
+    ): ?ImportReviewItem {
+        $key = md5(implode('|', [...array_values($category), $list['swim_time'], $list['set_date']]));
+        if (ImportReviewItem::where('type', ImportReviewItem::TYPE_LIST_MISMATCH)
+            ->where('details->key', $key)->exists()) {
+            return null;
+        }
+
+        return ImportReviewItem::create([
+            'type' => ImportReviewItem::TYPE_LIST_MISMATCH,
+            'athlete_id' => $list['athlete_id'],
+            'current_club_id' => $list['club_id'],
+            'source' => $source,
+            'details' => [
+                'key' => $key,
+                'label' => $this->recordLabel($category['distance'], $category['relay_count'], $strokeName,
+                    $category['sport_class'], $category['course'], $category['record_type'])
+                    .' · '.$this->genderLabel($category['gender']),
+                'category' => $category,
+                'list' => $list,
+                'contradictions' => $contradictions->map(fn (SwimRecord $r) => [
+                    'id' => $r->id,
+                    'swim_time' => $r->swim_time,
+                    'date' => $r->set_date?->toDateString(),
+                    'holder' => $r->athlete?->display_name ?? $r->club?->display_name,
+                    'is_current' => $r->is_current,
+                ])->all(),
+            ],
+            'status' => ImportReviewItem::STATUS_OPEN,
+        ]);
+    }
+
+    // ── Staffelrekord ohne Verein ────────────────────────────────────────────
+
+    /**
+     * Nimmt nationale und regionale Staffelrekorde ohne Verein auf (je Rekord nur einmal).
+     *
+     * @param  list<int>|null  $recordIds  null = alle Rekorde (Bestandsprüfung), sonst nur diese
+     * @return int Anzahl neu aufgenommener Einträge
+     */
+    public function logRelaysWithoutClub(?array $recordIds, string $source): int
+    {
+        if ($recordIds === []) {
+            return 0;
+        }
+
+        $records = SwimRecord::query()
+            ->where('record_type', 'like', 'AUT%')
+            ->where('relay_count', '>', 1)
+            ->whereNull('club_id')
+            ->when($recordIds !== null, fn ($q) => $q->whereKey($recordIds))
+            ->with('strokeType:id,name_de')
+            ->get();
+
+        $created = 0;
+        foreach ($records as $record) {
+            $item = ImportReviewItem::firstOrCreate(
+                ['type' => ImportReviewItem::TYPE_RELAY_NO_CLUB, 'swim_record_id' => $record->id],
+                [
+                    'source' => $source,
+                    'details' => [
+                        'label' => $this->recordLabel($record->distance, $record->relay_count,
+                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type)
+                            .' · '.$this->genderLabel($record->gender),
+                        'date' => $record->set_date?->toDateString(),
+                        'swim_time' => $record->swim_time,
+                        'meet_name' => $record->meet_name,
+                        'is_current' => $record->is_current,
+                    ],
+                    'status' => ImportReviewItem::STATUS_OPEN,
+                ],
+            );
+            if ($item->wasRecentlyCreated) {
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
+    /**
+     * Staffelergebnis, aus dem der Rekord stammen dürfte: gleiche Zeit, gleicher Bewerb (Strecke, Schwimmart,
+     * Staffelgröße), gleiche Bahn und Wertung, Wettkampf über das Rekorddatum. Nur bei genau einem Treffer.
+     */
+    public function candidateRelayResult(SwimRecord $record): ?RelayResult
+    {
+        $date = $record->set_date?->toDateString();
+        if ($date === null) {
+            return null;
+        }
+
+        $candidates = RelayResult::query()
+            ->where('swim_time', $record->swim_time)
+            ->where('gender', $record->gender)
+            ->whereNull('status')
+            ->where(fn ($q) => $q->whereNull('relay_class')->orWhere('relay_class', $record->sport_class))
+            ->whereHas('swimEvent', fn ($q) => $q->where('distance', $record->distance)
+                ->where('relay_count', $record->relay_count)
+                ->where('stroke_type_id', $record->stroke_type_id))
+            ->whereHas('meet', fn ($q) => $q->where('course', $record->course)
+                ->whereDate('start_date', '<=', $date)
+                ->where(fn ($q) => $q->whereDate('end_date', '>=', $date)
+                    ->orWhere(fn ($q) => $q->whereNull('end_date')->whereDate('start_date', $date))))
+            ->with(['club', 'meet', 'members.athlete'])
+            ->limit(2)
+            ->get();
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
+    }
+
+    /**
+     * "Liste übernehmen": widersprechende Rekorde entfernen, den Listeneintrag anlegen (sofern seine Zeit nicht schon in
+     * der Kette steht) und die Kette nach Datum neu verknüpfen. Eine Staffel ohne Verein kommt in die Prüfliste.
+     *
+     * @throws Throwable
+     */
+    private function applyListMismatch(ImportReviewItem $item): void
+    {
+        $category = $item->details['category'];
+        $list = $item->details['list'];
+
+        DB::transaction(function () use ($item, $category, $list) {
+            $ids = array_column($item->details['contradictions'] ?? [], 'id');
+            foreach (SwimRecord::whereKey($ids)->orderByDesc('set_date')->get() as $record) {
+                $record->removeFromHistory();
+            }
+
+            if ($this->chain($category)->contains('swim_time', $list['swim_time'])) {
+                $this->relinkChain($category);
+
+                return;
+            }
+
+            $record = SwimRecord::create([
+                ...$category,
+                'swim_time' => $list['swim_time'],
+                'set_date' => $list['set_date'],
+                'athlete_id' => $list['athlete_id'],
+                'club_id' => $list['club_id'],
+                'nation_id' => $list['nation_id'],
+                'meet_nation_id' => $list['meet_nation_id'],
+                'meet_name' => $list['meet_name'],
+                'meet_city' => $list['meet_city'],
+                'meet_course' => $list['meet_course'],
+                'record_status' => 'APPROVED.HISTORY',
+                'is_current' => false,
+            ]);
+            foreach ($list['splits'] ?? [] as $split) {
+                RecordSplit::create(['swim_record_id' => $record->id, 'distance' => $split['distance'],
+                    'split_time' => $split['split_time']]);
+            }
+            foreach ($list['relay_members'] ?? [] as $member) {
+                RelayTeamMember::create([
+                    'swim_record_id' => $record->id,
+                    'position' => $member['position'],
+                    'first_name' => $member['first_name'],
+                    'last_name' => $member['last_name'],
+                    'birth_date' => $member['birth_date'],
+                    'gender' => $member['gender'] ?: null,
+                    'athlete_id' => $member['db_id'] ?? null,
+                ]);
+            }
+
+            $this->relinkChain($category);
+            $this->logRelaysWithoutClub([$record->id], $item->source ?? '');
+        });
+    }
+
+    /**
+     * Verknüpft die Kette einer Kategorie nach Datum neu (gleicher Tag: langsamere zuerst, ohne Datum zuerst): genau
+     * der letzte Rekord ist aktuell (APPROVED), alle davor APPROVED.HISTORY.
+     *
+     * @param  array<string, mixed>  $category  CATEGORY_FIELDS → Wert
+     */
+    private function relinkChain(array $category): void
+    {
+        $chain = $this->chain($category)
+            ->sortBy(fn (SwimRecord $r) => sprintf('%s|%08d', $r->set_date?->toDateString() ?? '0000-00-00',
+                99999999 - $r->swim_time))
+            ->values();
+
+        $count = $chain->count();
+        foreach ($chain as $i => $record) {
+            $isCurrent = $i === $count - 1;
+            $record->forceFill([
+                'supersedes_id' => $i > 0 ? $chain[$i - 1]->id : null,
+                'superseded_by_id' => $isCurrent ? null : $chain[$i + 1]->id,
+                'is_current' => $isCurrent,
+                'record_status' => $isCurrent ? 'APPROVED' : 'APPROVED.HISTORY',
+            ])->save();
+        }
+    }
+
+    /**
+     * Übernimmt Verein, Mitglieder und Herkunft des Staffelergebnisses in den Rekord und setzt das Rekord-Flag am
+     * Staffelergebnis.
+     *
+     * @throws Throwable
+     */
+    private function linkRelayResult(SwimRecord $record, RelayResult $relayResult): void
+    {
+        DB::transaction(function () use ($record, $relayResult) {
+            $record->update([
+                'club_id' => $relayResult->club_id,
+                'relay_result_id' => $relayResult->id,
+                'meet_name' => $record->meet_name ?? $relayResult->meet?->name,
+                'meet_city' => $record->meet_city ?? $relayResult->meet?->city,
+            ]);
+
+            $record->relayTeam()->delete();
+            foreach ($relayResult->members as $member) {
+                RelayTeamMember::create([
+                    'swim_record_id' => $record->id,
+                    'position' => $member->position,
+                    'first_name' => $member->athlete?->first_name ?? $member->first_name,
+                    'last_name' => $member->athlete?->last_name ?? $member->last_name,
+                    'birth_date' => $member->athlete?->birth_date?->toDateString(),
+                    'gender' => $member->athlete?->gender ?? $member->gender,
+                    'athlete_id' => $member->athlete_id,
+                ]);
+            }
+
+            $flag = $record->resultFlag();
+            if ($flag !== null) {
+                $relayResult->update([$flag => true]);
+            }
+        });
+    }
+
     private function observationFromRecord(SwimRecord $record, int $athleteId): ?array
     {
         return $this->observation(
@@ -453,6 +778,16 @@ final readonly class RecordImportReviewService
         }
 
         return $dates;
+    }
+
+    /** Wertung eines Rekords für die Bezeichnung in der Prüfliste. */
+    private function genderLabel(string $gender): string
+    {
+        return match ($gender) {
+            'F' => 'Damen',
+            'X' => 'Mixed',
+            default => 'Herren',
+        };
     }
 
     /** Einzelrekorde vor Staffeln, dann das jüngste Datum (ohne Datum zuletzt). */

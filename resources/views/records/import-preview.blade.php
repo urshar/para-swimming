@@ -275,12 +275,10 @@
                                         <div class="text-sm">
                                             <span
                                                 class="font-medium text-zinc-900 dark:text-zinc-100">{{ $athName }}</span>
-                                            <span class="text-zinc-400 mx-1">·</span>
-                                            <flux:badge size="sm" color="blue">{{ $rec['sport_class'] }}</flux:badge>
-                                            <span class="text-zinc-500 ml-1">
-                                                {{ $rec['distance'] }}m {{ $rec['record_type'] }} {{ $rec['course'] }}
-                                            </span>
                                             <span class="text-zinc-400 ml-1 text-xs">{{ $clubName }}</span>
+                                            <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                                @include('records._import-record-summary', ['rec' => $rec])
+                                            </div>
                                         </div>
                                         <div class="flex gap-3 shrink-0 ml-4">
                                             <label class="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -332,15 +330,10 @@
                                         <div class="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
                                             @foreach($regionalRecs as $rec)
                                                 <div
-                                                    class="px-2 py-2 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                                                    <span>
-                                                        <flux:badge size="sm"
-                                                                    color="blue">{{ $rec['sport_class'] }}</flux:badge>
-                                                        {{ $rec['gender'] === 'F' ? '♀' : '♂' }}
-                                                        {{ $rec['distance'] }}m {{ $rec['record_type'] }} · {{ $rec['course'] }}
-                                                    </span>
-                                                    <span class="font-mono">
-                                                        {{ $rec['athlete']['last_name'] ?? '' }}{{ $rec['athlete'] ? ', '.$rec['athlete']['first_name'] : 'Staffel' }}
+                                                    class="px-2 py-2 flex items-start justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400">
+                                                    <span>@include('records._import-record-summary', ['rec' => $rec])</span>
+                                                    <span class="text-right shrink-0">
+                                                        @include('records._import-record-holder', ['rec' => $rec])
                                                     </span>
                                                 </div>
                                             @endforeach
@@ -383,14 +376,10 @@
                         <flux:accordion.content class="px-5 pb-5 divide-y divide-zinc-100 dark:divide-zinc-800">
                             @foreach($preview['records'] as $rec)
                                 <div
-                                    class="py-2 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                                    <span>
-                                        <flux:badge size="sm" color="blue">{{ $rec['sport_class'] }}</flux:badge>
-                                        {{ $rec['gender'] === 'F' ? '♀' : '♂' }}
-                                        {{ $rec['distance'] }}m {{ $rec['record_type'] }} · {{ $rec['course'] }}
-                                    </span>
-                                    <span class="font-mono">
-                                        {{ $rec['athlete']['last_name'] ?? '' }}{{ $rec['athlete'] ? ', '.$rec['athlete']['first_name'] : 'Staffel' }}
+                                    class="py-2 flex items-start justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400">
+                                    <span>@include('records._import-record-summary', ['rec' => $rec])</span>
+                                    <span class="text-right shrink-0">
+                                        @include('records._import-record-holder', ['rec' => $rec])
                                     </span>
                                 </div>
                             @endforeach

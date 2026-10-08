@@ -12,6 +12,7 @@ import qualificationFilters from './qualification-filters';
 import qualifyingTimesFilter from './qualifying-times-filter';
 import qualifyingTimesShowFilter from './qualifying-times-show-filter';
 import recordImportPreview from './record-import-preview';
+import recordRelayTeam from './record-relay-team';
 import relayEntryForm from './relay-entry-form';
 import relayResultForm from './relay-result-form';
 import scoringGroupsEditor from './scoring-groups-editor';
@@ -43,6 +44,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('qualifyingTimesFilter', qualifyingTimesFilter);
     window.Alpine.data('qualifyingTimesShowFilter', qualifyingTimesShowFilter);
     window.Alpine.data('recordImportPreview', recordImportPreview);
+    window.Alpine.data('recordRelayTeam', recordRelayTeam);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('relayResultForm', relayResultForm);
     window.Alpine.data('scoringGroupsEditor', scoringGroupsEditor);

@@ -521,6 +521,7 @@ Route::middleware(['auth'])->group(function () {
             Route::prefix('import-review')->name('import-review.')->group(function () {
                 Route::get('/', [RecordImportReviewController::class, 'index'])->name('index');
                 Route::post('scan', [RecordImportReviewController::class, 'scan'])->name('scan');
+                Route::post('purge', [RecordImportReviewController::class, 'purge'])->name('purge');
                 Route::post('{item}/apply', [RecordImportReviewController::class, 'apply'])->name('apply');
                 Route::post('{item}/ignore', [RecordImportReviewController::class, 'ignore'])->name('ignore');
             });

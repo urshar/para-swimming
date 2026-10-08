@@ -12,6 +12,7 @@ use App\Models\RelayTeamMember;
 use App\Models\StrokeType;
 use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
+use App\Services\RecordImportReviewService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,8 @@ class RecordController extends Controller
     ];
 
     public function __construct(
-        private readonly RecordCheckerService $checker
+        private readonly RecordCheckerService $checker,
+        private readonly RecordImportReviewService $review,
     ) {}
 
     public function index(Request $request): View
@@ -278,6 +280,11 @@ class RecordController extends Controller
             }
         });
 
+        // Staffel hat jetzt einen Verein: offenen Prüflisten-Eintrag "Staffelrekord ohne Verein" erledigen.
+        if ($record->relay_count > 1 && $record->club_id !== null) {
+            $this->review->resolveRelayWithoutClub($record, $request->user()->id);
+        }
+
         return redirect()
             ->route('records.show', $record)
             ->with('success', 'Rekord aktualisiert.');
@@ -515,6 +522,7 @@ class RecordController extends Controller
             'relay_members.*.last_name' => 'nullable|string|max:100',
             'relay_members.*.first_name' => 'nullable|string|max:100',
             'relay_members.*.birth_date' => 'nullable|date',
+            'relay_members.*.athlete_id' => 'nullable|exists:athletes,id',
         ];
     }
 
@@ -596,9 +604,15 @@ class RecordController extends Controller
 
         $record->relayTeam()->delete();
 
+        // Gewählter Athlet: Name, Geburtsdatum und Geschlecht von ihm; sonst die frei eingetragenen Felder.
+        $athletes = Athlete::whereKey(array_filter(array_column($data['relay_members'] ?? [], 'athlete_id')))
+            ->get()
+            ->keyBy('id');
+
         foreach ($data['relay_members'] ?? [] as $i => $member) {
-            $last = trim($member['last_name'] ?? '');
-            $first = trim($member['first_name'] ?? '');
+            $athlete = $athletes->get((int) ($member['athlete_id'] ?? 0));
+            $last = $athlete?->last_name ?? trim($member['last_name'] ?? '');
+            $first = $athlete?->first_name ?? trim($member['first_name'] ?? '');
             if (! $last && ! $first) {
                 continue;
             }
@@ -607,9 +621,11 @@ class RecordController extends Controller
                 'position' => $i + 1,
                 'last_name' => $last,
                 'first_name' => $first,
-                'birth_date' => TimeParser::sanitizeDate($member['birth_date'] ?? null),
-                'gender' => null,
-                'athlete_id' => null,
+                'birth_date' => $athlete !== null
+                    ? $athlete->birth_date?->toDateString()
+                    : TimeParser::sanitizeDate($member['birth_date'] ?? null),
+                'gender' => $athlete?->gender,
+                'athlete_id' => $athlete?->id,
             ]);
         }
     }

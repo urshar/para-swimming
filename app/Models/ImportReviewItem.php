@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property string $type
- * @property int $athlete_id
+ * @property int|null $athlete_id
  * @property int|null $current_club_id
  * @property int|null $lenex_club_id
  * @property int|null $swim_record_id
@@ -31,9 +31,18 @@ class ImportReviewItem extends Model
     /** Regionalrekord, dessen Verband nicht zum Verein des Rekords passt. */
     public const string TYPE_REGIONAL = 'regional_mismatch';
 
+    /** Rekord aus einer importierten Liste widerspricht der Rekordkette in der DB (die Liste ist maßgeblich). */
+    public const string TYPE_LIST_MISMATCH = 'list_mismatch';
+
+    /** Nationaler oder regionaler Staffelrekord ohne Verein (und damit ohne prüfbare Mitglieder). */
+    public const string TYPE_RELAY_NO_CLUB = 'relay_no_club';
+
     public const string STATUS_OPEN = 'open';
 
-    /** Vereinskonflikt: Verein übernommen; Jahres-Treffer: geprüft; Nationalität/Regionalverband: Rekord entfernt. */
+    /**
+     * Vereinskonflikt: Verein übernommen; Jahres-Treffer: geprüft; Nationalität/Regionalverband: Rekord entfernt;
+     * Abweichung zur Liste: Liste übernommen; Staffel ohne Verein: verknüpft bzw. geprüft.
+     */
     public const string STATUS_APPLIED = 'applied';
 
     public const string STATUS_IGNORED = 'ignored';
@@ -92,6 +101,12 @@ class ImportReviewItem extends Model
         return in_array($this->type, [self::TYPE_NATIONALITY, self::TYPE_REGIONAL], true);
     }
 
+    /** Arten, deren Aktion Rekorde löscht — die Schaltfläche fragt vorher nach. */
+    public function deletesRecords(): bool
+    {
+        return $this->removesRecord() || $this->type === self::TYPE_LIST_MISMATCH;
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;
@@ -103,6 +118,8 @@ class ImportReviewItem extends Model
             self::TYPE_CLUB_CONFLICT => 'Vereinskonflikt',
             self::TYPE_NATIONALITY => 'Nationalität nicht AUT',
             self::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
+            self::TYPE_LIST_MISMATCH => 'Abweichung zur Rekordliste',
+            self::TYPE_RELAY_NO_CLUB => 'Staffelrekord ohne Verein',
             default => 'Geburtsdatum abweichend',
         };
     }
@@ -114,6 +131,8 @@ class ImportReviewItem extends Model
             self::STATUS_APPLIED => match ($this->type) {
                 self::TYPE_CLUB_CONFLICT => 'Übernommen',
                 self::TYPE_NATIONALITY, self::TYPE_REGIONAL => 'Entfernt',
+                self::TYPE_LIST_MISMATCH => 'Liste übernommen',
+                self::TYPE_RELAY_NO_CLUB => isset($this->details['linked_relay_result_id']) ? 'Verknüpft' : 'Geprüft',
                 default => 'Geprüft',
             },
             default => 'Ignoriert',
