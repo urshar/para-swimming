@@ -43,6 +43,8 @@
         th, td { border: 1px solid #ddd; padding: 3px 5px; font-size: 9px; }
         th { background: #efefef; text-align: right; }
         th.lbl, td.lbl { text-align: left; }
+        /* Feste Breite der Beschriftungsspalte, damit die Jahresspalten aller Tabellen untereinander stehen. */
+        th.lbl { width: 160px; }
         td.num { text-align: right; }
     </style>
 </head>

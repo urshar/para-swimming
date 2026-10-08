@@ -41,10 +41,16 @@
             color: #555;
         }
 
+        /* Feste Spaltenbreiten, damit die Tabellen je Lage untereinander ausgerichtet sind. */
         table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
             margin-bottom: 4px;
+        }
+
+        th.gender {
+            width: 120px;
         }
 
         th, td {
@@ -91,7 +97,7 @@
         <table>
             <thead>
             <tr>
-                <th>Geschlecht</th>
+                <th class="gender">Geschlecht</th>
                 <th>Sportklasse</th>
                 <th class="time">Richtzeit</th>
             </tr>

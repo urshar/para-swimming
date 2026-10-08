@@ -138,6 +138,14 @@ rechnet mit der gültigen ÖBSV-Tabelle MM-2021 (Herren S14 Kurzbahn 4x50 Freist
 Die Dev-Version "2020-2027" enthält Staffelwerte aus `OeBSV-Base-Times_2021-2028.xlsx`, einer Tabelle, die beim ÖBSV
 noch in Bearbeitung ist — beim Testen auf Dev durcheinandergeraten. Gültig ist MM-2021; kein Code-Fix nötig.
 
+**Untereinanderstehende Tabellen einheitlich ausrichten — erledigt** (`feature/aligned-tables`, 08.10.2026): Feste
+Spaltenbreiten mit einer flexiblen Hauptspalte und Mindestbreite (darunter horizontales Scrollen) in den
+Admin-Ansichten (Alle Meldungen, Meisterschafts-Auswahl, Richtzeitenliste inkl. Qualifikationen und Formular,
+Qualifikanten, Cup-Vereinswertung), den öffentlichen Seiten (Ergebnisse, Jahresbestleistungen, Cup-Wertung,
+Startberechtigung, Rekorde) und PDFs (Richtzeiten, Jahresvergleich, Statistikbericht). Öffentliche Ergebnisse
+entscheiden die Punktespalten für die ganze Seite. Nicht nötig: Basiszeiten-Matrix (eine Tabelle je Reiter),
+Meldegeld-Abrechnung (ein Verein je Seite) und die übrigen PDFs (hatten bereits feste Breiten).
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -147,7 +155,6 @@ Punkt als Nächstes drankommt, entscheidet Erik:
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
 4. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
 5. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
-6. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -205,30 +212,6 @@ unspezifizierte Felder) wären die Zahlen irreführend. Erst Datenbasis, dann di
 **Zum Schließen nötig:** Je Kennzahl eine Methode in `MultiYearStatisticsService`/`ParticipationStatisticsService`
 plus Darstellung (analog zu den bestehenden `flux:chart`/`TrendChart`-Auswertungen). Sinnvoll erst, wenn die
 Datenbasis steht.
-
-## Untereinanderstehende Tabellen einheitlich ausrichten
-
-**Seit:** Rückmeldung Erik (06.10.2026) zu den Abschnitts-Tabellen auf `meets/show`; dort und in der
-Ergebnis-Sammelansicht (`meets/results-overview`, inkl. Staffeltabelle) umgesetzt in
-`feature/lenex-nation-filter`.
-
-**Ausgangslage:** Wo mehrere Tabellen gleicher Struktur untereinander stehen (je Abschnitt, Bewerb, Wertungsgruppe,
-Klasse ...), richtet sich jede Tabelle nach ihrem eigenen Inhalt — die Spalten springen von Tabelle zu Tabelle.
-
-**Muster (wie `meets/show.blade.php` "Disziplinen", `cups/overall-ranking.blade.php`,
-`public/regulations/index.blade.php`):** `table-fixed` (bei Flux bereits gesetzt) plus `w-full` und feste Breiten je
-Spalte außer einer, die den Rest nimmt (`<flux:table.column class="w-24">`); lange Inhalte in festen Spalten mit
-`truncate` + `title`. Für die horizontale Scroll-Breite auf schmalen Bildschirmen eine `min-w-*` am Table.
-
-**Kandidaten** (Tabellen in Schleifen, je Datei prüfen, ob sie wirklich untereinander stehen):
-
-- Admin: `meets/entries-overview`, `championships/selection`,
-  `livewire/admin/championship-qualification-table`, `livewire/cup-club-ranking`, `qualifying-time-lists/show`,
-  `qualifying-time-lists/qualifications`, `qualifying-time-lists/form`, `statistics/partials/sections`
-- Öffentlich (Tailkit, nicht Flux): `public/meets/results`, `public/annual-best/index`, `public/base-times/index`,
-  `public/cup-ranking/index`, `public/qualifying-times/index`, `public/records/index`
-- PDF (dompdf, eigene `<colgroup>`/Breiten): `pdf/result-list`, `pdf/entry-lists/*`, `pdf/championship-*`,
-  `pdf/cup-club-ranking`, `pdf/public-records`, `pdf/qualifying-times`, `pdf/wps-*`, `pdf/year-comparison`
 
 ## Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren
 
