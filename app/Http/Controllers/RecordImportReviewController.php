@@ -89,12 +89,15 @@ class RecordImportReviewController extends Controller
         }
 
         $label = $item->details['label'] ?? 'Rekord';
+        // Einzelrekord: "von <Athlet>"; Staffel (Eintrag ohne bzw. mit Mitglied als Athlet): die Rekordbezeichnung.
+        $holder = $item->athlete !== null && empty($item->details['members'])
+            ? 'von '.$item->athlete->display_name
+            : '"'.$label.'"';
 
         return back()->with('success', match ($item->type) {
             ImportReviewItem::TYPE_CLUB_CONFLICT => 'Stammverein von '.$item->athlete->display_name.' aktualisiert.',
-            ImportReviewItem::TYPE_NATIONALITY => 'Rekord von '.$item->athlete->display_name
-                .' entfernt; die Rekord-Historie wurde neu verknüpft.',
-            ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord von '.$item->athlete->display_name
+            ImportReviewItem::TYPE_NATIONALITY => 'Rekord '.$holder.' entfernt; die Rekord-Historie wurde neu verknüpft.',
+            ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord '.$holder
                 .' entfernt. Für den richtigen Regionalrekord die Rekordprüfung des Wettkampfs erneut starten.',
             ImportReviewItem::TYPE_LIST_MISMATCH => $label.': Rekordliste übernommen, die Rekord-Historie wurde neu verknüpft.',
             ImportReviewItem::TYPE_RELAY_NO_CLUB => isset($item->details['linked_relay_result_id'])

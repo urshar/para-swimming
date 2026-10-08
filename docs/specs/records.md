@@ -231,10 +231,14 @@ Zahl offener Einträge). Sechs Arten:
   Nationalität nach der Rekordprüfung korrigiert wird. Aktion "Rekord entfernen" (`SwimRecord::removeFromHistory()`):
   löscht den Rekord, verknüpft Vorgänger und Nachfolger direkt bzw. macht den Vorgänger wieder aktuell und setzt das
   Rekord-Flag am Ergebnis zurück. Ist die Nationalität falsch eingetragen: ignorieren und beim Athleten korrigieren.
-  Solche Athleten bekommen keinen Vereinskonflikt.
-- **Regionalrekord: falscher Verband (`regional_mismatch`)**: Einzel-Regionalrekord, dessen Verband nicht zum
-  Landesverband des Rekord-Vereins (`swim_records.club_id`) passt — Altfälle aus der Zeit vor
-  `fix/regional-record-club`. Vereine ohne Landesverband und unbekannte Typen (z. B. `AUT.IND`) werden nicht bewertet.
+  Solche Athleten bekommen keinen Vereinskonflikt. **Staffeln** (seit `fix/relay-review-checks`, 08.10.2026): gemeldet,
+  wenn ein verknüpftes Mitglied (`relay_team_members.athlete_id`) eine bekannte, andere Nationalität hat; Athlet des
+  Eintrags ist das erste solche Mitglied, `details.members` nennt alle. Die Aktion setzt das Flag dann am
+  Staffelergebnis zurück.
+- **Regionalrekord: falscher Verband (`regional_mismatch`)**: Regionalrekord, dessen Verband nicht zum
+  Landesverband des Rekord-Vereins (`swim_records.club_id`, bei Staffeln der Staffelverein; Eintrag dann ohne Athlet)
+  passt — Altfälle aus der Zeit vor `fix/regional-record-club` oder falsche Importdaten. Vereine ohne Landesverband und
+  unbekannte Typen (z. B. `AUT.IND`) werden nicht bewertet.
   Aktion "Rekord entfernen"; danach auf dem Wettkampf (verlinkt) "Rekorde prüfen" erneut starten, damit der richtige
   Regionalrekord entsteht — bei mehreren Wettkämpfen in zeitlicher Reihenfolge.
 - **Abweichung zur Rekordliste (`list_mismatch`)**, seit `feature/record-list-review` (07.10.2026): Die importierte
@@ -344,5 +348,8 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/RecordListReviewTest.php` — Abweichung zur Rekordliste (alle Fälle, "Liste übernehmen" mit Einhängen
   nach Datum, Ignorieren, kein Doppeleintrag) und Staffelrekord ohne Verein (Verknüpfen mit dem Staffelergebnis,
   Bestandsprüfung), Flag-Rücksetzung am Staffelergebnis.
+- `tests/Feature/RelayReviewChecksTest.php` — falscher Verband und Nationalität nicht AUT bei Staffelrekorden
+  (Befund, Anzeige, "Rekord entfernen" mit Vorgänger und Flag am Staffelergebnis).
+- `tests/Feature/RecordRelayFilterTest.php` — Staffelklassen-Filter mit Brust/Lagen, Wertung Mixed (Filter, Anzeige).
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).

@@ -47,12 +47,12 @@
         </li>
         <li>
             <strong>Nationalität nicht AUT:</strong> Nationale und regionale Rekorde gibt es nur für österreichische
-            Athleten. "Rekord entfernen" löscht den Rekord und verknüpft die Rekord-Historie neu (ein Vorgänger wird
+            Athleten — bei Staffeln für alle Mitglieder. "Rekord entfernen" löscht den Rekord und verknüpft die Rekord-Historie neu (ein Vorgänger wird
             wieder aktuell). Ist die Nationalität falsch eingetragen, stattdessen ignorieren und beim Athleten korrigieren.
         </li>
         <li>
             <strong>Regionalrekord: falscher Verband:</strong> Der Regionalrekord passt nicht zum Landesverband des
-            Vereins, für den er geschwommen wurde (früher leitete die Rekordprüfung den Verband vom aktuellen Verein des
+            Vereins, für den er geschwommen wurde, bei Staffeln des Staffelvereins (früher leitete die Rekordprüfung den Verband vom aktuellen Verein des
             Athleten ab). "Rekord entfernen" löscht ihn; danach auf dem Wettkampf "Rekorde prüfen" erneut starten, damit
             der richtige Regionalrekord entsteht.
         </li>
@@ -236,6 +236,12 @@
                                             <span class="text-zinc-500 dark:text-zinc-400">Nationalität:</span>
                                             <span class="font-medium">{{ $details['nation'] ?? '' }}</span>
                                         </div>
+                                        @if(!empty($details['members']))
+                                            <div>
+                                                <span class="text-zinc-500 dark:text-zinc-400">Staffelmitglieder:</span>
+                                                {{ $details['members'] }}
+                                            </div>
+                                        @endif
                                     @else
                                         <div>
                                             <span class="text-zinc-500 dark:text-zinc-400">Rekord-Verein:</span>

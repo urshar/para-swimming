@@ -116,6 +116,10 @@ erneut importieren und die Prüfliste abarbeiten (Probelauf: 5 Abweichungen, 19 
 `S`/`SB`/`SM` zusammengefasst (Brust- und Lagenstaffeln auswählbar), Wertung "Mixed" als Filter (nur Staffeln) und als
 eigener Badge statt "Damen".
 
+**Prüfliste für Staffelrekorde — erledigt** (`fix/relay-review-checks`, 08.10.2026): "Regionalrekord: falscher
+Verband" prüft bei Staffeln den Staffelverein, "Nationalität nicht AUT" die verknüpften Mitglieder (auf Dev 08.10.2026:
+keine Fälle, nur 16 von 53 Staffelrekorden haben verknüpfte Mitglieder).
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
