@@ -204,7 +204,7 @@
 
     {{-- ── Staffelmeldungen ──────────────────────────────────────────────────── --}}
     @if($showStaffel)
-    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 {{ $showEinzel ? 'mt-8' : '' }} mb-3">Staffelmeldungen</h2>
+    <h2 id="staffelmeldungen" class="scroll-mt-20 text-lg font-semibold text-zinc-900 dark:text-zinc-100 {{ $showEinzel ? 'mt-8' : '' }} mb-3">Staffelmeldungen</h2>
 
     @php $anyStaffel = false; @endphp
     @foreach($events as $event)

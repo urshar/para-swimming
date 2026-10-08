@@ -29,6 +29,7 @@ use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntriesReopenController;
 use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
+use App\Http\Controllers\MeetParticipantsController;
 use App\Http\Controllers\MeetResultsOverviewController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
@@ -388,6 +389,10 @@ Route::middleware(['auth'])->group(function () {
     });
     Route::resource('meets', MeetController::class)->only(['index', 'show'])
         ->middlewareFor('index', 'remember.list:meets');
+
+    // Teilnehmer und Vereine einer Veranstaltung (Kacheln "Teilnehmer"/"Clubs" auf meets/show), nur lesend.
+    Route::get('meets/{meet}/participants', [MeetParticipantsController::class, 'index'])
+        ->name('meets.participants');
 
     Route::get('meets/{meet}/cup-daily-ranking',
         [CupDailyRankingController::class, 'show'])->name('meets.cup-daily-ranking.show');

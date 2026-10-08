@@ -141,45 +141,47 @@
         @include('meets._entries-reopen')
     @endif
 
-    {{-- Stats --}}
+    {{--
+        Stats: jede Kachel führt zu den Daten dahinter (Disziplinen per Anker auf dieser Seite). Meldungen: Admin die
+        meet-weite Übersicht, Vereine die eigenen Meldungen; Ergebnisse nur Admin (Sammelansicht ist Admin-Bereich).
+        Alle Zielseiten führen mit "Zurück" wieder hierher.
+    --}}
+    @php
+        $statUser = auth()->user();
+        $isStatAdmin = (bool) $statUser?->is_admin;
+        $hasClub = $statUser?->club_id !== null;
+        $statTiles = [
+            ['Disziplinen', $meet->swim_events_count, '#disziplinen'],
+            ['Einzelmeldungen', $meet->entries_count, $isStatAdmin ? route('meets.entries-overview', $meet)
+                : ($hasClub ? route('club-entries.index', $meet) : null)],
+            ['Staffelmeldungen', $meet->relay_entries_count, $isStatAdmin
+                ? route('meets.entries-overview', $meet).'#staffelmeldungen'
+                : ($hasClub ? route('club-entries.relay.index', $meet) : null)],
+            ['Ergebnisse', $meet->results_count, $isStatAdmin ? route('meets.results-overview', $meet) : null],
+            ['Teilnehmer', $participantsCount, route('meets.participants', $meet)],
+            ['Clubs', $participatingClubsCount, route('meets.participants', [$meet, 'ansicht' => 'vereine'])],
+        ];
+    @endphp
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->swim_events_count }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Disziplinen</div>
-        </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->entries_count }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Einzelmeldungen</div>
-        </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->relay_entries_count }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Staffelmeldungen</div>
-        </div>
-        @if(auth()->user()?->is_admin)
-            <a href="{{ route('meets.results-overview', $meet) }}"
-               class="block bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center
-                      hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
-                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
-                <div class="text-sm text-blue-600 dark:text-blue-400">Ergebnisse</div>
-            </a>
-        @else
-            <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $meet->results_count }}</div>
-                <div class="text-sm text-zinc-500 dark:text-zinc-400">Ergebnisse</div>
-            </div>
-        @endif
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $participantsCount }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Teilnehmer</div>
-        </div>
-        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
-            <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $participatingClubsCount }}</div>
-            <div class="text-sm text-zinc-500 dark:text-zinc-400">Clubs</div>
-        </div>
+        @foreach($statTiles as [$tileLabel, $tileCount, $tileUrl])
+            @if($tileUrl)
+                <a href="{{ $tileUrl }}" aria-label="{{ $tileLabel }}: {{ $tileCount }} anzeigen"
+                   class="block bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center
+                          hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                    <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $tileCount }}</div>
+                    <div class="text-sm text-blue-600 dark:text-blue-400">{{ $tileLabel }}</div>
+                </a>
+            @else
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">
+                    <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{{ $tileCount }}</div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">{{ $tileLabel }}</div>
+                </div>
+            @endif
+        @endforeach
     </div>
 
     {{-- Events --}}
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center justify-between mb-3 scroll-mt-20" id="disziplinen">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Disziplinen</h2>
         <div class="flex items-center gap-2">
             @if($swimEvents->isNotEmpty())

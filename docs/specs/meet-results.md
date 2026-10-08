@@ -114,6 +114,27 @@ Eigene Tabellen `relay_results`, `relay_result_members`, `relay_result_splits` (
   nur mit Staffelergebnissen zeigt den Ergebnis-Link ebenfalls. Ein Staffelbewerb mit Staffelmeldungen oder
   -ergebnissen lässt sich nicht löschen (sonst würden sie per Kaskade mitgelöscht).
 
+## Kennzahlen-Kacheln auf `meets/show` und Teilnehmerseite
+
+Seit `feature/meet-stat-tiles` (08.10.2026) führt jede Kachel zu den Daten dahinter; "Zurück" auf der Zielseite führt
+wieder auf `meets/show`:
+
+| Kachel           | Admin                                                    | Vereinsnutzer                               |
+|------------------|----------------------------------------------------------|---------------------------------------------|
+| Disziplinen      | Anker `#disziplinen` auf derselben Seite                 | gleich                                      |
+| Einzelmeldungen  | `meets.entries-overview`                                 | `club-entries.index` (nur mit Verein)       |
+| Staffelmeldungen | `meets.entries-overview#staffelmeldungen`                | `club-entries.relay.index` (nur mit Verein) |
+| Ergebnisse       | `meets.results-overview`                                 | kein Link (Sammelansicht ist Admin-Bereich) |
+| Teilnehmer       | `meets.participants` (Ansicht Athleten)                  | gleich                                      |
+| Clubs            | `meets.participants?ansicht=vereine`                     | gleich                                      |
+
+**Teilnehmerseite** (`MeetParticipantsController`, `meets/{meet}/participants`, nur lesend, alle Angemeldeten):
+- **Athleten:** dieselben wie die Kachel (`Meet::participantIds()` — Einzel- oder Staffelmeldung oder Ergebnis), mit
+  Jahrgang, Sportklasse und Zählern (Einzelmeldungen, Staffeln, Ergebnisse). Verein = der Verein bei dieser
+  Veranstaltung (Meldung, sonst Ergebnis, sonst Staffelmeldung, sonst Stammverein). Filter Verein und Namenssuche.
+- **Vereine:** dieselben wie die Kachel (`entryClubIds()` + `resultClubIds()`, ohne die reine `meet_club`-Zuordnung)
+  mit Athleten, Einzel-, Staffelmeldungen und Ergebnissen (Einzel + Staffel); Klick filtert die Athleten-Ansicht.
+
 ## Zugriff
 
 Alle Ergebnis-Verwaltungsrouten (`results.*`, `meets.results.*`, `meets.relay-results.*`/`relay-results.*`, Sammelansicht,
@@ -125,4 +146,4 @@ hinter `RequireAdmin`. Die öffentliche Ergebnisseite (`routes/public.php`) ist 
 `tests/Feature/MeetResultsOverviewTest.php`, `tests/Feature/ResultEntryAutomationTest.php` (Sportklasse, Punkte,
 Ergebnisliste, Zugriffsschutz), `tests/Feature/RelayResultsTest.php` (Staffeln: Wertungsregel, LENEX-Import nach dem
 Muster der ÖSTM 2025, Rekorde, Erfassen, Sammelansicht, PDF), Rücksprung beim Erfassen zusätzlich in
-`tests/Feature/ContextBackNavigationTest.php`.
+`tests/Feature/ContextBackNavigationTest.php`. Kacheln und Teilnehmerseite: `tests/Feature/MeetStatTilesTest.php`.

@@ -216,6 +216,17 @@ class Meet extends Model
      */
     public function participantsCount(): int
     {
+        return $this->participantIds()->count();
+    }
+
+    /**
+     * IDs der Teilnehmer (siehe participantsCount()) — auch Grundlage der Teilnehmerseite, damit sie dieselben
+     * Athleten zeigt, die die Kachel zählt.
+     *
+     * @return SupportCollection<int, int>
+     */
+    public function participantIds(): SupportCollection
+    {
         $individualAthleteIds = $this->entries()->pluck('athlete_id');
 
         $relayAthleteIds = RelayEntryMember::query()
@@ -224,7 +235,10 @@ class Meet extends Model
 
         $resultAthleteIds = $this->results()->pluck('athlete_id');
 
-        return $individualAthleteIds->merge($relayAthleteIds)->merge($resultAthleteIds)->unique()->count();
+        return $individualAthleteIds->merge($relayAthleteIds)->merge($resultAthleteIds)
+            ->filter()
+            ->unique()
+            ->values();
     }
 
     /**
