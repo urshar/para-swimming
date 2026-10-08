@@ -1,4 +1,7 @@
-@php use App\Support\ListUrl; @endphp
+@php
+    use App\Models\SwimRecord;
+    use App\Support\ListUrl;
+@endphp
 
 @extends('layouts.app')
 
@@ -14,8 +17,8 @@
                 {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
                 m {{ $record->strokeType?->name_de }}
             </h1>
-            <flux:badge color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
-                {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
+            <flux:badge color="{{ SwimRecord::genderColor($record->gender) }}">
+                {{ SwimRecord::genderLabel($record->gender) }}
             </flux:badge>
             <flux:badge color="zinc">{{ $record->course }}</flux:badge>
         </div>

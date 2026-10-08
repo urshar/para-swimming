@@ -104,6 +104,26 @@ class SwimRecord extends Model
         return $query->where('record_type', $type);
     }
 
+    /** Wertung als Text: Herren, Damen oder Mixed (nur Staffeln). */
+    public static function genderLabel(?string $gender): string
+    {
+        return match ($gender) {
+            'F' => 'Damen',
+            'X' => 'Mixed',
+            default => 'Herren',
+        };
+    }
+
+    /** Badge-Farbe der Wertung (Herren blau, Damen rosa, Mixed violett). */
+    public static function genderColor(?string $gender): string
+    {
+        return match ($gender) {
+            'F' => 'pink',
+            'X' => 'violet',
+            default => 'blue',
+        };
+    }
+
     public function getFormattedSwimTimeAttribute(): string
     {
         return Entry::formatTime($this->swim_time);
