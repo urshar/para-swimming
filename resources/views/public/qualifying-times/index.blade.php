@@ -214,7 +214,7 @@
                                 <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                      tabindex="0"
                                      aria-label="{{ $heading }}">
-                                    <table class="min-w-full text-sm">
+                                    <table class="w-full min-w-200 table-fixed text-sm">
                                         <caption class="p-3 text-left text-sm">
                                             <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                                 <span class="font-semibold">{{ $heading }}</span>
@@ -235,23 +235,23 @@
                                                 {{ __('public.qualifying_times.columns.athlete') }}
                                             </th>
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-48 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.qualifying_times.columns.club') }}
                                             </th>
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.qualifying_times.columns.sport_class') }}
                                             </th>
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-24 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.qualifying_times.columns.time') }}
                                             </th>
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-20 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.qualifying_times.columns.points') }}
                                             </th>
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.qualifying_times.columns.date') }}
                                             </th>
                                         </tr>

@@ -181,7 +181,7 @@ it('sortiert gültige Ergebnisse nach Platz und schiebt DNS/DNF/DSQ ans Ende, EX
     expect($ordered->pluck('id')->all())->toBe([$first->id, $second->id, $exh->id, $dsq->id]);
 });
 
-it('zeigt Punkte nur an, wenn für die Ergebnisse dieser Klasse tatsächlich welche berechnet wurden', function () {
+it('zeigt Punkte nur an, wenn für die Ergebnisse dieser Seite tatsächlich welche berechnet wurden', function () {
     $meet = makeMeet_p4();
     $swimEvent = makeSwimEvent_p4($meet);
     makeResult_p4($meet, $swimEvent, ['points' => 850]);
@@ -190,6 +190,17 @@ it('zeigt Punkte nur an, wenn für die Ergebnisse dieser Klasse tatsächlich wel
         ->assertOk()
         ->assertSee('850')
         ->assertDontSee('WPS-Punkte');
+});
+
+it('zeigt die Punktespalte in allen Tabellen der Seite, damit die Spalten untereinander ausgerichtet bleiben', function () {
+    $meet = makeMeet_p4();
+    $swimEvent = makeSwimEvent_p4($meet);
+    makeResult_p4($meet, $swimEvent, ['sport_class' => 'S4', 'points' => 850]);
+    makeResult_p4($meet, $swimEvent, ['sport_class' => 'S5', 'points' => null]);
+
+    $html = $this->get(route('public.meets.results', ['locale' => 'de', 'meet' => $meet]))->assertOk()->getContent();
+
+    expect(preg_match_all('/<th[^>]*>\s*Punkte\s*<\/th>/', $html))->toBe(2);
 });
 
 it('zeigt die reelle Zeit bei EXH-Ergebnissen statt des Status', function () {

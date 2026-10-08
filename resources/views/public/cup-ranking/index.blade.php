@@ -215,6 +215,9 @@
                             // Klasse-/Geschlecht-Spalte, weil das sonst nur aus der Überschrift hervorginge.
                             $showGroupColumn = $bracket['group'] === null;
                             $showGenderColumn = $bracket['gender'] === null;
+                            // Mindestbreite aus den festen Spalten (Rang 4, Verein 11, Gesamt 8, Runden je 4,5, Geschlecht 7,
+                            // Klasse 8 rem) plus 8 rem für den Namen — darunter scrollt die Tabelle horizontal.
+                            $minWidth = 31 + $meets->count() * 4.5 + ($showGenderColumn ? 7 : 0) + ($showGroupColumn ? 8 : 0);
                         @endphp
                         <section x-show="isVisible($el.dataset)"
                                  data-group-id="{{ $bracket['group']->id ?? 'all' }}"
@@ -223,14 +226,14 @@
                                  class="mt-6">
                             <h2 class="mb-3 text-lg font-semibold">{{ $heading }}</h2>
 
-                            <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
+                            <div class="relative overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                  tabindex="0" aria-label="{{ $heading }}">
-                                <table class="min-w-full text-sm">
+                                <table class="w-full table-fixed text-sm" style="min-width: {{ $minWidth }}rem">
                                     <caption class="sr-only">{{ $heading }}</caption>
                                     <thead>
                                     <tr>
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-16 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.cup.columns.rank') }}
                                         </th>
                                         <th scope="col"
@@ -239,29 +242,29 @@
                                         </th>
                                         @if ($showGenderColumn)
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.cup.columns.gender') }}
                                             </th>
                                         @endif
                                         @if ($showGroupColumn)
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-32 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.cup.columns.sport_class') }}
                                             </th>
                                         @endif
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-44 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.cup.columns.club') }}
                                         </th>
                                         @foreach ($meets as $meet)
                                             <th scope="col" abbr="R.{{ $loop->index + 1 }}"
-                                                class="bg-gray-100/75 px-3 py-3 text-right font-semibold whitespace-nowrap text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-18 bg-gray-100/75 px-2 py-3 text-right font-semibold whitespace-nowrap text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 <span class="sr-only">{{ $meet->name }} ({{ $meet->start_date->format('d.m.Y') }})</span>
                                                 <span aria-hidden="true">R.{{ $loop->index + 1 }}</span>
                                             </th>
                                         @endforeach
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-right font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-32 bg-gray-100/75 px-3 py-3 text-right font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.cup.columns.total_points') }}
                                         </th>
                                     </tr>
@@ -280,12 +283,12 @@
                                                 <td class="p-3 whitespace-nowrap">{{ __('public.cup.gender.'.$row->gender) }}</td>
                                             @endif
                                             @if ($showGroupColumn)
-                                                <td class="p-3 whitespace-nowrap">{{ $row->sportClassGroup?->name_de ?? '—' }}</td>
+                                                <td class="p-3">{{ $row->sportClassGroup?->name_de ?? '—' }}</td>
                                             @endif
                                             <td class="p-3">{{ $row->club?->display_name ?? '—' }}</td>
                                             @foreach ($row->rounds as $round)
                                                 <td @class([
-                                                            'p-3 text-right font-mono text-xs whitespace-nowrap',
+                                                            'px-2 py-3 text-right font-mono text-xs whitespace-nowrap',
                                                             'font-semibold text-emerald-700 dark:text-emerald-400' => $round['counted'],
                                                             'text-gray-400 dark:text-gray-500' => ! $round['counted'],
                                                         ])>
