@@ -47,7 +47,7 @@ class ChampionshipStandardImportController extends Controller
     public function preview(Request $request, Championship $championship): View|RedirectResponse
     {
         $request->validate([
-            'standards_file' => 'required|file|extensions:xlsx,xls|max:20480',
+            'standards_file' => 'required|file|extensions:xlsx,xls,xml|max:20480',
         ]);
 
         $file = $request->file('standards_file');

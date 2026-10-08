@@ -522,6 +522,23 @@ Zeile 1 Titel, Zeile 2 Kopfzeile, Zeile 3 Unterkopf. Zeiten als Excel-Zeitwerte,
 - Erkennt der Import das Format nicht, bricht er mit einer verständlichen Meldung ab und verweist auf die manuelle
   Pflege.
 
+**XML (SDMS-Ranglistendatei von World Para Swimming)** — derselbe Upload nimmt auch `.xml` an; das Format wird am
+Inhalt erkannt (`ChampionshipStandardXmlParser`), Vorschau und Import sind dieselben. Erwartet wird
+`<SdmsBody DocumentType="DT_FED_RANKING">` mit Normen, z. B. "LA28 Paralympic Games - MQS ONLY APPLIED":
+
+| Stelle                                     | Inhalt                                                                    |
+|--------------------------------------------|---------------------------------------------------------------------------|
+| Kopf `PERIOD START/END`, `LABEL NAME`      | Qualifikationszeitraum und Titel — wie beim xlsx nur als Vorschlag        |
+| `Rankings@Code` (`SWMM50MFR…`)             | Geschlecht (M/W, X = Staffel), Strecke, Stil (FR, BA, BR, BF, IM)         |
+| `CLASSES LABEL` / `CLASSES ELIGIBLE`       | Bewerbsklasse (S3) und startberechtigte Klassen (S1-3)                    |
+| `STANDARDS MQS` / `MET`                    | Normzeiten (`0:50.27`)                                                    |
+
+- **Kombinierte Bewerbe:** Die Norm gilt für alle startberechtigten Klassen und wird je Klasse angelegt (S3 für S1-3 →
+  S1, S2, S3), damit auch Schwimmer der niedrigeren Klassen bewertet werden statt "ohne Norm ausgeschrieben".
+  Startberechtigt über zwei Bewerbe derselben Strecke wäre mehrdeutig und ist ein Fehler.
+- Staffeln werden übersprungen (Hinweis); die Weltrangliste in der Datei wird nicht gelesen.
+- Eine XML ohne Normen (reine Weltrangliste) oder ein anderes XML-Format bricht mit einer Meldung ab.
+
 ## 9.3 Historisierung
 
 Meisterschaften und ihre Normen werden nicht überschrieben. Jede Ausgabe ist ein eigener Datensatz, damit vergangene

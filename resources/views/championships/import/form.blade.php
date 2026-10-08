@@ -17,8 +17,8 @@
                 @csrf
 
                 <flux:field>
-                    <flux:label>WPS-Normdatei (.xlsx)</flux:label>
-                    <flux:input name="standards_file" type="file" accept=".xlsx,.xls"/>
+                    <flux:label>WPS-Normdatei (.xlsx oder .xml)</flux:label>
+                    <flux:input name="standards_file" type="file" accept=".xlsx,.xls,.xml"/>
                     <flux:error name="standards_file"/>
                 </flux:field>
 
@@ -35,8 +35,14 @@
             class="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
             <p class="font-medium text-zinc-700 dark:text-zinc-300">Erwarteter Aufbau</p>
             <p>
-                Zeile 1 Titel, Zeile 2 die Überschriften Events, Class, Men, Women, Zeile 3 die
-                Unterüberschriften MQS und MET. Ab Zeile 4 die Daten in den Spalten A–F.
+                <span class="font-medium">Excel:</span> Zeile 1 Titel, Zeile 2 die Überschriften Events, Class,
+                Men, Women, Zeile 3 die Unterüberschriften MQS und MET. Ab Zeile 4 die Daten in den Spalten A–F.
+            </p>
+            <p>
+                <span class="font-medium">XML:</span> die Qualifikationsliste von World Para Swimming im
+                SDMS-Format (z. B. "LA28 Paralympic Games - MQS ONLY APPLIED"). Kombinierte Bewerbe
+                (z. B. S3 für S1–3) erhalten die Norm für jede startberechtigte Klasse; Staffeln werden
+                übersprungen.
             </p>
             <p>
                 Der Import füllt ausschließlich MQS und MET. ÖBSV-Prozentsätze und -Zeiten bleiben
