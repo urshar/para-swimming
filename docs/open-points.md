@@ -107,6 +107,15 @@ Einzelergebnisse im selben Wettkampf, sonst Vereins-History, sonst heutiger Vere
 `docs/specs/records.md`. Auf Dev werden nach erneuter Rekordprüfung 7 Staffeln rekordfähig (R9, R16, R17, R25, R33,
 R48, R49), 7 gemischte Staffeln bleiben es nicht.
 
+**Staffelrekorde mit der Liste aus dem Sport Management Tool abgleichen — erledigt** (`feature/record-list-review`,
+PR #47, 08.10.2026): Prüfliste "Abweichung zur Rekordliste" und "Staffelrekord ohne Verein", Staffelteam im
+Rekordformular — siehe `docs/specs/records.md`. **Datenpflege (Erik):** die Datei `öbsv-relay-all-all-all-records.lxf`
+erneut importieren und die Prüfliste abarbeiten (Probelauf: 5 Abweichungen, 19 Staffeln ohne Verein).
+
+**Staffelfilter der Rekordlisten — erledigt** (`fix/relay-record-filters`, 08.10.2026): Staffelklassen je Nummer über
+`S`/`SB`/`SM` zusammengefasst (Brust- und Lagenstaffeln auswählbar), Wertung "Mixed" als Filter (nur Staffeln) und als
+eigener Badge statt "Damen".
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -120,7 +129,6 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
 9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
-10. "Staffelrekorde mit der Liste aus dem Sport Management Tool abgleichen" unten (Datenkorrektur)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -302,24 +310,6 @@ Mitgliedern? Bezug zu Staffeln?).
 
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
-
-## Staffelrekorde mit der Liste aus dem Sport Management Tool abgleichen
-
-**Seit:** 07.10.2026, Datei `öbsv-relay-all-all-all-records.lxf` von Erik (aktuell, maßgeblich).
-
-**Ausgangslage:** Die Datei enthält 31 aktuelle Staffelrekorde (`AUT`, `AUT.JG`) ohne Verein und ohne Mitglieder (nur
-Wettkampf und Datum). Teils ist der DB-Rekord schneller **und** älter als der Listeneintrag (z. B. 4×100 m Freistil SCM
-M S14: DB 5:34,39 vom 24.05.2003, Datei 6:00,68 vom 05.05.2024). Die Klassen der Brust-/Lagenstaffeln (`SB…`/`SM…`)
-benennen Import und Rekordprüfung einheitlich.
-
-**Werkzeug — erledigt** (`feature/record-list-review`, 07.10.2026): Prüfliste "Abweichung zur Rekordliste" und
-"Staffelrekord ohne Verein", siehe `docs/specs/records.md`. Ein erster Import am 07.10.2026 wurde zurückgerollt (er
-hängte ältere Listeneinträge hinter neuere DB-Rekorde).
-
-**Zum Schließen nötig:** Erik importiert die Datei erneut und arbeitet die Prüfliste ab.
-
-**Nebenbefund:** Der Staffel-Filter der Rekordlisten (`RecordController::buildSportClassOptions()`) bietet nur
-`S14`–`S49` an, nicht die Brust-/Lagenklassen `SB…`/`SM…` — diese Staffelrekorde sind dort nicht auswählbar.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

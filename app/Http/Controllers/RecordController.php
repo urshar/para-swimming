@@ -144,8 +144,9 @@ class RecordController extends Controller
             ->orderBy('swim_records.distance')
             ->orderByRaw("case swim_records.gender when 'F' then 1 when 'M' then 2 else 3 end");
 
+        // Mixed (X) gibt es nur bei Staffeln.
         $gender = $request->input('gender');
-        if (! in_array($gender, [null, 'M', 'F'], true)) {
+        if (! in_array($gender, [null, 'M', 'F', 'X'], true) || ($gender === 'X' && $relayFilter === 'single')) {
             $gender = null;
         }
 
@@ -446,16 +447,17 @@ class RecordController extends Controller
      * S/SB/SM (ein SwimRecord hat immer nur eine dieser drei Kategorien) — Wert
      * "S{n},SB{n},SM{n}" (ungepolstert, passend zu den tatsächlich gespeicherten
      * sport_class-Werten), Label "S{n},SB{n},SM{n}" zweistellig gepolstert.
-     * Staffel: die sechs kombinierten Staffelklassen aus RelayClassValidator, keine Vorauswahl.
+     * Staffel: die sechs kombinierten Staffelklassen aus RelayClassValidator (14, 15, 20, 21, 34, 49), ebenfalls über
+     * S/SB/SM zusammengefasst (Brust- und Lagenstaffeln), keine Vorauswahl.
      *
      * @return array{0: Collection<string, string>, 1: ?string}
      */
     private function buildSportClassOptions(string $relayFilter): array
     {
         if ($relayFilter === 'relay') {
-            $relayClasses = ['S14', 'S15', 'S20', 'S21', 'S34', 'S49'];
-
-            return [collect($relayClasses)->mapWithKeys(fn ($code) => [$code => $code]), null];
+            // Wie bei Einzel je Klasse über S/SB/SM zusammengefasst: Brust- und Lagenstaffeln heißen SB…/SM….
+            return [collect([14, 15, 20, 21, 34, 49])->mapWithKeys(fn (int $n) => ["S$n,SB$n,SM$n" => "S$n,SB$n,SM$n"]),
+                null];
         }
 
         $numbers = BaseTimeSportClass::query()

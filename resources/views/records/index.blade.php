@@ -1,3 +1,7 @@
+@php
+    use App\Models\SwimRecord;
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Rekordlisten')
@@ -96,6 +100,10 @@
         <flux:select variant="listbox" name="gender" x-model="gender" placeholder="Alle" clearable class="w-36">
             <flux:select.option value="M">Herren</flux:select.option>
             <flux:select.option value="F">Damen</flux:select.option>
+            {{-- Mixed gibt es nur bei Staffeln. --}}
+            @if($relayFilter !== 'single')
+                <flux:select.option value="X">Mixed</flux:select.option>
+            @endif
         </flux:select>
 
         <flux:select variant="listbox" name="course" x-model="course" placeholder="Alle Bahnen" clearable class="w-44">
@@ -120,8 +128,8 @@
             <flux:badge color="zinc" size="sm">{{ $sportClass }}</flux:badge>
         @endif
         @if($gender)
-            <flux:badge color="{{ $gender === 'M' ? 'blue' : 'pink' }}" size="sm">
-                {{ $gender === 'M' ? 'Herren' : 'Damen' }}
+            <flux:badge color="{{ SwimRecord::genderColor($gender) }}" size="sm">
+                {{ SwimRecord::genderLabel($gender) }}
             </flux:badge>
         @endif
         @if($course)
@@ -200,8 +208,8 @@
                     @endunless
                     @unless($gender)
                         <flux:table.cell>
-                            <flux:badge size="sm" color="{{ $record->gender === 'M' ? 'blue' : 'pink' }}">
-                                {{ $record->gender === 'M' ? 'Herren' : 'Damen' }}
+                            <flux:badge size="sm" color="{{ SwimRecord::genderColor($record->gender) }}">
+                                {{ SwimRecord::genderLabel($record->gender) }}
                             </flux:badge>
                         </flux:table.cell>
                     @endunless

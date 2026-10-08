@@ -145,6 +145,11 @@ Spricht ein Beleg (Stufe 1 oder 2) für einen anderen Verein, entsteht kein Reko
 | `importForm()` / `import(Request)`                 | Import (Delegation)               |
 | `export(Request)`                                  | Export (Delegation)               |
 
+**Filter der Rekordliste:** Sportklasse je Nummer über `S`/`SB`/`SM` zusammengefasst (ein Rekord hat genau eine
+davon) — bei Einzelrekorden die Nummern aus den Basiswerten, bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
+(Brust- und Lagenstaffeln heißen `SB…`/`SM…`). Wertung Herren/Damen, bei Staffeln zusätzlich Mixed (`X`); Anzeige über
+`SwimRecord::genderLabel()`/`genderColor()` (Herren blau, Damen rosa, Mixed violett).
+
 ## LENEX-Import — `RecordImportService`
 
 Importiert LENEX-3.0-Rekorddateien (`.lxf` oder `.xml`) in drei Schritten:
