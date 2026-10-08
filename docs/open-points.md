@@ -120,19 +120,23 @@ eigener Badge statt "Damen".
 Verband" prüft bei Staffeln den Staffelverein, "Nationalität nicht AUT" die verknüpften Mitglieder (auf Dev 08.10.2026:
 keine Fälle, nur 16 von 53 Staffelrekorden haben verknüpfte Mitglieder).
 
+**Statistik-Kacheln auf `meets/show` — erledigt** (`feature/meet-stat-tiles`, 08.10.2026): alle sechs Kacheln
+verlinken (Disziplinen per Anker, Meldungen für Admin auf "Alle Meldungen" bzw. für Vereine auf die eigenen,
+Ergebnisse nur Admin), neue Teilnehmerseite `meets.participants` mit Ansicht Athleten und Vereine; Zurück führt auf
+`meets/show` — siehe `docs/specs/meet-results.md`.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
-1. "Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)" unten
-2. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-3. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-4. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
+1. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
+2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
-5. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-6. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
-8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
-9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
+4. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
+5. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
+6. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+7. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
+8. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -448,36 +452,3 @@ Verein beschränkt wieder geöffnet werden.
 **Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
 Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in
 `UserManagementTest`/`WpsQualification*`).
-
-## Statistik-Kacheln auf `meets/show` anklickbar machen (Drill-down mit Rücksprung)
-
-**Seit:** `feature/meets-status-column` (20.09.2026), Wunsch Erik (Screenshot `meets/182`).
-
-**Was fehlt:** Auf der Wettkampf-Detailseite (`meets/show`) gibt es ein Kachel-Raster mit sechs Zählern
-(`meets/show.blade.php` ~Zeile 142): **Disziplinen**, **Einzelmeldungen**, **Staffelmeldungen**, **Ergebnisse**,
-**Teilnehmer**, **Clubs**. Diese Kacheln sollen **anklickbar** werden und jeweils die dahinterliegenden Daten
-**detailliert, auf diese Veranstaltung gefiltert** anzeigen. Beispiel: Klick auf "Ergebnisse" → Liste **aller**
-Ergebnisse dieser Veranstaltung. Der **Zurück-Button** der Detailansicht soll dann wieder **auf diese
-`meets/show`-Seite** zurückführen (nicht auf den Index).
-
-**Warum zurückgestellt / Überschneidungen:** Teilweise existieren Zielansichten schon, teils nicht:
-
-- **Ergebnisse:** erledigt in `feature/meet-results-overview` — die Kachel verlinkt (für Admins) auf die
-  Ergebnis-Sammelansicht der Veranstaltung, deren Zurück-Button auf `meets/show` führt (`specs/meet-results.md`).
-- **Einzel-/Staffelmeldungen:** eine **meet-weite** (vereinsübergreifende) Meldungsliste gibt es inzwischen ("Alle
-  Meldungen", `meets.entries-overview`, Einzel + Staffel); der Kachel-Klick würde dorthin verlinken.
-  Wettkampfübergreifend zusätzlich das Meldungen-Cockpit (`entries.index`).
-- **Disziplinen:** stehen bereits als Tabelle auf derselben Seite — Klick könnte nur zum Abschnitt scrollen (Anker)
-  statt eine eigene Seite zu öffnen.
-- **Teilnehmer / Clubs:** dafür gibt es noch keine meet-gebundene Detailliste.
-
-Der geforderte **Rücksprung auf `meets/show`** hängt zudem am allgemeinen Punkt "'Zurück'-Buttons kontextsensitiv"
-(oben) — hier konkret: Die Detailseite muss sich merken, dass sie von `meets/show` kam.
-
-**Wer entscheidet:** Erik — welche der sechs Kacheln wirklich eine eigene Detailansicht bekommen (vs. Anker/kein
-Link), und ob das zusammen mit den bestehenden Punkten (meet-weite Meldeliste / Ergebnisse je Meet) in **einer**
-Meet-Detail-Arbeitsfläche gelöst wird.
-
-**Zum Schließen nötig:** Je Kachel entscheiden (eigene gefilterte Detailseite vs. Anker), Kacheln als Links
-gestalten, Zielansichten (soweit fehlend) bauen bzw. bestehende meet-filtern, und den Zurück-Button der
-Zielansichten auf `meets/show` zurückführen (Session-Rücksprung-URL wie bei `athletes.list_url`).
