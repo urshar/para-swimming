@@ -355,9 +355,10 @@ final readonly class RecordImportReviewService
     }
 
     /**
-     * Nimmt AUT- und Regional-Einzelrekorde (aktuell und historisch) von Athleten auf, deren Nationalität bekannt und
-     * nicht AUT ist. Solche Rekorde dürfte es nicht geben — typisch nach einer späteren Korrektur der Nationalität.
-     * Je Rekord nur einmal (auch ein ignorierter Eintrag kommt nicht wieder).
+     * Nimmt AUT- und Regionalrekorde (aktuell und historisch) auf, deren Athlet — bei Staffeln ein verknüpftes Mitglied
+     * — eine bekannte Nationalität hat, die nicht AUT ist. Solche Rekorde dürfte es nicht geben — typisch nach einer
+     * späteren Korrektur der Nationalität oder aus einem Import. Bei Staffeln ist der Athlet des Eintrags das erste
+     * betroffene Mitglied, details.members nennt alle. Je Rekord nur einmal (auch ein ignorierter kommt nicht wieder).
      *
      * @param  list<int>|null  $recordIds  null = alle Rekorde (Bestandsprüfung), sonst nur diese (nach einem Import)
      * @return int Anzahl neu aufgenommener Einträge
@@ -368,26 +369,41 @@ final readonly class RecordImportReviewService
             return 0;
         }
 
+        $foreign = fn ($q) => $q->where('code', '!=', 'AUT');
         $records = SwimRecord::query()
             ->where('record_type', 'like', 'AUT%')
-            ->where('relay_count', 1)
-            ->whereHas('athlete.nation', fn ($q) => $q->where('code', '!=', 'AUT'))
+            // Einzel: der Athlet; Staffel: ein verknüpftes Mitglied mit anderer Nationalität.
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q->where('relay_count', 1)->whereHas('athlete.nation', $foreign))
+                ->orWhere(fn ($q) => $q->where('relay_count', '>', 1)->whereHas('relayTeam.athlete.nation', $foreign)))
             ->when($recordIds !== null, fn ($q) => $q->whereKey($recordIds))
-            ->with(['athlete.nation', 'strokeType:id,name_de'])
+            ->with(['athlete.nation', 'relayTeam.athlete.nation', 'strokeType:id,name_de'])
             ->get();
 
         $created = 0;
         foreach ($records as $record) {
+            $foreignAthletes = $record->relay_count > 1
+                ? $record->relayTeam->map(fn (RelayTeamMember $member) => $member->athlete)
+                    ->filter(fn (?Athlete $a) => $a?->nation !== null && $a->nation->code !== 'AUT')
+                    ->values()
+                : collect([$record->athlete]);
+            $first = $foreignAthletes->first();
+
             $item = ImportReviewItem::firstOrCreate(
                 ['type' => ImportReviewItem::TYPE_NATIONALITY, 'swim_record_id' => $record->id],
                 [
-                    'athlete_id' => $record->athlete_id,
+                    'athlete_id' => $first->id,
                     'current_club_id' => $record->club_id,
                     'source' => $source,
                     'details' => [
-                        'nation' => $record->athlete->nation->code,
+                        'nation' => $first->nation->code,
+                        'members' => $record->relay_count > 1
+                            ? $foreignAthletes->map(fn (Athlete $a) => $a->display_name.' ('.$a->nation->code.')')
+                                ->join(', ')
+                            : null,
                         'label' => $this->recordLabel($record->distance, $record->relay_count,
-                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type),
+                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type)
+                            .($record->relay_count > 1 ? ' · '.$this->genderLabel($record->gender) : ''),
                         'date' => $record->set_date?->toDateString(),
                         'is_current' => $record->is_current,
                     ],
@@ -405,7 +421,8 @@ final readonly class RecordImportReviewService
     /**
      * Nimmt Regionalrekorde (aktuell und historisch) auf, deren Verband nicht zum Landesverband des Rekord-Vereins passt
      * — typisch aus der Zeit, als die Rekordprüfung den Verband vom aktuellen statt vom damaligen Verein ableitete.
-     * Vereine ohne Landesverband werden nicht bewertet. Je Rekord nur einmal.
+     * Vereine ohne Landesverband werden nicht bewertet. Gilt für Einzel- und Staffelrekorde (dann der Staffelverein,
+     * Eintrag ohne Athlet). Je Rekord nur einmal.
      *
      * @return int Anzahl neu aufgenommener Einträge
      */
@@ -414,7 +431,7 @@ final readonly class RecordImportReviewService
         $records = SwimRecord::query()
             ->where('record_type', 'like', 'AUT.%')
             ->whereNotNull('club_id')
-            ->with(['club', 'athlete', 'strokeType:id,name_de', 'result.meet:id,name'])
+            ->with(['club', 'athlete', 'strokeType:id,name_de', 'result.meet:id,name', 'relayResult.meet:id,name'])
             ->get();
 
         $created = 0;
@@ -425,9 +442,11 @@ final readonly class RecordImportReviewService
             }
 
             $expected = $record->club?->regional_association;
-            if ($expected === null || $expected === '' || $expected === $m[1] || $record->athlete_id === null) {
+            // Einzel und Staffel: maßgeblich ist der Verein des Rekords (bei Staffeln der Staffelverein).
+            if ($expected === null || $expected === '' || $expected === $m[1]) {
                 continue;
             }
+            $meet = $record->result?->meet ?? $record->relayResult?->meet;
 
             $item = ImportReviewItem::firstOrCreate(
                 ['type' => ImportReviewItem::TYPE_REGIONAL, 'swim_record_id' => $record->id],
@@ -439,11 +458,12 @@ final readonly class RecordImportReviewService
                         'record_type' => $record->record_type,
                         'expected' => 'AUT.'.$expected.($m[2] ?? ''),
                         'label' => $this->recordLabel($record->distance, $record->relay_count,
-                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type),
+                            $record->strokeType?->name_de, $record->sport_class, $record->course, $record->record_type)
+                            .($record->relay_count > 1 ? ' · '.$this->genderLabel($record->gender) : ''),
                         'date' => $record->set_date?->toDateString(),
                         'is_current' => $record->is_current,
-                        'meet_id' => $record->result?->meet_id,
-                        'meet_name' => $record->result?->meet?->name,
+                        'meet_id' => $meet?->id,
+                        'meet_name' => $meet?->name,
                     ],
                     'status' => ImportReviewItem::STATUS_OPEN,
                 ],
