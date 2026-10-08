@@ -53,8 +53,10 @@ er nicht gefunden, wird er zur **manuellen Bestätigung** vorgemerkt (`unresolve
 **Matching-Priorität Clubs:**
 
 1. `code` + `nation_id`
-2. `lenex_club_id` + `nation_id`
-3. normalisierter `name` + `nation_id`
+2. normalisierter `name` + `nation_id`
+
+Die LENEX-Club-ID (`CLUB@clubid`, nur von Splash geliefert) wird nicht gespeichert, sondern dient nur als
+Cache-Schlüssel innerhalb eines Imports (geprüft 08.10.2026, siehe `docs/open-points.md`).
 
 **Matching-Priorität Athleten:**
 
