@@ -135,25 +135,25 @@
                     <span class="ml-auto text-xs text-zinc-400">{{ $eventEntries->count() }} Meldungen</span>
                 </div>
                 <div class="p-4 [--flux-bleed:1rem]">
-                    <flux:table bleed>
+                    <flux:table bleed class="w-full min-w-216">
                         <flux:table.columns>
                             <flux:table.column>Athlet</flux:table.column>
-                            <flux:table.column>Verein</flux:table.column>
-                            <flux:table.column>Klasse</flux:table.column>
-                            <flux:table.column>Meldezeit</flux:table.column>
-                            <flux:table.column>Status</flux:table.column>
-                            <flux:table.column></flux:table.column>
+                            <flux:table.column class="w-56">Verein</flux:table.column>
+                            <flux:table.column class="w-20">Klasse</flux:table.column>
+                            <flux:table.column class="w-24">Meldezeit</flux:table.column>
+                            <flux:table.column class="w-44">Status</flux:table.column>
+                            <flux:table.column class="w-20"></flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach($eventEntries as $entry)
                                 <flux:table.row>
-                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
+                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white truncate">
                                         <a href="{{ route('athletes.show', $entry->athlete) }}"
                                            class="hover:text-blue-600 dark:hover:text-blue-400">
                                             {{ $entry->athlete?->display_name }}
                                         </a>
                                     </flux:table.cell>
-                                    <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
+                                    <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 truncate" title="{{ $entry->club?->display_name }}">
                                         {{ $entry->club?->display_name }}
                                     </flux:table.cell>
                                     <flux:table.cell>

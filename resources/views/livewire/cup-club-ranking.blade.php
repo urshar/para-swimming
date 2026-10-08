@@ -183,15 +183,15 @@
                                 <div class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                                     Gewertete Athleten (beste je Verein), gewichtet nach Position:
                                 </div>
-                                <table class="w-full text-xs">
+                                <table class="w-full table-fixed text-xs">
                                     <thead>
                                     <tr class="text-left text-zinc-400">
                                         <th class="font-medium py-1 pe-3 w-10">#</th>
-                                        <th class="font-medium py-1 pe-3">Athlet</th>
+                                        <th class="font-medium py-1 pe-3 w-48">Athlet</th>
                                         <th class="font-medium py-1 pe-3">Meet-Punkte</th>
-                                        <th class="font-medium py-1 pe-3 text-right">Saisonwert</th>
-                                        <th class="font-medium py-1 pe-3 text-right">Gewicht</th>
-                                        <th class="font-medium py-1 text-right">Beitrag</th>
+                                        <th class="font-medium py-1 pe-3 text-right w-24">Saisonwert</th>
+                                        <th class="font-medium py-1 pe-3 text-right w-20">Gewicht</th>
+                                        <th class="font-medium py-1 text-right w-20">Beitrag</th>
                                     </tr>
                                     </thead>
                                     <tbody>

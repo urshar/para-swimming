@@ -109,111 +109,121 @@
                     </div>
                 </div>
 
-                <table class="w-full text-sm border-collapse">
-                    <thead>
-                    <tr class="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 text-left">
-                        <th class="px-4 py-2 font-medium text-zinc-600 dark:text-zinc-400">Bewerb</th>
-                        <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Platz</th>
-                        <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Zeit</th>
-                        <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 text-right">Punkte</th>
-                        <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Wettkampf</th>
-                        <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Norm</th>
-                        <th class="px-3 py-2"></th>
-                    </tr>
-                    </thead>
-                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-700/50">
-                    @foreach($zeilen as $zeile)
-                        @php($schluessel = $eintrag->athlete->id.'-'.$zeile->eventLabel.'-'.$zeile->sportClass)
-                        @php($beste = $zeile->history->firstWhere('swimTime', $zeile->status->swimTime))
-
-                        <tr wire:key="row-{{ $schluessel }}">
-                            <td class="px-4 py-1.5 whitespace-nowrap text-zinc-900 dark:text-zinc-100">
-                                {{ $zeile->eventLabel }}
-                                <span class="font-mono text-xs text-zinc-500">{{ $zeile->sportClass }}</span>
-                            </td>
-                            <td class="px-3 py-1.5 text-zinc-900 dark:text-zinc-100">
-                                {{ $beste?->place ?? '–' }}
-                            </td>
-                            <td class="px-3 py-1.5 font-mono text-xs text-zinc-900 dark:text-zinc-100">
-                                {{ $zeile->status->swimTime === null ? '–' : TimeParser::display($zeile->status->swimTime) }}
-                            </td>
-                            <td class="px-3 py-1.5 text-right font-mono text-xs text-zinc-500">
-                                {{ $beste?->points ?? '' }}
-                            </td>
-                            <td class="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                                {{ $zeile->status->meetName }}
-                                @if($zeile->status->meetDate)
-                                    <span class="block">{{ Carbon::parse($zeile->status->meetDate)->format('d.m.Y') }}</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-1.5">
-                                <flux:badge color="{{ $zeile->status->colour() }}" size="sm">
-                                    {{ $zeile->status->label() }}
-                                </flux:badge>
-                                @if($zeile->status->formattedGap())
-                                    <span class="block mt-0.5 font-mono text-xs text-zinc-500">
-                                        {{ $zeile->status->formattedGap() }}
-                                    </span>
-                                @endif
-                                @if($zeile->metUsable === false)
-                                    <span class="block mt-0.5 text-xs text-zinc-500">MET ohne MQS — wirkungslos</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-1.5 text-right whitespace-nowrap">
-                                @if($zeile->history->count() > 1)
-                                    <flux:button wire:click="toggle('{{ $schluessel }}')"
-                                                 variant="ghost" size="sm">
-                                        {{ $this->isExpanded($schluessel) ? 'weniger' : $zeile->history->count().' Ergebnisse' }}
-                                    </flux:button>
-                                @endif
-                            </td>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-240 table-fixed text-sm border-collapse">
+                        <thead>
+                        <tr class="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 text-left">
+                            <th class="w-56 px-4 py-2 font-medium text-zinc-600 dark:text-zinc-400">Bewerb</th>
+                            <th class="w-16 px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Platz</th>
+                            <th class="w-24 px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Zeit</th>
+                            <th class="w-20 px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400 text-right">Punkte</th>
+                            <th class="px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Wettkampf</th>
+                            <th class="w-44 px-3 py-2 font-medium text-zinc-600 dark:text-zinc-400">Norm</th>
+                            <th class="w-28 px-3 py-2"></th>
                         </tr>
-
-                        @if($this->isExpanded($schluessel))
-                            <tr wire:key="history-{{ $schluessel }}" class="bg-zinc-50 dark:bg-zinc-900/40">
-                                <td colspan="7" class="px-8 py-3">
-                                    <p class="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                                        Alle Ergebnisse im Qualifikationszeitraum, chronologisch.
-                                        @if($zeile->trend() !== null)
-                                            Vom ersten zum letzten:
-                                            <span class="font-mono">
-                                                {{ $zeile->trend() < 0 ? '−' : '+' }}{{ number_format(abs($zeile->trend()) / 100, 2, ',', '.') }} s
-                                            </span>
-                                        @endif
-                                    </p>
-                                    <table class="w-full text-xs">
-                                        <tbody>
-                                        @foreach($zeile->history as $ergebnis)
-                                            <tr class="text-zinc-600 dark:text-zinc-400">
-                                                <td class="py-0.5 pe-4 whitespace-nowrap">
-                                                    @if($ergebnis->meetDate){{ Carbon::parse($ergebnis->meetDate)->format('d.m.Y') }}@endif
-                                                </td>
-                                                <td class="py-0.5 pe-4">{{ $ergebnis->meetName }}</td>
-                                                <td class="py-0.5 pe-4">{{ $ergebnis->place ?? '' }}</td>
-                                                <td class="py-0.5 pe-4 font-mono">
-                                                    {{ TimeParser::display($ergebnis->swimTime) }}
-                                                </td>
-                                                <td class="py-0.5 pe-4 font-mono text-right">{{ $ergebnis->points ?? '' }}</td>
-                                                <td class="py-0.5">
-                                                    @if($ergebnis->standardLabel())
-                                                        <flux:badge
-                                                            color="{{ $ergebnis->standardLabel() === 'MQS' ? 'green' : 'amber' }}"
-                                                            size="sm">{{ $ergebnis->standardLabel() }}</flux:badge>
-                                                    @endif
-                                                    @if($ergebnis->exhibition)
-                                                        <flux:badge color="zinc" size="sm">EXH</flux:badge>
-                                                    @endif
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+                        @foreach($zeilen as $zeile)
+                            @php($schluessel = $eintrag->athlete->id.'-'.$zeile->eventLabel.'-'.$zeile->sportClass)
+                            @php($beste = $zeile->history->firstWhere('swimTime', $zeile->status->swimTime))
+    
+                            <tr wire:key="row-{{ $schluessel }}">
+                                <td class="px-4 py-1.5 truncate text-zinc-900 dark:text-zinc-100">
+                                    {{ $zeile->eventLabel }}
+                                    <span class="font-mono text-xs text-zinc-500">{{ $zeile->sportClass }}</span>
+                                </td>
+                                <td class="px-3 py-1.5 text-zinc-900 dark:text-zinc-100">
+                                    {{ $beste?->place ?? '–' }}
+                                </td>
+                                <td class="px-3 py-1.5 font-mono text-xs text-zinc-900 dark:text-zinc-100">
+                                    {{ $zeile->status->swimTime === null ? '–' : TimeParser::display($zeile->status->swimTime) }}
+                                </td>
+                                <td class="px-3 py-1.5 text-right font-mono text-xs text-zinc-500">
+                                    {{ $beste?->points ?? '' }}
+                                </td>
+                                <td class="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                                    {{ $zeile->status->meetName }}
+                                    @if($zeile->status->meetDate)
+                                        <span class="block">{{ Carbon::parse($zeile->status->meetDate)->format('d.m.Y') }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <flux:badge color="{{ $zeile->status->colour() }}" size="sm">
+                                        {{ $zeile->status->label() }}
+                                    </flux:badge>
+                                    @if($zeile->status->formattedGap())
+                                        <span class="block mt-0.5 font-mono text-xs text-zinc-500">
+                                            {{ $zeile->status->formattedGap() }}
+                                        </span>
+                                    @endif
+                                    @if($zeile->metUsable === false)
+                                        <span class="block mt-0.5 text-xs text-zinc-500">MET ohne MQS — wirkungslos</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                                    @if($zeile->history->count() > 1)
+                                        <flux:button wire:click="toggle('{{ $schluessel }}')"
+                                                     variant="ghost" size="sm">
+                                            {{ $this->isExpanded($schluessel) ? 'weniger' : $zeile->history->count().' Ergebnisse' }}
+                                        </flux:button>
+                                    @endif
                                 </td>
                             </tr>
-                        @endif
-                    @endforeach
-                    </tbody>
-                </table>
+    
+                            @if($this->isExpanded($schluessel))
+                                <tr wire:key="history-{{ $schluessel }}" class="bg-zinc-50 dark:bg-zinc-900/40">
+                                    <td colspan="7" class="px-8 py-3">
+                                        <p class="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                                            Alle Ergebnisse im Qualifikationszeitraum, chronologisch.
+                                            @if($zeile->trend() !== null)
+                                                Vom ersten zum letzten:
+                                                <span class="font-mono">
+                                                    {{ $zeile->trend() < 0 ? '−' : '+' }}{{ number_format(abs($zeile->trend()) / 100, 2, ',', '.') }} s
+                                                </span>
+                                            @endif
+                                        </p>
+                                        <table class="w-full table-fixed text-xs">
+                                            <colgroup>
+                                                <col class="w-24">
+                                                <col>
+                                                <col class="w-12">
+                                                <col class="w-24">
+                                                <col class="w-16">
+                                                <col class="w-28">
+                                            </colgroup>
+                                            <tbody>
+                                            @foreach($zeile->history as $ergebnis)
+                                                <tr class="text-zinc-600 dark:text-zinc-400">
+                                                    <td class="py-0.5 pe-4 whitespace-nowrap">
+                                                        @if($ergebnis->meetDate){{ Carbon::parse($ergebnis->meetDate)->format('d.m.Y') }}@endif
+                                                    </td>
+                                                    <td class="py-0.5 pe-4">{{ $ergebnis->meetName }}</td>
+                                                    <td class="py-0.5 pe-4">{{ $ergebnis->place ?? '' }}</td>
+                                                    <td class="py-0.5 pe-4 font-mono">
+                                                        {{ TimeParser::display($ergebnis->swimTime) }}
+                                                    </td>
+                                                    <td class="py-0.5 pe-4 font-mono text-right">{{ $ergebnis->points ?? '' }}</td>
+                                                    <td class="py-0.5">
+                                                        @if($ergebnis->standardLabel())
+                                                            <flux:badge
+                                                                color="{{ $ergebnis->standardLabel() === 'MQS' ? 'green' : 'amber' }}"
+                                                                size="sm">{{ $ergebnis->standardLabel() }}</flux:badge>
+                                                        @endif
+                                                        @if($ergebnis->exhibition)
+                                                            <flux:badge color="zinc" size="sm">EXH</flux:badge>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            @endif
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endforeach
     @empty

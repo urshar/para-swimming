@@ -118,35 +118,35 @@
 
                     <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700" tabindex="0"
                          aria-label="{{ $strokeName }}">
-                        <table class="min-w-full text-sm">
+                        <table class="w-full min-w-284 table-fixed text-sm">
                             <caption class="sr-only">{{ $strokeName }}</caption>
                             <thead>
                                 <tr>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-24 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.distance') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-20 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.sport_class') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.gender') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-16 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.course') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-24 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.time') }}
                                     </th>
                                     <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.athlete') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-48 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.club') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-48 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.location') }}
                                     </th>
-                                    <th scope="col" class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                    <th scope="col" class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                         {{ __('public.records.columns.date') }}
                                     </th>
                                 </tr>
@@ -155,10 +155,7 @@
                                 @foreach ($group->records as $record)
                                     <tr class="even:bg-gray-50 dark:even:bg-gray-900/50">
                                         <td class="p-3 whitespace-nowrap">
-                                            @if ($record->is_relay)
-                                                {{ $record->relay_count }}&times;
-                                            @endif
-                                            {{ $record->distance }}m
+                                            {{ $record->is_relay ? $record->relay_count.'×' : '' }}{{ $record->distance }}m
                                         </td>
                                         <td class="p-3 font-medium whitespace-nowrap">{{ $record->sport_class }}</td>
                                         <td class="p-3 whitespace-nowrap">{{ __('public.records.gender.'.$record->gender) }}</td>
@@ -172,7 +169,7 @@
                                             @endif
                                         </td>
                                         <td class="p-3">{{ $record->record_club_name ?? '—' }}</td>
-                                        <td class="p-3 whitespace-nowrap">
+                                        <td class="p-3">
                                             @if ($record->meet_city)
                                                 @if ($record->meetNation)
                                                     <x-flag code="{{ $record->meetNation->code }}" class="me-1 inline-block h-3 w-4 align-[-1px]" />

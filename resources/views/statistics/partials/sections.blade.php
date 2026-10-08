@@ -101,6 +101,10 @@
     .status-by-meet td.num, .status-by-meet th.num { width: 28px; }
     .status-by-meet th { text-transform: none; }
 
+    /* Feste Breiten für Spalten, die in mehreren gleich aufgebauten Tabellen untereinander stehen. */
+    th.col-club { width: 40%; }
+    th.col-date { width: 70px; }
+
     .kpis { margin: 8px 0 6px; }
     .kpis th { text-align: center; }
     .kpis td.value {
@@ -257,7 +261,7 @@
     <h2>{{ $number }}. Teilnehmer und Starts pro Veranstaltung</h2>
     <table>
         <thead>
-        <tr><th>Veranstaltung</th><th>Datum</th><th class="num">Teilnehmer</th><th class="num">Starts</th></tr>
+        <tr><th>Veranstaltung</th><th class="col-date">Datum</th><th class="num">Teilnehmer</th><th class="num">Starts</th></tr>
         </thead>
         <tbody>
         @forelse($statistics['meets'] as $row)
@@ -554,7 +558,7 @@
             </h3>
             <table>
         <thead>
-        <tr><th class="num">Rang</th><th>Sportler</th><th>Verein</th><th class="num">Punkte</th></tr>
+        <tr><th class="num">Rang</th><th>Sportler</th><th class="col-club">Verein</th><th class="num">Punkte</th></tr>
         </thead>
         <tbody>
                 @foreach($bracket['results'] as $result)
@@ -592,7 +596,7 @@
 
             <table>
         <thead>
-        <tr><th>Veranstaltung</th><th>Datum</th><th class="num">Teilnehmer</th><th class="num">Starts</th></tr>
+        <tr><th>Veranstaltung</th><th class="col-date">Datum</th><th class="num">Teilnehmer</th><th class="num">Starts</th></tr>
         </thead>
         <tbody>
                 @foreach($championship['meets'] as $row)

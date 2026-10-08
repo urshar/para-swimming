@@ -192,12 +192,12 @@
 
                             <div class="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700"
                                  tabindex="0" aria-label="{{ $heading }}">
-                                <table class="min-w-full text-sm">
+                                <table class="w-full min-w-232 table-fixed text-sm">
                                     <caption class="sr-only">{{ $heading }}</caption>
                                     <thead>
                                     <tr>
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-16 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.annual_best.columns.rank') }}
                                         </th>
                                         <th scope="col"
@@ -206,24 +206,24 @@
                                         </th>
                                         @if ($showGenderColumn)
                                             <th scope="col"
-                                                class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                                class="w-28 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                                 {{ __('public.annual_best.columns.gender') }}
                                             </th>
                                         @endif
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-48 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.annual_best.columns.club') }}
                                         </th>
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-52 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.annual_best.columns.discipline') }}
                                         </th>
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-24 bg-gray-100/75 px-3 py-3 text-left font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.annual_best.columns.sport_class') }}
                                         </th>
                                         <th scope="col"
-                                            class="bg-gray-100/75 px-3 py-3 text-right font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
+                                            class="w-20 bg-gray-100/75 px-3 py-3 text-right font-semibold text-gray-900 dark:bg-gray-700/25 dark:text-gray-50">
                                             {{ __('public.annual_best.columns.points') }}
                                         </th>
                                     </tr>

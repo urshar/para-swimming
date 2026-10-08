@@ -59,9 +59,9 @@ zurück, wo man herkam, inklusive Filter.
 - **Staffelpunkte:** Für Staffelergebnisse rechnet dieselbe Formel über die Wertung der Mannschaft (Damen/Herren/Mixed
   → Basiswert-Kategorie) und die Staffelklasse (S14, S15, S20, S21, S34, S49) → `relay_results.points` — beim
   Erfassen (eingetragener Wert bleibt) und bei "ÖBSV-Punkte berechnen"; WPS gibt es für Staffeln nicht. Beim
-  LENEX-Import bleiben die Punkte aus der Datei. Befund Oktober 2026: Splash rechnet Herrenstaffeln S14 mit anderen
-  Basiszeiten (4x50 m Freistil 1:47,44 statt 1:42,62, 4x100 m 3:52,80 statt 3:50,49); Damen und Mixed stimmen überein.
-  Die Basiswert-Tabelle ist maßgeblich — ggf. dort korrigieren.
+  LENEX-Import bleiben die Punkte aus der Datei. Die Basiswert-Tabelle ist maßgeblich; weichen die Datei-Punkte ab,
+  zuerst prüfen, ob die richtige Basiswert-Version eingespielt ist (Oktober 2026: Herrenstaffeln S14 auf Dev aus einer
+  noch nicht gültigen Tabelle, gültig ist MM-2021).
 
 ## Ergebnisliste (PDF)
 
