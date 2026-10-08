@@ -95,7 +95,9 @@ die eingesetzten Schwimmer des Ergebnisses (`relay_result_members`). Kein Rekord
   (`RelayResult::hasRecordComposition()`: Herren nur Männer, Damen nur Frauen, Mixed gleich viele von beiden). Eine
   **Herrenstaffel mit Damenbeteiligung** (3 + 1, 1 + 3) ist ein gültiges Ergebnis in der Herrenwertung, kann aber
   **keinen ÖR, ÖJR oder Regionalrekord** aufstellen;
-- ein Schwimmer nicht zum Staffelverein gehört (z. B. AK-Staffel mit vereinsfremdem Schwimmer);
+- ein Schwimmer am Starttag nicht zum Staffelverein gehörte (z. B. gemischte Staffel, AK-Staffel mit vereinsfremdem
+  Schwimmer) — siehe "Vereinszugehörigkeit am Starttag" unten;
+- ein Mitglied keinem Athleten zugeordnet ist;
 - ein Athlet eine andere Nation als AUT hat;
 - sich über `RelayClassValidator` keine gültige Staffelklasse ergibt (`resolveRelayClass`).
 
@@ -103,6 +105,18 @@ Das Rekord-Geschlecht ist die Wertung der Staffel (M, F, X). Bei Erfolg werden d
 `RelayTeamMember` (Position, Name, Geburtsdatum, optional `athlete_id`) gespeichert; der Rekord verweist über
 `swim_records.relay_result_id` auf das Staffelergebnis (Einzelrekorde über `result_id`), die Bestätigung eines
 ausstehenden Rekords setzt das Flag am Staffelergebnis.
+
+**Vereinszugehörigkeit am Starttag** (gilt für ÖR, ÖJR und Regionalrekorde offen/Jugend): Alle Mitglieder müssen am
+Starttag beim Staffelverein gewesen sein, nicht heute — nach einem Vereinswechsel bleibt eine alte Staffel
+rekordfähig. Je Mitglied entscheidet die erste vorhandene Quelle:
+
+1. **Einzelergebnisse im selben Wettkampf** (`results.club_id`) — der stärkste Beleg;
+2. sonst die **Vereins-History** (`athlete_club_history`) mit einem Eintrag, der das Wettkampfdatum abdeckt;
+3. sonst der **heutige Verein**: stimmt er mit dem Staffelverein überein, zählt das Mitglied; sonst ist die
+   Zugehörigkeit unbelegt und der Rekord wird **PENDING** angelegt (Grund `RecordCheckerService::PENDING_CLUB`), der
+   Verband bestätigt ihn wie einen AK-Rekord.
+
+Spricht ein Beleg (Stufe 1 oder 2) für einen anderen Verein, entsteht kein Rekord.
 
 ## Historie & Ablösung
 
@@ -290,6 +304,7 @@ Alle unter `auth`, Prefix `records`:
 
 - `tests/Unit/RecordCheckerServiceTest.php` — Rekord-Erkennung, Nationalitäts- und Ablöselogik.
 - `tests/Unit/RelayClassValidatorTest.php` — Staffelklassen-Auflösung (auch von der Staffel-Rekordprüfung genutzt).
+- `tests/Feature/RelayRecordClubTest.php` — Vereinszugehörigkeit der Staffelmitglieder am Starttag.
 - `tests/Feature/RecordImportReviewTest.php` — Vereinskonflikte (Vorschau, Import, Staffeln, Verbände, Relevanz),
   Geburtsdatums-Kontrolle, Nationalität nicht AUT (inkl. Neu-Verknüpfung der Historie), Bestandsprüfung und Aktionen
   der Prüfliste.

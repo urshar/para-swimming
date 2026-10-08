@@ -102,6 +102,11 @@ Verband" in der Import Prüfliste.
 sie `AUT`/`AUT.JR` zu; Bestand per `php artisan records:merge-national-types` (Probelauf + Bericht) zusammenführen —
 siehe `docs/specs/records.md`. Ausführung auf den Daten: Erik nach Prüfung des Berichts.
 
+**Staffel-Rekordprüfung nach Vereinszugehörigkeit am Starttag — erledigt** (`fix/relay-record-club`, 07.10.2026):
+Einzelergebnisse im selben Wettkampf, sonst Vereins-History, sonst heutiger Verein (abweichend = ausstehend) — siehe
+`docs/specs/records.md`. Auf Dev werden nach erneuter Rekordprüfung 7 Staffeln rekordfähig (R9, R16, R17, R25, R33,
+R48, R49), 7 gemischte Staffeln bleiben es nicht.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -115,7 +120,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 7. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 8. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
 9. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
-10. "Staffel-Rekordprüfung verlangt die heutige Vereinszugehörigkeit" unten (Bugfix)
+10. "Staffelrekorde mit der Liste aus dem Sport Management Tool abgleichen" unten (Datenkorrektur)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -298,16 +303,18 @@ Mitgliedern? Bezug zu Staffeln?).
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
 
-## Staffel-Rekordprüfung verlangt die heutige Vereinszugehörigkeit
+## Staffelrekorde mit der Liste aus dem Sport Management Tool abgleichen
 
-**Seit:** `fix/regional-record-club` (07.10.2026), Nebenbefund.
+**Seit:** 07.10.2026, Datei `öbsv-relay-all-all-all-records.lxf` von Erik (aktuell, maßgeblich).
 
-**Was falsch ist:** `RecordCheckerService::checkRelayResult()` verlangt, dass alle Staffelmitglieder **heute** beim
-Staffelverein sind (`$athlete->club_id !== $relayResult->club_id`). Nach einem Vereinswechsel liefert eine erneute
-Rekordprüfung einer alten Staffel deshalb keinen Rekord mehr (gleiche Fehlerklasse wie der behobene Regional-Bug).
+**Ausgangslage:** Die Datei enthält 31 aktuelle Staffelrekorde (`AUT`, `AUT.JG`) ohne Verein und ohne Mitglieder (nur
+Wettkampf und Datum). Abgleich mit der Dev-DB nach dem Zusammenführen: 8 gleich, 15 fehlen in der DB, 8 weichen ab —
+teils ist der DB-Rekord schneller **und** älter (z. B. 4×100 m Freistil SCM M S14: DB 5:34,39 vom 24.05.2003, Datei
+6:00,68 vom 05.05.2024), eine der Quellen ist dort also falsch. 8 aktuelle DB-Rekorde fehlen in der Datei, darunter
+die Lagenstaffeln: In der DB heißen ihre Klassen `SM34`/`SM49`, in der Datei Klasse 34/49.
 
-**Zum Schließen nötig:** Zugehörigkeit zum Zeitpunkt des Starts prüfen, z. B. über die Einzelergebnisse der Mitglieder
-im selben Wettkampf (`results.club_id`) oder die Vereins-History; Test mit Vereinswechsel nach dem Start.
+**Zum Schließen nötig:** Klassen-Benennung der Lagenstaffeln vereinheitlichen; Abweichungen klären (falsche Strecke,
+Klasse oder Zeit in der DB?); dann die Datei importieren bzw. die Ketten danach korrigieren.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

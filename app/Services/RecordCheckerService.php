@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AthleteClubHistory;
 use App\Models\Meet;
 use App\Models\RecordSplit;
 use App\Models\RelayResult;
@@ -35,7 +36,8 @@ use Throwable;
  * als PENDING angelegt — der Verband (Admin) bestätigt sie (SwimRecord::approve()).
  *
  * Staffelrekorde (relay_results, via RelayClassValidator):
- *   Alle Positionen besetzt, alle Athleten vom Staffelverein und AUT, Sportklassen-Kombination muss
+ *   Alle Positionen besetzt, alle Athleten zum Startzeitpunkt beim Staffelverein (siehe memberBelongsToClub()) und
+ *   AUT, Sportklassen-Kombination muss
  *   S20 / S34 / S49 / S21 / S14 / S15 ergeben, und die Zusammensetzung muss zum Staffel-Geschlecht passen
  *   (RelayResult::hasRecordComposition(): Herren nur Männer, Damen nur Frauen, Mixed 2 + 2). Eine Herrenstaffel mit
  *   Damenbeteiligung bleibt ein gültiges Ergebnis, stellt aber keinen Rekord auf.
@@ -50,6 +52,9 @@ readonly class RecordCheckerService
 
     /** Grund eines ausstehenden Rekords: Nationalität des Athleten nicht hinterlegt. */
     public const string PENDING_NATION = 'Nationalität nicht hinterlegt';
+
+    /** Grund eines ausstehenden Staffelrekords: Vereinszugehörigkeit eines Mitglieds am Starttag nicht belegt. */
+    public const string PENDING_CLUB = 'Vereinszugehörigkeit zum Startzeitpunkt nicht belegt';
 
     public function __construct(
         private RelayClassValidator $relayValidator,
@@ -143,16 +148,24 @@ readonly class RecordCheckerService
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Alle Mitglieder vom Staffelverein und mit österreichischer (oder unbekannter) Nationalität.
+        // Alle Mitglieder mit österreichischer (oder unbekannter) Nationalität und am Starttag beim Staffelverein.
+        // Ist die Zugehörigkeit eines Mitglieds nicht belegt, wird der Rekord nur ausstehend angelegt.
+        $clubUnproven = false;
+        $evidence = $this->clubEvidence($members, $meet);
         foreach ($members as $member) {
             $athlete = $member->athlete;
-            if (! $athlete || $athlete->club_id !== $relayResult->club_id) {
+            if (! $athlete) {
                 return ['new' => $new, 'pending' => $pending];
             }
             $code = $athlete->nation?->code;
             if ($code !== null && $code !== 'AUT') {
                 return ['new' => $new, 'pending' => $pending];
             }
+            $belongs = $this->memberBelongsToClub($athlete->id, $athlete->club_id, $relayResult->club_id, $evidence);
+            if ($belongs === false) {
+                return ['new' => $new, 'pending' => $pending];
+            }
+            $clubUnproven = $clubUnproven || $belongs === null;
         }
 
         // Staffelklasse aus den Mitgliedern validieren
@@ -175,8 +188,11 @@ readonly class RecordCheckerService
         $meetYear = (int) $meet->start_date->format('Y');
         $isJunior = $this->relayValidator->isJuniorRelay($members, $meetYear);
 
-        // Außer Konkurrenz (EXH): alle Rekordtypen prüfen, neue Rekorde aber nur als ausstehend anlegen.
-        $isPending = $relayResult->status === 'EXH';
+        // Außer Konkurrenz (EXH) oder Vereinszugehörigkeit nicht belegt: alle Rekordtypen prüfen, neue Rekorde aber
+        // nur als ausstehend anlegen.
+        $isExhibition = $relayResult->status === 'EXH';
+        $isPending = $isExhibition || $clubUnproven;
+        $reason = $isExhibition ? self::PENDING_EXHIBITION : self::PENDING_CLUB;
         $recordStatus = $isPending ? 'PENDING' : 'APPROVED';
         $relayName = $relayResult->display_name;
 
@@ -199,7 +215,7 @@ readonly class RecordCheckerService
 
             if ($newRecord) {
                 $this->saveRelayMembers($newRecord, $members);
-                $this->collect($new, $pending, $newRecord, $type, $isPending, $relayName, self::PENDING_EXHIBITION);
+                $this->collect($new, $pending, $newRecord, $type, $isPending, $relayName, $reason);
             }
         }
 
@@ -285,6 +301,54 @@ readonly class RecordCheckerService
         }
 
         return ['new' => $new, 'pending' => $pending];
+    }
+
+    /**
+     * Belege für die Vereinszugehörigkeit der Staffelmitglieder am Starttag: die Vereine ihrer Einzelergebnisse im
+     * selben Wettkampf und ihre Vereins-History-Einträge, die das Wettkampfdatum abdecken.
+     *
+     * @param  Collection<int, RelayResultMember>  $members
+     * @return array{results: Collection<int, Collection<int, int>>, history: Collection<int, Collection<int, int>>}
+     */
+    private function clubEvidence(Collection $members, Meet $meet): array
+    {
+        $athleteIds = $members->pluck('athlete_id')->filter()->unique()->values();
+        $date = $meet->start_date->toDateString();
+
+        $results = Result::where('meet_id', $meet->id)
+            ->whereIn('athlete_id', $athleteIds)
+            ->whereNotNull('club_id')
+            ->get(['athlete_id', 'club_id'])
+            ->groupBy('athlete_id')
+            ->map(fn (Collection $rows) => $rows->pluck('club_id'));
+
+        $history = AthleteClubHistory::whereIn('athlete_id', $athleteIds)
+            ->whereDate('joined_at', '<=', $date)
+            ->where(fn ($q) => $q->whereNull('left_at')->orWhereDate('left_at', '>=', $date))
+            ->get(['athlete_id', 'club_id'])
+            ->groupBy('athlete_id')
+            ->map(fn (Collection $rows) => $rows->pluck('club_id'));
+
+        return ['results' => $results, 'history' => $history];
+    }
+
+    /**
+     * War das Mitglied am Starttag beim Staffelverein? Die erste vorhandene Quelle entscheidet:
+     * 1. Einzelergebnisse im selben Wettkampf, 2. Vereins-History zum Wettkampfdatum, 3. heutiger Verein — stimmt er
+     * nicht mit dem Staffelverein überein, ist die Zugehörigkeit unbelegt (null, Rekord wird ausstehend angelegt).
+     *
+     * @param  array{results: Collection<int, Collection<int, int>>, history: Collection<int, Collection<int, int>>}  $evidence
+     */
+    private function memberBelongsToClub(int $athleteId, ?int $currentClubId, int $relayClubId, array $evidence): ?bool
+    {
+        foreach (['results', 'history'] as $source) {
+            $clubIds = $evidence[$source]->get($athleteId);
+            if ($clubIds !== null && $clubIds->isNotEmpty()) {
+                return $clubIds->contains($relayClubId);
+            }
+        }
+
+        return $currentClubId === $relayClubId ? true : null;
     }
 
     // ── Staffelrekord-Prüfung ─────────────────────────────────────────────────
