@@ -125,6 +125,14 @@ verlinken (Disziplinen per Anker, Meldungen für Admin auf "Alle Meldungen" bzw.
 Ergebnisse nur Admin), neue Teilnehmerseite `meets.participants` mit Ansicht Athleten und Vereine; Zurück führt auf
 `meets/show` — siehe `docs/specs/meet-results.md`.
 
+**LENEX-Club-ID speichern — geprüft, nicht nötig** (`docs/close-lenex-club-id`, 08.10.2026): Von den
+vorhandenen LENEX-Dateien liefert nur Splash Meet Manager eine `clubid` (Sport Management Tool, Para Swimming
+NatDB, MSECM und TITANIUM nicht); Splash vergibt sie vermutlich je Wettkampfdatenbank, also nicht stabil über
+Veranstaltungen. Alle österreichischen Vereine kommen in allen Dateien mit einheitlichem `code`, die Dev-DB hat keine
+Vereine ohne `code` und keine Dubletten (Name oder `code` je Nation). Matching über `code`, dann Name, reicht.
+Wieder aufgreifen, falls beim Import Dubletten auftauchen oder Splash-Rundreisen (Einladung → Splash → Ergebnisse)
+Vereine nicht sauber zuordnen.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -133,10 +141,9 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
 4. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-5. "LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)" unten
-6. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
-7. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
-8. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
+5. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+6. "Untereinanderstehende Tabellen einheitlich ausrichten" unten
+7. "Basiszeiten der Herrenstaffeln S14 prüfen" unten (Datenprüfung)
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -147,30 +154,6 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
-
-## LENEX-Club-ID speichern (Vereine bei Splash-Rundreisen stabil wiedererkennen)
-
-**Seit:** `fix/club-lenex-club-id` (30.09.2026) — Weg B der Entscheidung zu `clubs.lenex_club_id`.
-
-**Ausgangslage:** Die nie angelegte Spalte `clubs.lenex_club_id` wurde entfernt (toter Code in `Club::$fillable`,
-`LenexExportService`, `LenexResolverService`-Docblock). Beim LENEX-Import wird die Club-ID aus Splash (`CLUB@clubid`,
-LENEX-Standard wäre `id`) nur als Cache-Schlüssel innerhalb **eines** Imports verwendet, nicht gespeichert. Vereine
-werden importübergreifend über `code`, dann über den normalisierten Namen (jeweils + Nation) wiedererkannt.
-
-**Was fehlen könnte:** Eine gespeicherte LENEX-Club-ID als zusätzliche, stabile Matching-Stufe — sinnvoll, falls Vereine
-ohne (oder mit wechselndem) `code` und mit abweichenden Namensschreibweisen importiert werden und dadurch doppelt
-angelegt
-oder falsch zugeordnet werden. Optional auch Export dieser ID, damit Splash beim Re-Import dieselben Vereine erkennt.
-
-**Warum zurückgestellt:** Neues Feature statt Bugfix; nur nötig, wenn das Matching über `code`/Name in der Praxis nicht
-reicht.
-
-**Wer entscheidet:** Erik — ob es beim Import tatsächlich Fehlzuordnungen/Dubletten gibt, und ob der Export die ID für
-Splash-Rundreisen mitgeben soll (`clubid` ist kein LENEX-3-Attribut an `CLUB`, nur Splash-spezifisch).
-
-**Zum Schließen nötig:** Migration `clubs.lenex_club_id` (nullable, ggf. unique je Nation), beim Import befüllen
-(`LenexResolverService::resolveClub()` + `createClub()`), als Matching-Stufe zwischen `code` und Name einbauen,
-optional im Export als `clubid` ausgeben; Tests für Matching und Export.
 
 ## Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)
 
