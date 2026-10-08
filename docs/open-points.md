@@ -146,6 +146,12 @@ Startberechtigung, Rekorde) und PDFs (Richtzeiten, Jahresvergleich, Statistikber
 entscheiden die Punktespalten für die ganze Seite. Nicht nötig: Basiszeiten-Matrix (eine Tabelle je Reiter),
 Meldegeld-Abrechnung (ein Verein je Seite) und die übrigen PDFs (hatten bereits feste Breiten).
 
+**Normen-Import aus XML — erledigt** (`feature/standards-xml-import`, 08.10.2026): Der Normen-Upload nimmt
+zusätzlich die SDMS-Ranglistendatei von World Para Swimming (`DT_FED_RANKING`, z. B. "LA28 Paralympic Games - MQS
+ONLY APPLIED") an, am Inhalt erkannt; dieselbe Vorschau und dieselbe "nur MQS/MET"-Regel. Kombinierte Bewerbe
+erhalten die Norm je startberechtigter Klasse (S3 für S1-3 → S1, S2, S3), Staffeln werden übersprungen — siehe
+`docs/specs/wps-qualification.md` §9.2.
+
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
@@ -153,8 +159,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
 3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
-4. "Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)" unten
-5. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+4. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -165,29 +170,6 @@ Erik klären, erst danach Branch anlegen/implementieren.
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
 2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
-
-## Normen-Import: MQS/MET auch aus XML importieren (zusätzlich zum xlsx)
-
-**Seit:** Wunsch Erik (30.09.2026) beim Umbau der Meisterschafts-Filter.
-
-**Was fehlt:** Der Normen-Import (`championships/import/form.blade.php` → `ChampionshipStandardImportController`/
-`ChampionshipStandardImportService`) akzeptiert aktuell **nur eine `.xlsx`-Datei** im WPS-Excel-Layout (Zeile 1 Titel,
-Zeile 2 Events/Class/Men/Women, Zeile 3 MQS/MET, ab Zeile 4 die Daten in den Spalten A–F; füllt ausschließlich MQS und
-MET, ÖBSV-Prozentsätze/-Zeiten bleiben unberührt). Gewünscht: MQS und MET **auch aus einer XML-Datei** importieren
-können.
-
-**Warum zurückgestellt:** Ohne eine Beispiel-XML ist weder das Quellformat (Schema/Struktur) noch das Mapping auf
-Bewerb/Sportklasse/Geschlecht/MQS/MET bekannt. Zu klären ist außerdem, ob es sich um ein WPS-eigenes XML, um LENEX oder
-ein anderes Format handelt — davon hängt der Parser ab.
-
-**Wer entscheidet / liefert:** Erik — eine Beispiel-XML mit Normen (MQS/MET) und die Angabe, welches Format das ist
-(WPS-XML/LENEX/…). Offene Fragen: dieselbe "nur MQS/MET füllen, ÖBSV unberührt"-Regel wie beim xlsx-Import? Ein
-gemeinsamer Datei-Upload, der xlsx UND xml automatisch erkennt, oder ein eigener Auswahlpunkt?
-
-**Zum Schließen nötig:** Nach Erhalt der Beispiel-XML: `ChampionshipStandardImportService` um einen XML-Parser erweitern
-(Format erkennen: xlsx vs. xml), Mapping auf Bewerb/Klasse/Geschlecht/MQS/MET, dieselbe Vorschau- und
-Bestätigungsstrecke (`ChampionshipStandardImportPreview`) und die "nur MQS/MET"-Regel wiederverwenden; der Datei-Upload
-akzeptiert zusätzlich `.xml`.
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 

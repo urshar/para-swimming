@@ -22,7 +22,11 @@ use Throwable;
  * Zweistufig wie WpsParameterImportService: parse() liest und validiert, ohne zu schreiben;
  * import() schreibt in einer Transaktion. Der Vorschauschritt ist verbindlich.
  *
- * Aufbau der bekannten Datei (geprüft an "Para Swimming European Open Championships"):
+ * Zwei Formate, am Inhalt erkannt: die Excel-Datei (unten) und die SDMS-Ranglistendatei von
+ * World Para Swimming als XML (ChampionshipStandardXmlParser). Beide laufen durch dieselbe
+ * Vorschau und denselben Import.
+ *
+ * Aufbau der bekannten Excel-Datei (geprüft an "Para Swimming European Open Championships"):
  *
  *   Zeile 1   Titel, enthält den Qualifikationszeitraum im Klartext
  *   Zeile 2   Kopf:      Events | Class | Men        | Women
@@ -85,7 +89,8 @@ final readonly class ChampionshipStandardImportService
     private const int MAX_ROWS = 2000;
 
     public function __construct(
-        private ChampionshipStandardService $standardService
+        private ChampionshipStandardService $standardService,
+        private ChampionshipStandardXmlParser $xmlParser,
     ) {}
 
     /**
@@ -98,6 +103,10 @@ final readonly class ChampionshipStandardImportService
      */
     public function parse(string $path, ?Championship $championship): ChampionshipStandardImportPreview
     {
+        if (ChampionshipStandardXmlParser::isXml($path)) {
+            return $this->parseXml($path, $championship);
+        }
+
         try {
             $spreadsheet = IOFactory::load($path);
         } catch (SpreadsheetReaderException $e) {
@@ -267,6 +276,26 @@ final readonly class ChampionshipStandardImportService
             // importierten Normen zurück.
             throw new RuntimeException('Der Import ist fehlgeschlagen: '.$e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * Vorschau aus der SDMS-Ranglistendatei (XML). Zeitraum und Titel stehen dort strukturiert
+     * im Kopf und werden wie beim Excel-Import nur als Vorschlag angeboten.
+     *
+     * @throws RuntimeException wenn die Datei kein lesbares SDMS-Ranking mit Normen ist
+     */
+    private function parseXml(string $path, ?Championship $championship): ChampionshipStandardImportPreview
+    {
+        $daten = $this->xmlParser->parse($path, $this->strokeTypeIdsByLenexCode());
+
+        return new ChampionshipStandardImportPreview(
+            $daten['rows'],
+            $daten['errors'],
+            array_merge($daten['warnings'], $this->missingRowWarnings($championship, $daten['rows'])),
+            $this->counts($daten['rows']),
+            $daten['period'],
+            $daten['title'],
+        );
     }
 
     /**
