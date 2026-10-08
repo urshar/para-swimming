@@ -208,6 +208,40 @@ class RecordImportService
 
                 $clubId = $this->resolveClubId($rec['club'] ?? null, $clubIdMap);
 
+                // Die Liste ist maßgeblich: Widerspricht der Eintrag der Kette in der DB (schnellerer Rekord am selben
+                // Tag oder davor, nicht schnellerer danach), nichts ändern, sondern in die Prüfliste. Steht dieselbe Zeit
+                // schon in der Kette, ist der Eintrag bekannt. Ausstehende Rekorde (Nationalität unklar) laufen wie bisher.
+                if ($recordStatus === 'APPROVED') {
+                    $category = array_intersect_key($rec, array_flip(RecordImportReviewService::CATEGORY_FIELDS));
+                    $chain = $this->review->chain($category);
+                    $setDate = TimeParser::sanitizeDate($rec['set_date']);
+                    $contradictions = $this->review->contradictions($chain, $rec['swim_time'], $setDate);
+
+                    if (! $chain->contains('swim_time', $rec['swim_time']) && $contradictions->isNotEmpty()) {
+                        $item = $this->review->logListMismatch($category, [
+                            'swim_time' => $rec['swim_time'],
+                            'set_date' => $setDate,
+                            'athlete_id' => $athleteId,
+                            'club_id' => $clubId,
+                            'nation_id' => $nationId,
+                            'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
+                            'meet_name' => $rec['meet_name'],
+                            'meet_city' => $rec['meet_city'],
+                            'meet_course' => $rec['meet_course'],
+                            'splits' => $rec['splits'],
+                            'relay_members' => array_map(fn (array $m) => [
+                                ...$m, 'birth_date' => TimeParser::sanitizeDate($m['birth_date']),
+                            ], $rec['relay_members'] ?? []),
+                        ], $contradictions, $this->strokeName($rec['stroke_type_id']), $source);
+                        if ($item !== null) {
+                            $reviewOpen++;
+                        }
+                        array_push($observations, ...$this->observations($rec, $athleteId, $clubId, null));
+
+                        continue;
+                    }
+                }
+
                 // Nur importieren wenn besser als aktueller Rekord. Für die Vereinsprüfung zählt der Rekord trotzdem:
                 // Er belegt den Verein des Athleten zum Rekorddatum.
                 if ($current && $current->swim_time <= $rec['swim_time']) {
@@ -294,6 +328,9 @@ class RecordImportService
 
             // ── Neue Rekorde von Athleten, deren Nationalität nicht AUT ist ──
             $reviewOpen += $this->review->logNationalityIssues($createdRecordIds, $source);
+
+            // ── Nationale/regionale Staffelrekorde ohne Verein ──
+            $reviewOpen += $this->review->logRelaysWithoutClub($createdRecordIds, $source);
 
             // ── Vereinskonflikte: angehakte übernehmen, übrige relevante in die Prüfliste ──
             foreach ($this->review->conflicts($observations) as $athleteId => $conflict) {
@@ -505,6 +542,7 @@ class RecordImportService
                     'gender' => $gender,
                     'sport_class' => $sportClass,
                     'stroke_type_id' => $strokeTypeId,
+                    'stroke_name' => $this->strokeName($strokeTypeId),
                     'distance' => $distance,
                     'relay_count' => $relayCount,
                     'swim_time' => self::parseLenexTime($swimtime),

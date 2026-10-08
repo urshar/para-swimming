@@ -12,8 +12,8 @@ use Throwable;
 
 /**
  * Prüfliste nach dem LENEX-Rekordimport: Vereinskonflikte, Zuordnungen mit abweichendem Geburtsdatum und Rekorde von
- * Athleten, deren Nationalität nicht AUT ist, sowie Regionalrekorde mit falschem Verband (docs/specs/records.md
- * "Prüfliste nach dem Import").
+ * Athleten, deren Nationalität nicht AUT ist, Regionalrekorde mit falschem Verband, Abweichungen zur importierten
+ * Rekordliste und Staffelrekorde ohne Verein (docs/specs/records.md "Prüfliste nach dem Import").
  */
 class RecordImportReviewController extends Controller
 {
@@ -30,6 +30,8 @@ class RecordImportReviewController extends Controller
         ImportReviewItem::TYPE_YEAR_MATCH => 'Geburtsdatum abweichend',
         ImportReviewItem::TYPE_NATIONALITY => 'Nationalität nicht AUT',
         ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
+        ImportReviewItem::TYPE_LIST_MISMATCH => 'Abweichung zur Rekordliste',
+        ImportReviewItem::TYPE_RELAY_NO_CLUB => 'Staffelrekord ohne Verein',
     ];
 
     public function __construct(
@@ -46,7 +48,7 @@ class RecordImportReviewController extends Controller
             : 'all';
 
         $items = ImportReviewItem::query()
-            ->with(['athlete', 'currentClub', 'lenexClub', 'resolvedBy', 'swimRecord:id'])
+            ->with(['athlete', 'currentClub', 'lenexClub', 'resolvedBy', 'swimRecord'])
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->when($type !== 'all', fn ($q) => $q->where('type', $type))
             ->orderByDesc('created_at')
@@ -54,8 +56,16 @@ class RecordImportReviewController extends Controller
             ->paginate(50)
             ->withQueryString();
 
+        // Offene Staffeln ohne Verein: passendes Staffelergebnis als Vorschlag (item_id => RelayResult).
+        $candidates = collect($items->items())
+            ->filter(fn (ImportReviewItem $item) => $item->isOpen() && $item->swimRecord !== null
+                && $item->type === ImportReviewItem::TYPE_RELAY_NO_CLUB)
+            ->mapWithKeys(fn (ImportReviewItem $item) => [$item->id => $this->review->candidateRelayResult($item->swimRecord)])
+            ->filter();
+
         return view('records.import-review', [
             'items' => $items,
+            'candidates' => $candidates,
             'status' => $status,
             'type' => $type,
             'statuses' => self::STATUSES,
@@ -78,12 +88,18 @@ class RecordImportReviewController extends Controller
             return back()->with('error', 'Der Verein laut Rekord existiert nicht mehr — bitte ignorieren.');
         }
 
+        $label = $item->details['label'] ?? 'Rekord';
+
         return back()->with('success', match ($item->type) {
             ImportReviewItem::TYPE_CLUB_CONFLICT => 'Stammverein von '.$item->athlete->display_name.' aktualisiert.',
             ImportReviewItem::TYPE_NATIONALITY => 'Rekord von '.$item->athlete->display_name
                 .' entfernt; die Rekord-Historie wurde neu verknüpft.',
             ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord von '.$item->athlete->display_name
                 .' entfernt. Für den richtigen Regionalrekord die Rekordprüfung des Wettkampfs erneut starten.',
+            ImportReviewItem::TYPE_LIST_MISMATCH => $label.': Rekordliste übernommen, die Rekord-Historie wurde neu verknüpft.',
+            ImportReviewItem::TYPE_RELAY_NO_CLUB => isset($item->details['linked_relay_result_id'])
+                ? $label.': mit dem Staffelergebnis verknüpft (Verein und Mitglieder übernommen).'
+                : $label.': als geprüft markiert.',
             default => 'Zuordnung von '.$item->athlete->display_name.' als geprüft markiert.',
         });
     }
@@ -97,6 +113,23 @@ class RecordImportReviewController extends Controller
         $this->review->ignore($item, $request->user()->id);
 
         return back()->with('success', 'Eintrag ignoriert.');
+    }
+
+    /**
+     * Löscht die erledigten Einträge. Ignorierte bleiben als Merker, damit Prüflauf und Import sie nicht neu anlegen.
+     */
+    public function purge(): RedirectResponse
+    {
+        // Der Query-Builder liefert die Anzahl gelöschter Zeilen; laut Docblock nur "mixed" — deshalb der Cast.
+        $deleted = (int) ImportReviewItem::where('status', ImportReviewItem::STATUS_APPLIED)->delete();
+
+        return redirect()
+            ->route('records.import-review.index')
+            ->with('success', match ($deleted) {
+                0 => 'Keine erledigten Einträge vorhanden.',
+                1 => '1 erledigter Eintrag gelöscht.',
+                default => "$deleted erledigte Einträge gelöscht.",
+            });
     }
 
     public function scan(): RedirectResponse

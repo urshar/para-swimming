@@ -207,7 +207,7 @@ nur als "unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen �
 
 Seit `feature/record-import-review` (07.10.2026). Gespeichert in `import_review_items` (Model `ImportReviewItem`),
 abzuarbeiten unter **Rekorde → Import Prüfliste** (`records.import-review.*`, nur Admin; der Menüpunkt zeigt die
-Zahl offener Einträge). Vier Arten:
+Zahl offener Einträge). Sechs Arten:
 
 - **Vereinskonflikt (`club_conflict`)**: Der Verein laut Rekord weicht vom Stammverein (`Athlete::club_id`) ab.
   Maßgeblich ist je Athlet der **jüngste Einzelrekord**; nur ohne Einzelrekord der jüngste **Staffelrekord** — dabei
@@ -232,6 +232,28 @@ Zahl offener Einträge). Vier Arten:
   `fix/regional-record-club`. Vereine ohne Landesverband und unbekannte Typen (z. B. `AUT.IND`) werden nicht bewertet.
   Aktion "Rekord entfernen"; danach auf dem Wettkampf (verlinkt) "Rekorde prüfen" erneut starten, damit der richtige
   Regionalrekord entsteht — bei mehreren Wettkämpfen in zeitlicher Reihenfolge.
+- **Abweichung zur Rekordliste (`list_mismatch`)**, seit `feature/record-list-review` (07.10.2026): Die importierte
+  Liste ist maßgeblich (z. B. die aktuelle Staffelliste aus dem Sport Management Tool). Der Import vergleicht jeden
+  Eintrag mit der Kette derselben Kategorie (`CATEGORY_FIELDS`, nur `APPROVED`/`APPROVED.HISTORY`):
+  - dieselbe Zeit steht schon in der Kette → bekannt, übersprungen;
+  - **Widerspruch** (`contradictions()`): ein DB-Rekord ist **am selben Tag oder davor schneller** (dann wäre der
+    Listeneintrag kein Rekord) oder **danach nicht schneller** (dann war er keiner) → der Import ändert nichts, sondern
+    legt den Eintrag an (mit den Daten des Listeneintrags in `details.list`; je Kategorie, Zeit und Datum nur einmal);
+  - sonst wie bisher: schneller als der aktuelle Rekord → anlegen, sonst überspringen (ein neuerer, schnellerer
+    DB-Rekord ist normaler Fortschritt).
+  Rekorde und Listeneinträge ohne Datum lassen sich nicht einordnen und widersprechen nie; ausstehende Einträge
+  (Nationalität unklar) laufen wie bisher. Aktion "Liste übernehmen": widersprechende Rekorde entfernen
+  (`removeFromHistory()`), den Listeneintrag anlegen und die Kette nach Datum neu verknüpfen (gleicher Tag: langsamere
+  zuerst; der jüngste ist aktuell). "Ignorieren" lässt die DB unverändert.
+- **Staffelrekord ohne Verein (`relay_no_club`)**: nationaler oder regionaler Staffelrekord (`AUT*`) ohne Verein — und
+  damit ohne prüfbare Mitglieder (die Liste aus dem Sport Management Tool enthält keine). Passt genau ein
+  Staffelergebnis (`candidateRelayResult()`: gleiche Zeit, Wertung, Strecke, Schwimmart, Staffelgröße und Bahn,
+  Wettkampf über das Rekorddatum, Staffelklasse leer oder gleich), bietet die Liste "Mit Staffelergebnis verknüpfen" an:
+  übernimmt Verein, Mitglieder (mit Athlet) und `relay_result_id` und setzt das Rekord-Flag am Staffelergebnis. Sonst
+  Verein und Mitglieder beim Rekord ergänzen (verlinkt) und als "Geprüft" markieren.
+
+Einträge der beiden letzten Arten haben keinen Athleten (`athlete_id` nullable). `removeFromHistory()` setzt das
+Rekord-Flag am Einzel- **und** am Staffelergebnis zurück.
 
 **Ablauf beim Import:** Die Vorschau zeigt Konflikte bekannter Athleten/Vereine im Abschnitt "Vereinskonflikte" mit
 einer Checkbox je Athlet (`club_updates[athlete_id] = club_id`, vorbelegt = relevant). Angehakte werden beim Import
@@ -241,8 +263,14 @@ aufgelösten Athleten/Vereine) landen offen in der Liste. Dasselbe Vereinspaar j
 ignorierter Eintrag kommt nicht wieder.
 
 **Bestand prüfen** (`scanExisting()`): wendet dieselben Regeln auf alle gespeicherten Rekorde und Staffelmitglieder an
-und nimmt neue relevante Konflikte und Nationalitäts-Befunde offen auf (Quelle "Bestandsprüfung"). Beim Import werden
-nur die neu angelegten Rekorde auf die Nationalität geprüft.
+und nimmt neue relevante Konflikte, Nationalitäts-Befunde, falsche Regionalverbände und Staffelrekorde ohne Verein
+offen auf (Quelle "Bestandsprüfung"). Beim Import werden nur die neu angelegten Rekorde auf Nationalität und fehlenden
+Staffelverein geprüft. Die Abweichung zur Rekordliste gibt es nur beim Import (sie braucht die Liste).
+
+**Erledigte löschen** (`RecordImportReviewController::purge()`, mit Rückfrage): löscht alle Einträge mit Status
+`applied`. **Ignorierte bleiben** absichtlich erhalten — sie sind der Merker, dass Bestandsprüfung und Import denselben
+Fall nicht neu anlegen (Duplikatprüfung über Typ und Rekord bzw. `details.key`). Erledigte kommen nur wieder, wenn der
+Befund tatsächlich noch besteht.
 
 ## Zusammenführung der ÖBSV-Typen — `NationalRecordMergeService`
 
@@ -286,7 +314,7 @@ Alle unter `auth`, Prefix `records`:
 | `GET /records/import` · `POST /records/import/preview` · `POST /records/import/run` | `records.import` · `records.import.preview` · `records.import.run` | Import             |
 | `GET /records/export` · `POST /records/export/download`                             | `records.export` · `records.export.download`                       | Export             |
 | `POST /records/check/{meet}`                                                        | `records.check`                                                    | Prüflauf über Meet |
-| `GET /records/import-review` · `POST …/scan` · `POST …/{item}/apply` · `…/ignore`   | `records.import-review.index` · `.scan` · `.apply` · `.ignore`     | Prüfliste (Admin)  |
+| `GET /records/import-review` · `POST …/scan` · `…/purge` · `…/{item}/apply` · `…/ignore` | `records.import-review.index` · `.scan` · `.purge` · `.apply` · `.ignore` | Prüfliste (Admin)  |
 | `GET /records/{record}/edit` · `PUT /records/{record}`                              | `records.edit` · `records.update`                                  | bearbeiten         |
 | `GET /records/{record}` · `DELETE /records/{record}`                                | `records.show` · `records.destroy`                                 | Detail/Löschen     |
 | `POST /records/{record}/restore`                                                    | `records.restore`                                                  | wiederherstellen   |
@@ -308,5 +336,8 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/RecordImportReviewTest.php` — Vereinskonflikte (Vorschau, Import, Staffeln, Verbände, Relevanz),
   Geburtsdatums-Kontrolle, Nationalität nicht AUT (inkl. Neu-Verknüpfung der Historie), Bestandsprüfung und Aktionen
   der Prüfliste.
+- `tests/Feature/RecordListReviewTest.php` — Abweichung zur Rekordliste (alle Fälle, "Liste übernehmen" mit Einhängen
+  nach Datum, Ignorieren, kein Doppeleintrag) und Staffelrekord ohne Verein (Verknüpfen mit dem Staffelergebnis,
+  Bestandsprüfung), Flag-Rücksetzung am Staffelergebnis.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).

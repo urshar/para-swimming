@@ -308,13 +308,18 @@ Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittseben
 **Seit:** 07.10.2026, Datei `öbsv-relay-all-all-all-records.lxf` von Erik (aktuell, maßgeblich).
 
 **Ausgangslage:** Die Datei enthält 31 aktuelle Staffelrekorde (`AUT`, `AUT.JG`) ohne Verein und ohne Mitglieder (nur
-Wettkampf und Datum). Abgleich mit der Dev-DB nach dem Zusammenführen: 8 gleich, 15 fehlen in der DB, 8 weichen ab —
-teils ist der DB-Rekord schneller **und** älter (z. B. 4×100 m Freistil SCM M S14: DB 5:34,39 vom 24.05.2003, Datei
-6:00,68 vom 05.05.2024), eine der Quellen ist dort also falsch. 8 aktuelle DB-Rekorde fehlen in der Datei, darunter
-die Lagenstaffeln: In der DB heißen ihre Klassen `SM34`/`SM49`, in der Datei Klasse 34/49.
+Wettkampf und Datum). Teils ist der DB-Rekord schneller **und** älter als der Listeneintrag (z. B. 4×100 m Freistil SCM
+M S14: DB 5:34,39 vom 24.05.2003, Datei 6:00,68 vom 05.05.2024). Die Klassen der Brust-/Lagenstaffeln (`SB…`/`SM…`)
+benennen Import und Rekordprüfung einheitlich.
 
-**Zum Schließen nötig:** Klassen-Benennung der Lagenstaffeln vereinheitlichen; Abweichungen klären (falsche Strecke,
-Klasse oder Zeit in der DB?); dann die Datei importieren bzw. die Ketten danach korrigieren.
+**Werkzeug — erledigt** (`feature/record-list-review`, 07.10.2026): Prüfliste "Abweichung zur Rekordliste" und
+"Staffelrekord ohne Verein", siehe `docs/specs/records.md`. Ein erster Import am 07.10.2026 wurde zurückgerollt (er
+hängte ältere Listeneinträge hinter neuere DB-Rekorde).
+
+**Zum Schließen nötig:** Erik importiert die Datei erneut und arbeitet die Prüfliste ab.
+
+**Nebenbefund:** Der Staffel-Filter der Rekordlisten (`RecordController::buildSportClassOptions()`) bietet nur
+`S14`–`S49` an, nicht die Brust-/Lagenklassen `SB…`/`SM…` — diese Staffelrekorde sind dort nicht auswählbar.
 
 ## Pflichtfeld-Sternchen (`*`): Farbe nachrüsten + Abstands-Bug beheben
 

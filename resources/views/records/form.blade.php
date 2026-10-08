@@ -50,7 +50,8 @@
         // 29 Zwischenzeiten vor dem Ziel), nicht fix 10 — sonst fehlten bei 800 m/1500 m Rennen
         // Zeilen für die hinteren Splits. Welche davon sichtbar sind, richtet sich per x-show
         // live nach der gewählten Distanz (Klassifizierung-Tab), siehe distanceValue unten.
-        $maxSplitRows = (int) (max($distanceOptions) / 50) - 1;
+        // Gespeicherte Splits (z. B. aus einem Staffel-Import) bekommen immer eine Zeile.
+        $maxSplitRows = max((int) (max($distanceOptions) / 50) - 1, $rec?->splits->count() ?? 0);
 
         // Vorbelegung Nation: AUT als häufigster Fall (nicht bei "Austragungsland" — das ist das
         // Land des Wettkampfs, nicht des Athleten/Vereins, und oft im Ausland).
@@ -73,10 +74,27 @@
         $showInactiveDefault = $rec?->athlete && ! $rec->athlete->is_active;
 
         // Staffelteam-Anfangszustand für x-data — als eigene Variablen statt PHP-Ternäre direkt im
-        // JS-Objektliteral (siehe CLAUDE.md: dieselbe @json()-Regel wie beim @json()-Komma-Fallstrick,
-        // hier ohne Kommas aber mit verschachtelten {{ }}, die die IDE beim Klammern-Abgleich verwirren).
-        $isRelayInitial = ($rec->relay_count ?? 1) > 1;
-        $relayCountInitial = $rec->relay_count ?? 4;
+        // JS-Objektliteral (siehe CLAUDE.md: dieselbe @json()-Regel wie beim @json()-Komma-Fallstrick).
+        $relayCountInitial = (string) old('relay_count', $rec->relay_count ?? 1);
+        $memberAthleteIds = [];
+        for ($i = 0; $i < 4; $i++) {
+            $memberAthleteIds[] = (string) old('relay_members.'.$i.'.athlete_id', $rec?->relayTeam[$i]->athlete_id ?? '');
+        }
+        // Mitglieder, die heute bei einem anderen Verein sind: dann gleich alle Vereine anzeigen, sonst wäre die
+        // gespeicherte Auswahl in der gefilterten Liste unsichtbar.
+        $memberAllClubsInitial = collect($memberAthleteIds)->filter()
+            ->contains(fn ($id) => ($athleteClubMap[$id] ?? '') !== $oldClubId);
+        // Athletenliste für die Staffelteam-Suche (eine gemeinsame datalist, siehe record-relay-team.js).
+        $relayTeamConfig = [
+            'athleteIds' => $memberAthleteIds,
+            'athletes' => $athletes->map(fn ($a) => [
+                'id' => $a->id,
+                'club' => (string) ($a->club_id ?? ''),
+                'label' => trim($a->last_name.' '.$a->first_name)
+                    .($a->birth_date ? ' ('.$a->birth_date->format('Y').')' : '')
+                    .($a->club ? ' — '.($a->club->short_name ?? $a->club->name) : ''),
+            ])->values(),
+        ];
     @endphp
 
     <div class="max-w-4xl">
@@ -101,6 +119,8 @@
                       sportClassFilter: @json($oldSportClass),
                       ignoreClassification: false,
                       distanceValue: @json((string) $currentDistance),
+                      relayCountValue: @json($relayCountInitial),
+                      memberAllClubs: @json($memberAllClubsInitial),
                   }'
                   x-init="$watch('athleteId', id => { if (athleteClubMap[id]) { clubId = athleteClubMap[id]; } })">
                 @csrf
@@ -203,8 +223,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Staffel (Schwimmer)</flux:label>
-                                <flux:input name="relay_count" type="number" min="1"
-                                            value="{{ old('relay_count', $rec->relay_count ?? 1) }}"/>
+                                <flux:input name="relay_count" type="number" min="1" x-model="relayCountValue"/>
                             </flux:field>
                         </div>
                     </flux:tab.panel>
@@ -300,49 +319,67 @@
                         </flux:field>
 
                         {{-- Staffelteam (nur wenn relay_count > 1) --}}
-                        <div
-                            x-data='{
-                                isRelay: @json($isRelayInitial),
-                                count: @json($relayCountInitial),
-                            }'
-                            x-show="isRelay || $el.closest('form').querySelector('[name=relay_count]').value > 1"
-                            class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
-                            <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Staffelteam</h3>
-                            <p class="text-xs text-zinc-400 mb-3">Staffelmitglieder zum Zeitpunkt des Rekords. Leere
-                                Zeilen
-                                werden ignoriert.</p>
-                            <div class="space-y-2">
-                                <div
-                                    class="grid grid-cols-[2rem_1fr_1fr_10rem] gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-1">
-                                    <span>#</span>
-                                    <span>Nachname</span>
-                                    <span>Vorname</span>
-                                    <span>Geburtsjahr</span>
-                                </div>
+                        {{--
+                            Je Position: Athlet aus der DB wählen (Name, Geburtsdatum, Geschlecht kommen dann von ihm)
+                            oder, ohne Auswahl, Name und Geburtsdatum frei eintragen. Die Liste zeigt die Athleten des
+                            gewählten Vereins; "auch andere Vereine" für Mitglieder, die seither gewechselt haben.
+                        --}}
+                        <div x-show="parseInt(relayCountValue) > 1"
+                             x-data='recordRelayTeam(@json($relayTeamConfig))'
+                             class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
+                            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                                <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Staffelteam</h3>
+                                <flux:switch x-model="memberAllClubs" label="Auch andere Vereine" size="sm"/>
+                            </div>
+                            <p class="text-xs text-zinc-400 mb-3">Staffelmitglieder zum Zeitpunkt des Rekords: Athlet
+                                wählen oder, wenn er nicht in der Datenbank ist, Name und Geburtsdatum eintragen. Leere
+                                Zeilen werden ignoriert.</p>
+                            <div class="space-y-3">
                                 @for($i = 0; $i < 4; $i++)
                                     @php
                                         $member = $rec?->relayTeam[$i] ?? null;
                                     @endphp
-                                    <div class="grid grid-cols-[2rem_1fr_1fr_10rem] gap-2 items-center">
-                                        <span class="text-xs text-zinc-400 font-mono text-center">{{ $i + 1 }}</span>
-                                        <flux:input
-                                            name="relay_members[{{ $i }}][last_name]"
-                                            placeholder="Nachname"
-                                            value="{{ old('relay_members.' . $i . '.last_name', $member?->last_name ?? '') }}"
-                                        />
-                                        <flux:input
-                                            name="relay_members[{{ $i }}][first_name]"
-                                            placeholder="Vorname"
-                                            value="{{ old('relay_members.' . $i . '.first_name', $member?->first_name ?? '') }}"
-                                        />
-                                        <flux:date-picker
-                                            type="input" locale="de-AT"
-                                            selectable-header
-                                            size="sm"
-                                            name="relay_members[{{ $i }}][birth_date]"
-                                            value="{{ old('relay_members.' . $i . '.birth_date', $member?->birth_date?->format('Y-m-d') ?? '') }}"
-                                            clearable
-                                        />
+                                    <div class="grid grid-cols-[2rem_1fr] gap-2 items-start">
+                                        <span
+                                            class="text-xs text-zinc-400 font-mono text-center pt-2.5">{{ $i + 1 }}</span>
+                                        <div class="space-y-2">
+                                            {{-- Optionen per x-for im Browser: der Server rendert die Option nur
+                                                 einmal als Vorlage statt 611-mal je Position. --}}
+                                            <flux:select variant="listbox" searchable clearable
+                                                         name="relay_members[{{ $i }}][athlete_id]"
+                                                         x-model="athleteIds[{{ $i }}]"
+                                                         placeholder="Athlet wählen — oder unten frei eintragen"
+                                                         aria-label="Athlet Position {{ $i + 1 }}">
+                                                <template x-for="athlete in options({{ $i }})" :key="athlete.id">
+                                                    <flux:select.option x-bind:value="athlete.id">
+                                                        <span x-text="athlete.label"></span>
+                                                    </flux:select.option>
+                                                </template>
+                                            </flux:select>
+                                            <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_12rem] gap-2"
+                                                 x-show="!athleteIds[{{ $i }}]">
+                                                <flux:input
+                                                    name="relay_members[{{ $i }}][last_name]"
+                                                    placeholder="Nachname"
+                                                    aria-label="Nachname Position {{ $i + 1 }}"
+                                                    value="{{ old('relay_members.' . $i . '.last_name', $member?->last_name ?? '') }}"
+                                                />
+                                                <flux:input
+                                                    name="relay_members[{{ $i }}][first_name]"
+                                                    placeholder="Vorname"
+                                                    aria-label="Vorname Position {{ $i + 1 }}"
+                                                    value="{{ old('relay_members.' . $i . '.first_name', $member?->first_name ?? '') }}"
+                                                />
+                                                <flux:date-picker
+                                                    type="input" locale="de-AT"
+                                                    selectable-header
+                                                    name="relay_members[{{ $i }}][birth_date]"
+                                                    aria-label="Geburtsdatum Position {{ $i + 1 }}"
+                                                    value="{{ old('relay_members.' . $i . '.birth_date', $member?->birth_date?->format('Y-m-d') ?? '') }}"
+                                                    clearable
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 @endfor
                             </div>
@@ -422,13 +459,18 @@
                                 <span>Zeit (MM:SS.cs)</span>
                             </div>
                             @for($i = 0; $i < $maxSplitRows; $i++)
+                                @php
+                                    $hasSplit = old('splits.'.$i.'.distance', $rec?->splits[$i]->distance ?? '') !== '';
+                                @endphp
+                                {{-- Sichtbar bis zur Gesamtstrecke (Staffel: Strecke × Schwimmer); gespeicherte Werte
+                                     immer, z. B. die letzte Staffel-Zwischenzeit aus LENEX (= Endzeit). --}}
                                 <div class="grid grid-cols-2 gap-3"
-                                     x-show="!distanceValue || {{ ($i + 1) * 50 }} < parseInt(distanceValue)">
+                                     x-show="{{ $hasSplit ? 'true' : 'false' }} || !distanceValue
+                                         || {{ ($i + 1) * 50 }} < parseInt(distanceValue) * Math.max(1, parseInt(relayCountValue) || 1)">
                                     <flux:input
                                         name="splits[{{ $i }}][distance]"
-                                        type="number"
-                                        min="1"
-                                        step="50"
+                                        inputmode="numeric"
+                                        aria-label="Distanz Zwischenzeit {{ $i + 1 }}"
                                         value="{{ old('splits.' . $i . '.distance', $rec?->splits[$i]->distance ?? '') }}"
                                         placeholder="{{ ($i + 1) * 50 }}"
                                     />
