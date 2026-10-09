@@ -7,9 +7,14 @@
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
         @if(auth()->user()?->is_admin)
-        <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
-            Neuer Athlet
-        </flux:button>
+        <div class="flex items-center gap-2">
+            <flux:button href="{{ route('team-manager-import') }}" variant="filled" icon="arrow-up-tray">
+                Team Manager übernehmen
+            </flux:button>
+            <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
+                Neuer Athlet
+            </flux:button>
+        </div>
         @endif
     </div>
 

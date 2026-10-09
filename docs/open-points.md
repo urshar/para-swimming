@@ -366,6 +366,15 @@ Athleten-Felder.
 Import-Weg festlegen (CSV/XLSX-Zwischenschritt vs. direkter Reader), Import-Service mit Matching/Update-Logik,
 Vorschau/Bestätigung analog Rekord-Import.
 
+**Stand 09.10.2026 (`feature/team-manager-import`):** Datei ist die `Team.mdb` des Splash Team Managers, einmaliger
+Umzug (Erik). Phase 1: Behinderungsgruppe + PI-Untergruppe, medizinische Kontrolle, Klassifizierung ohne Datum.
+Phase 2: Admin-Seite "Team Manager übernehmen" (Athletenliste) mit Vorschau; liest die `.mdb` direkt über PDO_ODBC
+(nur Windows mit Access-Treiber → läuft auf dev), Klassifizierer-Namen ohne Treffer müssen in der Vorschau zugeordnet
+oder übergangen werden. Feld-Mapping und Entscheidungen in `app/Services/TeamManagerImportService.php`.
+Nicht übernommen: englische Namen (Verein und Athlet), Geburtsort, Fax, Funktionen, Mitgliedsbeitrag, WWW,
+E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse. **Offen:** Daten von dev per Seeder nach prod
+bringen (Erik: Import läuft auf dev, prod bekommt die Daten über einen Seeder).
+
 ## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
 
 **Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.

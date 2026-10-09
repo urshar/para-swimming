@@ -45,6 +45,7 @@ use App\Http\Controllers\ResultController;
 use App\Http\Controllers\SportClassGroupController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SwimEventController;
+use App\Http\Controllers\TeamManagerImportController;
 use App\Http\Controllers\WorldAquaticsPointsController;
 use App\Http\Controllers\WpsAthleteAnalysisController;
 use App\Http\Controllers\WpsClubRankingController;
@@ -156,6 +157,16 @@ Route::middleware(['auth'])->group(function () {
             [AthleteController::class, 'updateClassification'])->name('athletes.classifications.update');
         Route::delete('athletes/{athlete}/classifications/{classification}',
             [AthleteController::class, 'destroyClassification'])->name('athletes.classifications.destroy');
+
+        // Einmalige Übernahme aus dem Splash Team Manager: Formular → Vorschau → Import.
+        Route::get('team-manager-import', [TeamManagerImportController::class, 'showForm'])
+            ->name('team-manager-import');
+        Route::post('team-manager-import', [TeamManagerImportController::class, 'upload'])
+            ->name('team-manager-import.upload');
+        Route::get('team-manager-import/preview', [TeamManagerImportController::class, 'preview'])
+            ->name('team-manager-import.preview');
+        Route::post('team-manager-import/run', [TeamManagerImportController::class, 'run'])
+            ->name('team-manager-import.run');
 
         Route::post('athletes/{athlete}/levels',
             [AthleteController::class, 'storeLevel'])->name('athletes.levels.store');

@@ -6,6 +6,8 @@ use App\Models\AthletePerformanceNote;
 use App\Models\Meet;
 use App\Policies\AthletePerformanceNotePolicy;
 use App\Policies\EntryPolicy;
+use App\Services\AccessTeamManagerSource;
+use App\Services\TeamManagerSource;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(TeamManagerSource::class, AccessTeamManagerSource::class);
     }
 
     /**
