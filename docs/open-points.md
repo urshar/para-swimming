@@ -159,7 +159,6 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
 3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
-4. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -168,7 +167,8 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 1. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+2. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — erst, wenn es Veranstaltungen mit Mannschaften gibt
+3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
@@ -253,6 +253,13 @@ sich nicht zählen, wie viele Mannschaften ein Verein stellt.
 
 **Wer entscheidet:** Erik — ob und wie Mannschaftsbewerbe abgebildet werden (eigene Mannschafts-Meldung je Verein mit
 Mitgliedern? Bezug zu Staffeln?).
+
+**Entscheidung 09.10.2026 (Erik): zurückgestellt, bis es solche Veranstaltungen gibt.** Im Para-Schwimmen gibt es
+derzeit keine Veranstaltungen, bei denen Vereine Mannschaften stellen. Bis dahin bleibt `TEAM` gespeichert, pflegbar
+und per LENEX austauschbar, wird aber nicht berechnet. Erwogene Wege für später, je nach Bedarf: `TEAM` wie `CLUB`
+(eine Mannschaft je Verein mit Starts), eine Mannschaftsanzahl je Verein und Veranstaltung in den Meldegeldern, oder
+echte Mannschaften im Datenmodell inkl. LENEX `CLUB number` (heute weder importiert noch exportiert — mehrere
+Mannschaften desselben Vereins landen beim Import in einem Verein).
 
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).

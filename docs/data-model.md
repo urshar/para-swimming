@@ -58,7 +58,9 @@ Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Res
 
 **Athlete** — `nation_id` (Staatsbürgerschaft), `club_id` (Stammverein, nullable),
 `first_name`, `last_name`, `birth_date`, `gender` (M/F/N), `license`,
-`license_ipc` (WPS/SDMS), `swrid`, `disability_type`, `level`, plus Kontakt-/ Adressfelder. Soft-deletes. → gehört zu
+`license_ipc` (WPS/SDMS), `swrid`, `disability_group` (PI/VI/MI/HI/T21) mit `disability_subgroup` (nur bei PI, für
+die Statistik: A Amputation, C Cerebralparese, R Rollstuhl), `level`, `last_medical_check_at`/`next_medical_check_at`,
+plus Kontakt-/ Adressfelder. Soft-deletes. → gehört zu
 **Nation** und **Club**; hat viele **AthleteSportClass**, **AthleteClubHistory**, **AthleteLevelHistory**,
 **AthleteKaderMembership**, **Entry**, **Result**.
 
@@ -74,7 +76,8 @@ Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Res
 
 **Classifier** / **AthleteClassification** — Klassifizierer (`type` MED/TECH) und Klassifizierungstermine eines Athleten
 (`med_classifier_id`, `tech1/tech2`,
-`result_s/sb/sm`, `classified_at`).
+`result_s/sb/sm`, `classified_at` — leer erlaubt, weil aus dem Splash Team Manager übernommene Klassifizierungen
+nicht immer ein Datum haben).
 
 **ExceptionCode** / **athlete_exceptions** / **athlete_classification_exceptions**
 — Ausnahmecodes (z. B. Hörbehinderung) und deren Zuordnung zu Athleten bzw. Klassifizierungen.

@@ -18,6 +18,7 @@ use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
 
@@ -417,7 +418,8 @@ class AthleteController extends Controller
             'license' => 'nullable|string|max:50',
             'license_ipc' => 'nullable|string|max:50',
             'status' => 'nullable|in:EXHIBITION,FOREIGNER,ROOKIE',
-            'disability_type' => 'nullable|string|max:30',
+            'disability_group' => ['nullable', Rule::in(array_keys(Athlete::DISABILITY_GROUPS))],
+            'disability_subgroup' => ['nullable', Rule::in(array_keys(Athlete::DISABILITY_SUBGROUPS)), 'prohibited_unless:disability_group,PI'],
             'is_active' => 'boolean',
             'notes' => 'nullable|string|max:5000',
             'email' => 'nullable|email|max:200',
@@ -427,6 +429,8 @@ class AthleteController extends Controller
             'address_zip' => 'nullable|string|max:20',
             'address_country' => 'nullable|string|size:3',
             'level' => 'nullable|string|max:50',
+            'last_medical_check_at' => 'nullable|date',
+            'next_medical_check_at' => 'nullable|date',
         ]);
     }
 
@@ -436,7 +440,7 @@ class AthleteController extends Controller
     private function validateClassification(Request $request): array
     {
         return $request->validate([
-            'classified_at' => 'required|date',
+            'classified_at' => 'nullable|date',
             'location' => 'nullable|string|max:200',
             'med_classifier_id' => 'nullable|exists:classifiers,id',
             'tech1_classifier_id' => 'nullable|exists:classifiers,id',

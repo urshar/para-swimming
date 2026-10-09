@@ -73,10 +73,19 @@
                     <dt class="text-zinc-500 dark:text-zinc-400">SDMS ID</dt>
                     <dd class="font-medium mt-0.5 font-mono text-slate-700 dark:text-slate-300">{{ $athlete->license_ipc ?? '–' }}</dd>
                 </div>
-                @if($athlete->disability_type)
+                @if($athlete->disability_group)
                     <div>
-                        <dt class="text-zinc-500 dark:text-zinc-400">Behinderungsart</dt>
-                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ ucfirst($athlete->disability_type) }}</dd>
+                        <dt class="text-zinc-500 dark:text-zinc-400">Behinderungsgruppe</dt>
+                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ $athlete->disability_group_label }}</dd>
+                    </div>
+                @endif
+                @if($athlete->last_medical_check_at || $athlete->next_medical_check_at)
+                    <div>
+                        <dt class="text-zinc-500 dark:text-zinc-400">Medizinische Kontrolle</dt>
+                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">
+                            zuletzt {{ $athlete->last_medical_check_at?->format('d.m.Y') ?? '–' }},
+                            nächste {{ $athlete->next_medical_check_at?->format('d.m.Y') ?? '–' }}
+                        </dd>
                     </div>
                 @endif
                 @if($athlete->email)
@@ -424,7 +433,7 @@
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                                            {{ $cl->classified_at->format('d.m.Y') }}
+                                            {{ $cl->classified_at?->format('d.m.Y') ?? 'ohne Datum' }}
                                         </span>
                                         @if($cl->location)
                                             <span class="text-zinc-500">· {{ $cl->location }}</span>
@@ -513,7 +522,7 @@
                                     <flux:field>
                                         <flux:label>Datum<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                         <flux:date-picker type="input" locale="de-AT" selectable-header name="classified_at"
-                                                    value="{{ $cl->classified_at->format('Y-m-d') }}" required/>
+                                                    value="{{ $cl->classified_at?->format('Y-m-d') }}" clearable/>
                                         <flux:error name="classified_at"/>
                                     </flux:field>
                                     <flux:field>

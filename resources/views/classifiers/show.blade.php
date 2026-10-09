@@ -123,7 +123,7 @@
             @forelse($classifications as $cl)
                 <flux:table.row>
                     <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-400">
-                        {{ $cl->classified_at->format('d.m.Y') }}
+                        {{ $cl->classified_at?->format('d.m.Y') ?? 'ohne Datum' }}
                     </flux:table.cell>
                     <flux:table.cell>
                         @if($cl->athlete)

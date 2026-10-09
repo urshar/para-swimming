@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Models\Athlete; use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -158,29 +158,49 @@
                     </flux:field>
                 </div>
 
-                {{-- items-start statt des Grid-Defaults (stretch): sonst zieht die Beschreibung unter
-                     "ÖBSV Level" die Zeile in die Höhe und das Behinderungsart-Select wird sichtbar mitgestreckt,
-                     wodurch die beiden Felder ungleich groß wirken. --}}
                 <div class="grid grid-cols-2 gap-4 items-start">
                     <flux:field>
-                        <flux:label>Behinderungsart</flux:label>
-                        <flux:select variant="listbox" name="disability_type" placeholder="Nicht angegeben" clearable>
-                            <flux:select.option value="physical" :selected="old('disability_type', $athlete->disability_type ?? '') === 'physical'">Körperlich</flux:select.option>
-                            <flux:select.option value="visual" :selected="old('disability_type', $athlete->disability_type ?? '') === 'visual'">Sehbehinderung</flux:select.option>
-                            <flux:select.option value="intellectual" :selected="old('disability_type', $athlete->disability_type ?? '') === 'intellectual'">Intellektuell</flux:select.option>
-                            <flux:select.option value="deaf" :selected="old('disability_type', $athlete->disability_type ?? '') === 'deaf'">Hörbehinderung</flux:select.option>
-                            <flux:select.option value="trisomie" :selected="old('disability_type', $athlete->disability_type ?? '') === 'trisomie'">Down Syndrom</flux:select.option>
+                        <flux:label>Behinderungsgruppe</flux:label>
+                        <flux:select variant="listbox" name="disability_group" placeholder="Nicht angegeben" clearable>
+                            @foreach(Athlete::DISABILITY_GROUPS as $code => $label)
+                                <flux:select.option value="{{ $code }}" :selected="old('disability_group', $athlete->disability_group ?? '') === $code">{{ $code }} – {{ $label }}</flux:select.option>
+                            @endforeach
                         </flux:select>
+                        <flux:error name="disability_group"/>
                     </flux:field>
-                    {{-- Keine flux:description hier (wie bei keinem anderen Feld in diesem Formular) —
-                         der Hinweistext "Änderungen werden protokolliert" brach in der halben Spaltenbreite
-                         immer zweizeilig um und ließ die Zeile gegenüber "Behinderungsart" unruhig wirken.
-                         Die Historie ist ohnehin über den Level-History-Block in der Detailansicht sichtbar. --}}
+                    <flux:field>
+                        <flux:label>Untergruppe (nur PI)</flux:label>
+                        <flux:select variant="listbox" name="disability_subgroup" placeholder="Keine" clearable>
+                            @foreach(Athlete::DISABILITY_SUBGROUPS as $code => $label)
+                                <flux:select.option value="{{ $code }}" :selected="old('disability_subgroup', $athlete->disability_subgroup ?? '') === $code">{{ $label }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="disability_subgroup"/>
+                    </flux:field>
+                </div>
+
+                {{-- Keine flux:description unter "ÖBSV Level" (wie bei keinem anderen Feld in diesem Formular) —
+                     der Hinweistext "Änderungen werden protokolliert" brach in der schmalen Spalte immer
+                     zweizeilig um. Die Historie ist ohnehin über den Level-History-Block in der Detailansicht
+                     sichtbar. --}}
+                <div class="grid grid-cols-3 gap-4 items-start">
                     <flux:field>
                         <flux:label>ÖBSV Level</flux:label>
                         <flux:input name="level" value="{{ old('level', $athlete->level ?? '') }}"
-                                    placeholder="z.B. Elite, Talent, 1, 2 …"/>
+                                    placeholder="z. B. A, B, T"/>
                         <flux:error name="level"/>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Letzte med. Kontrolle</flux:label>
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="last_medical_check_at"
+                                    value="{{ old('last_medical_check_at', isset($athlete) && $athlete->last_medical_check_at ? $athlete->last_medical_check_at->format('Y-m-d') : '') }}" clearable/>
+                        <flux:error name="last_medical_check_at"/>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Nächste med. Kontrolle</flux:label>
+                        <flux:date-picker type="input" locale="de-AT" selectable-header name="next_medical_check_at"
+                                    value="{{ old('next_medical_check_at', isset($athlete) && $athlete->next_medical_check_at ? $athlete->next_medical_check_at->format('Y-m-d') : '') }}" clearable/>
+                        <flux:error name="next_medical_check_at"/>
                     </flux:field>
                 </div>
             </div>
