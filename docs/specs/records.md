@@ -146,9 +146,18 @@ Spricht ein Beleg (Stufe 1 oder 2) für einen anderen Verein, entsteht kein Reko
 | `export(Request)`                                  | Export (Delegation)               |
 
 **Filter der Rekordliste:** Sportklasse je Nummer über `S`/`SB`/`SM` zusammengefasst (ein Rekord hat genau eine
-davon) — bei Einzelrekorden die Nummern aus den Basiswerten, bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
+davon) — bei Einzelrekorden S1–S15 und S21 plus weitere Nummern aus den Basiswerten (die feste Grundmenge hält den
+Filter auch ohne importierte Basiszeiten nutzbar), bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
 (Brust- und Lagenstaffeln heißen `SB…`/`SM…`). Wertung Herren/Damen, bei Staffeln zusätzlich Mixed (`X`); Anzeige über
 `SwimRecord::genderLabel()`/`genderColor()` (Herren blau, Damen rosa, Mixed violett).
+
+**Landesrekord beim manuellen Eintragen** (seit `feature/record-import-cutoff`, 10.10.2026): `storeManual()` gibt
+einen neuen `AUT`-/`AUT.JR`-Rekord mit Status `APPROVED` an `RegionalRecordService::propagate()` — dieselbe Logik wie
+beim Rekordimport. Landesverband aus dem Verein des Rekords (Staffel: Staffelverein; Einzel ohne Verein: Verein des
+Athleten), immer der allgemeine Landesrekord, bei Jugendlichen (Rekordjahr − Geburtsjahr ≤ 18, Staffel: alle
+Mitglieder mit Geburtsdatum) zusätzlich der Landes-Jugendrekord. Angelegt nur, wenn noch kein aktueller Landesrekord
+existiert oder die Zeit schneller ist (Kopie samt Splits und Staffelmitgliedern, Vorgänger wird abgelöst). Ohne
+Landesverband (ÖBSV) kein Landesrekord. Die Erfolgsmeldung nennt die angelegten Typen. Bearbeiten löst nichts aus.
 
 ## LENEX-Import — `RecordImportService`
 
@@ -187,6 +196,15 @@ Regeln und Eigenheiten:
 Der HTTP-Ablauf (`RecordImportController`): `showForm()` → `preview(Request)`
 → `run(Request)`.
 
+**Stichtag "Nur Rekorde vor"** (seit `feature/record-import-cutoff`, 10.10.2026): optionales Datum im Upload-Formular
+(`before`, in der Session bis zum Import). `preview()`/`import()` überspringen Listeneinträge mit `MEETINFO date` am
+oder nach dem Stichtag, noch vor dem Athleten-/Vereins-Matching (sie erscheinen nicht als unbekannt); die Vorschau
+nennt ihre Anzahl (`after_cutoff`). Einträge ohne Datum bleiben drin. Zweck: Mit der Rekordliste nur den Stand vor dem
+ersten vorhandenen LENEX-Wettkampf laden, danach die Wettkämpfe in zeitlicher Reihenfolge importieren und prüfen —
+spätere Rekorde entstehen dann über `RecordCheckerService` samt `result_id`/`relay_result_id`. Ein abschließender
+Import der ganzen Liste ohne Stichtag ergänzt Rekorde von Wettkämpfen ohne LENEX (gleiche Zeit in der Kette =
+bekannt, Widerspruch → Prüfliste).
+
 ## Import-Vorschau — Vorschläge & Vorbelegung
 
 Nicht exakt gefundene Athleten/Vereine werden in der Vorschau (`records/import-preview.blade.php`) nicht
@@ -214,15 +232,14 @@ Seit `feature/record-import-review` (07.10.2026). Gespeichert in `import_review_
 abzuarbeiten unter **Rekorde → Import Prüfliste** (`records.import-review.*`, nur Admin; der Menüpunkt zeigt die
 Zahl offener Einträge). Sechs Arten:
 
-- **Vereinskonflikt (`club_conflict`)**: Der Verein laut Rekord weicht vom Stammverein (`Athlete::club_id`) ab.
-  Maßgeblich ist je Athlet der **jüngste Einzelrekord**; nur ohne Einzelrekord der jüngste **Staffelrekord** — dabei
-  zählen die in der DB gefundenen Staffelmitglieder, und nur bei nationalen/regionalen Rekorden (`AUT*`), weil
-  internationale Staffeln als Nationalteam schwimmen. Rekorde für einen **Verband** (`Club::TYPE_VERBAND`, z. B. der
-  ÖBSV als Nationalteam) zählen gar nicht.
-  **Relevant** (vorbelegt und in die Liste) ist ein Konflikt nur, wenn der Athlet nach dem Rekord nicht schon
-  nachweislich für den aktuellen Verein angetreten ist: weder Eintritt (`athlete_club_history.joined_at`) noch ein
-  Wettkampfergebnis beim aktuellen Verein liegt nach dem Rekorddatum. Die Vereins-History ist im Bestand fast leer, die
-  Ergebnisse tragen dagegen immer einen Verein.
+- **Vereinskonflikt (`club_conflict`)**: Seit `feature/record-import-cutoff` (10.10.2026, Entscheidung Erik) nur
+  noch für **Athleten ohne Stammverein**, deren Rekord einen Verein trägt. Der Rekord trägt immer den Verein aus der
+  Datei; einen vorhandenen Stammverein ändern weder Import noch Prüfliste. Maßgeblich ist je Athlet der **jüngste
+  Einzelrekord**; nur ohne Einzelrekord der jüngste **Staffelrekord** — dabei zählen die in der DB gefundenen
+  Staffelmitglieder, und nur bei nationalen/regionalen Rekorden (`AUT*`), weil internationale Staffeln als Nationalteam
+  schwimmen. Rekorde für einen **Verband** (`Club::TYPE_VERBAND`, z. B. der ÖBSV als Nationalteam) zählen gar nicht.
+  Entsteht nur über "Bestand prüfen"; "Verein übernehmen" trägt den Verein ab dem Rekorddatum ein. (Bis dahin gab es
+  Konflikte auch bei abweichendem Stammverein, mit einer "Relevanz"-Prüfung über Eintritt und Ergebnisse — entfallen.)
 - **Geburtsdatum abweichend (`year_match`)**: Ein unbekannter Athlet aus der Datei wurde in der Vorschau einer
   bestehenden Person mit anderem Geburtsdatum zugeordnet (typisch: Jahrgang mit `-01-01`, siehe oben). Nur zur
   Kontrolle; Aktion "Geprüft".
@@ -264,15 +281,14 @@ Zahl offener Einträge). Sechs Arten:
 Einträge der beiden letzten Arten haben keinen Athleten (`athlete_id` nullable). `removeFromHistory()` setzt das
 Rekord-Flag am Einzel- **und** am Staffelergebnis zurück.
 
-**Ablauf beim Import:** Die Vorschau zeigt Konflikte bekannter Athleten/Vereine im Abschnitt "Vereinskonflikte" mit
-einer Checkbox je Athlet (`club_updates[athlete_id] = club_id`, vorbelegt = relevant). Angehakte werden beim Import
-übernommen — Vereinswechsel über `AthleteClubTransferService` (History-Eintrag ab Rekorddatum, wie auf der
-Athletenseite) und als "übernommen" protokolliert. Alle übrigen relevanten Konflikte (auch die erst beim Import
-aufgelösten Athleten/Vereine) landen offen in der Liste. Dasselbe Vereinspaar je Athlet wird nur einmal geführt; ein
-ignorierter Eintrag kommt nicht wieder.
+**Ablauf beim Import:** Athleten ohne Stammverein bekommen den Verein laut Rekord automatisch
+(`RecordImportReviewService::clubAssignments()` → `assignClub()`, Vereinseintrag über `AthleteClubTransferService` ab
+dem Rekorddatum), ohne Eintrag in der Liste; die Vorschau nennt sie im Abschnitt "Bekommen den Verein laut Rekord".
+Athleten mit einem anderen Stammverein behalten ihn. Dasselbe Vereinspaar je Athlet wird in der Liste nur einmal
+geführt; ein ignorierter Eintrag kommt nicht wieder.
 
-**Bestand prüfen** (`scanExisting()`): wendet dieselben Regeln auf alle gespeicherten Rekorde und Staffelmitglieder an
-und nimmt neue relevante Konflikte, Nationalitäts-Befunde, falsche Regionalverbände und Staffelrekorde ohne Verein
+**Bestand prüfen** (`scanExisting()`): wendet dieselben Regeln auf alle gespeicherten Rekorde und Staffelmitglieder an,
+ändert selbst aber nichts, und nimmt neue Athleten ohne Verein, Nationalitäts-Befunde, falsche Regionalverbände und Staffelrekorde ohne Verein
 offen auf (Quelle "Bestandsprüfung"). Beim Import werden nur die neu angelegten Rekorde auf Nationalität und fehlenden
 Staffelverein geprüft. Die Abweichung zur Rekordliste gibt es nur beim Import (sie braucht die Liste).
 
@@ -342,7 +358,7 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Unit/RecordCheckerServiceTest.php` — Rekord-Erkennung, Nationalitäts- und Ablöselogik.
 - `tests/Unit/RelayClassValidatorTest.php` — Staffelklassen-Auflösung (auch von der Staffel-Rekordprüfung genutzt).
 - `tests/Feature/RelayRecordClubTest.php` — Vereinszugehörigkeit der Staffelmitglieder am Starttag.
-- `tests/Feature/RecordImportReviewTest.php` — Vereinskonflikte (Vorschau, Import, Staffeln, Verbände, Relevanz),
+- `tests/Feature/RecordImportReviewTest.php` — Verein laut Rekord für Athleten ohne Verein (Vorschau, Import, Staffeln, Verbände),
   Geburtsdatums-Kontrolle, Nationalität nicht AUT (inkl. Neu-Verknüpfung der Historie), Bestandsprüfung und Aktionen
   der Prüfliste.
 - `tests/Feature/RecordListReviewTest.php` — Abweichung zur Rekordliste (alle Fälle, "Liste übernehmen" mit Einhängen

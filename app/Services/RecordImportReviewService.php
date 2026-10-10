@@ -8,7 +8,6 @@ use App\Models\ImportReviewItem;
 use App\Models\RecordSplit;
 use App\Models\RelayResult;
 use App\Models\RelayTeamMember;
-use App\Models\Result;
 use App\Models\SwimRecord;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -18,15 +17,13 @@ use Throwable;
 /**
  * Prüfliste nach dem LENEX-Rekordimport (docs/specs/records.md "Prüfliste").
  *
- * Vereinskonflikt: Der Verein laut Rekord weicht vom Stammverein (Athlete::club_id) ab. Maßgeblich ist je Athlet der
- * jüngste Einzelrekord; nur ohne Einzelrekord der jüngste Staffelrekord, und Staffeln zählen nur bei nationalen und
- * regionalen Rekorden ("AUT*"), weil internationale Staffeln als Nationalteam schwimmen. Rekorde für einen Verband
- * (Club::TYPE_VERBAND, z. B. ÖBSV als Nationalteam) zählen gar nicht.
- *
- * Ein Konflikt ist "relevant", wenn der Rekord nicht älter ist als der Eintritt beim aktuellen Verein und es kein
- * Wettkampfergebnis beim aktuellen Verein gibt, das jünger ist als der Rekord — in beiden Fällen ist der alte Rekord
- * beim früheren Verein kein Hinweis auf einen fehlenden Vereinswechsel (die Vereins-History ist meist leer, die
- * Ergebnisse tragen dagegen immer einen Verein). Nur relevante Konflikte werden vorbelegt und in die Liste geschrieben.
+ * Verein laut Rekord (Entscheidung Erik, 10.10.2026): Der Rekord trägt immer den Verein aus der Datei, der
+ * Stammverein (Athlete::club_id) wird dadurch nicht geändert — außer der Athlet hat keinen. Dann bekommt er beim Import
+ * den Verein laut Rekord (assignClub()); die Bestandsprüfung nimmt solche Athleten als "Vereinskonflikt" zum
+ * Übernehmen in die Liste. Maßgeblich ist je Athlet der jüngste Einzelrekord; nur ohne Einzelrekord der jüngste
+ * Staffelrekord, und Staffeln zählen nur bei nationalen und regionalen Rekorden ("AUT*"), weil internationale Staffeln
+ * als Nationalteam schwimmen. Rekorde für einen Verband (Club::TYPE_VERBAND, z. B. ÖBSV als Nationalteam) zählen gar
+ * nicht.
  *
  * Athleten mit bekannter, anderer Nationalität als AUT bekommen keinen Vereinskonflikt; ihre AUT-/Regionalrekorde
  * meldet stattdessen logNationalityIssues() als eigenen Befund (Aktion: Rekord entfernen).
@@ -97,14 +94,14 @@ final readonly class RecordImportReviewService
     }
 
     /**
-     * Vereinskonflikte aus den Beobachtungen, je Athlet höchstens einer.
+     * Athleten ohne Stammverein, die den Verein laut Rekord bekommen — je Athlet höchstens einer (maßgeblich wie oben).
+     * Athleten mit einem anderen Stammverein behalten ihn; der Rekord trägt ohnehin seinen eigenen Verein.
      *
      * @param  list<array>  $observations
-     * @return array<int, array{athlete_id: int, athlete_name: string, current_club_id: ?int, current_club_name: ?string,
-     *     lenex_club_id: int, lenex_club_name: ?string, date: ?string, relay: bool, label: string, swim_record_id: ?int,
-     *     relevant: bool}>
+     * @return array<int, array{athlete_id: int, athlete_name: string, current_club_id: null, current_club_name: null,
+     *     lenex_club_id: int, lenex_club_name: ?string, date: ?string, relay: bool, label: string, swim_record_id: ?int}>
      */
-    public function conflicts(array $observations): array
+    public function clubAssignments(array $observations): array
     {
         $clubs = Club::findMany(array_unique(array_column($observations, 'club_id')))->keyBy('id');
 
@@ -125,36 +122,29 @@ final readonly class RecordImportReviewService
             return [];
         }
 
-        $athletes = Athlete::with(['club', 'activeClubHistory', 'nation'])->findMany(array_keys($decisive))->keyBy('id');
-        $latestResults = $this->latestResultDatesAtCurrentClub($athletes->all());
+        $athletes = Athlete::with('nation')->findMany(array_keys($decisive))->keyBy('id');
 
         $conflicts = [];
         foreach ($decisive as $athleteId => $obs) {
             $athlete = $athletes->get($athleteId);
             // Nationale/regionale Rekorde gibt es nur für AUT-Athleten; andere Nationen sind ein eigener Befund
-            // ("Nationalität nicht AUT"), kein Vereinskonflikt. Unbekannte Nationalität bleibt drin.
-            if ($athlete === null || $athlete->club_id === $obs['club_id']
+            // ("Nationalität nicht AUT"). Unbekannte Nationalität bleibt drin.
+            if ($athlete === null || $athlete->club_id !== null
                 || ($athlete->nation !== null && $athlete->nation->code !== 'AUT')) {
                 continue;
             }
 
-            $joinedAt = $athlete->activeClubHistory->first()?->joined_at?->toDateString();
-            $latestResult = $latestResults[$athleteId] ?? null;
-
             $conflicts[$athleteId] = [
                 'athlete_id' => $athleteId,
                 'athlete_name' => $athlete->display_name,
-                'current_club_id' => $athlete->club_id,
-                'current_club_name' => $athlete->club?->display_name,
+                'current_club_id' => null,
+                'current_club_name' => null,
                 'lenex_club_id' => $obs['club_id'],
                 'lenex_club_name' => $clubs->get($obs['club_id'])->display_name,
                 'date' => $obs['date'],
                 'relay' => $obs['relay'],
                 'label' => $obs['label'],
                 'swim_record_id' => $obs['swim_record_id'],
-                'relevant' => $athlete->club_id === null || $obs['date'] === null
-                    || (($joinedAt === null || $obs['date'] >= $joinedAt)
-                        && ($latestResult === null || $latestResult <= $obs['date'])),
             ];
         }
 
@@ -202,21 +192,19 @@ final readonly class RecordImportReviewService
     }
 
     /**
-     * In der Import-Vorschau angehakter Konflikt: Vereinswechsel zum Rekorddatum (sonst heute) und als übernommen in
-     * die Liste.
+     * Beim Rekordimport: Athlet ohne Stammverein bekommt den Verein laut Rekord, mit Vereinseintrag ab dem
+     * Rekorddatum (sonst heute). Kein Eintrag in der Prüfliste.
      *
      * @throws Throwable
      */
-    public function applyConflict(array $conflict, string $source, ?int $userId): void
+    public function assignClub(array $assignment, string $source): void
     {
         $this->transfers->transfer(
-            Athlete::findOrFail($conflict['athlete_id']),
-            $conflict['lenex_club_id'],
-            $conflict['date'] ?? now()->toDateString(),
+            Athlete::findOrFail($assignment['athlete_id']),
+            $assignment['lenex_club_id'],
+            $assignment['date'] ?? now()->toDateString(),
             'Beim Rekordimport übernommen'.($source !== '' ? ' ('.$source.')' : ''),
         );
-
-        $this->logConflict($conflict, $source, ImportReviewItem::STATUS_APPLIED, $userId);
     }
 
     /**
@@ -311,7 +299,7 @@ final readonly class RecordImportReviewService
 
     /**
      * Prüft alle vorhandenen Rekorde: Nationalität (logNationalityIssues), Regionalverband (logRegionalMismatches),
-     * Staffeln ohne Verein (logRelaysWithoutClub) und Vereinskonflikte (Einzel und Staffelmitglieder); neue Befunde
+     * Staffeln ohne Verein (logRelaysWithoutClub) und Athleten ohne Verein (Einzel und Staffelmitglieder); neue Befunde
      * kommen offen in die Liste.
      *
      * @return int Anzahl neu aufgenommener Einträge
@@ -344,9 +332,9 @@ final readonly class RecordImportReviewService
         $created = $this->logNationalityIssues(null, self::SOURCE_SCAN)
             + $this->logRegionalMismatches(self::SOURCE_SCAN)
             + $this->logRelaysWithoutClub(null, self::SOURCE_SCAN);
-        foreach ($this->conflicts(array_values(array_filter($observations))) as $conflict) {
-            if ($conflict['relevant']
-                && $this->logConflict($conflict, self::SOURCE_SCAN, ImportReviewItem::STATUS_OPEN, null) !== null) {
+        // Die Bestandsprüfung ändert selbst nichts: Athleten ohne Verein kommen zum Übernehmen in die Liste.
+        foreach ($this->clubAssignments(array_values(array_filter($observations))) as $assignment) {
+            if ($this->logConflict($assignment, self::SOURCE_SCAN, ImportReviewItem::STATUS_OPEN, null) !== null) {
                 $created++;
             }
         }
@@ -771,33 +759,6 @@ final readonly class RecordImportReviewService
                 $record->sport_class, $record->course, $record->record_type),
             $record->id,
         );
-    }
-
-    /**
-     * Datum des jüngsten Wettkampfergebnisses je Athlet beim aktuellen Stammverein.
-     *
-     * @param  array<int, Athlete>  $athletes
-     * @return array<int, string> athlete_id → Y-m-d
-     */
-    private function latestResultDatesAtCurrentClub(array $athletes): array
-    {
-        $rows = Result::query()
-            ->join('meets', 'meets.id', '=', 'results.meet_id')
-            ->whereIn('results.athlete_id', array_keys($athletes))
-            ->groupBy('results.athlete_id', 'results.club_id')
-            ->selectRaw('results.athlete_id, results.club_id, MAX(meets.start_date) as latest')
-            ->toBase()
-            ->get();
-
-        $dates = [];
-        foreach ($rows as $row) {
-            $athlete = $athletes[$row->athlete_id] ?? null;
-            if ($athlete !== null && $athlete->club_id === (int) $row->club_id && $row->latest !== null) {
-                $dates[(int) $row->athlete_id] = substr((string) $row->latest, 0, 10);
-            }
-        }
-
-        return $dates;
     }
 
     /** Wertung eines Rekords für die Bezeichnung in der Prüfliste. */

@@ -13,6 +13,7 @@ use App\Models\StrokeType;
 use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
 use App\Services\RecordImportReviewService;
+use App\Services\RegionalRecordService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +41,7 @@ class RecordController extends Controller
     public function __construct(
         private readonly RecordCheckerService $checker,
         private readonly RecordImportReviewService $review,
+        private readonly RegionalRecordService $regional,
     ) {}
 
     public function index(Request $request): View
@@ -371,7 +373,7 @@ class RecordController extends Controller
         $data = $request->validate($this->recordValidationRules());
         $data = $this->parseTimeFields($data);
 
-        DB::transaction(function () use ($data) {
+        $regionalTypes = DB::transaction(function () use ($data) {
             $current = SwimRecord::where('record_type', $data['record_type'])
                 ->where('stroke_type_id', $data['stroke_type_id'])
                 ->where('sport_class', $data['sport_class'])
@@ -393,11 +395,20 @@ class RecordController extends Controller
 
             $this->storeSplits($newRecord->id, $splits);
             $this->storeRelayMembers($newRecord, $data);
+
+            // Ein neuer österreichischer Rekord ist oft auch ein Landesrekord — wie beim Rekordimport.
+            return $this->regional->propagate($newRecord->fresh());
         });
+
+        $message = 'Rekord erfolgreich eingetragen.';
+        if ($regionalTypes !== []) {
+            $message .= ' Zusätzlich '.(count($regionalTypes) === 1 ? 'Landesrekord ' : 'Landesrekorde ')
+                .implode(', ', $regionalTypes).' eingetragen.';
+        }
 
         return redirect()
             ->route('records.index')
-            ->with('success', 'Rekord erfolgreich eingetragen.');
+            ->with('success', $message);
     }
 
     /**

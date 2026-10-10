@@ -35,6 +35,16 @@
             @endforeach
         </div>
 
+        {{-- isset: Einige Tests rendern die Vorschau direkt, ohne Stichtag. --}}
+        @if(isset($before))
+            <div
+                class="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
+                Nur Rekorde vor dem {{ Carbon::parse($before)->format('d.m.Y') }}:
+                {{ $preview['after_cutoff'] }} {{ $preview['after_cutoff'] === 1 ? 'Eintrag' : 'Einträge' }}
+                ab dem Stichtag übersprungen.
+            </div>
+        @endif
+
         @php
             // Verknüpft die Vereins-Selects ("Unbekannte Vereine") mit der Namensanzeige bei den
             // unbekannten Athleten — siehe resources/js/record-import-preview.js.
@@ -196,47 +206,35 @@
                 </div>
             @endif
 
-            {{-- ── Vereinskonflikte (Stammverein ≠ Verein laut Rekord) ──────── --}}
-            @if(count($preview['club_conflicts']) > 0)
+            {{-- ── Athleten ohne Stammverein: bekommen den Verein laut Rekord ──── --}}
+            @if(count($preview['club_assignments']) > 0)
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-blue-300 dark:border-blue-700 p-5 mb-4">
                     <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1 flex items-center gap-2">
                         <flux:icon.arrows-right-left class="size-4 text-blue-500"/>
-                        Vereinskonflikte ({{ count($preview['club_conflicts']) }})
+                        Bekommen den Verein laut Rekord ({{ count($preview['club_assignments']) }})
                     </h2>
                     <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-                        Der Verein laut Rekord weicht vom Stammverein des Athleten ab (maßgeblich: jüngster Einzelrekord,
-                        sonst jüngste nationale Staffel). Angehakt wird der Stammverein beim Import mit einem
-                        Vereinswechsel zum Rekorddatum aktualisiert. Nicht angehakte Fälle kommen in die Prüfliste.
-                        Nicht vorbelegt (und nicht in die Liste) kommt ein Fall, wenn der Athlet nach dem Rekord
-                        nachweislich schon für den aktuellen Verein angetreten ist (Eintritt oder Wettkampfergebnis).
-                        Rekorde für einen Verband (z. B. ÖBSV) zählen nicht.
+                        Diese Athleten haben bisher keinen Stammverein und bekommen beim Import den Verein laut Rekord
+                        (maßgeblich: jüngster Einzelrekord, sonst jüngste nationale Staffel), mit Vereinseintrag ab dem
+                        Rekorddatum. Einen vorhandenen Stammverein ändert der Import nie — der Rekord trägt ohnehin den
+                        Verein aus der Datei.
                     </p>
 
-                    <div class="space-y-2">
-                        @foreach($preview['club_conflicts'] as $conflict)
-                            <label
-                                class="flex items-start gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer">
-                                <input type="checkbox" name="club_updates[{{ $conflict['athlete_id'] }}]"
-                                       value="{{ $conflict['lenex_club_id'] }}" class="mt-1"
-                                       @checked($conflict['relevant'])>
-                                <span class="text-sm">
-                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $conflict['athlete_name'] }}</span>:
-                                    <span class="text-zinc-500 dark:text-zinc-400">{{ $conflict['current_club_name'] ?? 'kein Verein' }}</span>
-                                    →
-                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $conflict['lenex_club_name'] }}</span>
-                                    <span class="block text-xs text-zinc-500 dark:text-zinc-400">
-                                        {{ $conflict['relay'] ? 'Staffel' : 'Einzel' }}: {{ $conflict['label'] }}
-                                        @if($conflict['date'])
-                                            · {{ Carbon::parse($conflict['date'])->format('d.m.Y') }}
-                                        @endif
-                                        @unless($conflict['relevant'])
-                                            · danach schon für den aktuellen Verein angetreten
-                                        @endunless
-                                    </span>
+                    <ul class="space-y-2">
+                        @foreach($preview['club_assignments'] as $assignment)
+                            <li class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-sm">
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $assignment['athlete_name'] }}</span>
+                                →
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $assignment['lenex_club_name'] }}</span>
+                                <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                    {{ $assignment['relay'] ? 'Staffel' : 'Einzel' }}: {{ $assignment['label'] }}
+                                    @if($assignment['date'])
+                                        · ab {{ Carbon::parse($assignment['date'])->format('d.m.Y') }}
+                                    @endif
                                 </span>
-                            </label>
+                            </li>
                         @endforeach
-                    </div>
+                    </ul>
                 </div>
             @endif
 

@@ -57,6 +57,18 @@ function athlete_rir(string $lastName, Club $club, ?string $joinedAt): Athlete
     return $athlete;
 }
 
+/** Athlet ohne Stammverein. */
+function clubless_rir(string $lastName): Athlete
+{
+    return Athlete::create([
+        'nation_id' => nation_rir()->id,
+        'first_name' => 'Max',
+        'last_name' => $lastName,
+        'birth_date' => '2000-05-05',
+        'gender' => 'M',
+    ]);
+}
+
 function athleteXml_rir(Athlete $athlete, ?string $birthDate): string
 {
     return '<ATHLETE lastname="'.$athlete->last_name.'" firstname="'.$athlete->first_name.'" birthdate="'
@@ -122,8 +134,8 @@ function preview_rir(string $xml): array
     }
 }
 
-/** Import ohne Vereins-/Regional-/Pending-Entscheidungen; nur Athleten-Zuordnungen und angehakte Vereinskonflikte. */
-function import_rir(string $xml, array $approvedAthletes, array $clubUpdates, string $source, ?int $userId): array
+/** Import ohne Vereins-/Regional-/Pending-Entscheidungen; nur Athleten-Zuordnungen. */
+function import_rir(string $xml, array $approvedAthletes, string $source): array
 {
     try {
         return (new RecordImportService)->import(
@@ -132,9 +144,7 @@ function import_rir(string $xml, array $approvedAthletes, array $clubUpdates, st
             approvedAthletes: $approvedAthletes,
             newClubData: [],
             newAthleteData: [],
-            clubUpdates: $clubUpdates,
             source: $source,
-            userId: $userId,
         );
     } catch (Throwable $e) {
         throw new LogicException($e->getMessage(), 0, $e);
@@ -147,172 +157,123 @@ beforeEach(function () {
 
 // ── Vorschau ──────────────────────────────────────────────────────────────────
 
-describe('Vorschau: Vereinskonflikte', function () {
+describe('Vorschau: Verein laut Rekord für Athleten ohne Verein', function () {
 
-    it('meldet einen Konflikt und belegt ihn vor, wenn der Rekord nach dem Eintritt liegt', function () {
-        $old = club_rir('ALT');
+    it('nennt einen Athleten ohne Verein mit dem Verein laut Rekord', function () {
         $new = club_rir('NEU');
-        $athlete = athlete_rir('Zimmermann', $old, '2020-01-01');
+        $athlete = clubless_rir('Zimmermann');
 
-        $conflicts = preview_rir(lenex_rir(
+        $assignments = preview_rir(lenex_rir(
             individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
-        expect($conflicts)->toHaveCount(1)
-            ->and($conflicts[0]['athlete_id'])->toBe($athlete->id)
-            ->and($conflicts[0]['current_club_id'])->toBe($old->id)
-            ->and($conflicts[0]['lenex_club_id'])->toBe($new->id)
-            ->and($conflicts[0]['date'])->toBe('2024-03-01')
-            ->and($conflicts[0]['relevant'])->toBeTrue();
+        expect($assignments)->toHaveCount(1)
+            ->and($assignments[0]['athlete_id'])->toBe($athlete->id)
+            ->and($assignments[0]['current_club_id'])->toBeNull()
+            ->and($assignments[0]['lenex_club_id'])->toBe($new->id)
+            ->and($assignments[0]['date'])->toBe('2024-03-01');
     });
 
-    it('belegt nicht vor, wenn der Rekord älter ist als der Eintritt beim aktuellen Verein', function () {
-        club_rir('ALT');
-        $athlete = athlete_rir('Saram', club_rir('NEU'), '2022-01-01');
+    it('lässt Athleten mit einem anderen Stammverein aus', function () {
+        club_rir('NEU');
+        $athlete = athlete_rir('Saram', club_rir('ALT'), '2022-01-01');
 
-        $conflicts = preview_rir(lenex_rir(
-            individualXml_rir($athlete, 'ALT', '2018-06-01', 'AUT', 50),
-        ))['club_conflicts'];
+        $assignments = preview_rir(lenex_rir(
+            individualXml_rir($athlete, 'NEU', '2024-06-01', 'AUT', 50),
+        ))['club_assignments'];
 
-        expect($conflicts)->toHaveCount(1)
-            ->and($conflicts[0]['relevant'])->toBeFalse();
+        expect($assignments)->toBe([]);
     });
 
-    it('meldet keinen Konflikt, wenn der jüngste Rekord beim Stammverein liegt', function () {
-        $club = club_rir('NEU');
+    it('nimmt den Verein des jüngsten Rekords', function () {
         club_rir('ALT');
-        $athlete = athlete_rir('Saram', $club, '2022-01-01');
+        $new = club_rir('NEU');
+        $athlete = clubless_rir('Saram');
 
-        $conflicts = preview_rir(lenex_rir(
+        $assignments = preview_rir(lenex_rir(
             individualXml_rir($athlete, 'ALT', '2018-06-01', 'AUT', 50),
             individualXml_rir($athlete, 'NEU', '2023-06-01', 'AUT', 100),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
-        expect($conflicts)->toBe([]);
+        expect($assignments[0]['lenex_club_id'])->toBe($new->id);
     });
 
     it('wertet Mitglieder nationaler Staffeln aus, internationale Staffeln nicht', function () {
-        $old = club_rir('ALT');
         club_rir('NEU');
-        $a = athlete_rir('Staffel', $old, null);
+        $a = clubless_rir('Staffel');
 
         $national = preview_rir(lenex_rir(
             relayXml_rir([$a], 'NEU', '2024-01-01', 'AUT'),
-        ))['club_conflicts'];
+        ))['club_assignments'];
         $international = preview_rir(lenex_rir(
             relayXml_rir([$a], 'NEU', '2024-01-01', 'WR'),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
         expect($national)->toHaveCount(1)
             ->and($national[0]['relay'])->toBeTrue()
-            ->and($national[0]['relevant'])->toBeTrue()
             ->and($international)->toBe([]);
     });
 
     it('wertet Rekorde für einen Verband (z. B. ÖBSV als Nationalteam) nicht', function () {
-        $old = club_rir('ALT');
         Club::create([
             'name' => 'Verband', 'code' => 'VBD', 'nation_id' => nation_rir()->id,
             'type' => Club::TYPE_VERBAND,
         ]);
-        $athlete = athlete_rir('National', $old, null);
+        $athlete = clubless_rir('National');
 
-        $conflicts = preview_rir(lenex_rir(
+        $assignments = preview_rir(lenex_rir(
             individualXml_rir($athlete, 'VBD', '2025-12-06', 'AUT', 50),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
-        expect($conflicts)->toBe([]);
-    });
-
-    it('belegt nicht vor, wenn es ein jüngeres Ergebnis beim aktuellen Verein gibt (Meet am 15.06.2025)', function () {
-        $current = club_rir('NEU');
-        club_rir('ALT');
-        $athlete = athlete_rir('Sarma', $current, null);
-        $meet = makeMeet_p5();
-        Result::create([
-            'meet_id' => $meet->id, 'swim_event_id' => makeEvent_p5($meet)->id,
-            'athlete_id' => $athlete->id, 'club_id' => $current->id, 'swim_time' => 6000,
-        ]);
-
-        $older = preview_rir(lenex_rir(
-            individualXml_rir($athlete, 'ALT', '2019-11-09', 'AUT', 50),
-        ))['club_conflicts'];
-        $newer = preview_rir(lenex_rir(
-            individualXml_rir($athlete, 'ALT', '2025-11-09', 'AUT', 50),
-        ))['club_conflicts'];
-
-        expect($older[0]['relevant'])->toBeFalse()
-            ->and($newer[0]['relevant'])->toBeTrue();
+        expect($assignments)->toBe([]);
     });
 
     it('lässt den Einzelrekord vor einer jüngeren Staffel gelten', function () {
         $old = club_rir('ALT');
         club_rir('NEU');
-        $athlete = athlete_rir('Einzel', $old, null);
+        $athlete = clubless_rir('Einzel');
 
-        $conflicts = preview_rir(lenex_rir(
+        $assignments = preview_rir(lenex_rir(
             individualXml_rir($athlete, 'ALT', '2020-01-01', 'AUT', 50),
             relayXml_rir([$athlete], 'NEU', '2024-01-01', 'AUT'),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
-        expect($conflicts)->toBe([]);
+        expect($assignments[0]['lenex_club_id'])->toBe($old->id);
     });
 });
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
-describe('Import: übernehmen oder in die Prüfliste', function () {
+describe('Import: Verein laut Rekord', function () {
 
-    it('übernimmt einen angehakten Konflikt als Vereinswechsel zum Rekorddatum', function () {
-        $old = club_rir('ALT');
+    it('gibt einem Athleten ohne Verein den Verein laut Rekord, ab dem Rekorddatum, ohne Prüfliste', function () {
         $new = club_rir('NEU');
-        $athlete = athlete_rir('Zimmermann', $old, '2020-01-01');
-        $admin = admin_rir();
+        $athlete = clubless_rir('Zimmermann');
 
-        $result = import_rir(lenex_rir(individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50)),
-            [], [$athlete->id => $new->id], 'oebsv.lxf', $admin->id);
+        $result = import_rir(lenex_rir(individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50)), [], 'oebsv.lxf');
 
-        $history = AthleteClubHistory::where('athlete_id', $athlete->id)->orderBy('id')->get();
-        $item = ImportReviewItem::sole();
+        $history = AthleteClubHistory::where('athlete_id', $athlete->id)->sole();
 
         expect($result['club_updated'])->toBe(1)
             ->and($result['review_open'])->toBe(0)
             ->and($athlete->fresh()->club_id)->toBe($new->id)
-            ->and($history)->toHaveCount(2)
-            ->and($history[0]->is_active)->toBeFalse()
-            ->and($history[0]->left_at->toDateString())->toBe('2024-02-29')
-            ->and($history[1]->club_id)->toBe($new->id)
-            ->and($history[1]->joined_at->toDateString())->toBe('2024-03-01')
-            ->and($item->status)->toBe(ImportReviewItem::STATUS_APPLIED)
-            ->and($item->resolved_by)->toBe($admin->id)
-            ->and($item->source)->toBe('oebsv.lxf')
-            ->and($item->swim_record_id)->toBe(SwimRecord::sole()->id);
+            ->and($history->club_id)->toBe($new->id)
+            ->and($history->joined_at->toDateString())->toBe('2024-03-01')
+            ->and(ImportReviewItem::count())->toBe(0);
     });
 
-    it('schreibt nicht angehakte relevante Konflikte offen in die Prüfliste, ohne Duplikate bei erneutem Import',
-        function () {
-            $old = club_rir('ALT');
-            club_rir('NEU');
-            $athlete = athlete_rir('Zimmermann', $old, '2020-01-01');
-            $xml = lenex_rir(individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50));
+    it('lässt einen anderen Stammverein unverändert und schreibt nichts in die Prüfliste', function () {
+        $old = club_rir('ALT');
+        $new = club_rir('NEU');
+        $athlete = athlete_rir('Zimmermann', $old, '2020-01-01');
 
-            $first = import_rir($xml, [], [], 'a.lxf', null);
-            $second = import_rir($xml, [], [], 'a.lxf', null);
+        $result = import_rir(lenex_rir(individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50)), [], 'a.lxf');
 
-            expect($first['review_open'])->toBe(1)
-                ->and($second['review_open'])->toBe(0)
-                ->and(ImportReviewItem::open()->count())->toBe(1)
-                ->and($athlete->fresh()->club_id)->toBe($old->id);
-        });
-
-    it('schreibt nicht relevante Konflikte (alter Rekord) nicht in die Prüfliste', function () {
-        club_rir('ALT');
-        $athlete = athlete_rir('Saram', club_rir('NEU'), '2022-01-01');
-
-        $result = import_rir(lenex_rir(individualXml_rir($athlete, 'ALT', '2018-06-01', 'AUT', 50)),
-            [], [], 'a.lxf', null);
-
-        expect($result['review_open'])->toBe(0)
+        expect($result['club_updated'])->toBe(0)
+            ->and($result['review_open'])->toBe(0)
+            ->and($athlete->fresh()->club_id)->toBe($old->id)
+            ->and(SwimRecord::sole()->club_id)->toBe($new->id)
+            ->and(AthleteClubHistory::where('athlete_id', $athlete->id)->count())->toBe(1)
             ->and(ImportReviewItem::count())->toBe(0);
     });
 
@@ -324,7 +285,7 @@ describe('Import: übernehmen oder in die Prüfliste', function () {
             .'</RECORD></RECORDS></RECORDLIST>');
         $key = preview_rir($xml)['unknown_athletes'][0]['key'];
 
-        import_rir($xml, [$key => (string) $athlete->id], [], 'a.lxf', null);
+        import_rir($xml, [$key => (string) $athlete->id], 'a.lxf');
 
         $item = ImportReviewItem::sole();
 
@@ -335,25 +296,23 @@ describe('Import: übernehmen oder in die Prüfliste', function () {
             ->and($item->status)->toBe(ImportReviewItem::STATUS_OPEN);
     });
 
-    it('übernimmt über die Vorschau-Checkbox im echten Formular-Ablauf', function () {
-        $old = club_rir('ALT');
+    it('zeigt die Zuordnung in der Vorschau und setzt sie im echten Formular-Ablauf', function () {
         $new = club_rir('NEU');
-        $athlete = athlete_rir('Zimmermann', $old, '2020-01-01');
+        $athlete = clubless_rir('Zimmermann');
         $file = UploadedFile::fake()->createWithContent('oebsv.lxf',
             lenex_rir(individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50)));
 
         $this->actingAs(admin_rir())
             ->post(route('records.import.preview'), ['lenex_file' => $file])
             ->assertOk()
-            ->assertSee('Vereinskonflikte (1)')
-            ->assertSee('name="club_updates['.$athlete->id.']"', false);
+            ->assertSee('Bekommen den Verein laut Rekord (1)')
+            ->assertDontSee('club_updates');
 
-        $this->post(route('records.import.run'), ['club_updates' => [$athlete->id => $new->id]])
+        $this->post(route('records.import.run'))
             ->assertRedirect(route('records.index'))
-            ->assertSessionHas('success', fn (string $msg) => str_contains($msg, '1 Stammverein(e) aktualisiert'));
+            ->assertSessionHas('success', fn (string $msg) => str_contains($msg, '1 Athlet(en) ohne Verein bekamen den Verein laut Rekord'));
 
-        expect($athlete->fresh()->club_id)->toBe($new->id)
-            ->and(ImportReviewItem::sole()->source)->toBe('oebsv.lxf');
+        expect($athlete->fresh()->club_id)->toBe($new->id);
     });
 });
 
@@ -361,11 +320,12 @@ describe('Import: übernehmen oder in die Prüfliste', function () {
 
 describe('Prüfliste', function () {
 
-    it('findet bei der Bestandsprüfung Konflikte aus Einzel- und Staffelrekorden', function () {
+    it('findet bei der Bestandsprüfung Athleten ohne Verein aus Einzel- und Staffelrekorden, ändert aber nichts', function () {
         $old = club_rir('ALT');
         $new = club_rir('NEU');
-        $single = athlete_rir('Einzel', $old, null);
-        $member = athlete_rir('Staffel', $old, null);
+        $single = clubless_rir('Einzel');
+        $member = clubless_rir('Staffel');
+        $withClub = athlete_rir('Vereinsmitglied', $old, null);
         $base = [
             'stroke_type_id' => stroke_rir()->id, 'nation_id' => nation_rir()->id, 'gender' => 'M',
             'course' => 'SCM', 'distance' => 50, 'swim_time' => 3000, 'record_status' => 'APPROVED',
@@ -374,6 +334,10 @@ describe('Prüfliste', function () {
         SwimRecord::create([
             ...$base, 'record_type' => 'AUT', 'sport_class' => 'S10', 'relay_count' => 1,
             'athlete_id' => $single->id,
+        ]);
+        SwimRecord::create([
+            ...$base, 'record_type' => 'AUT', 'sport_class' => 'S9', 'relay_count' => 1,
+            'athlete_id' => $withClub->id,
         ]);
         $relay = SwimRecord::create([...$base, 'record_type' => 'AUT', 'sport_class' => 'S14', 'relay_count' => 4]);
         RelayTeamMember::create([
@@ -389,7 +353,9 @@ describe('Prüfliste', function () {
             ->and($again)->toBe(0)
             ->and(ImportReviewItem::open()->pluck('athlete_id')->sort()->values()->all())
             ->toBe(collect([$single->id, $member->id])->sort()->values()->all())
-            ->and(ImportReviewItem::first()->source)->toBe(RecordImportReviewService::SOURCE_SCAN);
+            ->and(ImportReviewItem::first()->source)->toBe(RecordImportReviewService::SOURCE_SCAN)
+            ->and($single->fresh()->club_id)->toBeNull()
+            ->and($withClub->fresh()->club_id)->toBe($old->id);
     });
 
     it('übernimmt den Verein aus der Prüfliste und markiert den Eintrag', function () {
@@ -416,9 +382,8 @@ describe('Prüfliste', function () {
     });
 
     it('ignoriert einen Eintrag, und die Bestandsprüfung nimmt ihn nicht wieder auf', function () {
-        $old = club_rir('ALT');
         $new = club_rir('NEU');
-        $athlete = athlete_rir('Einzel', $old, null);
+        $athlete = clubless_rir('Einzel');
         SwimRecord::create([
             'stroke_type_id' => stroke_rir()->id, 'nation_id' => nation_rir()->id, 'gender' => 'M',
             'course' => 'SCM', 'distance' => 50, 'swim_time' => 3000, 'record_status' => 'APPROVED',
@@ -435,7 +400,7 @@ describe('Prüfliste', function () {
 
         expect($item->fresh()->status)->toBe(ImportReviewItem::STATUS_IGNORED)
             ->and(ImportReviewItem::count())->toBe(1)
-            ->and($athlete->fresh()->club_id)->toBe($old->id);
+            ->and($athlete->fresh()->club_id)->toBeNull();
     });
 
     it('zeigt offene Einträge an und filtert nach Status', function () {
@@ -498,16 +463,15 @@ function record_rir(?Athlete $athlete, Club $club, string $date, int $time, ?Swi
 
 describe('Nationalität nicht AUT', function () {
 
-    it('meldet für Athleten anderer Nationalität keinen Vereinskonflikt', function () {
-        $old = club_rir('ALT');
+    it('gibt Athleten anderer Nationalität ohne Verein keinen Verein laut Rekord', function () {
         club_rir('NEU');
-        $athlete = foreign_rir(athlete_rir('Komarov', $old, null), 'UKR');
+        $athlete = foreign_rir(clubless_rir('Komarov'), 'UKR');
 
-        $conflicts = preview_rir(lenex_rir(
+        $assignments = preview_rir(lenex_rir(
             individualXml_rir($athlete, 'NEU', '2024-03-01', 'AUT', 50),
-        ))['club_conflicts'];
+        ))['club_assignments'];
 
-        expect($conflicts)->toBe([]);
+        expect($assignments)->toBe([]);
     });
 
     it('findet bei der Bestandsprüfung aktuelle und historische Rekorde, aber keine von AUT-Athleten', function () {
@@ -578,8 +542,7 @@ describe('Nationalität nicht AUT', function () {
         $club = club_rir('KBSV');
         $foreign = foreign_rir(athlete_rir('Komarov', $club, null), 'UKR');
 
-        $result = import_rir(lenex_rir(individualXml_rir($foreign, 'KBSV', '2024-03-01', 'AUT', 50)),
-            [], [], 'a.lxf', null);
+        $result = import_rir(lenex_rir(individualXml_rir($foreign, 'KBSV', '2024-03-01', 'AUT', 50)), [], 'a.lxf');
 
         expect($result['review_open'])->toBe(1)
             ->and(ImportReviewItem::sole()->type)->toBe(ImportReviewItem::TYPE_NATIONALITY)
