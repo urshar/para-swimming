@@ -283,3 +283,37 @@ it('schickt ohne hochgeladene Datei zurück zum Formular', function () {
         ->assertRedirect(route('team-manager-import'))
         ->assertSessionHasErrors('team_file');
 });
+
+it('nennt bei einer doppelten Lizenznummer die betroffenen Athleten', function () {
+    $preview = service_tmi2()->preview(data_tmi2([
+        member_tmi2(['MEMBERSID' => '1', 'LASTNAME' => 'Erste', 'REGISTRATIONID' => 'K-0538']),
+        member_tmi2(['MEMBERSID' => '2', 'LASTNAME' => 'Zweite', 'REGISTRATIONID' => 'K - 0538']),
+        member_tmi2(['MEMBERSID' => '3', 'LASTNAME' => 'Dritte', 'REGISTRATIONID' => 'K-0539']),
+    ]));
+
+    expect($preview->warnings)->toContain(
+        'Lizenznummer K-0538 kommt 2× vor (Erste Carina (Nr. 1), Zweite Carina (Nr. 2)) — diese Athleten werden über Name und Geburtsdatum zugeordnet.'
+    );
+});
+
+it('trägt S14 und S21 ohne Klassifizierungsangaben als nationale, bestätigte Klassifizierung ein', /** @throws Throwable */ function () {
+    import_tmi2(data_tmi2([
+        member_tmi2(['MEMBERSID' => '1', 'LASTNAME' => 'Vierzehn', 'REGISTRATIONID' => 'W-1', 'SDMSID' => '0',
+            'HANDICAPS' => '14', 'HANDICAPSB' => '14', 'HANDICAPSM' => '14', 'HANDICAPEX' => null]),
+        member_tmi2(['MEMBERSID' => '2', 'LASTNAME' => 'Einundzwanzig', 'REGISTRATIONID' => 'W-2', 'SDMSID' => '0',
+            'HANDICAPS' => '21', 'HANDICAPSB' => '21', 'HANDICAPSM' => '0', 'HANDICAPEX' => null]),
+        member_tmi2(['MEMBERSID' => '3', 'LASTNAME' => 'Sechs', 'REGISTRATIONID' => 'W-3',
+            'HANDICAPS' => '6', 'HANDICAPSB' => '5', 'HANDICAPSM' => '6']),
+    ]));
+
+    $vierzehn = Athlete::where('last_name', 'Vierzehn')->firstOrFail()->classifications()->sole();
+    $einundzwanzig = Athlete::where('last_name', 'Einundzwanzig')->firstOrFail()->classifications()->sole();
+
+    expect($vierzehn->classification_scope)->toBe('NAT')
+        ->and($vierzehn->classification_status)->toBe('CONFIRMED')
+        ->and($vierzehn->classified_at)->toBeNull()
+        ->and([$vierzehn->result_s, $vierzehn->result_sb, $vierzehn->result_sm])->toBe(['S14', 'SB14', 'SM14'])
+        ->and([$einundzwanzig->result_s, $einundzwanzig->result_sb, $einundzwanzig->result_sm])->toBe(['S21', 'SB21', null])
+        ->and(Athlete::where('last_name', 'Vierzehn')->firstOrFail()->getSportClass('S')->classification_status)->toBe('CONFIRMED')
+        ->and(Athlete::where('last_name', 'Sechs')->firstOrFail()->classifications()->count())->toBe(0);
+});

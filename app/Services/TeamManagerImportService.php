@@ -79,6 +79,9 @@ final readonly class TeamManagerImportService
     /** Klassennummern, die als Sportklasse übernommen werden (0 = keine Klasse). */
     private const array SPORT_CLASS_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 21];
 
+    /** Nur national vergebene Klassen (Intellektuelle Beeinträchtigung, Down-Syndrom). */
+    private const array NATIONAL_CLASS_NUMBERS = ['14', '21'];
+
     private const array SPORT_CLASS_COLUMNS = ['S' => 'HANDICAPS', 'SB' => 'HANDICAPSB', 'SM' => 'HANDICAPSM'];
 
     private const string IMPORT_NOTE = 'Übernahme aus dem Splash Team Manager';
@@ -281,12 +284,24 @@ final readonly class TeamManagerImportService
         $nations = Nation::query()->pluck('id', 'code')->all();
         $exceptionCodes = ExceptionCode::query()->pluck('id', 'code')->all();
 
-        $licenseCounts = array_count_values(array_filter(array_map(
-            fn (array $row) => $this->license($row['REGISTRATIONID'] ?? null), $rows,
-        )));
-        foreach ($licenseCounts as $license => $count) {
-            if ($count > 1) {
-                $warnings[] = "Lizenznummer $license kommt {$count}× vor — diese Athleten werden über Name und Geburtsdatum zugeordnet.";
+        $holders = [];
+        foreach ($rows as $row) {
+            $license = $this->license($row['REGISTRATIONID'] ?? null);
+
+            if ($license !== null) {
+                $holders[$license][] = $this->memberLabel($row);
+            }
+        }
+        $licenseCounts = array_map('count', $holders);
+
+        foreach ($holders as $license => $names) {
+            if (count($names) > 1) {
+                $warnings[] = sprintf(
+                    'Lizenznummer %s kommt %d× vor (%s) — diese Athleten werden über Name und Geburtsdatum zugeordnet.',
+                    $license,
+                    count($names),
+                    implode(', ', $names),
+                );
             }
         }
 
@@ -296,7 +311,7 @@ final readonly class TeamManagerImportService
         $athletes = [];
 
         foreach ($rows as $row) {
-            $label = sprintf('%s %s (Nr. %s)', $this->text($row['LASTNAME'] ?? null), $this->text($row['FIRSTNAME'] ?? null), $row['MEMBERSID']);
+            $label = $this->memberLabel($row);
             $issue = function (string $text) use (&$warnings, $label) {
                 $warnings[] = "$label: $text";
             };
@@ -402,6 +417,16 @@ final readonly class TeamManagerImportService
         }
 
         return $byName[$this->nameKey($lastName, $firstName, $birthDate)] ?? null;
+    }
+
+    /**
+     * Name und Mitgliedsnummer für Hinweise, z. B. "Muster Carina (Nr. 716)".
+     *
+     * @param  array<string, string|null>  $row
+     */
+    private function memberLabel(array $row): string
+    {
+        return sprintf('%s %s (Nr. %s)', $this->text($row['LASTNAME'] ?? null), $this->text($row['FIRSTNAME'] ?? null), $row['MEMBERSID']);
     }
 
     private function nameKey(string $lastName, string $firstName, ?string $birthDate): string
@@ -653,7 +678,7 @@ final readonly class TeamManagerImportService
         }
 
         if (array_filter($fields) === []) {
-            return null;
+            return $this->nationalClassification($sportClasses);
         }
 
         [$status, $frdYear] = $this->classificationStatus($fields[1], $issue);
@@ -693,6 +718,37 @@ final readonly class TeamManagerImportService
             'classification_scope' => $scope,
             'classification_status' => $status,
             'frd_year' => $frdYear,
+        ];
+    }
+
+    /**
+     * S14 und S21 vergibt der ÖBSV national, ohne Klassifizierung mit Klassifizierern — der Team Manager führt dafür
+     * keine Angaben in FREE1 bis FREE6. Damit die Klassen trotzdem in der Historie stehen, wird ein nationaler,
+     * bestätigter Eintrag ohne Datum angelegt.
+     *
+     * @param  array<string, string>  $sportClasses
+     * @return array<string, mixed>|null
+     */
+    private function nationalClassification(array $sportClasses): ?array
+    {
+        $numbers = array_map(fn (string $category) => substr($sportClasses[$category], strlen($category)), array_keys($sportClasses));
+
+        if ($numbers === [] || array_diff($numbers, self::NATIONAL_CLASS_NUMBERS) !== []) {
+            return null;
+        }
+
+        return [
+            'classified_at' => null,
+            'location' => null,
+            'med' => null,
+            'tech1' => null,
+            'tech2' => null,
+            'result_s' => $sportClasses['S'] ?? null,
+            'result_sb' => $sportClasses['SB'] ?? null,
+            'result_sm' => $sportClasses['SM'] ?? null,
+            'classification_scope' => 'NAT',
+            'classification_status' => 'CONFIRMED',
+            'frd_year' => null,
         ];
     }
 

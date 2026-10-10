@@ -67,10 +67,12 @@ class ClassifierController extends Controller
 
     public function show(Classifier $classifier): View
     {
-        $classifier->load([
-            'classificationsAsMed.athlete',
-            'classificationsAsTech1.athlete',
-            'classificationsAsTech2.athlete',
+        // Für die "Einsätze"-Kachel (classifications_as_*_count) — load() hätte nur die Relationen
+        // geladen, die Zähler blieben leer und die Kachel zeigte immer 0.
+        $classifier->loadCount([
+            'classificationsAsMed',
+            'classificationsAsTech1',
+            'classificationsAsTech2',
         ]);
 
         // Alle Klassifikationen dieses Klassifizierers (egal in welcher Rolle)

@@ -159,6 +159,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
 3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
+4. "Athleten zusammenführen (Dubletten)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -374,6 +375,27 @@ oder übergangen werden. Feld-Mapping und Entscheidungen in `app/Services/TeamMa
 Nicht übernommen: englische Namen (Verein und Athlet), Geburtsort, Fax, Funktionen, Mitgliedsbeitrag, WWW,
 E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse. **Offen:** Daten von dev per Seeder nach prod
 bringen (Erik: Import läuft auf dev, prod bekommt die Daten über einen Seeder).
+
+## Athleten zusammenführen (Dubletten)
+
+**Seit:** `feature/team-manager-import` (10.10.2026), Wunsch Erik.
+
+**Ausgangslage:** Dieselbe Person kann mehrfach als Athlet angelegt sein — der Team-Manager-Import zeigte z. B.
+Lizenz O-2030 dreimal (Vor-/Nachname vertauscht, Tippfehler) und T-1579 zweimal; auch LENEX-Importe können bei
+abweichender Schreibweise neue Athleten anlegen. Heute bleibt nur Löschen, und das geht nicht mehr, sobald Ergebnisse
+oder Meldungen dranhängen.
+
+**Was fehlt:** Zwei Athleten zu einem zusammenführen — einer bleibt, der andere wird aufgelöst. Übernommen wird
+**alles, was am Athleten hängt**: Ergebnisse (Einzel und Staffelmitgliedschaften), Meldungen (Einzel und
+Staffelmeldungen), Rekorde, Klassifikations-, Vereins- und Level-History, Sportklassen, Ausnahme-Codes,
+Kaderzugehörigkeiten, Leistungsnotizen, Prüflisten-Einträge, Cup-Wertungen.
+
+**Offene Fragen (Erik):** Welche Stammdaten gewinnen bei Abweichungen (Feld für Feld wählen oder immer der
+behaltene)? Was passiert bei Kollisionen (beide haben ein Ergebnis im selben Bewerb, beide eine Sportklasse je
+Kategorie)? Danach Wertungen/Rekorde neu berechnen?
+
+**Zum Schließen nötig:** Vollständige Liste aller Tabellen mit `athlete_id` (inkl. Staffel-Mitglieder), Vorschau mit
+Gegenüberstellung beider Athleten und den Kollisionen, Zusammenführung in einer Transaktion, Test je Tabelle.
 
 ## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
 
