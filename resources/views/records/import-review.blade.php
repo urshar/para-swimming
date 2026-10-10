@@ -35,11 +35,11 @@
 
     <ul class="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-3xl space-y-1 list-disc ps-5">
         <li>
-            <strong>Vereinskonflikt:</strong> Der Verein laut Rekord weicht vom Stammverein des Athleten ab (maßgeblich
-            ist der jüngste Einzelrekord, sonst die jüngste nationale Staffel; Rekorde für Verbände wie den ÖBSV zählen
-            nicht). Nicht aufgenommen wird ein Fall, wenn der Athlet danach nachweislich schon für den aktuellen Verein
-            angetreten ist (Eintritt oder Wettkampfergebnis). "Verein übernehmen" trägt einen Vereinswechsel zum
-            Rekorddatum ein.
+            <strong>Vereinskonflikt:</strong> Der Athlet hat keinen Stammverein, sein Rekord aber einen Verein
+            (maßgeblich ist der jüngste Einzelrekord, sonst die jüngste nationale Staffel; Rekorde für Verbände wie den
+            ÖBSV zählen nicht). "Verein übernehmen" trägt den Verein ab dem Rekorddatum ein. Einen vorhandenen
+            Stammverein ändern weder Import noch Prüfliste — der Rekord trägt ohnehin den Verein aus der Datei. Beim
+            Import bekommen Athleten ohne Verein ihn automatisch; hier landen sie nur über "Bestand prüfen".
         </li>
         <li>
             <strong>Geburtsdatum abweichend:</strong> Ein Athlet aus der Datei wurde einer bestehenden Person mit anderem

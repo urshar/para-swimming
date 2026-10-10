@@ -97,7 +97,6 @@ class RecordImportController extends Controller
         $newAthleteData = $request->input('new_athletes', []);
         $approvedRegional = $request->input('regional', []);
         $approvedPending = $request->input('pending', []);   // ['pending_key' => 'import'|'skip']
-        $clubUpdates = $request->input('club_updates', []);  // ['athlete_id' => club_id]
 
         try {
             $result = $this->importService->import(
@@ -108,9 +107,7 @@ class RecordImportController extends Controller
                 $newAthleteData,
                 $approvedRegional,
                 $approvedPending,
-                $clubUpdates,
                 Session::get('record_import_name', basename($path)),
-                $request->user()->id,
                 Session::get('record_import_before'),
             );
         } catch (Throwable $e) {
@@ -125,7 +122,7 @@ class RecordImportController extends Controller
             $msg .= ", {$result['regional_auto']} Regionalrekord(e) automatisch gesetzt";
         }
         if ($result['club_updated'] > 0) {
-            $msg .= ", {$result['club_updated']} Stammverein(e) aktualisiert";
+            $msg .= ", {$result['club_updated']} Athlet(en) ohne Verein bekamen den Verein laut Rekord";
         }
         if ($result['review_open'] > 0) {
             $msg .= ', '.$result['review_open'].($result['review_open'] === 1 ? ' neuer Fall' : ' neue Fälle')

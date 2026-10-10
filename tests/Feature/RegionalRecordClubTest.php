@@ -114,9 +114,10 @@ describe('Import Prüfliste: Regionalrekord mit falschem Verband', function () {
         $created = (new RecordImportReviewService)->scanExisting();
         $item = ImportReviewItem::where('type', ImportReviewItem::TYPE_REGIONAL)->sole();
 
-        // 2 = der falsche Regionalrekord und (zu Recht) ein Vereinskonflikt: Wien laut Rekord, heute Niederösterreich.
-        expect($created)->toBe(2)
-            ->and(ImportReviewItem::where('type', ImportReviewItem::TYPE_CLUB_CONFLICT)->count())->toBe(1)
+        // Nur der falsche Regionalrekord: Der Athlet hat einen Stammverein (Niederösterreich), der bleibt — kein
+        // Vereinskonflikt, obwohl der Rekord Wien trägt.
+        expect($created)->toBe(1)
+            ->and(ImportReviewItem::where('type', ImportReviewItem::TYPE_CLUB_CONFLICT)->count())->toBe(0)
             ->and($item->swim_record_id)->toBe($wrong->id)
             ->and($item->details['expected'])->toBe('AUT.WBSV')
             ->and($item->details['meet_id'])->toBe($meet->id);
