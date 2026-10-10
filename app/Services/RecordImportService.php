@@ -97,6 +97,7 @@ class RecordImportService
      * $clubUpdates:      ['athlete_id' => club_id] — in der Vorschau angehakte Vereinskonflikte: Stammverein
      *                    übernehmen. Alle übrigen relevanten Konflikte landen offen in der Prüfliste.
      * $source:           Bezeichnung für die Prüfliste (Dateiname)
+     * $before:           Stichtag (Y-m-d): Listeneinträge ab diesem Datum überspringen, siehe preview()
      *
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann
      * @throws Exception wenn der XML-Inhalt ungültig ist
@@ -113,8 +114,9 @@ class RecordImportService
         array $clubUpdates = [],
         string $source = '',
         ?int $userId = null,
+        ?string $before = null,
     ): array {
-        $preview = $this->preview($filePath);
+        $preview = $this->preview($filePath, $before);
 
         // Clubs anlegen die als 'new' markiert wurden
         $clubIdMap = $this->resolveClubs($preview['unknown_clubs'], $approvedClubs, $newClubData);
@@ -363,13 +365,14 @@ class RecordImportService
      *     unknown_clubs: array,
      *     unknown_athletes: array,
      *     skipped: int,
+     *     after_cutoff: int,
      *     club_conflicts: array,
      * }
      *
      * @throws RuntimeException wenn die Datei nicht gelesen werden kann
      * @throws Exception wenn der XML-Inhalt ungültig ist
      */
-    public function preview(string $filePath): array
+    public function preview(string $filePath, ?string $before = null): array
     {
         $xml = $this->loadXml($filePath);
 
@@ -377,6 +380,7 @@ class RecordImportService
         $unknownClubs = [];
         $unknownAthletes = [];
         $skipped = 0;
+        $afterCutoff = 0;
 
         $seenClubKeys = [];
         $seenAthleteKeys = [];
@@ -390,6 +394,16 @@ class RecordImportService
                 $swimtime = (string) $rec['swimtime'];
                 if ($swimtime === 'NT' || $swimtime === '') {
                     $skipped++;
+
+                    continue;
+                }
+
+                // Stichtag: Rekorde ab diesem Datum entstehen später aus den Wettkampfergebnissen (und sind dann mit
+                // ihnen verknüpft). Vor Athlet und Verein prüfen, damit übersprungene Einträge dort nicht als
+                // "unbekannt" auftauchen. Einträge ohne Datum lassen sich nicht einordnen und bleiben drin.
+                $listDate = TimeParser::sanitizeDate((string) ($rec->MEETINFO['date'] ?? ''));
+                if ($before !== null && $listDate !== null && $listDate >= $before) {
+                    $afterCutoff++;
 
                     continue;
                 }
@@ -605,6 +619,7 @@ class RecordImportService
             'unknown_clubs' => array_values($unknownClubs),
             'unknown_athletes' => array_values($unknownAthletes),
             'skipped' => $skipped,
+            'after_cutoff' => $afterCutoff,   // ab dem Stichtag ($before) übersprungen
         ];
     }
 

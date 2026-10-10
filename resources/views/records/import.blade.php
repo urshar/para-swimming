@@ -113,6 +113,19 @@
 
                 <flux:error name="lenex_file" class="mt-1"/>
 
+                {{-- Stichtag: spätere Rekorde entstehen aus den importierten Wettkämpfen (mit Ergebnis verknüpft). --}}
+                <flux:field class="mt-5">
+                    <flux:label>Nur Rekorde vor (optional)</flux:label>
+                    <flux:date-picker type="input" locale="de-AT" selectable-header name="before"
+                                      value="{{ old('before') }}" clearable/>
+                    <flux:description>
+                        Rekorde ab diesem Datum werden übersprungen — sie entstehen beim Rekord-Check der
+                        importierten Wettkämpfe und sind dann mit dem Ergebnis verknüpft. Einträge ohne Datum
+                        werden übernommen.
+                    </flux:description>
+                    <flux:error name="before"/>
+                </flux:field>
+
                 {{-- Submit --}}
                 <flux:button
                     type="submit"

@@ -187,6 +187,15 @@ Regeln und Eigenheiten:
 Der HTTP-Ablauf (`RecordImportController`): `showForm()` → `preview(Request)`
 → `run(Request)`.
 
+**Stichtag "Nur Rekorde vor"** (seit `feature/record-import-cutoff`, 10.10.2026): optionales Datum im Upload-Formular
+(`before`, in der Session bis zum Import). `preview()`/`import()` überspringen Listeneinträge mit `MEETINFO date` am
+oder nach dem Stichtag, noch vor dem Athleten-/Vereins-Matching (sie erscheinen nicht als unbekannt); die Vorschau
+nennt ihre Anzahl (`after_cutoff`). Einträge ohne Datum bleiben drin. Zweck: Mit der Rekordliste nur den Stand vor dem
+ersten vorhandenen LENEX-Wettkampf laden, danach die Wettkämpfe in zeitlicher Reihenfolge importieren und prüfen —
+spätere Rekorde entstehen dann über `RecordCheckerService` samt `result_id`/`relay_result_id`. Ein abschließender
+Import der ganzen Liste ohne Stichtag ergänzt Rekorde von Wettkämpfen ohne LENEX (gleiche Zeit in der Kette =
+bekannt, Widerspruch → Prüfliste).
+
 ## Import-Vorschau — Vorschläge & Vorbelegung
 
 Nicht exakt gefundene Athleten/Vereine werden in der Vorschau (`records/import-preview.blade.php`) nicht

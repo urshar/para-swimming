@@ -40,13 +40,16 @@ class RecordImportController extends Controller
     {
         $request->validate([
             'lenex_file' => 'required|file|extensions:lxf,xml|max:20480',
+            'before' => 'nullable|date_format:Y-m-d',
         ]);
 
+        // Stichtag: nur Rekorde vor diesem Datum (siehe RecordImportService::preview()).
+        $before = $request->input('before');
         $file = $request->file('lenex_file');
         $path = $file->storeAs('record-imports', uniqid('rec_').'.'.$file->getClientOriginalExtension(), 'local');
 
         try {
-            $preview = $this->importService->preview(Storage::disk('local')->path($path));
+            $preview = $this->importService->preview(Storage::disk('local')->path($path), $before);
         } catch (Throwable $e) {
             return redirect()->route('records.import')
                 ->withErrors(['lenex_file' => 'Datei konnte nicht gelesen werden: '.$e->getMessage()]);
@@ -54,10 +57,12 @@ class RecordImportController extends Controller
 
         Session::put('record_import_path', $path);
         Session::put('record_import_name', $file->getClientOriginalName());
+        Session::put('record_import_before', $before);
 
         return view('records.import-preview', [
             'preview' => $preview,
             'fileName' => $file->getClientOriginalName(),
+            'before' => $before,
             // Für die Zuordnung unbekannter (z.B. falsch geschriebener) Vereine auf einen
             // bestehenden Verein, statt fälschlich einen neuen anzulegen. Sortiert nach dem
             // angezeigten Namen (Kurzname, falls vorhanden), nicht nach dem vollen Namen —
@@ -106,13 +111,14 @@ class RecordImportController extends Controller
                 $clubUpdates,
                 Session::get('record_import_name', basename($path)),
                 $request->user()->id,
+                Session::get('record_import_before'),
             );
         } catch (Throwable $e) {
             return redirect()->route('records.import')
                 ->withErrors(['lenex_file' => 'Import fehlgeschlagen: '.$e->getMessage()]);
         }
 
-        Session::forget(['record_import_path', 'record_import_name']);
+        Session::forget(['record_import_path', 'record_import_name', 'record_import_before']);
 
         $msg = "{$result['imported']} Rekord(e) importiert, {$result['skipped']} übersprungen";
         if (($result['regional_auto'] ?? 0) > 0) {

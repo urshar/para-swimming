@@ -35,6 +35,16 @@
             @endforeach
         </div>
 
+        {{-- isset: Einige Tests rendern die Vorschau direkt, ohne Stichtag. --}}
+        @if(isset($before))
+            <div
+                class="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
+                Nur Rekorde vor dem {{ Carbon::parse($before)->format('d.m.Y') }}:
+                {{ $preview['after_cutoff'] }} {{ $preview['after_cutoff'] === 1 ? 'Eintrag' : 'Einträge' }}
+                ab dem Stichtag übersprungen.
+            </div>
+        @endif
+
         @php
             // Verknüpft die Vereins-Selects ("Unbekannte Vereine") mit der Namensanzeige bei den
             // unbekannten Athleten — siehe resources/js/record-import-preview.js.
