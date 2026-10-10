@@ -73,10 +73,19 @@
                     <dt class="text-zinc-500 dark:text-zinc-400">SDMS ID</dt>
                     <dd class="font-medium mt-0.5 font-mono text-slate-700 dark:text-slate-300">{{ $athlete->license_ipc ?? '–' }}</dd>
                 </div>
-                @if($athlete->disability_type)
+                @if($athlete->disability_group)
                     <div>
-                        <dt class="text-zinc-500 dark:text-zinc-400">Behinderungsart</dt>
-                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ ucfirst($athlete->disability_type) }}</dd>
+                        <dt class="text-zinc-500 dark:text-zinc-400">Behinderungsgruppe</dt>
+                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">{{ $athlete->disability_group_label }}</dd>
+                    </div>
+                @endif
+                @if($athlete->last_medical_check_at || $athlete->next_medical_check_at)
+                    <div>
+                        <dt class="text-zinc-500 dark:text-zinc-400">Medizinische Kontrolle</dt>
+                        <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">
+                            zuletzt {{ $athlete->last_medical_check_at?->format('d.m.Y') ?? '–' }},
+                            nächste {{ $athlete->next_medical_check_at?->format('d.m.Y') ?? '–' }}
+                        </dd>
                     </div>
                 @endif
                 @if($athlete->email)
@@ -261,14 +270,10 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
             @if(auth()->user()?->is_admin)
-            @if(auth()->user()?->is_admin)
-            @if(auth()->user()?->is_admin)
             <flux:button size="sm" variant="ghost" icon="plus"
                          x-on:click="openClassification = !openClassification">
                 Neue Klassifikation
             </flux:button>
-            @endif
-            @endif
             @endif
         </div>
 
@@ -424,7 +429,7 @@
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                                            {{ $cl->classified_at->format('d.m.Y') }}
+                                            {{ $cl->classified_at?->format('d.m.Y') ?? 'ohne Datum' }}
                                         </span>
                                         @if($cl->location)
                                             <span class="text-zinc-500">· {{ $cl->location }}</span>
@@ -483,20 +488,22 @@
                                         <p class="text-xs text-zinc-400 mt-1">{{ $cl->notes }}</p>
                                     @endif
                                 </div>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    <flux:button size="sm" variant="ghost" icon="pencil"
-                                                 @if(auth()->user()?->is_admin)
-                                                 x-on:click="editing = true"/>
-                                    <form method="POST"
-                                          action="{{ route('athletes.classifications.destroy', [$athlete, $cl]) }}"
-                                          x-data="{ del() { if(confirm('Klassifikation löschen?')) this.$el.submit() } }"
-                                          @submit.prevent="del()">
-                                        @csrf @method('DELETE')
-                                        <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                                     class="text-red-400"/>
-                                    </form>
-                                                 @endif
-                                </div>
+                                @if(auth()->user()?->is_admin)
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <flux:button size="sm" variant="ghost" icon="pencil" class="text-amber-500!"
+                                                     title="Bearbeiten" aria-label="Klassifikation bearbeiten"
+                                                     x-on:click="editing = true"/>
+                                        <form method="POST"
+                                              action="{{ route('athletes.classifications.destroy', [$athlete, $cl]) }}"
+                                              x-data="{ del() { if(confirm('Klassifikation löschen?')) this.$el.submit() } }"
+                                              @submit.prevent="del()">
+                                            @csrf @method('DELETE')
+                                            <flux:button type="submit" size="sm" variant="ghost" icon="trash"
+                                                         class="text-red-500!"
+                                                         title="Löschen" aria-label="Klassifikation löschen"/>
+                                        </form>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
@@ -511,9 +518,9 @@
                                 @php $clStatus = $cl->classification_status ?? ''; @endphp
                                 <div class="grid grid-cols-2 gap-3">
                                     <flux:field>
-                                        <flux:label>Datum<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                                        <flux:label>Datum</flux:label>
                                         <flux:date-picker type="input" locale="de-AT" selectable-header name="classified_at"
-                                                    value="{{ $cl->classified_at->format('Y-m-d') }}" required/>
+                                                    value="{{ $cl->classified_at?->format('Y-m-d') }}" clearable/>
                                         <flux:error name="classified_at"/>
                                     </flux:field>
                                     <flux:field>
@@ -804,15 +811,16 @@
                                 <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
                             @endif
                         </div>
-                        <form method="POST"
-                              @if(auth()->user()?->is_admin)
-                              action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
-                              onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
-                            @csrf
-                            @method('DELETE')
-                            <flux:button type="submit" variant="ghost" size="sm" icon="trash"/>
-                        </form>
-                              @endif
+                        @if(auth()->user()?->is_admin)
+                            <form method="POST"
+                                  action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
+                                  onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
+                                @csrf
+                                @method('DELETE')
+                                <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"
+                                             title="Löschen" aria-label="Kaderzugehörigkeit löschen"/>
+                            </form>
+                        @endif
                     </div>
                 @endforeach
             </div>

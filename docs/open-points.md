@@ -159,7 +159,7 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
 3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
-4. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — braucht Mannschaften im Datenmodell
+4. "Athleten zusammenführen (Dubletten)" unten
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
@@ -168,7 +168,8 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 1. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
    echte Prüfung (aktiv einplanbar), Schlichtungsverfahren eine Vorstandsentscheidung
-2. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
+2. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — erst, wenn es Veranstaltungen mit Mannschaften gibt
+3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
@@ -253,6 +254,13 @@ sich nicht zählen, wie viele Mannschaften ein Verein stellt.
 
 **Wer entscheidet:** Erik — ob und wie Mannschaftsbewerbe abgebildet werden (eigene Mannschafts-Meldung je Verein mit
 Mitgliedern? Bezug zu Staffeln?).
+
+**Entscheidung 09.10.2026 (Erik): zurückgestellt, bis es solche Veranstaltungen gibt.** Im Para-Schwimmen gibt es
+derzeit keine Veranstaltungen, bei denen Vereine Mannschaften stellen. Bis dahin bleibt `TEAM` gespeichert, pflegbar
+und per LENEX austauschbar, wird aber nicht berechnet. Erwogene Wege für später, je nach Bedarf: `TEAM` wie `CLUB`
+(eine Mannschaft je Verein mit Starts), eine Mannschaftsanzahl je Verein und Veranstaltung in den Meldegeldern, oder
+echte Mannschaften im Datenmodell inkl. LENEX `CLUB number` (heute weder importiert noch exportiert — mehrere
+Mannschaften desselben Vereins landen beim Import in einem Verein).
 
 **Zum Schließen nötig:** Mannschaften im Datenmodell (Meldung je Mannschaft), danach im Meldegeld-Service je
 Mannschaft die `TEAM`-Gebühr berechnen (auf Veranstaltungs- bzw. Abschnittsebene wie `CLUB`).
@@ -358,6 +366,36 @@ Athleten-Felder.
 **Zum Schließen nötig:** Nach Erhalt der Datei: Quellschema sichten, Athleten-Migration (en) für neue Felder,
 Import-Weg festlegen (CSV/XLSX-Zwischenschritt vs. direkter Reader), Import-Service mit Matching/Update-Logik,
 Vorschau/Bestätigung analog Rekord-Import.
+
+**Stand 09.10.2026 (`feature/team-manager-import`):** Datei ist die `Team.mdb` des Splash Team Managers, einmaliger
+Umzug (Erik). Phase 1: Behinderungsgruppe + PI-Untergruppe, medizinische Kontrolle, Klassifizierung ohne Datum.
+Phase 2: Admin-Seite "Team Manager übernehmen" (Athletenliste) mit Vorschau; liest die `.mdb` direkt über PDO_ODBC
+(nur Windows mit Access-Treiber → läuft auf dev), Klassifizierer-Namen ohne Treffer müssen in der Vorschau zugeordnet
+oder übergangen werden. Feld-Mapping und Entscheidungen in `app/Services/TeamManagerImportService.php`.
+Nicht übernommen: englische Namen (Verein und Athlet), Geburtsort, Fax, Funktionen, Mitgliedsbeitrag, WWW,
+E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse. **Offen:** Daten von dev per Seeder nach prod
+bringen (Erik: Import läuft auf dev, prod bekommt die Daten über einen Seeder).
+
+## Athleten zusammenführen (Dubletten)
+
+**Seit:** `feature/team-manager-import` (10.10.2026), Wunsch Erik.
+
+**Ausgangslage:** Dieselbe Person kann mehrfach als Athlet angelegt sein — der Team-Manager-Import zeigte z. B.
+Lizenz O-2030 dreimal (Vor-/Nachname vertauscht, Tippfehler) und T-1579 zweimal; auch LENEX-Importe können bei
+abweichender Schreibweise neue Athleten anlegen. Heute bleibt nur Löschen, und das geht nicht mehr, sobald Ergebnisse
+oder Meldungen dranhängen.
+
+**Was fehlt:** Zwei Athleten zu einem zusammenführen — einer bleibt, der andere wird aufgelöst. Übernommen wird
+**alles, was am Athleten hängt**: Ergebnisse (Einzel und Staffelmitgliedschaften), Meldungen (Einzel und
+Staffelmeldungen), Rekorde, Klassifikations-, Vereins- und Level-History, Sportklassen, Ausnahme-Codes,
+Kaderzugehörigkeiten, Leistungsnotizen, Prüflisten-Einträge, Cup-Wertungen.
+
+**Offene Fragen (Erik):** Welche Stammdaten gewinnen bei Abweichungen (Feld für Feld wählen oder immer der
+behaltene)? Was passiert bei Kollisionen (beide haben ein Ergebnis im selben Bewerb, beide eine Sportklasse je
+Kategorie)? Danach Wertungen/Rekorde neu berechnen?
+
+**Zum Schließen nötig:** Vollständige Liste aller Tabellen mit `athlete_id` (inkl. Staffel-Mitglieder), Vorschau mit
+Gegenüberstellung beider Athleten und den Kollisionen, Zusammenführung in einer Transaktion, Test je Tabelle.
 
 ## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
 

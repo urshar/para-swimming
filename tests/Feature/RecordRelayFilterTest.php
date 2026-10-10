@@ -91,3 +91,14 @@ it('zeigt die Wertung Mixed auf der Detailseite', function () {
         ->assertSee('Mixed')
         ->assertDontSee('Damen');
 });
+
+it('bietet bei Einzel die Sportklassen auch ohne importierte Basiszeiten an', function () {
+    $html = test()->actingAs(admin_rfr())
+        ->get(route('records.index', ['category' => 'national', 'relay' => 'single', 'course' => 'SCM']))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('S01,SB01,SM01')
+        ->toContain('S14,SB14,SM14')
+        ->toContain('S21,SB21,SM21');
+});

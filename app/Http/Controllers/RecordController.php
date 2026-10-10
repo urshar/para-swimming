@@ -460,9 +460,13 @@ class RecordController extends Controller
                 null];
         }
 
+        // Feste Grundmenge S1–S15 und S21: Ohne sie war der Dropdown leer, solange (z. B. nach dem
+        // Neuaufsetzen der Datenbank) noch keine Basiszeiten importiert sind. Weitere in den
+        // Basiswerten gepflegte Klassen kommen dazu.
         $numbers = BaseTimeSportClass::query()
             ->pluck('code')
             ->map(fn ($code) => (int) preg_replace('/\D+/', '', $code))
+            ->merge([...range(1, 15), 21])
             ->unique()
             ->sort()
             ->values();

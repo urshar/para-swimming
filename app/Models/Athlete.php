@@ -13,6 +13,22 @@ class Athlete extends Model
 {
     use SoftDeletes;
 
+    /** Behinderungsgruppen (Kürzel wie im Splash Team Manager und in der Statistik). */
+    const array DISABILITY_GROUPS = [
+        'PI' => 'Körperliche Beeinträchtigung',
+        'VI' => 'Sehbeeinträchtigung',
+        'MI' => 'Intellektuelle Beeinträchtigung',
+        'HI' => 'Hörbeeinträchtigung',
+        'T21' => 'Down-Syndrom (Trisomie 21)',
+    ];
+
+    /** Untergruppen der körperlichen Beeinträchtigung (PI) — nur für die Statistik. */
+    const array DISABILITY_SUBGROUPS = [
+        'A' => 'Amputation',
+        'C' => 'Cerebralparese',
+        'R' => 'Rollstuhl',
+    ];
+
     protected $fillable = [
         'club_id',
         'nation_id',
@@ -24,7 +40,8 @@ class Athlete extends Model
         'license',
         'license_ipc',
         'status',
-        'disability_type',
+        'disability_group',
+        'disability_subgroup',
         'swrid',
         // Neu:
         'is_active',
@@ -36,10 +53,14 @@ class Athlete extends Model
         'address_zip',
         'address_country',
         'level',
+        'last_medical_check_at',
+        'next_medical_check_at',
     ];
 
     protected $casts = [
         'birth_date' => 'date',
+        'last_medical_check_at' => 'date',
+        'next_medical_check_at' => 'date',
         'is_active' => 'boolean',
     ];
 
@@ -148,6 +169,19 @@ class Athlete extends Model
     public function getDisplayNameAttribute(): string
     {
         return trim($this->name_prefix.' '.$this->last_name.', '.$this->first_name, ' ,');
+    }
+
+    /** Behinderungsgruppe samt PI-Untergruppe, z. B. "PI – Körperliche Beeinträchtigung (Rollstuhl)". */
+    public function getDisabilityGroupLabelAttribute(): ?string
+    {
+        if ($this->disability_group === null) {
+            return null;
+        }
+
+        $label = $this->disability_group.' – '.(self::DISABILITY_GROUPS[$this->disability_group] ?? $this->disability_group);
+        $subgroup = self::DISABILITY_SUBGROUPS[$this->disability_subgroup ?? ''] ?? null;
+
+        return $subgroup === null ? $label : $label.' ('.$subgroup.')';
     }
 
     /** Sport-Klasse für eine bestimmte Kategorie (S / SB / SM) */

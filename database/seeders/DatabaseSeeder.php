@@ -26,7 +26,6 @@ class DatabaseSeeder extends Seeder
             NationsSeeder::class,
             StrokeTypesSeeder::class,
             ExceptionCodesSeeder::class,
-            ClubsSeeder::class,
             ClassifiersSeeder::class,
             KaderTypesSeeder::class,
             AgeGroupsSeeder::class,
