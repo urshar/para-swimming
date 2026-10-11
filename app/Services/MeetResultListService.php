@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\RelayResult;
 use App\Models\Result;
@@ -23,7 +24,7 @@ final readonly class MeetResultListService
     ) {}
 
     /**
-     * @return Collection<int, array{event: SwimEvent, isRelay: bool, groups: list<array{group: ?ScoringGroup, label: string, rows: list<array{place: ?int, result: Result|RelayResult}>}>}>
+     * @return Collection<int, array{event: SwimEvent, isRelay: bool, groups: list<array{group: ?ScoringGroup, label: string, rows: list<array{place: ?int, result: Result|RelayResult}>}>, guests: Collection<int, ForeignStart>}>
      */
     public function byEvent(Meet $meet, ?int $eventId): Collection
     {
@@ -48,10 +49,18 @@ final readonly class MeetResultListService
             ->get()
             ->groupBy('swim_event_id');
 
+        // Gäste (Vereine außerhalb Österreichs): je Bewerb getrennt, ohne Platz und ohne Einfluss auf die Wertung.
+        $guestsByEvent = ForeignStart::query()
+            ->where('meet_id', $meet->id)
+            ->whereIn('swim_event_id', $events->pluck('id'))
+            ->with('nation:id,code')
+            ->get()
+            ->groupBy('swim_event_id');
+
         $meetYear = (int) $meet->start_date->format('Y');
 
         return $events
-            ->map(function (SwimEvent $event) use ($resultsByEvent, $relayResultsByEvent, $meetYear): array {
+            ->map(function (SwimEvent $event) use ($resultsByEvent, $relayResultsByEvent, $guestsByEvent, $meetYear): array {
                 $isRelay = $event->relay_count > 1;
                 $results = ($isRelay ? $relayResultsByEvent : $resultsByEvent)->get($event->id) ?? collect();
 
@@ -59,9 +68,10 @@ final readonly class MeetResultListService
                     'event' => $event,
                     'isRelay' => $isRelay,
                     'groups' => $this->scoring->rankedGroups($event, $results, $meetYear),
+                    'guests' => ForeignStart::inListOrder($guestsByEvent->get($event->id) ?? collect()),
                 ];
             })
-            ->filter(fn (array $block): bool => $block['groups'] !== [])
+            ->filter(fn (array $block): bool => $block['groups'] !== [] || $block['guests']->isNotEmpty())
             ->values();
     }
 }

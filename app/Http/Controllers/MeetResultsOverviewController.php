@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\PointSystem;
 use App\Models\RelayResult;
@@ -70,8 +71,14 @@ class MeetResultsOverviewController extends Controller
                     }
                 }
             }
-            if ($groups !== []) {
-                $blocks[$block['event']->id] = ['groups' => $groups, 'count' => count($visible)];
+            // Gäste haben keinen Verein in der Vereinsauswahl: Mit Vereinsfilter fallen sie weg, die Suche findet sie
+            // über Name und Verein.
+            $guests = $clubFilter !== null ? collect() : $block['guests']->filter(
+                fn (ForeignStart $guest): bool => $search === ''
+                    || str_contains(mb_strtolower($guest->display_name.' '.$guest->club_name), $search),
+            )->values();
+            if ($groups !== [] || $guests->isNotEmpty()) {
+                $blocks[$block['event']->id] = ['groups' => $groups, 'guests' => $guests, 'count' => count($visible) + $guests->count()];
             }
         }
 
@@ -90,6 +97,14 @@ class MeetResultsOverviewController extends Controller
         foreach ($relayTotals as $eventId => $count) {
             $eventTotals[$eventId] = (int) ($eventTotals[$eventId] ?? 0) + (int) $count;
         }
+        $guestTotals = ForeignStart::query()
+            ->where('meet_id', $meet->id)
+            ->selectRaw('swim_event_id, COUNT(*) as total')
+            ->groupBy('swim_event_id')
+            ->pluck('total', 'swim_event_id');
+        foreach ($guestTotals as $eventId => $count) {
+            $eventTotals[$eventId] = (int) ($eventTotals[$eventId] ?? 0) + (int) $count;
+        }
 
         return view('meets.results-overview', [
             'meet' => $meet,
@@ -105,7 +120,7 @@ class MeetResultsOverviewController extends Controller
                 'search' => trim((string) $request->query('search', '')),
             ],
             'isFiltered' => $eventFilter !== null || $clubFilter !== null || $search !== '',
-            'total' => $meet->results()->count() + $meet->relayResults()->count(),
+            'total' => $meet->results()->count() + $meet->relayResults()->count() + $meet->foreignStarts()->count(),
         ]);
     }
 
@@ -129,7 +144,7 @@ class MeetResultsOverviewController extends Controller
         );
     }
 
-    /** Löscht alle Ergebnisse einer Disziplin, Einzel- wie Staffelergebnisse (Splits/Mitglieder über cascadeOnDelete). */
+    /** Löscht alle Ergebnisse einer Disziplin, Einzel- wie Staffelergebnisse (Splits/Mitglieder über cascadeOnDelete) und Gaststarts. */
     public function destroyEvent(Meet $meet, SwimEvent $swimEvent): RedirectResponse
     {
         abort_unless($swimEvent->meet_id === $meet->id, 404);
@@ -141,6 +156,7 @@ class MeetResultsOverviewController extends Controller
             $result->delete();
             $deleted++;
         }
+        $deleted += ForeignStart::where('meet_id', $meet->id)->where('swim_event_id', $swimEvent->id)->delete();
 
         return redirect()
             ->to(self::backUrl($meet))

@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * Start eines Vereins außerhalb Österreichs (Gast) — nur für die Statistik und die vollständige Ergebnisliste, ohne
@@ -63,7 +65,46 @@ class ForeignStart extends Model
         return $code !== '' && $code !== self::DOMESTIC_NATION;
     }
 
-    /** Teilnehmerschlüssel: Nachname, Vorname, Geburtsdatum — klein geschrieben. */
+    /**
+     * Reihenfolge im Block "Gäste" der Ergebnislisten (ohne Platz): Starts mit Zeit nach der Zeit, danach DSQ, DNF,
+     * DNS, SICK, WDR, jeweils nach Name.
+     *
+     * @param  Collection<int, ForeignStart>  $starts
+     * @return Collection<int, ForeignStart>
+     */
+    public static function inListOrder(Collection $starts): Collection
+    {
+        $statusOrder = ['DSQ' => 1, 'DNF' => 2, 'DNS' => 3, 'SICK' => 4, 'WDR' => 5];
+
+        return $starts->sortBy(fn (ForeignStart $start): string => sprintf(
+            '%d-%010d-%s',
+            $start->swim_time !== null && ! isset($statusOrder[$start->status ?? '']) ? 0 : ($statusOrder[$start->status ?? ''] ?? 6),
+            $start->swim_time ?? 0,
+            mb_strtolower($start->last_name.' '.$start->first_name.' '.$start->club_name),
+        ))->values();
+    }
+
+    /** Verein mit Nation, z. B. "Swiss Paralympic Club (SUI)". */
+    public function getClubLabelAttribute(): string
+    {
+        return $this->nation?->code === null ? $this->club_name : $this->club_name.' ('.$this->nation->code.')';
+    }
+
+    /** "Nachname Vorname" wie Athlete::full_name; bei Staffeln der Vereinsname. */
+    public function getDisplayNameAttribute(): string
+    {
+        $name = trim($this->last_name.' '.$this->first_name);
+
+        return $name === '' ? $this->club_name : $name;
+    }
+
+    /** Anzeigeformat der Zeit wie Result::formatted_swim_time (TimeParser::display()), ohne Zeit null. */
+    public function getFormattedSwimTimeAttribute(): ?string
+    {
+        return $this->swim_time === null ? null : TimeParser::display($this->swim_time);
+    }
+
+    /** Teilnehmerschlüssel: Nachname, Vorname, Geburtsdatum — kleingeschrieben. */
     public static function personKey(string $lastName, string $firstName, ?string $birthDate): string
     {
         return mb_strtolower(trim($lastName).'|'.trim($firstName).'|'.($birthDate ?? ''));

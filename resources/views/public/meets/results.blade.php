@@ -210,6 +210,13 @@
                             @endif
                         </div>
                     @endforeach
+
+                    @if ($group->guests->isNotEmpty())
+                        @include('public.meets._guests', [
+                            'hasPoints' => $group->isRelay ? $relayHasPoints : $individualHasPoints,
+                            'hasWpsPoints' => ! $group->isRelay && $individualHasWpsPoints,
+                        ])
+                    @endif
                 </section>
             @endforeach
         </div>

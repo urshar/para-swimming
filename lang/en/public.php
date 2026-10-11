@@ -159,6 +159,8 @@ return [
             'class_heading_none' => 'No sport class',
             'scoring_heading' => ':gender – :name',
             'scoring_unassigned' => 'No scoring group',
+            'guests_heading' => 'Guests (not ranked)',
+            'guest' => 'Guest',
             'genders' => ['M' => 'Men', 'F' => 'Women', 'X' => 'Mixed'],
             'columns' => [
                 'place' => 'Place',

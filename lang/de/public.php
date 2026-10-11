@@ -166,6 +166,8 @@ return [
             'class_heading_none' => 'Ohne Sportklasse',
             'scoring_heading' => ':gender – :name',
             'scoring_unassigned' => 'Ohne Wertungsgruppe',
+            'guests_heading' => 'Gäste (ohne Wertung)',
+            'guest' => 'Gast',
             'genders' => ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'],
             'columns' => [
                 'place' => 'Platz',
