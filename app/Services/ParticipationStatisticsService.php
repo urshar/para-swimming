@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AgeGroup;
 use App\Models\Athlete;
 use App\Models\Club;
+use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\RelayResultMember;
@@ -31,6 +32,10 @@ use stdClass;
  *
  * statusBreakdown() liefert ergänzend, wie oft jeder Ergebnisstatus vorkam
  * (inkl. DNS/SICK/WDR), damit der Bericht diese Fälle ausweisen kann.
+ *
+ * Gäste (foreign_starts, Vereine außerhalb Österreichs) zählen in Summen, Veranstaltungen, Status, Nationen,
+ * Sportklassen, Geschlecht, Altersgruppen und Staffeln mit, nicht aber in den Ranglisten byClub(), byAthlete() und
+ * countAthletesWithMinParticipations() — siehe docs/specs/statistics.md.
  */
 final readonly class ParticipationStatisticsService
 {
@@ -85,6 +90,12 @@ final readonly class ParticipationStatisticsService
      */
     private const string UNASSIGNED_KEY = '__unassigned__';
 
+    /**
+     * Präfix der Teilnehmerkennung von Gästen (foreign_starts.person_key) in Zwischenständen, die sonst die
+     * athlete_id tragen — kann mit keiner ganzzahligen ID kollidieren.
+     */
+    private const string GUEST_PREFIX = 'guest:';
+
     /** Bezeichnung des Sammeleintrags für Sportklassen ohne Gruppenzuordnung. */
     private const string LABEL_NO_DISABILITY_GROUP = 'Ohne Zuordnung';
 
@@ -116,14 +127,17 @@ final readonly class ParticipationStatisticsService
     {
         $base = $this->startsQuery($config);
         $clubs = $this->clubBreakdown($base);
+        $guests = $this->guestStarts($config);
 
         return [
-            'meets' => (clone $base)->distinct()->count('meet_id'),
-            'participants' => (clone $base)->distinct()->count('athlete_id'),
+            'meets' => $this->meetIdsWithStarts($base, $guests)->count(),
+            'participants' => (clone $base)->distinct()->count('athlete_id') + $guests->pluck('person_key')->unique()->count(),
             'clubs' => $clubs['austrian'],
-            'foreign_clubs' => $clubs['foreign'],
-            'starts' => (clone $base)->count(),
-            'participations' => $this->countParticipations($base),
+            'foreign_clubs' => $clubs['foreign']
+                + $guests->map(fn (ForeignStart $start): string => $start->club_name.'|'.$start->nation_id)->unique()->count(),
+            'starts' => (clone $base)->count() + $guests->count(),
+            'participations' => $this->countParticipations($base)
+                + $guests->map(fn (ForeignStart $start): string => $start->person_key.'|'.$start->meet_id)->unique()->count(),
         ];
     }
 
@@ -134,7 +148,7 @@ final readonly class ParticipationStatisticsService
      */
     public function meetsWithStarts(ReportConfiguration $config): int
     {
-        return $this->startsQuery($config)->distinct()->count('meet_id');
+        return $this->meetIdsWithStarts($this->startsQuery($config), $this->guestStarts($config))->count();
     }
 
     /**
@@ -168,6 +182,11 @@ final readonly class ParticipationStatisticsService
             $breakdown[$key] = (int) $row->aggregate;
         }
 
+        foreach ($this->guestStatusRows($this->guestQuery($config)) as $row) {
+            $key = $row->status ?? 'regular';
+            $breakdown[$key] = ($breakdown[$key] ?? 0) + (int) $row->aggregate;
+        }
+
         return $breakdown;
     }
 
@@ -184,7 +203,7 @@ final readonly class ParticipationStatisticsService
      */
     public function statusByMeet(ReportConfiguration $config): Collection
     {
-        return $this->aggregateStatusByMeet($this->scopedQuery($config));
+        return $this->aggregateStatusByMeet($this->scopedQuery($config), $this->guestQuery($config));
     }
 
     /**
@@ -209,7 +228,9 @@ final readonly class ParticipationStatisticsService
             ->whereIn('results.meet_id', $meetIds)
             ->whereHas('swimEvent', fn (Builder $q) => $q->where('relay_count', '<=', 1));
 
-        return $this->aggregateStatusByMeet($query);
+        $guests = ForeignStart::query()->where('is_relay', false)->whereIn('meet_id', $meetIds);
+
+        return $this->aggregateStatusByMeet($query, $guests);
     }
 
     /**
@@ -230,13 +251,16 @@ final readonly class ParticipationStatisticsService
             ->groupBy('meet_id')
             ->get()
             ->keyBy('meet_id');
+        $guests = $this->guestStarts($config)->groupBy('meet_id');
 
-        if ($aggregates->isEmpty()) {
+        $meetIds = $aggregates->keys()->merge($guests->keys())->unique();
+
+        if ($meetIds->isEmpty()) {
             return collect();
         }
 
         return Meet::query()
-            ->whereIn('id', $aggregates->keys())
+            ->whereIn('id', $meetIds)
             ->oldest('start_date')
             ->orderBy('name')
             ->get(['id', 'name', 'start_date'])
@@ -244,8 +268,9 @@ final readonly class ParticipationStatisticsService
                 'meet_id' => $meet->id,
                 'meet' => $meet->name,
                 'start_date' => $meet->start_date?->toDateString(),
-                'participants' => (int) $aggregates[$meet->id]->participants,
-                'starts' => (int) $aggregates[$meet->id]->starts,
+                'participants' => (int) ($aggregates[$meet->id]->participants ?? 0)
+                    + ($guests[$meet->id] ?? collect())->pluck('person_key')->unique()->count(),
+                'starts' => (int) ($aggregates[$meet->id]->starts ?? 0) + ($guests[$meet->id] ?? collect())->count(),
             ])
             ->values();
     }
@@ -376,20 +401,25 @@ final readonly class ParticipationStatisticsService
             ->groupBy('athletes.nation_id')
             ->get()
             ->keyBy('nation_id');
+        // Gäste zählen zur Nation ihres Vereins (ForeignStart::nation_id).
+        $guests = $this->guestStarts($config)->whereNotNull('nation_id')->groupBy('nation_id');
 
-        if ($aggregates->isEmpty()) {
+        $nationIds = $aggregates->keys()->merge($guests->keys())->unique();
+
+        if ($nationIds->isEmpty()) {
             return collect();
         }
 
         return Nation::query()
-            ->whereIn('id', $aggregates->keys())
+            ->whereIn('id', $nationIds)
             ->get(['id', 'code', 'name_de'])
             ->map(fn (Nation $nation): array => [
                 'nation_id' => $nation->id,
                 'nation' => $nation->code,
                 'nation_name' => $nation->name_de,
-                'participants' => (int) $aggregates[$nation->id]->participants,
-                'starts' => (int) $aggregates[$nation->id]->starts,
+                'participants' => (int) ($aggregates[$nation->id]->participants ?? 0)
+                    + ($guests[$nation->id] ?? collect())->pluck('person_key')->unique()->count(),
+                'starts' => (int) ($aggregates[$nation->id]->starts ?? 0) + ($guests[$nation->id] ?? collect())->count(),
             ])
             ->sort(fn (array $a, array $b): int => [$b['starts'], $b['participants']] <=> [
                 $a['starts'], $a['participants'],
@@ -584,21 +614,25 @@ final readonly class ParticipationStatisticsService
     {
         $pairs = $this->athleteMeetPairs($config);
 
-        if ($pairs->isEmpty()) {
-            return collect();
-        }
-
         $genders = Athlete::query()
             ->whereIn('id', $pairs->pluck('athlete_id')->unique())
             ->pluck('gender', 'id');
 
         $order = array_flip(self::GENDER_ORDER);
 
+        // Gäste: Geschlecht direkt aus dem Start, Teilnehmer über den person_key.
+        $guestRows = $this->guestStarts($config)
+            ->whereNotNull('gender')
+            ->map(fn (ForeignStart $start): array => [
+                'athlete_id' => self::GUEST_PREFIX.$start->person_key, 'starts' => 1, 'gender' => $start->gender,
+            ]);
+
         return $pairs
             ->map(fn (array $row): ?array => isset($genders[$row['athlete_id']])
                 ? $row + ['gender' => (string) $genders[$row['athlete_id']]]
                 : null)
             ->filter()
+            ->concat($guestRows->all())
             ->groupBy('gender')
             ->map(fn (Collection $rows, string $gender): array => [
                 'gender' => $gender,
@@ -660,6 +694,18 @@ final readonly class ParticipationStatisticsService
             }
         }
 
+        // Gaststaffeln haben keine Mitglieder: Sie zählen mit der Staffelgröße des Bewerbs ("pro Athlet").
+        $guestRelays = $this->onlyStartedGuests($this->guestScope(ForeignStart::query()->where('is_relay', true), $config))
+            ->with('swimEvent:id,relay_count')
+            ->get(['id', 'swim_event_id', 'gender']);
+
+        /** @var ForeignStart $relay */
+        foreach ($guestRelays as $relay) {
+            if (array_key_exists((string) $relay->gender, $counts)) {
+                $counts[$relay->gender] += (int) ($relay->swimEvent?->relay_count ?? 0);
+            }
+        }
+
         return $counts;
     }
 
@@ -671,13 +717,14 @@ final readonly class ParticipationStatisticsService
      *
      * @return Collection<int, array{meet_id: int, meet: string, start_date: ?string, statuses: array<string, int>, total: int}>
      */
-    private function aggregateStatusByMeet(Builder $einzelResults): Collection
+    private function aggregateStatusByMeet(Builder $einzelResults, Builder $guestStarts): Collection
     {
         $rows = $einzelResults
             ->toBase()
             ->selectRaw('results.meet_id as meet_id, results.status as status, COUNT(*) as aggregate')
             ->groupBy('results.meet_id', 'results.status')
-            ->get();
+            ->get()
+            ->concat($this->guestStatusRows($guestStarts)->all());
 
         if ($rows->isEmpty()) {
             return collect();
@@ -692,7 +739,7 @@ final readonly class ParticipationStatisticsService
         foreach ($rows as $row) {
             $meetId = (int) $row->meet_id;
             $byMeet[$meetId] ??= $template;
-            $byMeet[$meetId][$row->status ?? 'regular'] = (int) $row->aggregate;
+            $byMeet[$meetId][$row->status ?? 'regular'] += (int) $row->aggregate;
         }
 
         return Meet::query()
@@ -801,10 +848,21 @@ final readonly class ParticipationStatisticsService
      * Aggregatfelder) und kostet unnötig Zeit. Vorhandene Scopes und
      * Bedingungen aus startsQuery() bleiben dabei erhalten.
      *
-     * @return Collection<int, array{sport_class: string, athlete_id: int, starts: int}>
+     * Gäste kommen mit athlete_id = GUEST_PREFIX.person_key dazu (ein Start je Zeile; die Aufrufer summieren starts
+     * und zählen athlete_id eindeutig).
+     *
+     * @return Collection<int, array{sport_class: string, athlete_id: int|string, starts: int}>
      */
     private function sportClassAthletePairs(ReportConfiguration $config): Collection
     {
+        $guests = $this->guestStarts($config)
+            ->whereNotNull('sport_class')
+            ->map(fn (ForeignStart $start): array => [
+                'sport_class' => strtoupper(trim((string) $start->sport_class)),
+                'athlete_id' => self::GUEST_PREFIX.$start->person_key,
+                'starts' => 1,
+            ]);
+
         return $this->startsQuery($config)
             ->whereNotNull('results.sport_class')
             ->toBase()
@@ -815,7 +873,8 @@ final readonly class ParticipationStatisticsService
                 'sport_class' => strtoupper(trim((string) $row->sport_class)),
                 'athlete_id' => (int) $row->athlete_id,
                 'starts' => (int) $row->starts,
-            ]);
+            ])
+            ->concat($guests->all());
     }
 
     /**
@@ -853,20 +912,40 @@ final readonly class ParticipationStatisticsService
      * Zuordnung nur davon abhängt. Athleten ohne Geburtsdatum behalten
      * age_group = null und werden vom Aufrufer als Sammeleintrag ausgewiesen.
      *
-     * @return Collection<int, array{athlete_id: int, starts: int, age_group: ?AgeGroup, gender: string}>
+     * Gäste haben keinen Athletendatensatz: Für sie steht ein nicht gespeicherter Athlet nur mit Geburtsdatum und
+     * Geschlecht (aus dem Start) unter dem Schlüssel GUEST_PREFIX.person_key.
+     *
+     * @return Collection<int, array{athlete_id: int|string, starts: int, age_group: ?AgeGroup, gender: string}>
      */
     private function ageGenderRows(ReportConfiguration $config): Collection
     {
-        $pairs = $this->athleteMeetPairs($config);
+        $guests = $this->guestStarts($config);
+        $pairs = $this->athleteMeetPairs($config)->concat(
+            $guests->groupBy(fn (ForeignStart $start): string => $start->person_key.'|'.$start->meet_id)
+                ->map(fn (Collection $starts): array => [
+                    'athlete_id' => self::GUEST_PREFIX.$starts->first()->person_key,
+                    'meet_id' => $starts->first()->meet_id,
+                    'starts' => $starts->count(),
+                ])
+                ->values()
+                ->all(),
+        );
 
         if ($pairs->isEmpty()) {
             return collect();
         }
 
         $athletes = Athlete::query()
-            ->whereIn('id', $pairs->pluck('athlete_id')->unique())
+            ->whereIn('id', $pairs->pluck('athlete_id')->filter(fn ($id): bool => is_int($id))->unique())
             ->get()
             ->keyBy('id');
+
+        foreach ($guests->unique('person_key') as $start) {
+            $athletes[self::GUEST_PREFIX.$start->person_key] = new Athlete([
+                'birth_date' => $start->birth_date,
+                'gender' => $start->gender ?? '',
+            ]);
+        }
 
         $meets = Meet::query()
             ->whereIn('id', $pairs->pluck('meet_id')->unique())
@@ -903,6 +982,87 @@ final readonly class ParticipationStatisticsService
                 ];
             })
             ->filter()
+            ->values();
+    }
+
+    /**
+     * Zeitraum-/Meet-Scope auf foreign_starts, wie periodScopedQuery() für results.
+     *
+     * @param  Builder<ForeignStart>  $query
+     * @return Builder<ForeignStart>
+     */
+    private function guestScope(Builder $query, ReportConfiguration $config): Builder
+    {
+        if ($config->isMeetFiltered()) {
+            return $query->whereIn('foreign_starts.meet_id', $config->meetIds);
+        }
+
+        return $query->whereHas('meet', fn (Builder $q) => $q
+            ->whereDate('meets.start_date', '>=', $config->dateFrom->toDateString())
+            ->whereDate('meets.start_date', '<=', $config->dateTo->toDateString()));
+    }
+
+    /**
+     * Einzelstarts von Gästen im Auswertungsumfang, ohne Status-Filter (Gegenstück zu scopedQuery()).
+     *
+     * @return Builder<ForeignStart>
+     */
+    private function guestQuery(ReportConfiguration $config): Builder
+    {
+        return $this->guestScope(ForeignStart::query()->where('is_relay', false), $config);
+    }
+
+    /**
+     * Angetretene Gaststarts — dieselbe Definition wie onlyStarted().
+     *
+     * @param  Builder<ForeignStart>  $query
+     * @return Builder<ForeignStart>
+     */
+    private function onlyStartedGuests(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('foreign_starts.status')
+                ->orWhereNotIn('foreign_starts.status', self::NON_START_STATUSES);
+        });
+    }
+
+    /**
+     * Angetretene Einzelstarts von Gästen (Gegenstück zu startsQuery()), geladen — es sind wenige.
+     *
+     * @return Collection<int, ForeignStart>
+     */
+    private function guestStarts(ReportConfiguration $config): Collection
+    {
+        return $this->onlyStartedGuests($this->guestQuery($config))
+            ->get(['id', 'meet_id', 'person_key', 'gender', 'birth_date', 'sport_class', 'nation_id', 'club_name']);
+    }
+
+    /**
+     * Gaststarts je Veranstaltung und Status, im Format der Ergebniszeilen von aggregateStatusByMeet().
+     *
+     * @param  Builder<ForeignStart>  $guestStarts
+     * @return Collection<int, stdClass>
+     */
+    private function guestStatusRows(Builder $guestStarts): Collection
+    {
+        return $guestStarts->toBase()
+            ->selectRaw('foreign_starts.meet_id as meet_id, foreign_starts.status as status, COUNT(*) as aggregate')
+            ->groupBy('foreign_starts.meet_id', 'foreign_starts.status')
+            ->get();
+    }
+
+    /**
+     * Veranstaltungen mit mindestens einem Start — von Österreichern oder Gästen.
+     *
+     * @param  Collection<int, ForeignStart>  $guests
+     * @return Collection<int, int>
+     */
+    private function meetIdsWithStarts(Builder $base, Collection $guests): Collection
+    {
+        return (clone $base)->distinct()->pluck('meet_id')
+            ->map(fn ($id): int => (int) $id)
+            ->merge($guests->pluck('meet_id'))
+            ->unique()
             ->values();
     }
 
