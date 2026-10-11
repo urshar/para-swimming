@@ -373,8 +373,16 @@ Phase 2: Admin-Seite "Team Manager übernehmen" (Athletenliste) mit Vorschau; li
 (nur Windows mit Access-Treiber → läuft auf dev), Klassifizierer-Namen ohne Treffer müssen in der Vorschau zugeordnet
 oder übergangen werden. Feld-Mapping und Entscheidungen in `app/Services/TeamManagerImportService.php`.
 Nicht übernommen: englische Namen (Verein und Athlet), Geburtsort, Fax, Funktionen, Mitgliedsbeitrag, WWW,
-E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse. **Offen:** Daten von dev per Seeder nach prod
-bringen (Erik: Import läuft auf dev, prod bekommt die Daten über einen Seeder).
+E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse.
+
+**Phase 3 (11.10.2026, `feature/team-data-seeder`):** Umzug dev → prod. Auf dev `php artisan team-data:export`
+(Vereine, Athleten samt Sportklassen/Level-/Vereinshistorie/Ausnahmen, Klassifizierer, Klassifizierungshistorie,
+Rekorde samt Splits und Staffelmitgliedern) schreibt JSON nach `database/seeders/data/team/` (von Git ausgeschlossen —
+Personen- und Gesundheitsdaten, von Hand sicher übertragen und danach löschen). Der Export verweigert, solange Rekorde
+oder Klassen-Hinweise an Wettkämpfen hängen (Testwettkämpfe vorher löschen). Auf prod nach den übrigen Seedern
+`php artisan db:seed --class=TeamDataSeeder`: nur in eine DB ohne Vereine/Athleten, IDs bleiben erhalten, Nationen,
+Ausnahme-Codes und Lagen werden über den Code umgeschlüsselt, Klassifizierer über die ID abgeglichen
+(`App\Services\TeamDataTransferService`). Prüflisten-Einträge kommen nicht mit (Erik).
 
 ## Athleten zusammenführen (Dubletten)
 

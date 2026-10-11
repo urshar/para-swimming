@@ -27,3 +27,6 @@ package-lock.json
 laravel-debug.php
 laravel-test.php
 auth.json
+
+# Export von team-data:export (Personen- und Gesundheitsdaten)
+/database/seeders/data/
