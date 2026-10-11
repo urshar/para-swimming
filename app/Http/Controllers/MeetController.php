@@ -11,10 +11,12 @@ use App\Models\PointSystem;
 use App\Models\QualifyingTimeList;
 use App\Models\Result;
 use App\Models\WpsPointVersion;
+use App\Services\MeetDeletionService;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 class MeetController extends Controller
 {
@@ -122,13 +124,31 @@ class MeetController extends Controller
             ->with('success', 'Wettkampf aktualisiert.');
     }
 
-    public function destroy(Meet $meet): RedirectResponse
+    /**
+     * Löscht den Wettkampf endgültig samt Meldungen, Ergebnissen, Gaststarts, Qualifikationen und daraus entstandenen
+     * Rekorden (MeetDeletionService).
+     *
+     * @throws Throwable
+     */
+    public function destroy(Meet $meet, MeetDeletionService $deletion): RedirectResponse
     {
-        $meet->delete();
+        $summary = $deletion->summary($meet);
+        $deletion->delete($meet);
 
         return redirect()
             ->to(ListUrl::to('meets'))
-            ->with('success', 'Wettkampf gelöscht.');
+            ->with('success', sprintf(
+                'Wettkampf "%s" endgültig gelöscht: %d Ergebnisse, %d Staffelergebnisse, %d Gaststarts, %d Meldungen, '
+                .'%d Staffelmeldungen, %d Qualifikationen, %d Rekorde.',
+                $meet->name,
+                $summary['results'],
+                $summary['relay_results'],
+                $summary['foreign_starts'],
+                $summary['entries'],
+                $summary['relay_entries'],
+                $summary['qualifications'],
+                $summary['records'],
+            ));
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────
