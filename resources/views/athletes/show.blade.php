@@ -449,7 +449,17 @@
                                                 {{ $cl->status_label }}
                                             </flux:badge>
                                         @endif
+                                        @if($cl->meet)
+                                            <flux:badge size="sm" color="amber" icon="document-text">aus Ergebnisliste</flux:badge>
+                                        @endif
                                     </div>
+                                    @if($cl->meet)
+                                        <div class="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                            Klasse in der Ergebnisliste weicht von den Stammdaten ab:
+                                            <a href="{{ route('meets.show', $cl->meet) }}"
+                                               class="underline hover:text-zinc-700 dark:hover:text-zinc-200">{{ $cl->meet->name }}</a>
+                                        </div>
+                                    @endif
                                     <div class="text-xs text-zinc-500 dark:text-zinc-400 space-x-3">
                                         @if($cl->medClassifier)
                                             <span>

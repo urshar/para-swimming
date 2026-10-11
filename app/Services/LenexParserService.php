@@ -580,6 +580,11 @@ class LenexParserService
 
         // Clubs + Athletes + Entries/Results
         if (in_array($type, ['entries', 'results']) && isset($meetXml->CLUBS)) {
+            // Abweichende Klassen landen nur aus Ergebnislisten als Hinweis in der Klassifizierungshistorie.
+            if ($type === 'results') {
+                $resolver->forMeet($meet);
+            }
+
             $this->importClubs($meet, $meetXml->CLUBS, $resolver, $type);
         }
 

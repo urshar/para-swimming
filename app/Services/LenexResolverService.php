@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Athlete;
+use App\Models\AthleteClassification;
 use App\Models\AthleteSportClass;
 use App\Models\Club;
 use App\Models\ExceptionCode;
+use App\Models\Meet;
 use App\Models\Nation;
 use Illuminate\Support\Facades\DB;
 use SimpleXMLElement;
@@ -20,7 +22,7 @@ use SimpleXMLElement;
  * Matching-Priorität Clubs:
  *   1. code + nation_id
  *   2. name (normalisiert) + nation_id
- * Die LENEX-Club-ID (clubid/id) wird nicht gespeichert — sie dient nur als Cache-Schlüssel innerhalb
+ * die LENEX-Club-ID (clubid/id) wird nicht gespeichert — sie dient nur als Cache-Schlüssel innerhalb
  * eines Imports.
  *
  * Matching-Priorität Athleten:
@@ -57,9 +59,17 @@ class LenexResolverService
      */
     private array $assignedAthletes = [];
 
+    /** Wettkampf, dessen Datei gerade importiert wird — für Klassen-Hinweise in der Klassifizierungshistorie. */
+    private ?Meet $meet = null;
+
     public function __construct(
         private readonly ImportSuggestionService $suggestions = new ImportSuggestionService,
     ) {}
+
+    public function forMeet(Meet $meet): void
+    {
+        $this->meet = $meet;
+    }
 
     // ── Clubs ─────────────────────────────────────────────────────────────────
 
@@ -334,7 +344,7 @@ class LenexResolverService
     }
 
     /**
-     * Synchronisiert Sport-Klassen (S/SB/SM) und Exceptions aus dem HANDICAP-Element.
+     * Ergänzt fehlende Sport-Klassen (S/SB/SM) und Exceptions aus dem HANDICAP-Element.
      *
      * Splash LENEX Format:
      *   <HANDICAP free="7" breast="6" medley="7"
@@ -351,7 +361,10 @@ class LenexResolverService
     }
 
     /**
-     * Sport-Klassen S / SB / SM aus HANDICAP-Attributen synchronisieren.
+     * Sport-Klassen S / SB / SM aus HANDICAP-Attributen übernehmen — nur für Kategorien, die der Athlet noch nicht hat.
+     * Bestehende Klassen bleiben unverändert: Eine Ergebnisdatei (oft eine alte) ist nicht die Quelle der aktuellen
+     * Klassifizierung, und das Ergebnis speichert seine Klasse ohnehin selbst. Weicht eine Klasse der Datei von den
+     * Stammdaten ab, wird sie stattdessen als Hinweis in der Klassifizierungshistorie festgehalten.
      */
     private function syncSportClasses(Athlete $athlete, SimpleXMLElement $handicapXml): void
     {
@@ -361,6 +374,10 @@ class LenexResolverService
             'SM' => ['lenex_attr' => 'medley', 'status_attr' => 'medleystatus'],
         ];
 
+        $existing = $athlete->sportClasses()->get()->keyBy('category');
+        $fileClasses = [];
+        $differs = false;
+
         foreach ($mapping as $category => $attrs) {
             $classNumber = trim((string) ($handicapXml[$attrs['lenex_attr']] ?? ''));
             if ($classNumber === '' || $classNumber === '0') {
@@ -368,16 +385,54 @@ class LenexResolverService
             }
 
             $status = $this->mapHandicapStatus((string) ($handicapXml[$attrs['status_attr']] ?? ''));
+            $fileClasses[$category] = ['sport_class' => $category.$classNumber, 'status' => $status];
 
-            AthleteSportClass::updateOrCreate(
-                ['athlete_id' => $athlete->id, 'category' => $category],
-                [
-                    'class_number' => $classNumber,
-                    'sport_class' => $category.$classNumber,
-                    'classification_status' => $status,
-                ]
-            );
+            /** @var AthleteSportClass|null $current */
+            $current = $existing->get($category);
+
+            if ($current !== null) {
+                $differs = $differs || (int) $current->class_number !== (int) $classNumber;
+
+                continue;
+            }
+
+            AthleteSportClass::query()->create([
+                'athlete_id' => $athlete->id,
+                'category' => $category,
+                'class_number' => $classNumber,
+                'sport_class' => $category.$classNumber,
+                'classification_status' => $status,
+            ]);
         }
+
+        if ($differs) {
+            $this->recordClassHint($athlete, $fileClasses, $existing->get('S')?->classification_scope);
+        }
+    }
+
+    /**
+     * Hält die abweichenden Klassen der Ergebnisdatei als Eintrag in der Klassifizierungshistorie fest — höchstens
+     * einmal je Athlet und Wettkampf. Ohne Wettkampf (z. B. beim isolierten Aufruf) passiert nichts.
+     *
+     * @param  array<string, array{sport_class: string, status: string|null}>  $fileClasses
+     */
+    private function recordClassHint(Athlete $athlete, array $fileClasses, ?string $scope): void
+    {
+        if ($this->meet === null || $athlete->classifications()->where('meet_id', $this->meet->id)->exists()) {
+            return;
+        }
+
+        $athlete->classifications()->create([
+            'meet_id' => $this->meet->id,
+            'classified_at' => $this->meet->start_date,
+            'location' => $this->meet->city,
+            'result_s' => $fileClasses['S']['sport_class'] ?? null,
+            'result_sb' => $fileClasses['SB']['sport_class'] ?? null,
+            'result_sm' => $fileClasses['SM']['sport_class'] ?? null,
+            'classification_scope' => $scope ?? AthleteClassification::SCOPE_NAT,
+            'classification_status' => ($fileClasses['S'] ?? reset($fileClasses))['status'],
+            'notes' => 'Klasse laut Ergebnisliste: '.$this->meet->name,
+        ]);
     }
 
     private function mapHandicapStatus(string $status): ?string
@@ -403,12 +458,13 @@ class LenexResolverService
      * Splash speichert die Codes komma-getrennt im Attribut:
      *   exception="A, 1, 4"  →  ExceptionCodes mit code IN ('A', '1', '4')
      *
-     * Bestehende Exceptions des Athleten werden vollständig ersetzt (sync).
+     * Nur für Athleten ohne Exceptions; vorhandene bleiben unverändert.
      */
     private function syncExceptions(Athlete $athlete, SimpleXMLElement $handicapXml): void
     {
         $exceptionAttr = trim((string) ($handicapXml['exception'] ?? ''));
-        if ($exceptionAttr === '') {
+        // Wie bei den Sportklassen: vorhandene Ausnahmen nicht durch die der Ergebnisdatei ersetzen.
+        if ($exceptionAttr === '' || $athlete->exceptions()->exists()) {
             return;
         }
 
@@ -436,8 +492,6 @@ class LenexResolverService
             return;
         }
 
-        // Sync: bestehende Exceptions ersetzen
-        // withoutDetaching würde Duplikate erzeugen bei erneutem Import
         $athlete->exceptions()->sync($ids);
     }
 

@@ -281,7 +281,14 @@ Der Zwischenstand wird unter einem Session-Key gehalten (nur IDs/Arrays, keine E
    eines zugeordneten bestehenden Vereins — kommen auf die Klärungsseite.
 7. `resolveAthletes(Request)` — legt an bzw. merkt die Zuordnung (athleteid → Athlet) und führt den finalen Import
    aus. Ein zugeordneter Athlet wird wie ein automatisch gefundener behandelt (HANDICAP-Abgleich), seine Stammdaten
-   bleiben unverändert. Übersprungene Vereine und Athleten werden samt Ergebnissen nicht importiert.
+   bleiben unverändert. Der HANDICAP-Abgleich ergänzt nur fehlende Sportklassen-Kategorien und Ausnahmen, wenn der
+   Athlet noch keine hat — vorhandene Klassen samt Status ändert eine Ergebnisdatei nie (eine alte Datei würde sonst
+   die aktuelle Klassifizierung überschreiben; das Ergebnis speichert seine Klasse selbst). Weicht bei einer
+   **Ergebnisliste** eine Klasse der Datei von den Stammdaten ab, bekommt die Klassifizierungshistorie des Athleten
+   einen Hinweis-Eintrag (Datum und Ort des Wettkampfs, Klassen und ggf. Status aus der Datei, Notiz "Klasse laut
+   Ergebnisliste: ..."), verknüpft über `athlete_classifications.meet_id` — höchstens einer je Athlet und Wettkampf,
+   beim Löschen des Wettkampfs fällt er mit weg. Die Athletenseite kennzeichnet ihn mit "aus Ergebnisliste" und
+   verlinkt den Wettkampf. Meldedateien erzeugen keine Hinweise. Übersprungene Vereine und Athleten werden samt Ergebnissen nicht importiert.
 
 Die Daten der unbekannten Einträge stehen in der Session; das Formular schickt nur die Auswahl je Eintrag
 (`clubs[i][selection]`, `athletes[i][selection]`: `new`, `skip` oder eine ID).
