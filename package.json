@@ -11,17 +11,17 @@
         "alpinejs": "^3.17.4",
         "autoprefixer": "^10.6.1",
         "axios": "^1.20.0",
-        "concurrently": "^10.0.5",
+        "concurrently": "^10.0.6",
         "flag-icons": "^7.5.0",
         "imask": "^7.6.1",
         "laravel-precognition-alpine": "^2.1.0",
         "laravel-vite-plugin": "^3.2.0",
-        "npm-check-updates": "^23.1.0",
+        "npm-check-updates": "^23.1.1",
         "tailwindcss": "^4.3.3",
-        "vite": "^8.3.2"
+        "vite": "^8.3.4"
     },
     "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.64.0",
+        "@rollup/rollup-linux-x64-gnu": "4.64.5",
         "@tailwindcss/oxide-linux-x64-gnu": "^4.3.3",
         "lightningcss-linux-x64-gnu": "^1.33.0"
     },
