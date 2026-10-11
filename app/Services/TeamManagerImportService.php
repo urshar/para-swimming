@@ -79,8 +79,8 @@ final readonly class TeamManagerImportService
     /** Klassennummern, die als Sportklasse übernommen werden (0 = keine Klasse). */
     private const array SPORT_CLASS_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 21];
 
-    /** Nur national vergebene Klassen (Intellektuelle Beeinträchtigung, Down-Syndrom). */
-    private const array NATIONAL_CLASS_NUMBERS = ['14', '21'];
+    /** Nur national vergebene Klassen (Intellektuelle Beeinträchtigung, Hörbeeinträchtigung, Down-Syndrom). */
+    private const array NATIONAL_CLASS_NUMBERS = ['14', '15', '21'];
 
     private const array SPORT_CLASS_COLUMNS = ['S' => 'HANDICAPS', 'SB' => 'HANDICAPSB', 'SM' => 'HANDICAPSM'];
 
@@ -574,16 +574,25 @@ final readonly class TeamManagerImportService
      */
     private function storeClassification(Athlete $athlete, array $classification, array $exceptions, array $classifierIds): bool
     {
-        $exists = $athlete->classifications()
+        /** @var AthleteClassification|null $existing */
+        $existing = $athlete->classifications()
             ->where('location', $classification['location'])
             ->when(
                 $classification['classified_at'] === null,
                 fn ($query) => $query->whereNull('classified_at'),
                 fn ($query) => $query->whereDate('classified_at', $classification['classified_at']),
             )
-            ->exists();
+            ->first();
 
-        if ($exists) {
+        if ($existing !== null) {
+            // Bei erneutem Import einen fehlenden Status nachtragen (z. B. leerer Status bei S14/S15/S21).
+            if ($existing->classification_status === null && $classification['classification_status'] !== null) {
+                $existing->update([
+                    'classification_status' => $classification['classification_status'],
+                    'frd_year' => $classification['frd_year'],
+                ]);
+            }
+
             return false;
         }
 
@@ -746,10 +755,12 @@ final readonly class TeamManagerImportService
         }
 
         if (array_filter($fields) === []) {
-            return $this->nationalClassification($sportClasses);
+            return $this->classificationWithoutDetails($sportClasses, $scope);
         }
 
-        [$status, $frdYear] = $this->classificationStatus($fields[1], $issue);
+        // Ein leerer Status gilt als bestätigt: N, R und FRD führt der Team Manager ausdrücklich, ein leeres Feld stammt
+        // aus der Zeit, bevor der Status gepflegt wurde (Entscheidung Erik, 11.10.2026). Ein unlesbarer Wert bleibt leer.
+        [$status, $frdYear] = $fields[1] === null ? ['CONFIRMED', null] : $this->classificationStatus($fields[1], $issue);
 
         $date = null;
         if ($fields[2] !== null) {
@@ -790,18 +801,16 @@ final readonly class TeamManagerImportService
     }
 
     /**
-     * S14 und S21 vergibt der ÖBSV national, ohne Klassifizierung mit Klassifizierern — der Team Manager führt dafür
-     * keine Angaben in FREE1 bis FREE6. Damit die Klassen trotzdem in der Historie stehen, wird ein nationaler,
-     * bestätigter Eintrag ohne Datum angelegt.
+     * Ohne Angaben in FREE1 bis FREE6 (S14, S15 und S21 vergibt der ÖBSV national ohne Klassifizierer; bei alten
+     * Athleten fehlen die Angaben oft ganz): Damit die Klassen trotzdem in der Historie stehen, wird ein bestätigter
+     * Eintrag ohne Datum angelegt — national bei den national vergebenen Klassen, sonst nach SDMS-ID.
      *
      * @param  array<string, string>  $sportClasses
      * @return array<string, mixed>|null
      */
-    private function nationalClassification(array $sportClasses): ?array
+    private function classificationWithoutDetails(array $sportClasses, string $scope): ?array
     {
-        $numbers = array_map(fn (string $category) => substr($sportClasses[$category], strlen($category)), array_keys($sportClasses));
-
-        if ($numbers === [] || array_diff($numbers, self::NATIONAL_CLASS_NUMBERS) !== []) {
+        if ($sportClasses === []) {
             return null;
         }
 
@@ -814,10 +823,18 @@ final readonly class TeamManagerImportService
             'result_s' => $sportClasses['S'] ?? null,
             'result_sb' => $sportClasses['SB'] ?? null,
             'result_sm' => $sportClasses['SM'] ?? null,
-            'classification_scope' => 'NAT',
+            'classification_scope' => $this->onlyNationalClasses($sportClasses) ? 'NAT' : $scope,
             'classification_status' => 'CONFIRMED',
             'frd_year' => null,
         ];
+    }
+
+    /** @param  array<string, string>  $sportClasses */
+    private function onlyNationalClasses(array $sportClasses): bool
+    {
+        $numbers = array_map(fn (string $category) => substr($sportClasses[$category], strlen($category)), array_keys($sportClasses));
+
+        return $numbers !== [] && array_diff($numbers, self::NATIONAL_CLASS_NUMBERS) === [];
     }
 
     /**

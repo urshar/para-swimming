@@ -59,3 +59,25 @@ it('liest die Klassen aus dem Gruppennamen, wenn das handicap-Attribut fehlt', /
         ->and($groups->pluck('sport_classes')->all())->toBe(['9', '1,2,3,4', '8'])
         ->and(Result::sole()->place)->toBe(1);
 });
+
+it('ändert die Sportklasse eines bestehenden Athleten nicht, ergänzt aber eine fehlende Kategorie', /** @throws Exception */ function () {
+    makeStrokeType_p5();
+    $club = makeClub_p5();
+    $vorhanden = makeAthlete_p5($club, 'F', ['S14']);
+    $vorhanden->update(['last_name' => 'Hummel', 'first_name' => 'Anna', 'license' => 'LIC1']);
+    $vorhanden->sportClasses()->update(['classification_status' => 'CONFIRMED']);
+
+    (new LenexParserService)->import(file_lan(xml_lan($club->name, $club->code)), new LenexResolverService);
+
+    $sport = $vorhanden->getSportClass('S');
+
+    expect($sport->sport_class)->toBe('S14')
+        ->and($sport->classification_status)->toBe('CONFIRMED');
+
+    $vorhanden->sportClasses()->delete();
+    $vorhanden->sportClasses()->create(['category' => 'SB', 'class_number' => '8', 'sport_class' => 'SB8']);
+
+    (new LenexParserService)->import(file_lan(xml_lan($club->name, $club->code)), new LenexResolverService);
+
+    expect($vorhanden->sportClasses()->orderBy('category')->pluck('sport_class')->all())->toBe(['S9', 'SB8']);
+});

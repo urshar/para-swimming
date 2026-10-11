@@ -140,6 +140,7 @@ class AthleteController extends Controller
             'classifications.tech1Classifier',
             'classifications.tech2Classifier',
             'classifications.exceptions',
+            'classifications.meet',
             'levelHistory.user',
             'kaderMemberships.kaderType',
         ]);

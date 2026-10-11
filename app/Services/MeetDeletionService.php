@@ -13,7 +13,8 @@ use Throwable;
  * Löscht eine Veranstaltung endgültig samt allem, was daran hängt (Entscheidung Erik, 11.10.2026).
  *
  * Bewerbe, Abschnitte, Meldegelder, Meldungen, Ergebnisse (samt Splits und Mitgliedern), Gaststarts,
- * Cup-Tageswertungen, Punktesysteme und Vereinszuordnung entfernt die Datenbank über cascadeOnDelete. Zusätzlich:
+ * Cup-Tageswertungen, Punktesysteme, Vereinszuordnung und Klassen-Hinweise aus der Ergebnisliste in der
+ * Klassifizierungshistorie entfernt die Datenbank über cascadeOnDelete. Zusätzlich:
  *   - Qualifikationen mit dieser Veranstaltung — ihre Zeiten sind ohne die Veranstaltung nicht mehr gültig
  *     (der Fremdschlüssel würde sie nur vom Wettkampf lösen),
  *   - Rekorde aus Ergebnissen der Veranstaltung über SwimRecord::removeFromHistory(): Der Vorgänger wird wieder

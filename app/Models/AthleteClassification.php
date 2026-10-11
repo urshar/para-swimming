@@ -46,6 +46,7 @@ class AthleteClassification extends Model
 
     protected $fillable = [
         'athlete_id',
+        'meet_id',
         'med_classifier_id',
         'tech1_classifier_id',
         'tech2_classifier_id',
@@ -84,6 +85,12 @@ class AthleteClassification extends Model
     public function athlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class);
+    }
+
+    /** Gesetzt bei einem Klassen-Hinweis aus einer Ergebnisliste (LENEX-Import), sonst null. */
+    public function meet(): BelongsTo
+    {
+        return $this->belongsTo(Meet::class);
     }
 
     public function medClassifier(): BelongsTo
