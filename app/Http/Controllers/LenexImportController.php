@@ -528,10 +528,14 @@ class LenexImportController extends Controller
     /** "Nachname, Vorname (*TT.MM.JJJJ) · Lizenz · Verein" für Auswahllisten. */
     private static function athleteLabel(Athlete $athlete, SupportCollection $clubNames): string
     {
+        // "Stammverein:" ausdrücklich: Die Ergebnisse bekommen den Verein aus der Datei, der hier gezeigte Stammverein
+        // dient nur zur Erkennung der Person und bleibt bei der Zuordnung unverändert.
+        $club = $clubNames[$athlete->club_id] ?? null;
+
         return implode(' · ', array_filter([
             $athlete->display_name.($athlete->birth_date ? ' (*'.$athlete->birth_date->format('d.m.Y').')' : ''),
             $athlete->license,
-            $clubNames[$athlete->club_id] ?? null,
+            $club === null ? null : 'Stammverein: '.$club,
         ]));
     }
 }

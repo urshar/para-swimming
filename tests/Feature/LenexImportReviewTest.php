@@ -126,7 +126,8 @@ it('ordnet Vereine und Athleten bestehenden Datensätzen zu, legt neue an und ü
     $otherClub = makeClub_p5();
     $angerer = athlete_lir($club, 'Daniela', 'Angerer', '2000-06-07', 'W - 1653');
     $singer = athlete_lir($club, 'Dominik', 'Singer', '2003-01-01', null);
-    $huber = athlete_lir($club, 'Anna', 'Huber', '2001-06-07', null);
+    // Huber startet laut Datei für $club, ihr Stammverein ist aber $otherClub (wie bei alten LENEX-Dateien).
+    $huber = athlete_lir($otherClub, 'Anna', 'Huber', '2001-06-07', null);
 
     $clubSession = sessionKey_lir(uploadAndRun_lir($admin, resultXml_lir($club)));
     $clubStep = test()->actingAs($admin)->post(route('lenex.import.resolve-clubs'), [
@@ -139,7 +140,9 @@ it('ordnet Vereine und Athleten bestehenden Datensätzen zu, legt neue an und ü
         ->assertOk()
         ->assertSee('Unbekannte Athleten (4)')
         ->assertSee('Jahrgang-Treffer vorbelegt')
-        ->assertSee('Bestehendem Athleten zuordnen (Nachname S…)');
+        ->assertSee('Bestehendem Athleten zuordnen (Nachname S…)')
+        ->assertSee('Verein laut Datei: '.$club->name)
+        ->assertSee('Stammverein: '.$otherClub->name);
 
     $selection = fn (string $lastName, string $value) => [athleteIndex_lir($athleteSession, $lastName) => ['selection' => $value]];
     test()->actingAs($admin)->post(route('lenex.import.resolve-athletes'), [
@@ -159,7 +162,10 @@ it('ordnet Vereine und Athleten bestehenden Datensätzen zu, legt neue an und ü
         ->and($neu->birth_date->format('Y-m-d'))->toBe('2005-02-02')
         ->and(Athlete::where('last_name', 'Weg')->exists())->toBeFalse()
         ->and(Club::where('name', 'SV Unbekannt')->exists())->toBeFalse()
-        ->and($singer->fresh()->first_name)->toBe('Dominik');
+        ->and($singer->fresh()->first_name)->toBe('Dominik')
+        // Zugeordnet: Das Ergebnis trägt den Verein aus der Datei, der Stammverein bleibt.
+        ->and(Result::where('athlete_id', $huber->id)->sole()->club_id)->toBe($club->id)
+        ->and($huber->fresh()->club_id)->toBe($otherClub->id);
 });
 
 it('legt einen unbekannten Verein auf Wunsch neu an', function () {
