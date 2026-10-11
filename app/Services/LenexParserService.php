@@ -250,7 +250,7 @@ class LenexParserService
                 $hasClasses = false;
                 foreach ($eventXml->AGEGROUPS->AGEGROUP ?? [] as $groupXml) {
                     $groupNames[] = (string) ($groupXml['name'] ?? '');
-                    $hasClasses = $hasClasses || trim((string) ($groupXml['handicap'] ?? '')) !== '';
+                    $hasClasses = $hasClasses || self::agegroupHandicap($groupXml) !== '';
                 }
                 if ($hasClasses) {
                     continue;
@@ -501,7 +501,7 @@ class LenexParserService
                         }
                         if (! isset($this->rankingGroupIndex[$resultId])) {
                             $this->rankingGroupIndex[$resultId] = [
-                                'handicap' => trim((string) ($agegroupXml['handicap'] ?? '')),
+                                'handicap' => self::agegroupHandicap($agegroupXml),
                             ];
                         }
                     }
@@ -784,7 +784,7 @@ class LenexParserService
             $gender = strtoupper(trim((string) ($ageGroupXml['gender'] ?? '')));
             $ageMin = (int) ($ageGroupXml['agemin'] ?? -1);
             $ageMax = (int) ($ageGroupXml['agemax'] ?? -1);
-            $classes = ScoringGroup::parseClassNumbers((string) ($ageGroupXml['handicap'] ?? ''));
+            $classes = ScoringGroup::parseClassNumbers(self::agegroupHandicap($ageGroupXml));
             $normalizedName = mb_strtoupper(str_replace(' ', '', $name));
 
             $values = [
@@ -828,7 +828,7 @@ class LenexParserService
 
         $classes = [];
         foreach ($eventXml->AGEGROUPS->AGEGROUP as $agegroup) {
-            $handicap = trim((string) ($agegroup['handicap'] ?? ''));
+            $handicap = self::agegroupHandicap($agegroup);
             if ($handicap === '') {
                 continue;
             }
@@ -850,6 +850,29 @@ class LenexParserService
         uksort($classes, fn ($a, $b) => (int) $a <=> (int) $b);
 
         return implode(' ', array_keys($classes));
+    }
+
+    /**
+     * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
+     * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
+     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
+     */
+    private static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
+    {
+        $handicap = trim((string) ($agegroupXml['handicap'] ?? ''));
+        if ($handicap !== '') {
+            return $handicap;
+        }
+
+        $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
+        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
+            return '';
+        }
+
+        $from = (int) $m[1];
+        $to = isset($m[2]) ? (int) $m[2] : $from;
+
+        return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
     }
 
     // ── Entries ───────────────────────────────────────────────────────────────
