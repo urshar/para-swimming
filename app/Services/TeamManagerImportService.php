@@ -164,17 +164,10 @@ final readonly class TeamManagerImportService
      */
     private function prepareClubs(array $rows, array &$warnings): array
     {
-        $existing = [];
-        foreach (Club::query()->get() as $club) {
-            if ($club->code !== null) {
-                $existing['code:'.$this->clubCodeKey($club->code)] = $club;
-            }
-            $existing['name:'.mb_strtolower($club->name)] = $club;
-        }
-
+        $matches = $this->matchClubs($rows);
         $clubs = [];
 
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             $code = $this->text($row['CODE'] ?? null);
             $name = $this->text($row['NAME'] ?? null) ?? $code ?? '';
             $lsc = $this->text($row['LSC'] ?? null);
@@ -189,8 +182,7 @@ final readonly class TeamManagerImportService
                 }
             }
 
-            $match = ($code !== null ? $existing['code:'.$this->clubCodeKey($code)] ?? null : null)
-                ?? $existing['name:'.mb_strtolower($name)] ?? null;
+            $match = $matches[$index];
 
             $clubs[] = [
                 'access_id' => (int) $row['CLUBSID'],
@@ -207,6 +199,82 @@ final readonly class TeamManagerImportService
         }
 
         return $clubs;
+    }
+
+    /**
+     * Vorhandener Verein je Zeile der Datei. Zuerst für alle Zeilen der exakte Code; erst danach für die übrigen die
+     * Schreibvarianten ("ÖBSV" = "AUT", "NÖVSV" = "NOEVSV") und zuletzt der Name — jeweils nur, wenn genau ein noch
+     * nicht vergebener Verein passt. Sonst ordnete die Variante zwei verschiedene Vereine der Datei demselben Verein zu,
+     * z. B. den Verein "NÖVSV" (NÖ VSV/ASV2000) und den Landesverband "NOEVSV".
+     *
+     * @param  list<array<string, string|null>>  $rows
+     * @return list<Club|null>
+     */
+    private function matchClubs(array $rows): array
+    {
+        $existing = Club::query()->get();
+        $byCode = $existing->filter(fn (Club $club) => $club->code !== null)
+            ->keyBy(fn (Club $club) => mb_strtoupper(trim($club->code)));
+
+        $matches = [];
+        $used = [];
+
+        foreach ($rows as $index => $row) {
+            $code = $this->text($row['CODE'] ?? null);
+            $match = $code === null ? null : $byCode->get(mb_strtoupper($code));
+            $matches[$index] = $match;
+
+            if ($match !== null) {
+                $used[$match->id] = true;
+            }
+        }
+
+        foreach ($rows as $index => $row) {
+            if ($matches[$index] !== null) {
+                continue;
+            }
+
+            $code = $this->text($row['CODE'] ?? null);
+            $name = $this->text($row['NAME'] ?? null);
+
+            $match = ($code === null ? null : $this->onlyFreeClub($existing->filter(
+                fn (Club $club) => $club->code !== null && $this->clubCodeKey($club->code) === $this->clubCodeKey($code),
+            ), $used)) ?? ($name === null ? null : $this->onlyFreeClub($existing->filter(
+                fn (Club $club) => mb_strtolower($club->name) === mb_strtolower($name),
+            ), $used));
+
+            $matches[$index] = $match;
+            if ($match !== null) {
+                $used[$match->id] = true;
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Der einzige noch nicht vergebene Verein unter den Kandidaten, sonst null (keiner oder mehrere).
+     *
+     * @param  iterable<Club>  $candidates
+     * @param  array<int, true>  $used  bereits zugeordnete Vereins-IDs
+     */
+    private function onlyFreeClub(iterable $candidates, array $used): ?Club
+    {
+        $free = null;
+
+        foreach ($candidates as $club) {
+            if (isset($used[$club->id])) {
+                continue;
+            }
+
+            if ($free !== null) {
+                return null;
+            }
+
+            $free = $club;
+        }
+
+        return $free;
     }
 
     /** @return array{0: string, 1: string|null} Typ und Landesverband allein aus dem Vereinscode */

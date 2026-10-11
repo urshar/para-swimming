@@ -317,3 +317,30 @@ it('trägt S14 und S21 ohne Klassifizierungsangaben als nationale, bestätigte K
         ->and(Athlete::where('last_name', 'Vierzehn')->firstOrFail()->getSportClass('S')->classification_status)->toBe('CONFIRMED')
         ->and(Athlete::where('last_name', 'Sechs')->firstOrFail()->classifications()->count())->toBe(0);
 });
+
+it('ordnet Vereine mit ähnlichem Code nicht demselben Verein zu (NÖVSV und NOEVSV)', /** @throws Throwable */ function () {
+    $austria = Nation::where('code', 'AUT')->value('id');
+    $verein = Club::query()->create(['name' => 'NÖ VSV/ASV2000', 'code' => 'NÖVSV', 'nation_id' => $austria]);
+    $verband = Club::query()->create(['name' => 'Niederösterreichischer BSV', 'code' => 'NOEVSV', 'nation_id' => $austria,
+        'type' => 'VERBAND', 'regional_association' => 'NOEVSV']);
+
+    $preview = service_tmi2()->preview(data_tmi2([], [
+        club_tmi2(['CLUBSID' => '1', 'NAME' => 'NÖ VSV/ASV2000', 'CODE' => 'NÖVSV', 'LSC' => 'NOELSV']),
+        club_tmi2(['CLUBSID' => '2', 'NAME' => 'Niederösterreichischer Behindertensportverband', 'CODE' => 'NOEVSV', 'LSC' => 'NOELSV']),
+    ]));
+
+    expect(array_column($preview->clubs, 'club_id', 'access_id'))->toBe([1 => $verein->id, 2 => $verband->id]);
+});
+
+it('legt einen Verein neu an, statt ihn über die Schreibvariante einem schon zugeordneten Verein zuzuordnen', /** @throws Throwable */ function () {
+    $verein = Club::query()->create(['name' => 'NÖ VSV/ASV2000', 'code' => 'NÖVSV', 'nation_id' => Nation::where('code', 'AUT')->value('id')]);
+
+    import_tmi2(data_tmi2([], [
+        club_tmi2(['CLUBSID' => '1', 'NAME' => 'NÖ VSV/ASV2000', 'CODE' => 'NÖVSV', 'LSC' => 'NOELSV']),
+        club_tmi2(['CLUBSID' => '2', 'NAME' => 'Niederösterreichischer Behindertensportverband', 'CODE' => 'NOEVSV', 'LSC' => 'NOELSV']),
+    ]));
+
+    expect(Club::where('code', 'NOEVSV')->value('type'))->toBe('VERBAND')
+        ->and($verein->fresh()->type)->toBe('CLUB')
+        ->and(Club::count())->toBe(2);
+});
