@@ -56,8 +56,10 @@ class LenexImportController extends Controller
             'nations' => $nations,
             // Fehlt die Nation der Veranstaltung in der Datei, wird sie für eine neue Veranstaltung abgefragt.
             'meetNations' => ($importData['meta']['meet_nation_known'] ?? true) ? collect() : Nation::orderBy('name_de')->get(['code', 'name_de']),
-            // Vorauswahl Österreich, wenn die Datei mehrere Nationen enthält.
-            'defaultNation' => count($nations) > 1 && in_array('AUT', $nations, true) ? 'AUT' : 'ALL',
+            // Vorauswahl "nur Österreich" bei mehreren Nationen nur für Veranstaltungen im Ausland. In Österreich sind
+            // die übrigen Nationen Gäste: Deren Starts kommen ohne Filter nur in die Statistik (foreign_starts).
+            'defaultNation' => count($nations) > 1 && in_array('AUT', $nations, true)
+                && strtoupper((string) ($importData['meta']['nation'] ?? '')) !== 'AUT' ? 'AUT' : 'ALL',
             'type' => $importData['type'],
             'candidates' => $candidates,
         ]);
@@ -408,7 +410,9 @@ class LenexImportController extends Controller
             .$stats['results'].' Ergebnisse'
             .($stats['results'] > 0 ? self::resultMatchSummary($stats) : '').', '
             .($stats['relay_results'] ?? 0).' Staffelergebnisse.'
-            .(! empty($stats['without_club']) ? ' '.$stats['without_club'].' Meldung(en)/Ergebnis(se) übersprungen: Athlet ohne Verein.' : '');
+            .(! empty($stats['without_club']) ? ' '.$stats['without_club'].' Meldung(en)/Ergebnis(se) übersprungen: Athlet ohne Verein.' : '')
+            .(! empty($stats['foreign_starts']) ? ' '.$stats['foreign_starts'].' Start(s) von '.$stats['foreign_clubs']
+                .' ausländischen Gastverein(en) nur für Statistik und Ergebnisliste gespeichert.' : '');
 
         return redirect()->route('meets.index')->with('success', $message);
     }
@@ -524,10 +528,14 @@ class LenexImportController extends Controller
     /** "Nachname, Vorname (*TT.MM.JJJJ) · Lizenz · Verein" für Auswahllisten. */
     private static function athleteLabel(Athlete $athlete, SupportCollection $clubNames): string
     {
+        // "Stammverein:" ausdrücklich: Die Ergebnisse bekommen den Verein aus der Datei, der hier gezeigte Stammverein
+        // dient nur zur Erkennung der Person und bleibt bei der Zuordnung unverändert.
+        $club = $clubNames[$athlete->club_id] ?? null;
+
         return implode(' · ', array_filter([
             $athlete->display_name.($athlete->birth_date ? ' (*'.$athlete->birth_date->format('d.m.Y').')' : ''),
             $athlete->license,
-            $clubNames[$athlete->club_id] ?? null,
+            $club === null ? null : 'Stammverein: '.$club,
         ]));
     }
 }

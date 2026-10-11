@@ -183,6 +183,12 @@ class Meet extends Model
         return $this->hasMany(Result::class);
     }
 
+    /** Starts von Gastvereinen (Nation ≠ AUT) — nur Statistik und Ergebnisliste, siehe ForeignStart. */
+    public function foreignStarts(): HasMany
+    {
+        return $this->hasMany(ForeignStart::class);
+    }
+
     public function relayResults(): HasMany
     {
         return $this->hasMany(RelayResult::class);

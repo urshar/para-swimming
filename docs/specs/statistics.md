@@ -129,6 +129,15 @@ Regeln, die man kennen sollte:
 - `statusForMeets(array $meetIds)` liefert dieselbe Aufschlüsselung für eine **frei gewählte** Menge von
   Veranstaltungen, rein über die Meet-IDs (kein Zeitraum-Scope, jahresübergreifend) — für den manuellen
   Veranstaltungs-Vergleich. Teilt sich die Aggregation mit `statusByMeet` (`aggregateStatusByMeet`).
+- **Gäste** (seit `feature/foreign-starts`, 11.10.2026): Starts von Vereinen außerhalb Österreichs liegen ohne
+  Athleten-/Vereinsdatensatz in `foreign_starts` (siehe [lenex-import-export.md](lenex-import-export.md)
+  "Gastvereine"). Sie zählen mit — mit derselben Start-Definition (ohne DNS/SICK/WDR) — in `overview` (Teilnehmer,
+  Starts, Teilnahmen, Veranstaltungen; Gastvereine unter `foreign_clubs`), `byMeet`, `statusBreakdown`, `statusByMeet`,
+  `statusForMeets`, `byNation` (Nation des **Vereins**), `bySportClass`, `byDisabilityGroup`, `byGender`,
+  `byAgeGroup`, `byAgeGroupAndGender` und `relayStartsByEventGender` (Gaststaffel ohne Mitglieder zählt mit der
+  Staffelgröße des Bewerbs) — und damit auch in der 5-Jahres-Reihe. Teilnehmer werden über `person_key` (Name +
+  Geburtsdatum) gezählt. **Nicht** in den Ranglisten `byClub`, `byAthlete` und
+  `countAthletesWithMinParticipations` (Entscheidung Erik).
 
 ## Rekorde — `RecordStatisticsService`
 

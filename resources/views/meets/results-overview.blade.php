@@ -278,6 +278,9 @@
                 </div>
                 @endif
                 @endforeach
+                @if($block['guests']->isNotEmpty())
+                    @include('meets._guest-results-table', ['guests' => $block['guests']])
+                @endif
             </div>
         @endif
     @endforeach

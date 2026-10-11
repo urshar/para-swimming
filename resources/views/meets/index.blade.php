@@ -146,11 +146,12 @@
                             <flux:button href="{{ route('meets.edit', $meet) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('meets.destroy', $meet) }}"
-                                  x-data="{ submit() { if (confirm('Wettkampf wirklich löschen?')) this.$el.submit() } }"
+                                  data-confirm="Wettkampf &quot;{{ $meet->name }}&quot; endgültig löschen — mit allen Bewerben, Meldungen, Ergebnissen, Gaststarts, Qualifikationen und den daraus entstandenen Rekorden? Das kann nicht rückgängig gemacht werden."
+                                  x-data="{ submit() { if (confirm(this.$el.dataset.confirm)) this.$el.submit() } }"
                                   @submit.prevent="submit()">
                                 @csrf @method('DELETE')
                                 <flux:button type="submit" size="sm" variant="ghost" icon="trash"
-                                             class="text-red-500!"/>
+                                             class="text-red-500!" title="Löschen" aria-label="Wettkampf löschen"/>
                             </form>
                             @endif
                         </div>

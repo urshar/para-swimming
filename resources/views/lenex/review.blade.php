@@ -132,6 +132,8 @@
                 </h2>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                     Diese Athleten wurden über Lizenz, SDMS-ID sowie Name und Geburtsdatum nicht gefunden.
+                    Die Ergebnisse bekommen den Verein aus der Datei; bei einer Zuordnung zu einem bestehenden Athleten
+                    bleibt dessen Stammverein unverändert.
                 </p>
                 <div
                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700 mb-6">
@@ -158,7 +160,7 @@
                                     *{{ $athlete['birth_date_display'] ?: '–' }} ·
                                     Lizenz: {{ $athlete['license'] ?: '–' }}
                                     @if($athlete['club_name'])
-                                        · {{ $athlete['club_name'] }}
+                                        · Verein laut Datei: {{ $athlete['club_name'] }}
                                     @endif
                                     @if($athlete['sport_class'] ?? null)
                                         · Klasse: {{ $athlete['sport_class'] }}

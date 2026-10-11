@@ -163,6 +163,45 @@
             </table>
         @endforeach
         @endif
+
+        @if($block['guests']->isNotEmpty())
+            {{-- Gäste (Vereine außerhalb Österreichs): ohne Platz und Wertung, dieselben Spalten wie die Einzelliste. --}}
+            <div class="group-title">Gäste (ohne Wertung)</div>
+            <table class="res">
+                <tr>
+                    <th class="col-pl">Pl.</th>
+                    <th>Name</th>
+                    <th class="col-yr">Jg.</th>
+                    <th class="col-club">Verein</th>
+                    <th class="col-cls">Klasse</th>
+                    <th class="col-tm">Zeit</th>
+                    @if($pointColumns['points'])
+                        <th class="col-pts">Punkte</th>
+                    @endif
+                    @if($pointColumns['wps'] && ! $block['isRelay'])
+                        <th class="col-pts">WPS</th>
+                    @endif
+                    <th class="col-note"></th>
+                </tr>
+                @foreach($block['guests'] as $guest)
+                    <tr class="unranked">
+                        <td class="col-pl"></td>
+                        <td>{{ $guest->display_name }}</td>
+                        <td class="col-yr">{{ $guest->birth_date?->format('Y') }}</td>
+                        <td class="col-club">{{ $guest->club_label }}</td>
+                        <td class="col-cls">{{ $guest->sport_class }}</td>
+                        <td class="col-tm">{{ $guest->formatted_swim_time }}</td>
+                        @if($pointColumns['points'])
+                            <td class="col-pts"></td>
+                        @endif
+                        @if($pointColumns['wps'] && ! $block['isRelay'])
+                            <td class="col-pts"></td>
+                        @endif
+                        <td class="col-note">{{ trim('Gast '.($guest->status === 'EXH' ? 'AK' : $guest->status)) }}</td>
+                    </tr>
+                @endforeach
+            </table>
+        @endif
     </div>
 @empty
     <div class="empty">Keine Ergebnisse vorhanden.</div>

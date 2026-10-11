@@ -78,8 +78,9 @@ Ausnahmecodes; HANDICAP-Werte werden gegen die `exception_codes`-Tabelle gematch
 ## Nationenfilter (internationale Veranstaltungen)
 
 Enthält eine Melde- oder Ergebnisdatei mehrere Nationen, bietet "Wettkampf zuordnen" die Auswahl **"Nur Schwimmer
-dieser Nation importieren"** an (Vorauswahl Österreich, `ALL` = alle). Option `only_nation` von
-`LenexParserService::import()`:
+dieser Nation importieren"** an (`ALL` = alle). Vorauswahl seit `feature/foreign-starts` (11.10.2026): Österreich nur
+bei Veranstaltungen im Ausland; bei Veranstaltungen in Österreich "Alle Nationen" (die übrigen sind Gäste, siehe
+"Gastvereine" unten). Option `only_nation` von `LenexParserService::import()`:
 
 - Importiert werden nur Schwimmer der Nation (Athlet `nation`, sonst Verein `nation`), Staffeln nur von Vereinen der
   Nation, und nur die Bewerbe, in denen sie starten (`collectNationEventIds`; der Splash-Rückfall
@@ -94,6 +95,31 @@ dieser Nation importieren"** an (Vorauswahl Österreich, `ALL` = alle). Option `
   im Veranstaltungsformular unter "Punkteberechnung" änderbar): Die Wertung rechnet dann nicht neu, sondern sortiert
   nach dem gespeicherten Platz — siehe [scoring-groups.md](scoring-groups.md).
 
+## Gastvereine (Nation ≠ AUT) — nur Statistik
+
+Seit `feature/foreign-starts` (11.10.2026, Entscheidung Erik): Ohne Nationenfilter gilt jeder Verein mit einer Nation
+≠ AUT als **Gast**. Maßgeblich ist die Nation des **Vereins**, nicht die des Schwimmers (eine Österreicherin in einem
+Schweizer Verein ist Gast, ein Deutscher in einem österreichischen Verein nicht). Vereine ohne Nation gelten als
+österreichisch.
+
+- **Ergebnisdatei:** Die Starts der Gäste kommen nur in `foreign_starts` (`importForeignClub()`): Verein (Name, Code,
+  Nation), Schwimmer (Name, Geburtsdatum, `person_key` = Nachname|Vorname|Geburtsdatum zum Zählen der Teilnehmer),
+  Geschlecht, Sportklasse, Zeit, Status, Platz aus der Datei; Staffeln als eine Zeile je Staffel ohne Mitglieder. Es
+  entstehen **keine** Vereine, Athleten, Splits oder Klärungsfälle, und der Gastverein kommt nicht an die
+  Veranstaltung (`meet_club`). Ein erneuter Import ersetzt alle Gaststarts der Veranstaltung. Rahmenbewerbe bleiben
+  wie sonst außen vor.
+- **Meldedatei:** Gäste werden übergangen.
+- Wofür: Teilnehmer-/Start-Statistik (Nationen, Summen) und die vollständige Ergebnisliste. In Rekorden, Cup,
+  Jahresbestleistungen, WPS, Qualifikationen und den Stammdaten-Listen tauchen Gäste so gar nicht erst auf.
+- Die Rückmeldung nennt "n Start(s) von m ausländischen Gastverein(en) nur für Statistik und Ergebnisliste".
+- **Ergebnislisten** (öffentliche Ergebnisseite, Ergebnisübersicht im Admin-Bereich samt PDF): je Bewerb ein eigener
+  Block "Gäste (ohne Wertung)" unter den Wertungsgruppen — Name, Jahrgang, "Verein (Nation)", Klasse, Zeit bzw.
+  Status, ohne Platz, ohne Punkte, ohne Link (`ForeignStart::inListOrder()`: mit Zeit nach Zeit, dann DSQ, DNF, DNS,
+  SICK, WDR). Die österreichischen Plätze bleiben unberührt. Der offizielle Platz aus der Datei wird gespeichert, aber
+  nicht angezeigt (er stünde neben den selbst berechneten österreichischen Plätzen missverständlich). In der
+  Ergebnisübersicht blendet ein Vereinsfilter die Gäste aus, die Suche findet sie über Name und Verein; "Alle löschen"
+  einer Disziplin löscht auch ihre Gaststarts.
+
 **Nation der Veranstaltung:** Fehlt sie in der Datei oder ist sie unbekannt (EM Kocaeli 2026: `nation=""`), fragt
 "Wettkampf zuordnen" sie ab — Pflicht, wenn die Veranstaltung neu angelegt wird (`meets.nation_id`), Option
 `meet_nation`.
@@ -107,6 +133,12 @@ entsteht beim ersten Import (Abfrage auf der Klärungsseite) oder im Disziplin-F
 Ergebnisse beim Kennzeichnen nach ausdrücklicher Bestätigung gelöscht. In der Wettkampfliste zählen Rahmenbewerbe für
 die Anzeige "I" nicht; ein gewerteter Bewerb gilt dort als eingerichtet, wenn er Wertungsgruppen oder Sportklassen
 hat.
+
+**Klassen im Gruppennamen** (seit `feature/foreign-starts`, 11.10.2026): Ältere Splash-Dateien (z. B. ÖSTM 2012)
+lassen das `handicap`-Attribut der AGEGROUP leer und nennen die Klasse nur im Namen ("S9", "SB8", "SM14", Bereich
+"S1-S10"/"S1 - 10"). `agegroupHandicap()` liest dann den Namen — für die Klassen des Bewerbs, die Abfrage der
+Rahmenbewerbe, die Wertungsgruppen und den Platz-Index. Vorher galten solche Bewerbe als "ohne Klassenangabe", wurden
+als Rahmenbewerbe vorgeschlagen, und ihre Ergebnisse fehlten.
 
 ## Platzierungen
 

@@ -56,6 +56,12 @@ class SwimEvent extends Model
         return $this->hasMany(RelayResult::class);
     }
 
+    /** Starts von Gastvereinen (Nation ≠ AUT) in diesem Bewerb, siehe ForeignStart. */
+    public function foreignStarts(): HasMany
+    {
+        return $this->hasMany(ForeignStart::class);
+    }
+
     public function relayEntries(): HasMany
     {
         return $this->hasMany(RelayEntry::class);
