@@ -314,8 +314,79 @@ it('trägt S14 und S21 ohne Klassifizierungsangaben als nationale, bestätigte K
         ->and($vierzehn->classified_at)->toBeNull()
         ->and([$vierzehn->result_s, $vierzehn->result_sb, $vierzehn->result_sm])->toBe(['S14', 'SB14', 'SM14'])
         ->and([$einundzwanzig->result_s, $einundzwanzig->result_sb, $einundzwanzig->result_sm])->toBe(['S21', 'SB21', null])
-        ->and(Athlete::where('last_name', 'Vierzehn')->firstOrFail()->getSportClass('S')->classification_status)->toBe('CONFIRMED')
-        ->and(Athlete::where('last_name', 'Sechs')->firstOrFail()->classifications()->count())->toBe(0);
+        ->and(Athlete::where('last_name', 'Vierzehn')->firstOrFail()->getSportClass('S')->classification_status)->toBe('CONFIRMED');
+});
+
+it('trägt auch andere Klassen ohne Klassifizierungsangaben als bestätigte Klassifizierung nach SDMS-ID ein', /** @throws Throwable */ function () {
+    import_tmi2(data_tmi2([
+        member_tmi2(['MEMBERSID' => '1', 'LASTNAME' => 'International', 'REGISTRATIONID' => 'W-1', 'SDMSID' => '69570']),
+        member_tmi2(['MEMBERSID' => '2', 'LASTNAME' => 'National', 'REGISTRATIONID' => 'W-2', 'SDMSID' => '0', 'ACTIVE' => 'F']),
+        member_tmi2(['MEMBERSID' => '3', 'LASTNAME' => 'Ohneklasse', 'REGISTRATIONID' => 'W-3',
+            'HANDICAPS' => '0', 'HANDICAPSB' => '0', 'HANDICAPSM' => '0']),
+    ]));
+
+    $international = Athlete::where('last_name', 'International')->firstOrFail();
+    $national = Athlete::where('last_name', 'National')->firstOrFail();
+
+    expect($international->classifications()->sole()->classification_scope)->toBe('INTL')
+        ->and($international->classifications()->sole()->classification_status)->toBe('CONFIRMED')
+        ->and($international->classifications()->sole()->classified_at)->toBeNull()
+        ->and($international->classifications()->sole()->sport_class_results_display)->toContain('S3')
+        ->and($international->getSportClass('S')->classification_status)->toBe('CONFIRMED')
+        ->and($national->classifications()->sole()->classification_scope)->toBe('NAT')
+        ->and($national->getSportClass('SB')->classification_status)->toBe('CONFIRMED')
+        ->and(Athlete::where('last_name', 'Ohneklasse')->firstOrFail()->classifications()->count())->toBe(0);
+});
+
+it('trägt S15 ohne Klassifizierungsangaben als nationale, bestätigte Klassifizierung ein, auch bei inaktiven', /** @throws Throwable */ function () {
+    import_tmi2(data_tmi2([
+        member_tmi2(['LASTNAME' => 'Fünfzehn', 'SDMSID' => '0', 'ACTIVE' => 'F',
+            'HANDICAPS' => '15', 'HANDICAPSB' => '15', 'HANDICAPSM' => '15', 'HANDICAPEX' => null]),
+    ]));
+
+    $athlete = Athlete::firstOrFail();
+    $classification = $athlete->classifications()->sole();
+
+    expect($athlete->is_active)->toBeFalse()
+        ->and($classification->classification_scope)->toBe('NAT')
+        ->and($classification->classification_status)->toBe('CONFIRMED')
+        ->and([$classification->result_s, $classification->result_sb, $classification->result_sm])->toBe(['S15', 'SB15', 'SM15'])
+        ->and($athlete->getSportClass('SM')->classification_status)->toBe('CONFIRMED');
+});
+
+it('setzt Klassifizierungen mit Angaben, aber ohne Status auf bestätigt', /** @throws Throwable */ function () {
+    import_tmi2(data_tmi2([
+        member_tmi2(['MEMBERSID' => '1', 'LASTNAME' => 'Vierzehn', 'REGISTRATIONID' => 'W-1', 'SDMSID' => '0',
+            'HANDICAPS' => '14', 'HANDICAPSB' => '14', 'HANDICAPSM' => '14', 'HANDICAPEX' => null,
+            'FREE2' => '19.02.2008', 'FREE4' => 'Maurer Hartwig']),
+        member_tmi2(['MEMBERSID' => '2', 'LASTNAME' => 'Sechs', 'REGISTRATIONID' => 'W-2',
+            'HANDICAPS' => '6', 'HANDICAPSB' => '5', 'HANDICAPSM' => '6', 'FREE2' => '19.02.2008']),
+    ]));
+
+    $vierzehn = Athlete::where('last_name', 'Vierzehn')->firstOrFail();
+    $sechs = Athlete::where('last_name', 'Sechs')->firstOrFail();
+
+    expect($vierzehn->classifications()->sole()->classification_status)->toBe('CONFIRMED')
+        ->and($vierzehn->classifications()->sole()->classified_at->toDateString())->toBe('2008-02-19')
+        ->and($vierzehn->getSportClass('S')->classification_status)->toBe('CONFIRMED')
+        ->and($sechs->classifications()->sole()->classification_status)->toBe('CONFIRMED')
+        ->and($sechs->getSportClass('S')->classification_status)->toBe('CONFIRMED');
+});
+
+it('trägt bei einem erneuten Lauf den fehlenden Status einer vorhandenen Klassifizierung nach', /** @throws Throwable */ function () {
+    $data = data_tmi2([member_tmi2(['SDMSID' => '0', 'HANDICAPS' => '21', 'HANDICAPSB' => '21', 'HANDICAPSM' => '21',
+        'HANDICAPEX' => null, 'FREE2' => '12.03.2010'])]);
+
+    import_tmi2($data);
+    $classification = AthleteClassification::query()->sole();
+    $classification->update(['classification_status' => null]);
+    Athlete::firstOrFail()->sportClasses()->update(['classification_status' => null]);
+
+    $counts = import_tmi2($data);
+
+    expect($counts['classifications'])->toBe(0)
+        ->and(AthleteClassification::query()->sole()->classification_status)->toBe('CONFIRMED')
+        ->and(Athlete::firstOrFail()->getSportClass('SB')->classification_status)->toBe('CONFIRMED');
 });
 
 it('ordnet Vereine mit ähnlichem Code nicht demselben Verein zu (NÖVSV und NOEVSV)', /** @throws Throwable */ function () {
