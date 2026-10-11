@@ -119,13 +119,16 @@ it('zeigt die nächste veröffentlichte Veranstaltung', function () {
 });
 
 it('zeigt die zuletzt aufgestellten nationalen Rekorde, keine Landesverbandsrekorde', function () {
-    makeRecord_p9(['sport_class' => 'S6', 'set_date' => '2025-01-01']);
-    makeRecord_p9(['sport_class' => 'S7', 'set_date' => '2026-01-01', 'record_type' => 'AUT.WBSV']);
+    // Unterschieden über eindeutige Athletennamen, nicht über die Sportklasse: Ein kurzes "S7" kann zufällig in
+    // CSRF-Token oder Asset-Hashes der Seite stehen (in CI so passiert).
+    makeRecord_p9(['athlete_id' => makeAthlete_p9(['last_name' => 'Bundesrekordlerin'])->id, 'set_date' => '2025-01-01']);
+    makeRecord_p9(['athlete_id' => makeAthlete_p9(['last_name' => 'Landesrekordlerin'])->id, 'set_date' => '2026-01-01',
+        'sport_class' => 'S7', 'record_type' => 'AUT.WBSV']);
 
     $this->get(route('public.home', ['locale' => 'de']))
         ->assertOk()
-        ->assertSee('S6')
-        ->assertDontSee('S7');
+        ->assertSee('Bundesrekordlerin')
+        ->assertDontSee('Landesrekordlerin');
 });
 
 it('zeigt die letzte vergangene Veranstaltung mit Ergebnissen, nicht zwingend die chronologisch letzte', function () {
