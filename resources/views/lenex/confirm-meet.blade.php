@@ -127,7 +127,9 @@
                         <flux:description>
                             Die Datei enthält {{ count($nations) }} Nationen. Mit Filter werden nur deren Schwimmer, Staffeln und
                             Bewerbe importiert; nicht gefundene Vereine (z. B. Nationalteams) werden nicht abgefragt — die
-                            Ergebnisse gehen an den Heimverein der Schwimmer.
+                            Ergebnisse gehen an den Heimverein der Schwimmer. Mit "Alle Nationen" gelten Vereine außerhalb
+                            Österreichs als Gäste: Ihre Ergebnisse zählen nur für Statistik und Ergebnisliste, ohne
+                            Vereins- und Athleteneintrag.
                         </flux:description>
                     </flux:field>
                 </div>

@@ -2,6 +2,7 @@
 
 use App\Models\Athlete;
 use App\Models\Club;
+use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\Result;
@@ -153,7 +154,7 @@ it('überspringt Ergebnisse neu angelegter Teamschwimmer ohne Heimverein und mel
         ->and(SwimEvent::count())->toBe(1);
 });
 
-it('importiert ohne Filter wie bisher alle Nationen samt Klärung der Vereine', function () {
+it('importiert ohne Filter alle Nationen; nur österreichische Vereine kommen zur Klärung, Gäste nach foreign_starts', function () {
     Storage::fake('local');
     makeStrokeType_p5('BACK');
     makeStrokeType_p5();
@@ -169,8 +170,10 @@ it('importiert ohne Filter wie bisher alle Nationen samt Klärung der Vereine', 
     ]);
 
     $session = session(collect(explode('session=', $events->headers->get('Location')))->last());
-    expect(collect($session['unresolved_clubs'])->pluck('name')->all())->toBe(['Austria', 'Germany'])
-        ->and(SwimEvent::count())->toBe(3);
+    expect(collect($session['unresolved_clubs'])->pluck('name')->all())->toBe(['Austria'])
+        ->and(SwimEvent::count())->toBe(3)
+        ->and(ForeignStart::pluck('club_name')->unique()->values()->all())->toBe(['Germany'])
+        ->and(Athlete::where('last_name', 'Deutsch')->exists())->toBeFalse();
 });
 
 it('fragt die Nation der Veranstaltung ab, wenn sie in der Datei unbekannt ist', function () {

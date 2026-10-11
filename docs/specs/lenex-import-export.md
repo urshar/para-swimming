@@ -78,8 +78,9 @@ Ausnahmecodes; HANDICAP-Werte werden gegen die `exception_codes`-Tabelle gematch
 ## Nationenfilter (internationale Veranstaltungen)
 
 Enthält eine Melde- oder Ergebnisdatei mehrere Nationen, bietet "Wettkampf zuordnen" die Auswahl **"Nur Schwimmer
-dieser Nation importieren"** an (Vorauswahl Österreich, `ALL` = alle). Option `only_nation` von
-`LenexParserService::import()`:
+dieser Nation importieren"** an (`ALL` = alle). Vorauswahl seit `feature/foreign-starts` (11.10.2026): Österreich nur
+bei Veranstaltungen im Ausland; bei Veranstaltungen in Österreich "Alle Nationen" (die übrigen sind Gäste, siehe
+"Gastvereine" unten). Option `only_nation` von `LenexParserService::import()`:
 
 - Importiert werden nur Schwimmer der Nation (Athlet `nation`, sonst Verein `nation`), Staffeln nur von Vereinen der
   Nation, und nur die Bewerbe, in denen sie starten (`collectNationEventIds`; der Splash-Rückfall
@@ -93,6 +94,24 @@ dieser Nation importieren"** an (Vorauswahl Österreich, `ALL` = alle). Option `
   auf einer Ergebnisdatei setzt an der Veranstaltung `keep_file_places` ("Plätze aus der Ergebnisdatei übernehmen",
   im Veranstaltungsformular unter "Punkteberechnung" änderbar): Die Wertung rechnet dann nicht neu, sondern sortiert
   nach dem gespeicherten Platz — siehe [scoring-groups.md](scoring-groups.md).
+
+## Gastvereine (Nation ≠ AUT) — nur Statistik
+
+Seit `feature/foreign-starts` (11.10.2026, Entscheidung Erik): Ohne Nationenfilter gilt jeder Verein mit einer Nation
+≠ AUT als **Gast**. Maßgeblich ist die Nation des **Vereins**, nicht die des Schwimmers (eine Österreicherin in einem
+Schweizer Verein ist Gast, ein Deutscher in einem österreichischen Verein nicht). Vereine ohne Nation gelten als
+österreichisch.
+
+- **Ergebnisdatei:** Die Starts der Gäste kommen nur in `foreign_starts` (`importForeignClub()`): Verein (Name, Code,
+  Nation), Schwimmer (Name, Geburtsdatum, `person_key` = Nachname|Vorname|Geburtsdatum zum Zählen der Teilnehmer),
+  Geschlecht, Sportklasse, Zeit, Status, Platz aus der Datei; Staffeln als eine Zeile je Staffel ohne Mitglieder. Es
+  entstehen **keine** Vereine, Athleten, Splits oder Klärungsfälle, und der Gastverein kommt nicht an die
+  Veranstaltung (`meet_club`). Ein erneuter Import ersetzt alle Gaststarts der Veranstaltung. Rahmenbewerbe bleiben
+  wie sonst außen vor.
+- **Meldedatei:** Gäste werden übergangen.
+- Wofür: Teilnehmer-/Start-Statistik (Nationen, Summen) und die vollständige Ergebnisliste. In Rekorden, Cup,
+  Jahresbestleistungen, WPS, Qualifikationen und den Stammdaten-Listen tauchen Gäste so gar nicht erst auf.
+- Die Rückmeldung nennt "n Start(s) von m ausländischen Gastverein(en) nur für Statistik und Ergebnisliste".
 
 **Nation der Veranstaltung:** Fehlt sie in der Datei oder ist sie unbekannt (EM Kocaeli 2026: `nation=""`), fragt
 "Wettkampf zuordnen" sie ab — Pflicht, wenn die Veranstaltung neu angelegt wird (`meets.nation_id`), Option

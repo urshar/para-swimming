@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Club;
 use App\Models\Entry;
+use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\MeetFee;
 use App\Models\MeetSession;
@@ -125,6 +126,10 @@ class LenexParserService
      *     werden nicht zur Klärung vorgemerkt, Meldungen und Ergebnisse gehen an den Heimverein.
      *   - meet_nation: Nation der Veranstaltung, wenn sie in der Datei fehlt oder unbekannt ist.
      *
+     * Ohne Nationenfilter gelten Vereine mit einer Nation ≠ AUT als Gäste: Aus einer Ergebnisdatei kommen ihre Starts
+     * nur in foreign_starts (Statistik, Ergebnisliste), es entstehen weder Vereine noch Athleten; aus einer Meldedatei
+     * werden sie übergangen (importForeignClub()).
+     *
      * @param  array{unscored_events?: list<int>, only_nation?: ?string, meet_nation?: ?string}  $options
      *
      * @throws Exception
@@ -146,6 +151,7 @@ class LenexParserService
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
             'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
             'relay_results' => 0, 'relay_entries' => 0, 'without_club' => 0,
+            'foreign_clubs' => 0, 'foreign_starts' => 0,
         ];
         $this->rankingIndex = [];
         $this->rankingGroupIndex = [];
@@ -887,8 +893,23 @@ class LenexParserService
         // Staffeln erst nach allen Athleten: ihre Positionen verweisen per athleteid auch auf Athleten anderer Vereine.
         $relayClubs = [];
 
+        // Gäste (Vereine außerhalb Österreichs) ohne Nationenfilter: Ihre Starts landen nur in foreign_starts, ohne
+        // Athleten- und Vereinsdatensatz. Ein erneuter Import ersetzt sie, statt sie zu verdoppeln.
+        $guestsAsForeignStarts = $this->onlyNation === null && $type === 'results';
+        if ($guestsAsForeignStarts) {
+            ForeignStart::where('meet_id', $meet->id)->delete();
+        }
+
         foreach ($clubsXml->CLUB as $clubXml) {
             $nationCode = (string) ($clubXml['nation'] ?? '');
+
+            if ($this->onlyNation === null && ForeignStart::isForeignClubNation($nationCode)) {
+                if ($guestsAsForeignStarts) {
+                    $this->importForeignClub($meet, $clubXml, $nationCode, $resolver);
+                }
+
+                continue;
+            }
 
             // Nationenfilter: Vereine ohne Schwimmer der Nation gar nicht erst suchen.
             $athletesXml = $this->onlyNation === null
@@ -942,6 +963,84 @@ class LenexParserService
                 }
             }
         }
+    }
+
+    /**
+     * Starts eines Gastvereins (Nation ≠ AUT) aus einer Ergebnisdatei: Einzel- und Staffelergebnisse als foreign_starts,
+     * ohne Athleten, Verein, Splits oder Staffelmitglieder. Rahmenbewerbe bleiben außen vor wie bei allen Ergebnissen.
+     */
+    private function importForeignClub(
+        Meet $meet,
+        SimpleXMLElement $clubXml,
+        string $nationCode,
+        LenexResolverService $resolver
+    ): void {
+        $club = [
+            'meet_id' => $meet->id,
+            'club_name' => (string) ($clubXml['name'] ?? '') ?: (string) ($clubXml['shortname'] ?? '') ?: '?',
+            'club_code' => (string) ($clubXml['code'] ?? '') ?: null,
+            'nation_id' => Nation::where('code', strtoupper($nationCode))->value('id'),
+        ];
+        $created = 0;
+
+        foreach ($clubXml->ATHLETES->ATHLETE ?? [] as $athleteXml) {
+            $lastName = trim((string) ($athleteXml['lastname'] ?? ''));
+            $firstName = trim((string) ($athleteXml['firstname'] ?? ''));
+            $birthDate = TimeParser::sanitizeDate((string) ($athleteXml['birthdate'] ?? ''));
+            $gender = strtoupper((string) ($athleteXml['gender'] ?? ''));
+
+            foreach ($athleteXml->RESULTS->RESULT ?? [] as $resultXml) {
+                $header = $this->resultHeader($meet, $resultXml, $resolver);
+                if ($header === null || isset($this->unscoredEventIds[$header['swimEventId']])) {
+                    continue;
+                }
+
+                ForeignStart::create($club + [
+                    'swim_event_id' => $header['swimEventId'],
+                    'is_relay' => false,
+                    'person_key' => ForeignStart::personKey($lastName, $firstName, $birthDate),
+                    'last_name' => $lastName ?: null,
+                    'first_name' => $firstName ?: null,
+                    'birth_date' => $birthDate,
+                    'gender' => in_array($gender, ['M', 'F'], true) ? $gender : null,
+                    'sport_class' => $this->deriveSportClass($header['swimEventId'], $athleteXml->HANDICAP ?? null)
+                        ?: ((string) ($resultXml['handicap'] ?? '') ?: null),
+                    'swim_time' => $header['swimTime'],
+                    'status' => $header['status'],
+                    'place' => $header['lenexResultId'] !== null ? ($this->rankingIndex[$header['lenexResultId']] ?? null) : null,
+                    'lenex_result_id' => $header['lenexResultId'],
+                ]);
+                $created++;
+            }
+        }
+
+        foreach ($clubXml->RELAYS->RELAY ?? [] as $relayXml) {
+            foreach ($relayXml->RESULTS->RESULT ?? [] as $resultXml) {
+                $header = $this->resultHeader($meet, $resultXml, $resolver);
+                if ($header === null || (! $header['swimTime'] && $header['status'] === null)
+                    || isset($this->unscoredEventIds[$header['swimEventId']])) {
+                    continue;
+                }
+
+                $gender = strtoupper((string) ($relayXml['gender'] ?? ''));
+                $handicap = trim((string) ($relayXml['handicap'] ?? ''));
+
+                ForeignStart::create($club + [
+                    'swim_event_id' => $header['swimEventId'],
+                    'is_relay' => true,
+                    'gender' => in_array($gender, ['M', 'F', 'X'], true) ? $gender : null,
+                    'sport_class' => is_numeric($handicap) && (int) $handicap > 0 ? 'S'.(int) $handicap : null,
+                    'swim_time' => $header['swimTime'],
+                    'status' => $header['status'],
+                    'place' => $header['lenexResultId'] !== null ? ($this->rankingIndex[$header['lenexResultId']] ?? null) : null,
+                    'lenex_result_id' => $header['lenexResultId'],
+                ]);
+                $created++;
+            }
+        }
+
+        $this->stats['foreign_clubs']++;
+        $this->stats['foreign_starts'] += $created;
     }
 
     // ── Event-ID Auflösung ────────────────────────────────────────────────────
