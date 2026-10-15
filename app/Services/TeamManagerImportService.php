@@ -10,6 +10,7 @@ use App\Models\Classifier;
 use App\Models\Club;
 use App\Models\ExceptionCode;
 use App\Models\Nation;
+use App\Support\PersonName;
 use App\Support\TeamManagerImportPreview;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -386,8 +387,8 @@ final readonly class TeamManagerImportService
 
             $license = $this->license($row['REGISTRATIONID'] ?? null);
             $birthDate = $this->accessDate($row['BIRTHDATE'] ?? null);
-            $firstName = $this->text($row['FIRSTNAME'] ?? null) ?? '';
-            $lastName = $this->text($row['LASTNAME'] ?? null) ?? '';
+            $firstName = PersonName::normalize($this->text($row['FIRSTNAME'] ?? null)) ?? '';
+            $lastName = PersonName::normalize($this->text($row['LASTNAME'] ?? null)) ?? '';
 
             $nationCode = $this->text($row['NATION'] ?? null);
             if ($nationCode === null) {
