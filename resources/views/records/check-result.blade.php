@@ -103,7 +103,7 @@
         </div>
     @endif
 
-    {{-- ── Ausstehende Rekorde (Nationalität nicht hinterlegt oder außer Konkurrenz) ── --}}
+    {{-- ── Ausstehende Rekorde (außer Konkurrenz oder Vereinszugehörigkeit nicht belegt) ── --}}
     @if($totalPending > 0)
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-amber-300 dark:border-amber-700 overflow-hidden">
             <div
