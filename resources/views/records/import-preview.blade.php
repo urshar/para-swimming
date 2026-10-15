@@ -24,7 +24,7 @@
             @foreach([
                 ['Rekorde',      count($preview['records']),                                    'blue'],
                 ['Regionale',    array_sum(array_map('count', $preview['regional_records'])),   'violet'],
-                ['Ausstehend',   count($preview['pending_records']),                            'amber'],
+                ['Prüfliste',    count($preview['pending_records']),                            'amber'],
                 ['Übersprungen', $preview['skipped'],                                           'zinc'],
             ] as [$label, $count, $color])
                 <div
@@ -238,64 +238,19 @@
                 </div>
             @endif
 
-            {{-- ── Ausstehende Rekorde (Nationalität unklar) ───────────────── --}}
+            {{-- ── Einträge ohne Nationalität: kommen in die Prüfliste ───────── --}}
             @if(count($preview['pending_records']) > 0)
-                <flux:accordion
-                    class="bg-white dark:bg-zinc-800 rounded-xl border border-amber-400 dark:border-amber-600 mb-4 overflow-hidden">
-                    <flux:accordion.item expanded transition>
-                        <flux:accordion.heading class="p-5">
-                            <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                <flux:icon.question-mark-circle class="size-4 text-amber-500"/>
-                                Ausstehende Rekorde — Nationalität unklar
-                                <flux:badge color="amber"
-                                            size="sm">{{ count($preview['pending_records']) }}</flux:badge>
-                            </h2>
-                        </flux:accordion.heading>
-
-                        <flux:accordion.content class="px-5 pb-5">
-                            <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                                Für diese Rekorde fehlt die Nationalität-Information im LENEX-File (kein
-                                <code class="font-mono bg-zinc-100 dark:bg-zinc-900 px-1 rounded">nation</code>-Attribut
-                                am Club-Element). Bestätigte Rekorde werden mit Status
-                                <flux:badge size="sm" color="amber">PENDING</flux:badge>
-                                importiert und müssen manuell geprüft werden.
-                            </p>
-
-                            <div class="space-y-2">
-                                @foreach($preview['pending_records'] as $rec)
-                                    @php
-                                        $athName    = ($rec['athlete']['last_name'] ?? '') . ', ' . ($rec['athlete']['first_name'] ?? '');
-                                        $clubName   = $rec['club']['name'] ?? '–';
-                                        $pendingKey = $rec['pending_key'];
-                                    @endphp
-                                    <div
-                                        class="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                                        <div class="text-sm">
-                                            <span
-                                                class="font-medium text-zinc-900 dark:text-zinc-100">{{ $athName }}</span>
-                                            <span class="text-zinc-400 ml-1 text-xs">{{ $clubName }}</span>
-                                            <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                                                @include('records._import-record-summary', ['rec' => $rec])
-                                            </div>
-                                        </div>
-                                        <div class="flex gap-3 shrink-0 ml-4">
-                                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                                                <input type="radio" name="pending[{{ $pendingKey }}]"
-                                                       value="import" class="text-amber-500">
-                                                <span class="text-zinc-700 dark:text-zinc-300">Importieren</span>
-                                            </label>
-                                            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-                                                <input type="radio" name="pending[{{ $pendingKey }}]"
-                                                       value="skip" checked class="text-zinc-400">
-                                                <span class="text-zinc-500">Überspringen</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </flux:accordion.content>
-                    </flux:accordion.item>
-                </flux:accordion>
+                <flux:callout variant="warning" icon="question-mark-circle" class="mb-4">
+                    <flux:callout.heading>
+                        {{ count($preview['pending_records']) }} Eintrag/Einträge ohne Nationalität
+                    </flux:callout.heading>
+                    <flux:callout.text>
+                        Weder der Verein in der Datei noch der Athlet in der Datenbank liefert eine Nationalität. Diese
+                        Einträge werden noch keine Rekorde, sondern kommen in die Import Prüfliste ("Nationalität
+                        unbekannt"), wo du sie als Rekord übernehmen oder ignorieren kannst. Ordnest du unten einen
+                        unbekannten Athleten einer Person mit Nationalität AUT zu, wird der Eintrag normal importiert.
+                    </flux:callout.text>
+                </flux:callout>
             @endif
 
             {{-- ── Regionale Rekorde ────────────────────────────────────────── --}}

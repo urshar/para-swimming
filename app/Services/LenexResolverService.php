@@ -9,6 +9,7 @@ use App\Models\Club;
 use App\Models\ExceptionCode;
 use App\Models\Meet;
 use App\Models\Nation;
+use App\Support\PersonName;
 use Illuminate\Support\Facades\DB;
 use SimpleXMLElement;
 
@@ -243,8 +244,8 @@ class LenexResolverService
     public function createAthlete(array $data): Athlete
     {
         $athlete = Athlete::create([
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
+            'first_name' => PersonName::normalize($data['first_name']),
+            'last_name' => PersonName::normalize($data['last_name']),
             'birth_date' => ($data['birth_date'] ?? '') ?: null,
             'gender' => ($data['gender'] ?? '') ?: 'M',
             'nation_id' => $data['nation_id'],

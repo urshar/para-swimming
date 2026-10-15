@@ -37,11 +37,15 @@ class ImportReviewItem extends Model
     /** Nationaler oder regionaler Staffelrekord ohne Verein (und damit ohne prüfbare Mitglieder). */
     public const string TYPE_RELAY_NO_CLUB = 'relay_no_club';
 
+    /** Listeneintrag, dessen Nationalität weder die Datei noch der Athlet in der DB liefert — noch kein Rekord. */
+    public const string TYPE_UNKNOWN_NATION = 'unknown_nation';
+
     public const string STATUS_OPEN = 'open';
 
     /**
      * Vereinskonflikt: Verein übernommen; Jahres-Treffer: geprüft; Nationalität/Regionalverband: Rekord entfernt;
-     * Abweichung zur Liste: Liste übernommen; Staffel ohne Verein: verknüpft bzw. geprüft.
+     * Abweichung zur Liste: Liste übernommen; Staffel ohne Verein: verknüpft bzw. geprüft; Nationalität unbekannt: als
+     * Rekord übernommen.
      */
     public const string STATUS_APPLIED = 'applied';
 
@@ -120,6 +124,7 @@ class ImportReviewItem extends Model
             self::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
             self::TYPE_LIST_MISMATCH => 'Abweichung zur Rekordliste',
             self::TYPE_RELAY_NO_CLUB => 'Staffelrekord ohne Verein',
+            self::TYPE_UNKNOWN_NATION => 'Nationalität unbekannt',
             default => 'Geburtsdatum abweichend',
         };
     }
@@ -132,6 +137,7 @@ class ImportReviewItem extends Model
                 self::TYPE_CLUB_CONFLICT => 'Übernommen',
                 self::TYPE_NATIONALITY, self::TYPE_REGIONAL => 'Entfernt',
                 self::TYPE_LIST_MISMATCH => 'Liste übernommen',
+                self::TYPE_UNKNOWN_NATION => 'Als Rekord übernommen',
                 self::TYPE_RELAY_NO_CLUB => isset($this->details['linked_relay_result_id']) ? 'Verknüpft' : 'Geprüft',
                 default => 'Geprüft',
             },

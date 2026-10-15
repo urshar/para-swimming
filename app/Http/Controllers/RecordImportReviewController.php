@@ -32,6 +32,7 @@ class RecordImportReviewController extends Controller
         ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord: falscher Verband',
         ImportReviewItem::TYPE_LIST_MISMATCH => 'Abweichung zur Rekordliste',
         ImportReviewItem::TYPE_RELAY_NO_CLUB => 'Staffelrekord ohne Verein',
+        ImportReviewItem::TYPE_UNKNOWN_NATION => 'Nationalität unbekannt',
     ];
 
     public function __construct(
@@ -100,6 +101,7 @@ class RecordImportReviewController extends Controller
             ImportReviewItem::TYPE_REGIONAL => 'Regionalrekord '.$holder
                 .' entfernt. Für den richtigen Regionalrekord die Rekordprüfung des Wettkampfs erneut starten.',
             ImportReviewItem::TYPE_LIST_MISMATCH => $label.': Rekordliste übernommen, die Rekord-Historie wurde neu verknüpft.',
+            ImportReviewItem::TYPE_UNKNOWN_NATION => $label.': als Rekord übernommen, die Rekord-Historie wurde neu verknüpft.',
             ImportReviewItem::TYPE_RELAY_NO_CLUB => isset($item->details['linked_relay_result_id'])
                 ? $label.': mit dem Staffelergebnis verknüpft (Verein und Mitglieder übernommen).'
                 : $label.': als geprüft markiert.',

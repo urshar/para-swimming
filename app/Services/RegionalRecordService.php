@@ -23,12 +23,17 @@ final readonly class RegionalRecordService
 
     private const int JUNIOR_MAX_AGE = 18;
 
+    private const array COUNTED_STATUSES = ['APPROVED', 'APPROVED.HISTORY'];
+
     /**
      * @return list<string> Typen der angelegten Landesrekorde, z. B. ['AUT.KBSV', 'AUT.KBSV.JR']
      */
     public function propagate(SwimRecord $national): array
     {
-        if (! in_array($national->record_type, self::NATIONAL_TYPES, true) || $national->record_status !== 'APPROVED') {
+        // Auch ein inzwischen abgelöster (APPROVED.HISTORY) war zu seiner Zeit Landesrekord — für das Nachtragen in
+        // zeitlicher Reihenfolge (records:propagate-regional). Ausstehende zählen erst mit der Bestätigung.
+        if (! in_array($national->record_type, self::NATIONAL_TYPES, true)
+            || ! in_array($national->record_status, self::COUNTED_STATUSES, true)) {
             return [];
         }
 
@@ -96,8 +101,14 @@ final readonly class RegionalRecordService
             return false;
         }
 
+        // Ein älterer nationaler Rekord löst keinen jüngeren Landesrekord ab (er gehört davor, nicht ans Ende der Kette).
+        if ($current?->set_date !== null && $national->set_date !== null && $current->set_date->gt($national->set_date)) {
+            return false;
+        }
+
         $regional = $national->replicate(['supersedes_id', 'superseded_by_id']);
-        $regional->forceFill(['record_type' => $type, 'supersedes_id' => $current?->id, 'is_current' => true]);
+        $regional->forceFill(['record_type' => $type, 'supersedes_id' => $current?->id, 'is_current' => true,
+            'record_status' => 'APPROVED']);
         $regional->save();
 
         foreach ($national->splits as $split) {

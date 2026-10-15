@@ -29,8 +29,13 @@ use Throwable;
  *
  * NICHT geprüft: WR, ER, OR
  *
- * Nationalitätsprüfung (Einzelrekorde):
- *   nation == 'AUT' → APPROVED | nation == null → PENDING | sonst → skip
+ * Nationalitätsprüfung (Einzel und alle Staffelmitglieder): nur 'AUT' kann einen Rekord aufstellen — eine unbekannte
+ * Nationalität ist kein Rekord (Entscheidung Erik, 11.10.2026).
+ *
+ * Mehrere Rekordbrüche in einer Veranstaltung: checkMeet() prüft die Ergebnisse nach Zeit sortiert (schnellste
+ * zuerst). So stellt je Rekordtyp nur das beste Ergebnis der Veranstaltung den Rekord auf; langsamere, die den alten
+ * Rekord ebenfalls unterboten hätten, landen nicht in der Kette. Jedes Ergebnis wird trotzdem auf alle Typen geprüft
+ * (z. B. kein ÖR, aber Landesrekord seines Verbands).
  *
  * Außer Konkurrenz (Ergebnisstatus EXH, Einzel + Staffel): alle Rekordtypen werden geprüft, neue Rekorde aber
  * als PENDING angelegt — der Verband (Admin) bestätigt sie (SwimRecord::approve()).
@@ -49,9 +54,6 @@ readonly class RecordCheckerService
 {
     /** Grund eines ausstehenden Rekords: Start außer Konkurrenz (Ergebnisstatus EXH). */
     public const string PENDING_EXHIBITION = 'AK – Bestätigung durch den Verband nötig';
-
-    /** Grund eines ausstehenden Rekords: Nationalität des Athleten nicht hinterlegt. */
-    public const string PENDING_NATION = 'Nationalität nicht hinterlegt';
 
     /** Grund eines ausstehenden Staffelrekords: Vereinszugehörigkeit eines Mitglieds am Starttag nicht belegt. */
     public const string PENDING_CLUB = 'Vereinszugehörigkeit zum Startzeitpunkt nicht belegt';
@@ -84,6 +86,8 @@ readonly class RecordCheckerService
             // Reguläre Ergebnisse und Starts außer Konkurrenz (EXH, werden als ausstehend angelegt).
             ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
             ->whereNotNull('swim_time')
+            ->orderBy('swim_time')
+            ->orderBy('id')
             ->get();
 
         $relayResults = $meet->relayResults()
@@ -96,6 +100,8 @@ readonly class RecordCheckerService
             ])
             ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
             ->whereNotNull('swim_time')
+            ->orderBy('swim_time')
+            ->orderBy('id')
             ->get();
 
         $newRecords = [];
@@ -148,7 +154,7 @@ readonly class RecordCheckerService
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Alle Mitglieder mit österreichischer (oder unbekannter) Nationalität und am Starttag beim Staffelverein.
+        // Alle Mitglieder mit österreichischer Nationalität und am Starttag beim Staffelverein.
         // Ist die Zugehörigkeit eines Mitglieds nicht belegt, wird der Rekord nur ausstehend angelegt.
         $clubUnproven = false;
         $evidence = $this->clubEvidence($members, $meet);
@@ -157,8 +163,7 @@ readonly class RecordCheckerService
             if (! $athlete) {
                 return ['new' => $new, 'pending' => $pending];
             }
-            $code = $athlete->nation?->code;
-            if ($code !== null && $code !== 'AUT') {
+            if ($athlete->nation?->code !== 'AUT') {
                 return ['new' => $new, 'pending' => $pending];
             }
             $belongs = $this->memberBelongsToClub($athlete->id, $athlete->club_id, $relayResult->club_id, $evidence);
@@ -244,19 +249,14 @@ readonly class RecordCheckerService
             return ['new' => $new, 'pending' => $pending];
         }
 
-        $nationCode = $result->athlete?->nation?->code;
-
-        if ($nationCode !== 'AUT' && $nationCode !== null) {
+        // Unbekannte oder andere Nationalität: kein Rekord.
+        if ($result->athlete?->nation?->code !== 'AUT') {
             return ['new' => $new, 'pending' => $pending];
         }
 
-        // Ausstehend (vom Verband zu bestätigen): Nationalität unbekannt oder Start außer Konkurrenz (EXH).
-        // Unbekannte Nationalität prüft nur den Nationalrekord (Jahrgang/Verein sind dann meist ebenso unsicher),
-        // ein AK-Start alle Rekordtypen wie ein regulärer.
-        $nationUnknown = ($nationCode === null);
-        $isExhibition = $result->status === 'EXH';
-        $isPending = $nationUnknown || $isExhibition;
-        $reason = $isExhibition ? self::PENDING_EXHIBITION : self::PENDING_NATION;
+        // Start außer Konkurrenz (EXH): alle Rekordtypen wie ein regulärer, aber nur ausstehend — der Verband bestätigt.
+        $isPending = $result->status === 'EXH';
+        $reason = self::PENDING_EXHIBITION;
         $strokeTypeId = $event->stroke_type_id;
         $course = $meet->course;
         $distance = $event->distance;
@@ -264,7 +264,7 @@ readonly class RecordCheckerService
         $sportClass = $result->sport_class;
         $gender = $result->athlete?->gender === 'F' ? 'F' : 'M';
         $nationId = $result->athlete?->nation?->id;
-        $isJunior = ! $nationUnknown && $this->isJunior($result, $meet);
+        $isJunior = $this->isJunior($result, $meet);
         $recordStatus = $isPending ? 'PENDING' : 'APPROVED';
 
         // Landesverband aus dem Verein im Ergebnis (Verein zum Zeitpunkt des Starts), nicht aus dem aktuellen Verein
@@ -272,14 +272,11 @@ readonly class RecordCheckerService
         // Ergebnis der Verein des Athleten. Ein Verein ohne Landesverband (z. B. ÖBSV als Nationalteam): kein
         // Regionalrekord.
         $recordClub = $result->club_id !== null ? $result->club : $result->athlete?->club;
-        $regionalBase = $nationUnknown ? null : $recordClub?->regional_record_type;
-        $types = ['AUT' => true];
-        if (! $nationUnknown) {
-            $types['AUT.JR'] = $isJunior;
-            if ($regionalBase) {
-                $types[$regionalBase] = true;
-                $types[$regionalBase.'.JR'] = $isJunior;
-            }
+        $regionalBase = $recordClub?->regional_record_type;
+        $types = ['AUT' => true, 'AUT.JR' => $isJunior];
+        if ($regionalBase) {
+            $types[$regionalBase] = true;
+            $types[$regionalBase.'.JR'] = $isJunior;
         }
 
         $broken = [];

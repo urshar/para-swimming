@@ -205,11 +205,14 @@ class RecordController extends Controller
         $record->update($validated);
 
         // Ausstehender Rekord bestätigt → bisherigen Rekord ablösen (SwimRecord::approve()).
+        $regionalTypes = [];
         if ($wasPending && $record->record_status === 'APPROVED') {
             $record->approve();
+            $record->refresh();
+            $regionalTypes = $record->is_current ? $this->regional->propagate($record) : [];
         }
 
-        return back()->with('success', 'Status aktualisiert.');
+        return back()->with('success', 'Status aktualisiert.'.$this->regionalMessage($regionalTypes));
     }
 
     // ── Rekord-Check eines gesamten Meets ────────────────────────────────────
@@ -267,6 +270,7 @@ class RecordController extends Controller
         $data = $this->parseTimeFields($data);
 
         $wasPending = $record->record_status === 'PENDING';
+        $clubBefore = $record->club_id;
 
         DB::transaction(function () use ($record, $data, $wasPending) {
             $splits = $this->extractSplits($data);
@@ -288,9 +292,16 @@ class RecordController extends Controller
             $this->review->resolveRelayWithoutClub($record, $request->user()->id);
         }
 
+        // Neuer Verein oder eben bestätigt: Der Landesverband ist jetzt bekannt — Landesrekorde ableiten.
+        $record->refresh();
+        $regionalTypes = $record->is_current
+            && ($record->club_id !== $clubBefore || ($wasPending && $record->record_status === 'APPROVED'))
+            ? $this->regional->propagate($record)
+            : [];
+
         return redirect()
             ->route('records.show', $record)
-            ->with('success', 'Rekord aktualisiert.');
+            ->with('success', 'Rekord aktualisiert.'.$this->regionalMessage($regionalTypes));
     }
 
     /**
@@ -400,11 +411,7 @@ class RecordController extends Controller
             return $this->regional->propagate($newRecord->fresh());
         });
 
-        $message = 'Rekord erfolgreich eingetragen.';
-        if ($regionalTypes !== []) {
-            $message .= ' Zusätzlich '.(count($regionalTypes) === 1 ? 'Landesrekord ' : 'Landesrekorde ')
-                .implode(', ', $regionalTypes).' eingetragen.';
-        }
+        $message = 'Rekord erfolgreich eingetragen.'.$this->regionalMessage($regionalTypes);
 
         return redirect()
             ->route('records.index')
@@ -449,6 +456,17 @@ class RecordController extends Controller
         return redirect()
             ->route('records.show', $record)
             ->with('success', 'Rekord wiederhergestellt.');
+    }
+
+    /** @param  list<string>  $regionalTypes  eben angelegte Landesrekorde (RegionalRecordService::propagate()) */
+    private function regionalMessage(array $regionalTypes): string
+    {
+        if ($regionalTypes === []) {
+            return '';
+        }
+
+        return ' Zusätzlich '.(count($regionalTypes) === 1 ? 'Landesrekord ' : 'Landesrekorde ')
+            .implode(', ', $regionalTypes).' eingetragen.';
     }
 
     /**

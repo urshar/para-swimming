@@ -41,20 +41,22 @@ Pflege in die Datenbank.
 (`checkResult` / `checkRelayResult`). Rückgabe:
 neue Rekorde, ausstehende Rekorde (`pending_records`) und die Anzahl geprüfter Ergebnisse.
 
-### Nationalitätsregel (Einzelrekorde)
+### Nationalitätsregel
 
-Aus `result.athlete.nation.code`:
-
-| Nation | Verhalten                                                  |
-|--------|------------------------------------------------------------|
-| `AUT`  | Rekord wird als **APPROVED** angelegt                      |
-| `null` | Rekord wird als **PENDING** angelegt (Nationalität unklar) |
-| sonst  | **übersprungen** (kein AUT-Rekord)                         |
+Nur `AUT` (`result.athlete.nation.code`, bei Staffeln jedes Mitglied) stellt einen Rekord auf. Eine unbekannte oder
+andere Nationalität ist **kein Rekord** — auch kein ausstehender (Entscheidung Erik, 11.10.2026).
 
 **Außer Konkurrenz** (Ergebnisstatus `EXH`, Einzel und Staffel): Es werden alle Rekordtypen geprüft (AUT, AUT.JR,
-regional, regional JR), neue Rekorde aber als **PENDING** angelegt (Grund `RecordCheckerService::PENDING_EXHIBITION`).
-Unklare Nationalität prüft weiterhin nur den Nationalrekord. Ein erneuter Rekord-Check legt aus demselben Ergebnis
-keinen Rekord desselben Typs doppelt an.
+regional, regional JR), neue Rekorde aber als **PENDING** angelegt (Grund `RecordCheckerService::PENDING_EXHIBITION`)
+— der Admin bestätigt sie gesondert. Ein erneuter Rekord-Check legt aus demselben Ergebnis keinen Rekord desselben
+Typs doppelt an.
+
+### Mehrere Rekordbrüche in einer Veranstaltung
+
+`checkMeet()` prüft die Einzel- und Staffelergebnisse **nach Zeit sortiert, schnellste zuerst**. Je Rekordtyp stellt
+damit nur das beste Ergebnis der Veranstaltung den Rekord auf; langsamere, die den alten Rekord ebenfalls unterboten
+hätten, kommen nicht in die Kette. Jedes Ergebnis wird trotzdem auf alle Typen geprüft — ein Ergebnis ohne ÖR kann
+den Landesrekord seines Verbands aufstellen, je Verband wieder nur das beste.
 
 ### Vergleich & Anlage — `checkRecordType`
 
@@ -157,7 +159,14 @@ beim Rekordimport. Landesverband aus dem Verein des Rekords (Staffel: Staffelver
 Athleten), immer der allgemeine Landesrekord, bei Jugendlichen (Rekordjahr − Geburtsjahr ≤ 18, Staffel: alle
 Mitglieder mit Geburtsdatum) zusätzlich der Landes-Jugendrekord. Angelegt nur, wenn noch kein aktueller Landesrekord
 existiert oder die Zeit schneller ist (Kopie samt Splits und Staffelmitgliedern, Vorgänger wird abgelöst). Ohne
-Landesverband (ÖBSV) kein Landesrekord. Die Erfolgsmeldung nennt die angelegten Typen. Bearbeiten löst nichts aus.
+Landesverband (ÖBSV) kein Landesrekord. Die Erfolgsmeldung nennt die angelegten Typen.
+
+**Landesrekord nachträglich** (15.10.2026): Ebenso abgeleitet wird, wenn ein aktueller `AUT`-/`AUT.JR`-Rekord beim
+Bearbeiten einen (anderen) Verein bekommt, ein ausstehender bestätigt wird (Bearbeiten oder Statusänderung) oder die
+Prüfliste eine Staffel mit ihrem Staffelergebnis verknüpft — typisch für Staffelrekorde, die ohne Verein importiert
+wurden. Ein älterer nationaler Rekord löst nie einen jüngeren Landesrekord ab. Für den Bestand:
+`php artisan records:propagate-regional {--dry-run}` geht alle bestätigten nationalen Rekorde samt Historie
+chronologisch durch und trägt fehlende Landesrekorde nach (vorhandene mit gleicher oder besserer Zeit bleiben).
 
 ## LENEX-Import — `RecordImportService`
 
@@ -180,18 +189,23 @@ Regeln und Eigenheiten:
 - **Zeitparsing**: LENEX `HH:MM:SS.cs` / `MM:SS.cs` → Hundertstelsekunden.
 - **Stroke-Mapping**: FREE/BACK/BREAST/FLY/MEDLEY → gleichnamiger `lenex_code`.
 
-**Nationalitätsprüfung beim Import** (Club-Nation als Indikator):
+**Nationalitätsprüfung beim Import** (Club-Nation der Datei, sonst die Nationalität des bekannten Athleten in der DB):
 
-| LENEX `<CLUB nation>` | Verhalten                                           |
-|-----------------------|-----------------------------------------------------|
-| `AUT`                 | Import als `APPROVED`                               |
-| fehlt/leer            | Import als `PENDING`, in `pending_records` gelistet |
-| ≠ `AUT`               | Rekord wird übersprungen                            |
+| Nationalität                    | Verhalten                                                                      |
+|---------------------------------|--------------------------------------------------------------------------------|
+| `AUT`                           | Import als `APPROVED`                                                          |
+| weder Datei noch DB liefert sie | kein Rekord — Eintrag in die Prüfliste "Nationalität unbekannt" (`pending_records`) |
+| ≠ `AUT`                         | Rekord wird übersprungen                                                       |
+
+Ein unbekannter Athlet, den die Vorschau einer bestehenden Person zuordnet, liefert deren Nationalität; ein neu
+angelegter nicht (er bekommt AUT nur als Vorgabe). In der Prüfliste hängt "Als Rekord übernehmen" den Eintrag nach
+Datum in die Kette (wie "Liste übernehmen"); wird er aktueller AUT/AUT.JR-Rekord, entstehen die Landesrekorde. Steht
+ein Eintrag schon in der Prüfliste, legt ein erneuter Import ihn weder noch einmal ab noch als Rekord an
+(Entscheidung Erik, 15.10.2026).
 
 `import()` erhält die in der Vorschau getroffenen Entscheidungen als Parameter (`$approvedClubs`, `$approvedAthletes`,
-`$newClubData`, `$newAthleteData`,
-`$approvedRegional`, `$approvedPending`), jeweils mit Werten wie
-`club_id` / `'new'` / `'skip'` bzw. `'import'` / `'skip'`.
+`$newClubData`, `$newAthleteData`, `$approvedRegional`), jeweils mit Werten wie `club_id` / `'new'` / `'skip'` bzw.
+`'import'` / `'skip'`.
 
 Der HTTP-Ablauf (`RecordImportController`): `showForm()` → `preview(Request)`
 → `run(Request)`.
