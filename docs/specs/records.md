@@ -159,7 +159,14 @@ beim Rekordimport. Landesverband aus dem Verein des Rekords (Staffel: Staffelver
 Athleten), immer der allgemeine Landesrekord, bei Jugendlichen (Rekordjahr − Geburtsjahr ≤ 18, Staffel: alle
 Mitglieder mit Geburtsdatum) zusätzlich der Landes-Jugendrekord. Angelegt nur, wenn noch kein aktueller Landesrekord
 existiert oder die Zeit schneller ist (Kopie samt Splits und Staffelmitgliedern, Vorgänger wird abgelöst). Ohne
-Landesverband (ÖBSV) kein Landesrekord. Die Erfolgsmeldung nennt die angelegten Typen. Bearbeiten löst nichts aus.
+Landesverband (ÖBSV) kein Landesrekord. Die Erfolgsmeldung nennt die angelegten Typen.
+
+**Landesrekord nachträglich** (15.10.2026): Ebenso abgeleitet wird, wenn ein aktueller `AUT`-/`AUT.JR`-Rekord beim
+Bearbeiten einen (anderen) Verein bekommt, ein ausstehender bestätigt wird (Bearbeiten oder Statusänderung) oder die
+Prüfliste eine Staffel mit ihrem Staffelergebnis verknüpft — typisch für Staffelrekorde, die ohne Verein importiert
+wurden. Ein älterer nationaler Rekord löst nie einen jüngeren Landesrekord ab. Für den Bestand:
+`php artisan records:propagate-regional {--dry-run}` geht alle bestätigten nationalen Rekorde samt Historie
+chronologisch durch und trägt fehlende Landesrekorde nach (vorhandene mit gleicher oder besserer Zeit bleiben).
 
 ## LENEX-Import — `RecordImportService`
 

@@ -846,6 +846,12 @@ final readonly class RecordImportReviewService
             if ($flag !== null) {
                 $relayResult->update([$flag => true]);
             }
+
+            // Mit dem Verein ist der Landesverband bekannt — Landesrekorde ableiten.
+            $record->refresh();
+            if ($record->is_current) {
+                $this->regional->propagate($record);
+            }
         });
     }
 

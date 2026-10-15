@@ -261,6 +261,22 @@ it('verknüpft eine Staffel ohne Verein mit dem passenden Staffelergebnis', func
         ->and($item->fresh()->status_label)->toBe('Verknüpft');
 });
 
+it('leitet beim Verknüpfen mit dem Staffelergebnis den Landesrekord des Vereins ab', function () {
+    $club = club_rlr();
+    $club->update(['regional_association' => 'WBSV']);
+    relayResult_rlr($club, 12000, '2024-05-05');
+    import_rlr(listXml_rlr('00:02:00.00', '2024-05-05'));
+    $item = ImportReviewItem::where('type', ImportReviewItem::TYPE_RELAY_NO_CLUB)->sole();
+
+    $this->actingAs(admin_rlr())->post(route('records.import-review.apply', $item));
+
+    $regional = SwimRecord::where('record_type', 'AUT.WBSV')->sole();
+
+    expect($regional->club_id)->toBe($club->id)
+        ->and($regional->swim_time)->toBe(12000)
+        ->and($regional->relayTeam()->count())->toBe(4);
+});
+
 it('bietet ohne passendes Staffelergebnis das Bearbeiten an und markiert nur als geprüft', function () {
     import_rlr(listXml_rlr('00:02:00.00', '2024-05-05'));
     $item = ImportReviewItem::where('type', ImportReviewItem::TYPE_RELAY_NO_CLUB)->sole();
