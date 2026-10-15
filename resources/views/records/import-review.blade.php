@@ -67,6 +67,12 @@
             und keine Mitglieder. Passt ein Staffelergebnis (gleiches Datum, gleiche Zeit, gleicher Bewerb), übernimmt
             "Mit Staffelergebnis verknüpfen" Verein und Mitglieder; sonst beim Rekord ergänzen und als geprüft markieren.
         </li>
+        <li>
+            <strong>Nationalität unbekannt:</strong> Ein Eintrag der Rekordliste, für den weder der Verein in der Datei noch
+            der Athlet in der Datenbank eine Nationalität liefert. Er ist noch kein Rekord. "Als Rekord übernehmen" hängt
+            ihn nach Datum in die Rekord-Historie; wird er dadurch aktueller österreichischer Rekord, entstehen auch die
+            Landesrekorde. Ist der Athlet kein Österreicher, ignorieren.
+        </li>
         <li>"Bestand prüfen" wendet diese Prüfungen (außer der Rekordliste) auch auf bereits gespeicherte Rekorde an.</li>
     </ul>
 
@@ -111,6 +117,7 @@
                             $isRegional = $item->type === ImportReviewItem::TYPE_REGIONAL;
                             $isListMismatch = $item->type === ImportReviewItem::TYPE_LIST_MISMATCH;
                             $isRelayNoClub = $item->type === ImportReviewItem::TYPE_RELAY_NO_CLUB;
+                            $isUnknownNation = $item->type === ImportReviewItem::TYPE_UNKNOWN_NATION;
                             $removes = $item->removesRecord();
                             $deletes = $item->deletesRecords();
                             $candidate = $candidates->get($item->id);
@@ -120,12 +127,14 @@
                                 $isRegional => 'orange',
                                 $isListMismatch => 'fuchsia',
                                 $isRelayNoClub => 'cyan',
+                                $isUnknownNation => 'amber',
                                 default => 'violet',
                             };
                             $applyLabel = match (true) {
                                 $isConflict => 'Verein übernehmen',
                                 $removes => 'Rekord entfernen',
                                 $isListMismatch => 'Liste übernehmen',
+                                $isUnknownNation => 'Als Rekord übernehmen',
                                 $candidate !== null => 'Mit Staffelergebnis verknüpfen',
                                 default => 'Geprüft',
                             };
@@ -197,6 +206,21 @@
                                             </li>
                                         @endforeach
                                     </ul>
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">{{ $details['label'] ?? '' }}</div>
+                                @elseif($isUnknownNation)
+                                    <div>
+                                        <span
+                                            class="font-medium tabular-nums">{{ TimeParser::display($details['list']['swim_time'] ?? 0) }}</span>
+                                        @if(!empty($details['list']['set_date']))
+                                            · {{ Carbon::parse($details['list']['set_date'])->format('d.m.Y') }}
+                                        @endif
+                                        @if(!empty($details['list']['meet_name']))
+                                            · {{ $details['list']['meet_name'] }}
+                                        @endif
+                                    </div>
+                                    <div class="text-zinc-500 dark:text-zinc-400">
+                                        Verein: {{ $item->currentClub?->display_name ?? '—' }}
+                                    </div>
                                     <div class="text-xs text-zinc-500 dark:text-zinc-400">{{ $details['label'] ?? '' }}</div>
                                 @elseif($isRelayNoClub)
                                     <div>

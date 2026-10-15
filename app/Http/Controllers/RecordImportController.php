@@ -96,7 +96,6 @@ class RecordImportController extends Controller
         $newClubData = $request->input('new_clubs', []);
         $newAthleteData = $request->input('new_athletes', []);
         $approvedRegional = $request->input('regional', []);
-        $approvedPending = $request->input('pending', []);   // ['pending_key' => 'import'|'skip']
 
         try {
             $result = $this->importService->import(
@@ -106,7 +105,6 @@ class RecordImportController extends Controller
                 $newClubData,
                 $newAthleteData,
                 $approvedRegional,
-                $approvedPending,
                 Session::get('record_import_name', basename($path)),
                 Session::get('record_import_before'),
             );

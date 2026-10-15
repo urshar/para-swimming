@@ -10,6 +10,7 @@ use App\Models\RecordSplit;
 use App\Models\RelayTeamMember;
 use App\Models\StrokeType;
 use App\Models\SwimRecord;
+use App\Support\PersonName;
 use App\Support\TimeParser;
 use Exception;
 use Illuminate\Support\Collection;
@@ -40,7 +41,8 @@ use ZipArchive;
  * Nationalitätsprüfung beim Import:
  *   - Club-Nation aus LENEX <CLUB nation="AUT"> als Indikator für Athleten-Nationalität
  *   - nation="AUT"  → normaler Import mit status=APPROVED
- *   - nation fehlt/leer → Import mit status=PENDING, in pending_records gelistet
+ *   - nation fehlt/leer → Nationalität des bekannten Athleten in der DB; fehlt auch die, kommt der Eintrag in die
+ *     Prüfliste ("Nationalität unbekannt", noch kein Rekord — Entscheidung Erik, 15.10.2026)
  *   - nation != "AUT" → Rekord wird übersprungen (nicht importiert)
  *
  * Stroke-Mapping (LENEX → internal code):
@@ -93,7 +95,6 @@ class RecordImportService
      * $newClubData:      ['club_key' => ['name'=>...,'code'=>...,'nation'=>...]]
      * $newAthleteData:   ['athlete_key' => ['first_name'=>...,'last_name'=>...,...]]
      * $approvedRegional: ['WBSV' => 'import'|'skip', ...]
-     * $approvedPending:  ['rec_key' => 'import'|'skip']  — ausstehende Rekorde (Nationalität unklar)
      * $source:           Bezeichnung für die Prüfliste (Dateiname)
      * $before:           Stichtag (Y-m-d): Listeneinträge ab diesem Datum überspringen, siehe preview()
      *
@@ -108,7 +109,6 @@ class RecordImportService
         array $newClubData,
         array $newAthleteData,
         array $approvedRegional = [],
-        array $approvedPending = [],   // ['pending_key' => 'import'|'skip']
         string $source = '',
         ?string $before = null,
     ): array {
@@ -139,18 +139,9 @@ class RecordImportService
             }
         }
 
-        // Ausstehende Rekorde (Nationalität unklar) nach User-Entscheidung hinzufügen
-        foreach ($preview['pending_records'] as $pendingRec) {
-            $key = $pendingRec['pending_key'];
-            $decision = $approvedPending[$key] ?? 'skip';
-            if ($decision === 'import') {
-                // Als PENDING-Rekord importieren (Status bleibt PENDING)
-                $pendingRec['force_status'] = 'PENDING';
-                $allRecords[] = $pendingRec;
-            } else {
-                $skipped++;
-            }
-        }
+        // Rekorde mit unbekannter Nationalität: Athleten werden wie alle anderen aufgelöst, dann entscheidet die
+        // Nationalität des zugeordneten Athleten — ohne sie kommt der Eintrag in die Prüfliste (kein Rekord).
+        $allRecords = array_merge($allRecords, $preview['pending_records']);
 
         $clubUpdated = 0;
         $reviewOpen = 0;
@@ -159,6 +150,7 @@ class RecordImportService
             $allRecords,
             $clubIdMap,
             $athleteIdMap,
+            $approvedAthletes,
             $source,
             &$imported,
             &$skipped,
@@ -172,7 +164,6 @@ class RecordImportService
             foreach ($allRecords as $rec) {
                 $athleteId = null;
                 $nationId = $this->getNationId('AUT');
-                $recordStatus = $rec['force_status'] ?? 'APPROVED';
 
                 // Athlet auflösen
                 if ($rec['athlete']) {
@@ -204,38 +195,83 @@ class RecordImportService
 
                 $clubId = $this->resolveClubId($rec['club'] ?? null, $clubIdMap);
 
-                // Die Liste ist maßgeblich: Widerspricht der Eintrag der Kette in der DB (schnellerer Rekord am selben
-                // Tag oder davor, nicht schnellerer danach), nichts ändern, sondern in die Prüfliste. Steht dieselbe Zeit
-                // schon in der Kette, ist der Eintrag bekannt. Ausstehende Rekorde (Nationalität unklar) laufen wie bisher.
-                if ($recordStatus === 'APPROVED') {
-                    $category = array_intersect_key($rec, array_flip(RecordImportReviewService::CATEGORY_FIELDS));
-                    $chain = $this->review->chain($category);
-                    $setDate = TimeParser::sanitizeDate($rec['set_date']);
-                    $contradictions = $this->review->contradictions($chain, $rec['swim_time'], $setDate);
+                $category = array_intersect_key($rec, array_flip(RecordImportReviewService::CATEGORY_FIELDS));
+                $setDate = TimeParser::sanitizeDate($rec['set_date']);
+                $unknownNation = [
+                    'swim_time' => $rec['swim_time'],
+                    'set_date' => $setDate,
+                    'athlete_id' => $athleteId,
+                    'club_id' => $clubId,
+                    'nation_id' => $nationId,
+                    'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
+                    'meet_name' => $rec['meet_name'],
+                    'meet_city' => $rec['meet_city'],
+                    'meet_course' => $rec['meet_course'],
+                    'splits' => $rec['splits'],
+                    'relay_members' => [],
+                ];
 
-                    if (! $chain->contains('swim_time', $rec['swim_time']) && $contradictions->isNotEmpty()) {
-                        $item = $this->review->logListMismatch($category, [
-                            'swim_time' => $rec['swim_time'],
-                            'set_date' => $setDate,
-                            'athlete_id' => $athleteId,
-                            'club_id' => $clubId,
-                            'nation_id' => $nationId,
-                            'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
-                            'meet_name' => $rec['meet_name'],
-                            'meet_city' => $rec['meet_city'],
-                            'meet_course' => $rec['meet_course'],
-                            'splits' => $rec['splits'],
-                            'relay_members' => array_map(fn (array $m) => [
-                                ...$m, 'birth_date' => TimeParser::sanitizeDate($m['birth_date']),
-                            ], $rec['relay_members'] ?? []),
-                        ], $contradictions, $this->strokeName($rec['stroke_type_id']), $source);
+                // Schon in der Prüfliste ("Nationalität unbekannt"): Die Entscheidung fällt dort, nicht beim Import.
+                if ($athleteId !== null && $this->review->unknownNationLogged($category, $unknownNation)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                if (isset($rec['pending_key'])) {
+                    // Nur ein bestehender (bzw. einem bestehenden zugeordneter) Athlet liefert eine Nationalität — ein
+                    // eben neu angelegter bekommt AUT nur als Vorgabe.
+                    $createdNow = $rec['athlete']['db_id'] === null
+                        && ($approvedAthletes[$rec['athlete']['key']] ?? null) === 'new';
+                    $nationCode = $athleteId !== null && ! $createdNow
+                        ? Athlete::query()->find($athleteId)?->nation?->code
+                        : null;
+
+                    if ($nationCode === null) {
+                        $item = $this->review->logUnknownNation($category, $unknownNation,
+                            $this->strokeName($rec['stroke_type_id']), $source);
                         if ($item !== null) {
                             $reviewOpen++;
                         }
-                        array_push($observations, ...$this->observations($rec, $athleteId, $clubId, null));
 
                         continue;
                     }
+
+                    if ($nationCode !== 'AUT') {
+                        $skipped++;
+
+                        continue;
+                    }
+                }
+
+                // Die Liste ist maßgeblich: Widerspricht der Eintrag der Kette in der DB (schnellerer Rekord am selben
+                // Tag oder davor, nicht schnellerer danach), nichts ändern, sondern in die Prüfliste. Steht dieselbe Zeit
+                // schon in der Kette, ist der Eintrag bekannt.
+                $chain = $this->review->chain($category);
+                $contradictions = $this->review->contradictions($chain, $rec['swim_time'], $setDate);
+
+                if (! $chain->contains('swim_time', $rec['swim_time']) && $contradictions->isNotEmpty()) {
+                    $item = $this->review->logListMismatch($category, [
+                        'swim_time' => $rec['swim_time'],
+                        'set_date' => $setDate,
+                        'athlete_id' => $athleteId,
+                        'club_id' => $clubId,
+                        'nation_id' => $nationId,
+                        'meet_nation_id' => $this->getNationId($rec['meet_nation'] ?? ''),
+                        'meet_name' => $rec['meet_name'],
+                        'meet_city' => $rec['meet_city'],
+                        'meet_course' => $rec['meet_course'],
+                        'splits' => $rec['splits'],
+                        'relay_members' => array_map(fn (array $m) => [
+                            ...$m, 'birth_date' => TimeParser::sanitizeDate($m['birth_date']),
+                        ], $rec['relay_members'] ?? []),
+                    ], $contradictions, $this->strokeName($rec['stroke_type_id']), $source);
+                    if ($item !== null) {
+                        $reviewOpen++;
+                    }
+                    array_push($observations, ...$this->observations($rec, $athleteId, $clubId, null));
+
+                    continue;
                 }
 
                 // Nur importieren wenn besser als aktueller Rekord. Für die Vereinsprüfung zählt der Rekord trotzdem:
@@ -261,7 +297,7 @@ class RecordImportService
                     'distance' => $rec['distance'],
                     'relay_count' => $rec['relay_count'],
                     'swim_time' => $rec['swim_time'],
-                    'record_status' => $recordStatus,
+                    'record_status' => 'APPROVED',
                     'is_current' => true,
                     'set_date' => TimeParser::sanitizeDate($rec['set_date']),
                     'meet_name' => $rec['meet_name'],
@@ -269,18 +305,15 @@ class RecordImportService
                     'meet_course' => $rec['meet_course'],
                 ]);
 
-                // Alten Rekord nur bei APPROVED auf historisch setzen
-                if ($recordStatus === 'APPROVED') {
-                    $current?->markAsSupersededBy($newRecord);
-                }
+                $current?->markAsSupersededBy($newRecord);
 
                 // Staffelmitglieder speichern
                 foreach ($rec['relay_members'] ?? [] as $member) {
                     RelayTeamMember::create([
                         'swim_record_id' => $newRecord->id,
                         'position' => $member['position'],
-                        'first_name' => $member['first_name'],
-                        'last_name' => $member['last_name'],
+                        'first_name' => PersonName::normalize($member['first_name']),
+                        'last_name' => PersonName::normalize($member['last_name']),
                         'birth_date' => TimeParser::sanitizeDate($member['birth_date']),
                         'gender' => $member['gender'] ?: null,
                         'athlete_id' => $member['db_id'] ?? null,
@@ -405,6 +438,7 @@ class RecordImportService
                 $clubData = null;
                 $relayMembers = [];
                 $clubNation = null;   // Nationalität des Clubs aus LENEX (Indikator)
+                $athleteNation = null;   // Nationalität des bereits bekannten Athleten in der DB
                 $athleteXml = $rec->ATHLETE ?? null;
                 $relayXml = $rec->RELAY ?? null;
 
@@ -426,6 +460,7 @@ class RecordImportService
 
                     if ($lastName || $firstName) {
                         $athlete = $this->findAthlete($license, $lastName, $firstName, $birthDate, $athGender);
+                        $athleteNation = $athlete?->nation?->code;
 
                         if (! $athlete && ! isset($seenAthleteKeys[$athKey])) {
                             $seenAthleteKeys[$athKey] = true;
@@ -503,15 +538,14 @@ class RecordImportService
                     ];
                 }
 
-                // ── Nationalitätsprüfung anhand Club-Nation (Indikator) ──────
+                // ── Nationalitätsprüfung: Club-Nation der Datei, sonst der bekannte Athlet in der DB ──────
                 // Staffeln (kein Athlet) erhalten immer APPROVED
-                if ($athleteData !== null) {
-                    if ($clubNation !== '' && $clubNation !== 'AUT') {
-                        // Explizit nicht-österreichische Nation → überspringen
-                        $skipped++;
+                $nation = $clubNation ?: ($athleteNation ?? '');
+                if ($athleteData !== null && $nation !== '' && $nation !== 'AUT') {
+                    // Explizit nicht-österreichische Nation → überspringen
+                    $skipped++;
 
-                        continue;
-                    }
+                    continue;
                 }
 
                 // ── S21 nur national gültig ──────────────────────────────────
@@ -545,8 +579,8 @@ class RecordImportService
                     'splits' => $splits,
                 ];
 
-                // Athleten-Rekorde ohne Nation-Info → pending_key setzen
-                if ($athleteData !== null && $clubNation === '') {
+                // Athleten-Rekorde ohne Nation-Info (weder Datei noch DB) → kommen in die Prüfliste
+                if ($athleteData !== null && $nation === '') {
                     $recordRow['pending_key'] = md5($recordType.'|'.$sportClass.'|'.$gender.'|'.$course.'|'.$distance.'|'.$relayCount.'|'.($athleteData['key'] ?? ''));
                 }
 
@@ -588,7 +622,7 @@ class RecordImportService
             'club_assignments' => array_values($this->review->clubAssignments($observations)),
             'records' => $standardRecords,
             'regional_records' => $regionalRecords,   // ['WBSV' => [...recs], ...]
-            'pending_records' => $pendingRecords,     // Rekorde mit unbekannter Nationalität
+            'pending_records' => $pendingRecords,     // Rekorde mit unbekannter Nationalität → Prüfliste
             'unknown_clubs' => array_values($unknownClubs),
             'unknown_athletes' => array_values($unknownAthletes),
             'skipped' => $skipped,
@@ -947,8 +981,8 @@ class RecordImportService
                     ?? ($clubKey ? ($clubIdMap[$clubKey] ?? null) : null);
 
                 $newAthlete = Athlete::create([
-                    'first_name' => $data['first_name'] ?? $athlete['first_name'],
-                    'last_name' => $data['last_name'] ?? $athlete['last_name'],
+                    'first_name' => PersonName::normalize($data['first_name'] ?? $athlete['first_name']),
+                    'last_name' => PersonName::normalize($data['last_name'] ?? $athlete['last_name']),
                     'birth_date' => $athlete['birth_date'] ?: null,
                     'gender' => $athlete['gender'] ?: 'M',
                     'nation_id' => $this->getNationId('AUT'),

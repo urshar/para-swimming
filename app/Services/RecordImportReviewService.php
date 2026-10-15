@@ -48,6 +48,7 @@ final readonly class RecordImportReviewService
 
     public function __construct(
         private AthleteClubTransferService $transfers = new AthleteClubTransferService,
+        private RegionalRecordService $regional = new RegionalRecordService,
     ) {}
 
     /**
@@ -267,6 +268,10 @@ final readonly class RecordImportReviewService
 
         if ($item->type === ImportReviewItem::TYPE_LIST_MISMATCH) {
             $this->applyListMismatch($item);
+        }
+
+        if ($item->type === ImportReviewItem::TYPE_UNKNOWN_NATION) {
+            $this->applyUnknownNation($item);
         }
 
         // Staffel ohne Verein: mit dem passenden Staffelergebnis verknüpfen, sonst nur als geprüft markieren.
@@ -628,6 +633,54 @@ final readonly class RecordImportReviewService
         return $candidates->count() === 1 ? $candidates->first() : null;
     }
 
+    // ── Nationalität unbekannt ───────────────────────────────────────────────
+
+    /**
+     * Nimmt einen Listeneintrag auf, dessen Nationalität weder die Datei (Verein ohne nation) noch der Athlet in der DB
+     * liefert: Er wird noch kein Rekord, der Admin entscheidet in der Prüfliste. Je Eintrag nur einmal (auch ein
+     * ignorierter kommt nicht wieder).
+     *
+     * @param  array<string, mixed>  $category  CATEGORY_FIELDS → Wert
+     * @param  array<string, mixed>  $list  wie bei logListMismatch()
+     */
+    public function logUnknownNation(array $category, array $list, ?string $strokeName, string $source): ?ImportReviewItem
+    {
+        if ($this->unknownNationLogged($category, $list)) {
+            return null;
+        }
+        $key = $this->unknownNationKey($category, $list);
+
+        return ImportReviewItem::create([
+            'type' => ImportReviewItem::TYPE_UNKNOWN_NATION,
+            'athlete_id' => $list['athlete_id'],
+            'current_club_id' => $list['club_id'],
+            'source' => $source,
+            'details' => [
+                'key' => $key,
+                'label' => $this->recordLabel($category['distance'], $category['relay_count'], $strokeName,
+                    $category['sport_class'], $category['course'], $category['record_type'])
+                    .' · '.$this->genderLabel($category['gender']),
+                'category' => $category,
+                'list' => $list,
+            ],
+            'status' => ImportReviewItem::STATUS_OPEN,
+        ]);
+    }
+
+    /**
+     * Steht der Eintrag schon in der Prüfliste (offen, übernommen oder ignoriert)? Dann entscheidet die Prüfliste — ein
+     * erneuter Import legt ihn weder noch einmal ab noch als Rekord an, auch wenn der dabei angelegte Athlet inzwischen
+     * die Vorgabe-Nationalität AUT trägt.
+     *
+     * @param  array<string, mixed>  $category
+     * @param  array<string, mixed>  $list
+     */
+    public function unknownNationLogged(array $category, array $list): bool
+    {
+        return ImportReviewItem::where('type', ImportReviewItem::TYPE_UNKNOWN_NATION)
+            ->where('details->key', $this->unknownNationKey($category, $list))->exists();
+    }
+
     /**
      * "Liste übernehmen": widersprechende Rekorde entfernen, den Listeneintrag anlegen (sofern seine Zeit nicht schon in
      * der Kette steht) und die Kette nach Datum neu verknüpfen. Eine Staffel ohne Verein kommt in die Prüfliste.
@@ -651,39 +704,88 @@ final readonly class RecordImportReviewService
                 return;
             }
 
-            $record = SwimRecord::create([
-                ...$category,
-                'swim_time' => $list['swim_time'],
-                'set_date' => $list['set_date'],
-                'athlete_id' => $list['athlete_id'],
-                'club_id' => $list['club_id'],
-                'nation_id' => $list['nation_id'],
-                'meet_nation_id' => $list['meet_nation_id'],
-                'meet_name' => $list['meet_name'],
-                'meet_city' => $list['meet_city'],
-                'meet_course' => $list['meet_course'],
-                'record_status' => 'APPROVED.HISTORY',
-                'is_current' => false,
-            ]);
-            foreach ($list['splits'] ?? [] as $split) {
-                RecordSplit::create(['swim_record_id' => $record->id, 'distance' => $split['distance'],
-                    'split_time' => $split['split_time']]);
-            }
-            foreach ($list['relay_members'] ?? [] as $member) {
-                RelayTeamMember::create([
-                    'swim_record_id' => $record->id,
-                    'position' => $member['position'],
-                    'first_name' => $member['first_name'],
-                    'last_name' => $member['last_name'],
-                    'birth_date' => $member['birth_date'],
-                    'gender' => $member['gender'] ?: null,
-                    'athlete_id' => $member['db_id'] ?? null,
-                ]);
-            }
+            $record = $this->createListRecord($category, $list);
 
             $this->relinkChain($category);
             $this->logRelaysWithoutClub([$record->id], $item->source ?? '');
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $category
+     * @param  array<string, mixed>  $list
+     */
+    private function unknownNationKey(array $category, array $list): string
+    {
+        return md5(implode('|', [...array_values($category), $list['swim_time'], $list['set_date'], $list['athlete_id']]));
+    }
+
+    /**
+     * "Als Rekord übernehmen": den Eintrag nach Datum in die Rekordkette hängen (sofern seine Zeit nicht schon darin
+     * steht). Wird er dadurch der aktuelle österreichische Rekord, entstehen die Landesrekorde wie beim Import.
+     *
+     * @throws Throwable
+     */
+    private function applyUnknownNation(ImportReviewItem $item): void
+    {
+        $category = $item->details['category'];
+        $list = $item->details['list'];
+
+        DB::transaction(function () use ($category, $list) {
+            if ($this->chain($category)->contains('swim_time', $list['swim_time'])) {
+                return;
+            }
+
+            $record = $this->createListRecord($category, $list);
+            $this->relinkChain($category);
+
+            $record->refresh();
+            if ($record->is_current) {
+                $this->regional->propagate($record);
+            }
+        });
+    }
+
+    /**
+     * Legt einen Listeneintrag samt Splits und Staffelmitgliedern als Rekord an — vorläufig historisch, relinkChain()
+     * setzt danach Status und Verknüpfung.
+     *
+     * @param  array<string, mixed>  $category
+     * @param  array<string, mixed>  $list
+     */
+    private function createListRecord(array $category, array $list): SwimRecord
+    {
+        $record = SwimRecord::create([
+            ...$category,
+            'swim_time' => $list['swim_time'],
+            'set_date' => $list['set_date'],
+            'athlete_id' => $list['athlete_id'],
+            'club_id' => $list['club_id'],
+            'nation_id' => $list['nation_id'],
+            'meet_nation_id' => $list['meet_nation_id'],
+            'meet_name' => $list['meet_name'],
+            'meet_city' => $list['meet_city'],
+            'meet_course' => $list['meet_course'],
+            'record_status' => 'APPROVED.HISTORY',
+            'is_current' => false,
+        ]);
+        foreach ($list['splits'] ?? [] as $split) {
+            RecordSplit::create(['swim_record_id' => $record->id, 'distance' => $split['distance'],
+                'split_time' => $split['split_time']]);
+        }
+        foreach ($list['relay_members'] ?? [] as $member) {
+            RelayTeamMember::create([
+                'swim_record_id' => $record->id,
+                'position' => $member['position'],
+                'first_name' => $member['first_name'],
+                'last_name' => $member['last_name'],
+                'birth_date' => $member['birth_date'],
+                'gender' => $member['gender'] ?: null,
+                'athlete_id' => $member['db_id'] ?? null,
+            ]);
+        }
+
+        return $record;
     }
 
     /**

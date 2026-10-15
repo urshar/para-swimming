@@ -61,7 +61,7 @@ it('übernimmt MEETINFO@nation aus der LENEX-Datei als meet_nation_id', function
     // Vorschau-Workflow als "neu anlegen", statt hier künstlich eine bereits passende
     // Athlete-Zeile vorzulegen.
     $athleteKey = $preview['unknown_athletes'][0]['key'];
-    $result = $service->import($path, [], [$athleteKey => 'new'], [], [], [], []);
+    $result = $service->import($path, [], [$athleteKey => 'new'], [], [], []);
 
     unlink($path);
 
@@ -82,7 +82,7 @@ it('lässt meet_nation_id leer, wenn MEETINFO kein nation-Attribut trägt', func
     $service = new RecordImportService;
     $preview = $service->preview($path);
     $athleteKey = $preview['unknown_athletes'][0]['key'];
-    $service->import($path, [], [$athleteKey => 'new'], [], [], [], []);
+    $service->import($path, [], [$athleteKey => 'new'], [], [], []);
 
     unlink($path);
 
