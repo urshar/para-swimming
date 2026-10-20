@@ -140,6 +140,22 @@ lassen das `handicap`-Attribut der AGEGROUP leer und nennen die Klasse nur im Na
 Rahmenbewerbe, die Wertungsgruppen und den Platz-Index. Vorher galten solche Bewerbe als "ohne Klassenangabe", wurden
 als Rahmenbewerbe vorgeschlagen, und ihre Ergebnisse fehlten.
 
+**Staffeln und Fehlerrückmeldung** (seit `fix/lenex-import-silent-errors`, 20.10.2026): Die Abfrage umfasst auch
+Staffeln ohne Klassenangabe (z. B. "4 x 50m Fun Staffel" der Wiener Landesmeisterschaften 2014, die nicht nach den
+Para-Swimming-Regeln geschwommen wird). Eine Staffel mit Punktegruppe ("34 Punkte", "49 Punkte") gilt als gewertet und
+wird nicht abgefragt. Der SWIMSTYLE-Code darf bis zu 20 Zeichen haben (LENEX: 6, Splash schreibt z. B. "4x50fun").
+Fehler eines Import-Laufs erscheinen als zentrale Flash-Meldung auf der Wettkampfauswahl bzw. Klärungsseite; die
+Import-Session bleibt dabei erhalten, und der Fehler wird geloggt. Vorher führte die Weiterleitung über die schon
+gelöschte Session still auf die Upload-Seite zurück.
+
+**Klärung nur bei gewertetem Inhalt:** Ein unbekannter Verein wird nur zur Klärung vorgemerkt, wenn aus ihm etwas
+Gewertetes käme — ein Ergebnis (Meldedatei: eine Meldung) eines Schwimmers oder einer Staffel in einem gewerteten
+Bewerb, oder ein Schwimmer, der als Startschwimmer in einer gewerteten Staffel (auch eines anderen Vereins, z. B. einer
+Startgemeinschaft) steht. Ein Landesverband nur mit Offiziellen oder ein Verein nur mit Rahmenbewerb-Staffel wird
+übergangen; ein bekannter Verein wird wie bisher dem Wettkampf zugeordnet. Splashs Platzhalter `CLUB type="UNATTACHED"`
+(ohne Namen) heißt auf der Klärungsseite "Vereinslose Schwimmer"; er lässt sich nur einem bestehenden Verein zuordnen
+oder überspringen (vorausgewählt), nie neu anlegen — auch serverseitig nicht.
+
 ## Platzierungen
 
 Platzierungen stehen in LENEX nicht am Result, sondern in
@@ -266,7 +282,7 @@ Der Zwischenstand wird unter einem Session-Key gehalten (nur IDs/Arrays, keine E
 2. `import(Request)` — Datei hochladen und validieren (nur `.lxf`/`.lef`/`.xml`), parsen, Ergebnis in der Session
    ablegen → Weiterleitung zu **confirm-meet**.
 3. `confirmMeet(Request)` — Meet auswählen bzw. Ziel-Meet bestätigen (`lenex.confirm-meet`).
-4. `runImport(Request)` — enthält die Datei Einzelbewerbe ohne jede Klassenangabe (keine AGEGROUP mit `handicap`,
+4. `runImport(Request)` — enthält die Datei Bewerbe (auch Staffeln) ohne jede Klassenangabe (keine AGEGROUP mit `handicap`,
    `unclassifiedEvents`), die in der Ziel-Veranstaltung noch nicht existieren, fragt die Klärungsseite zuerst nach
    **Rahmenbewerben** (`resolveEvents`: angekreuzte werden mit `is_scored = false` angelegt). Bestehende Bewerbe
    behalten ihre Kennzeichnung, beim Nachimport wird also nicht erneut gefragt. Danach (`startImport`) läuft der

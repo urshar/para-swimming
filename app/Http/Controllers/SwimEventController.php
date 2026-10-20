@@ -210,7 +210,7 @@ class SwimEventController extends Controller
             'distance' => 'required|integer|min:1',
             'relay_count' => 'required|integer|min:1',
             'technique' => 'nullable|in:DIVE,GLIDE,KICK,PULL,START,TURN',
-            'style_code' => 'nullable|string|max:6',
+            'style_code' => 'nullable|string|max:20',
             'style_name' => 'nullable|string|max:255',
             'sport_classes' => 'nullable|string|max:100',
             'timing' => 'nullable|in:AUTOMATIC,SEMIAUTOMATIC,MANUAL3,MANUAL2,MANUAL1',

@@ -135,10 +135,6 @@
                 </div>
             @endif
 
-            @error('import')
-            <p class="text-sm text-red-500 mt-3">{{ $message }}</p>
-            @enderror
-
             <div class="flex gap-3 mt-6">
                 <flux:button type="submit" variant="primary" icon="arrow-up-tray">
                     Import starten

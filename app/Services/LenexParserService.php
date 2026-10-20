@@ -113,6 +113,14 @@ class LenexParserService
      */
     private array $unscoredEventIds = [];
 
+    /**
+     * LENEX athleteids aller Startschwimmer in Staffeln gewerteter Bewerbe (athleteid → true). Ihr Verein wird zur
+     * Klärung gebraucht, auch wenn er selbst sonst nichts Gewertetes enthält (Startgemeinschaften).
+     *
+     * @var array<string, true>
+     */
+    private array $scoredRelayMemberIds = [];
+
     // LenexResolverService wird als Parameter an import() übergeben,
     // nicht per Constructor — der Import ist zustandslos pro Aufruf.
 
@@ -157,6 +165,7 @@ class LenexParserService
         $this->rankingGroupIndex = [];
         $this->athleteIndex = [];
         $this->heatIndex = [];
+        $this->scoredRelayMemberIds = [];
 
         $xml = $this->loadXml($filePath);
         $type = $this->detectType($xml);
@@ -227,8 +236,9 @@ class LenexParserService
     }
 
     /**
-     * Einzelbewerbe der Datei ohne jede Klassenangabe (keine AGEGROUP mit handicap) — mögliche Rahmenbewerbe, die auf
-     * der Klärungsseite abgefragt werden. Staffeln bleiben außen vor.
+     * Bewerbe der Datei ohne jede Klassenangabe (keine AGEGROUP mit handicap) — mögliche Rahmenbewerbe, die auf der
+     * Klärungsseite abgefragt werden. Das gilt auch für Staffeln (z. B. eine "Fun-Staffel"); eine Staffel mit
+     * Punktegruppe ("34 Punkte", "49 Punkte", "20 Pkt.") zählt dagegen als gewertet.
      *
      * @return list<array{number: int, label: string, groups: string}>
      *
@@ -242,24 +252,33 @@ class LenexParserService
         foreach ($meetXml->SESSIONS->SESSION ?? [] as $sessionXml) {
             foreach ($sessionXml->EVENTS->EVENT ?? [] as $eventXml) {
                 $styleXml = $eventXml->SWIMSTYLE ?? null;
-                if (! $styleXml || (int) ($styleXml['relaycount'] ?? 1) > 1) {
+                if (! $styleXml) {
                     continue;
                 }
+                $relayCount = (int) ($styleXml['relaycount'] ?? 1);
 
                 $groupNames = [];
                 $hasClasses = false;
                 foreach ($eventXml->AGEGROUPS->AGEGROUP ?? [] as $groupXml) {
-                    $groupNames[] = (string) ($groupXml['name'] ?? '');
-                    $hasClasses = $hasClasses || self::agegroupHandicap($groupXml) !== '';
+                    $groupName = (string) ($groupXml['name'] ?? '');
+                    $groupNames[] = $groupName;
+                    $hasClasses = $hasClasses || self::agegroupHandicap($groupXml) !== ''
+                        || ($relayCount > 1 && preg_match('/\d+\s*(Punkte|Pkt\b)/iu', $groupName) === 1);
                 }
                 if ($hasClasses) {
                     continue;
                 }
 
                 $stroke = StrokeType::findByLenexCode((string) ($styleXml['stroke'] ?? ''));
+                $label = trim(((int) ($styleXml['distance'] ?? 0)).' m '.($stroke?->name_de ?? (string) ($styleXml['stroke'] ?? '')));
+                if ($relayCount > 1) {
+                    $styleName = trim((string) ($styleXml['name'] ?? ''));
+                    $label = $relayCount.'×'.$label.($styleName !== '' ? ' ('.$styleName.')' : '');
+                }
+
                 $events[] = [
                     'number' => (int) ($eventXml['number'] ?? 0),
-                    'label' => trim(((int) ($styleXml['distance'] ?? 0)).' m '.($stroke?->name_de ?? (string) ($styleXml['stroke'] ?? ''))),
+                    'label' => $label,
                     'groups' => implode(', ', array_filter($groupNames)),
                 ];
             }
@@ -928,6 +947,8 @@ class LenexParserService
             ForeignStart::where('meet_id', $meet->id)->delete();
         }
 
+        $this->scoredRelayMemberIds = $this->collectScoredRelayMemberIds($meet, $clubsXml, $type, $resolver);
+
         foreach ($clubsXml->CLUB as $clubXml) {
             $nationCode = (string) ($clubXml['nation'] ?? '');
 
@@ -953,8 +974,10 @@ class LenexParserService
 
             $nation = Nation::where('code', $nationCode)->first();
             // Mit Nationenfilter wird ein nicht gefundener Verein (z. B. Nationalteam "Austria") nicht zur Klärung
-            // vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer.
-            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0, $this->onlyNation === null);
+            // vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer. Ebenso wenig ein Verein, aus dem nichts
+            // Gewertetes käme (nur Offizielle, nur Rahmenbewerbe) — ein bekannter wird trotzdem zugeordnet.
+            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0,
+                $this->onlyNation === null && $this->hasScoredContent($meet, $clubXml, $type, $resolver));
 
             if (! $club && $this->onlyNation === null) {
                 // Unbekannter Club — wird in Review-Seite aufgelöst
@@ -991,6 +1014,79 @@ class LenexParserService
                 }
             }
         }
+    }
+
+    /**
+     * true, wenn aus dem Verein etwas Gewertetes käme: ein Ergebnis (bei Meldedateien eine Meldung) eines Schwimmers
+     * oder einer Staffel in einem gewerteten Bewerb, oder ein Schwimmer, der in einer gewerteten Staffel startet.
+     */
+    private function hasScoredContent(Meet $meet, SimpleXMLElement $clubXml, string $type, LenexResolverService $resolver): bool
+    {
+        foreach ($clubXml->ATHLETES->ATHLETE ?? [] as $athleteXml) {
+            if (isset($this->scoredRelayMemberIds[(string) ($athleteXml['athleteid'] ?? '')])) {
+                return true;
+            }
+            foreach ($this->startItems($athleteXml, $type) as $itemXml) {
+                if ($this->isScoredItem($meet, $itemXml, $resolver)) {
+                    return true;
+                }
+            }
+        }
+
+        foreach ($clubXml->RELAYS->RELAY ?? [] as $relayXml) {
+            foreach ($this->startItems($relayXml, $type) as $itemXml) {
+                if ($this->isScoredItem($meet, $itemXml, $resolver)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string, true> athleteids der Startschwimmer aller Staffeln in gewerteten Bewerben
+     */
+    private function collectScoredRelayMemberIds(Meet $meet, SimpleXMLElement $clubsXml, string $type, LenexResolverService $resolver): array
+    {
+        $ids = [];
+        foreach ($clubsXml->CLUB as $clubXml) {
+            foreach ($clubXml->RELAYS->RELAY ?? [] as $relayXml) {
+                foreach ($this->startItems($relayXml, $type) as $itemXml) {
+                    if (! $this->isScoredItem($meet, $itemXml, $resolver)) {
+                        continue;
+                    }
+                    foreach ($itemXml->RELAYPOSITIONS->RELAYPOSITION ?? [] as $positionXml) {
+                        $athleteId = (string) ($positionXml['athleteid'] ?? '');
+                        if ($athleteId !== '') {
+                            $ids[$athleteId] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Ergebnisse bzw. (Meldedatei) Meldungen eines Athleten oder einer Staffel.
+     *
+     * @return list<SimpleXMLElement>
+     */
+    private function startItems(SimpleXMLElement $xml, string $type): array
+    {
+        $items = $type === 'entries' ? ($xml->ENTRIES->ENTRY ?? []) : ($xml->RESULTS->RESULT ?? []);
+
+        return iterator_to_array($items, false);
+    }
+
+    /** true, wenn das Ergebnis bzw. die Meldung zu einem angelegten, gewerteten Bewerb gehört. */
+    private function isScoredItem(Meet $meet, SimpleXMLElement $itemXml, LenexResolverService $resolver): bool
+    {
+        $swimEventId = $this->resolveSwimEventId($meet, (string) ($itemXml['eventid'] ?? ''), $resolver);
+
+        return $swimEventId !== null && ! isset($this->unscoredEventIds[$swimEventId]);
     }
 
     /**

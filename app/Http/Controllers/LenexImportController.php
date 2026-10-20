@@ -43,7 +43,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen. Bitte Datei erneut hochladen.']);
+                ->with('error', 'Import-Session abgelaufen. Bitte Datei erneut hochladen.');
         }
 
         $candidates = $this->findMeetCandidates($importData['meta']);
@@ -77,7 +77,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen. Bitte Datei erneut hochladen.']);
+                ->with('error', 'Import-Session abgelaufen. Bitte Datei erneut hochladen.');
         }
 
         $meetId = (int) $request->input('meet_id') ?: null; // null = neues Meet
@@ -96,7 +96,6 @@ class LenexImportController extends Controller
         try {
             // Internationale Veranstaltungen (Nationenfilter) haben keine Rahmenbewerbe — keine Abfrage.
             $pendingEvents = $onlyNation === null ? $this->newUnclassifiedEvents($importData['path'], $meetId) : [];
-            Session::forget($sessionKey);
 
             if ($pendingEvents !== []) {
                 $newSessionKey = uniqid('lenex_import_', true);
@@ -106,16 +105,22 @@ class LenexImportController extends Controller
                     'meet_nation' => $meetNation,
                     'pending_events' => $pendingEvents,
                 ]);
+                Session::forget($sessionKey);
 
                 return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
             }
 
-            return $this->startImport($importData['path'], $meetId, [], $onlyNation, $meetNation);
+            $response = $this->startImport($importData['path'], $meetId, [], $onlyNation, $meetNation);
+            // Erst nach dem Lauf vergessen: Bei einem Fehler bleibt die Wettkampfauswahl samt Meldung erreichbar.
+            Session::forget($sessionKey);
+
+            return $response;
 
         } catch (Exception $e) {
-            return back()->withErrors([
-                'import' => 'Import fehlgeschlagen: '.$e->getMessage(),
-            ]);
+            report($e);
+
+            return redirect()->route('lenex.import.confirm-meet', ['session' => $sessionKey])
+                ->with('error', 'Import fehlgeschlagen: '.$e->getMessage());
         }
     }
 
@@ -129,7 +134,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen.']);
+                ->with('error', 'Import-Session abgelaufen.');
         }
 
         $offered = array_column($importData['pending_events'], 'number');
@@ -139,14 +144,17 @@ class LenexImportController extends Controller
         ));
 
         try {
+            $response = $this->startImport($importData['path'], $importData['meet_id'], $unscored, null, $importData['meet_nation'] ?? null);
+            // Erst nach dem Lauf vergessen: Bei einem Fehler bleibt die Klärungsseite samt Meldung erreichbar.
             Session::forget($sessionKey);
 
-            return $this->startImport($importData['path'], $importData['meet_id'], $unscored, null, $importData['meet_nation'] ?? null);
+            return $response;
 
         } catch (Exception $e) {
-            return back()->withErrors([
-                'resolve' => 'Import fehlgeschlagen: '.$e->getMessage(),
-            ]);
+            report($e);
+
+            return redirect()->route('lenex.import.review', ['session' => $sessionKey])
+                ->with('error', 'Import fehlgeschlagen: '.$e->getMessage());
         }
     }
 
@@ -199,6 +207,7 @@ class LenexImportController extends Controller
                 ->with('candidates', $candidates);
 
         } catch (Exception $e) {
+            report($e);
             Storage::disk('local')->delete($path);
 
             return back()->withErrors([
@@ -218,7 +227,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen. Bitte Datei erneut hochladen.']);
+                ->with('error', 'Import-Session abgelaufen. Bitte Datei erneut hochladen.');
         }
 
         $clubs = Club::orderBy('name')->get(['id', 'name', 'short_name', 'code']);
@@ -279,7 +288,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen.']);
+                ->with('error', 'Import-Session abgelaufen.');
         }
 
         try {
@@ -287,7 +296,8 @@ class LenexImportController extends Controller
             foreach ($importData['unresolved_clubs'] ?? [] as $index => $clubData) {
                 $selection = (string) $request->input("clubs.$index.selection", 'skip');
                 $club = match (true) {
-                    $selection === 'new' => $this->resolver->createClub($clubData),
+                    // Vereinslose Schwimmer (ohne Namen) lassen sich nur zuordnen oder überspringen.
+                    $selection === 'new' => ($clubData['unattached'] ?? false) ? null : $this->resolver->createClub($clubData),
                     ctype_digit($selection) => Club::find((int) $selection),
                     default => null,
                 };
@@ -320,9 +330,10 @@ class LenexImportController extends Controller
             return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
 
         } catch (Exception $e) {
-            return back()->withErrors([
-                'resolve' => 'Fehler beim Klären der Vereine: '.$e->getMessage(),
-            ]);
+            report($e);
+
+            return redirect()->route('lenex.import.review', ['session' => $sessionKey])
+                ->with('error', 'Fehler beim Klären der Vereine: '.$e->getMessage());
         }
     }
 
@@ -336,7 +347,7 @@ class LenexImportController extends Controller
 
         if (! $importData) {
             return redirect()->route('lenex.import')
-                ->withErrors(['import' => 'Import-Session abgelaufen.']);
+                ->with('error', 'Import-Session abgelaufen.');
         }
 
         try {
@@ -361,9 +372,10 @@ class LenexImportController extends Controller
             return $this->redirectAfterImport($result);
 
         } catch (Exception $e) {
-            return back()->withErrors([
-                'resolve' => 'Fehler beim Klären der Athleten: '.$e->getMessage(),
-            ]);
+            report($e);
+
+            return redirect()->route('lenex.import.review', ['session' => $sessionKey])
+                ->with('error', 'Fehler beim Klären der Athleten: '.$e->getMessage());
         }
     }
 

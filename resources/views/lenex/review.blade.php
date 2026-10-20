@@ -12,10 +12,6 @@
             übersprungen werden soll. Übersprungene Einträge werden samt ihren Ergebnissen nicht importiert.
         </p>
 
-        @error('resolve')
-            <flux:callout variant="danger" icon="exclamation-triangle" class="mb-4">{{ $message }}</flux:callout>
-        @enderror
-
         {{-- ── Schritt 0: Rahmenbewerbe (vor dem ersten Import-Lauf) ── --}}
         @if(!empty($pendingEvents))
             <form method="POST" action="{{ route('lenex.import.resolve-events') }}">
@@ -26,8 +22,8 @@
                     Bewerbe ohne Wertungsklassen ({{ count($pendingEvents) }})
                 </h2>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                    Diese Einzelbewerbe haben in der Datei keine Klassenangabe. Rahmenbewerbe (z. B. Schnupperbewerbe für
-                    nicht klassifizierte Schwimmer) ankreuzen: Sie werden angelegt und exportiert, aber nicht gewertet —
+                    Diese Bewerbe haben in der Datei keine Klassenangabe. Rahmenbewerbe (z. B. Schnupperbewerbe für
+                    nicht klassifizierte Schwimmer oder eine Fun-Staffel) ankreuzen: Sie werden angelegt und exportiert, aber nicht gewertet —
                     ihre Ergebnisse und Schwimmer werden nicht importiert. Später im Disziplin-Formular änderbar.
                 </p>
                 <div
@@ -75,7 +71,7 @@
                         <div class="p-4 flex flex-col md:flex-row md:items-center gap-3">
                             <div class="flex-1 min-w-0">
                                 <div class="font-medium text-zinc-900 dark:text-zinc-100">
-                                    {{ $club['name'] }}
+                                    {{ ($club['unattached'] ?? false) ? 'Vereinslose Schwimmer (ohne Verein in der Datei)' : $club['name'] }}
                                     @if($club['preselect'] !== null)
                                         <flux:badge size="sm" color="green" class="ml-1">Vorschlag vorbelegt</flux:badge>
                                     @elseif(!empty($club['suggestions']))
@@ -91,9 +87,11 @@
                             </div>
                             <flux:select variant="listbox" name="clubs[{{ $i }}][selection]" size="sm"
                                          class="w-full md:w-96" searchable
-                                         aria-label="Zuordnung für Verein {{ $club['name'] }}">
-                                <flux:select.option value="new" :selected="is_null($club['preselect'])">Neu anlegen</flux:select.option>
-                                <flux:select.option value="skip">Überspringen</flux:select.option>
+                                         aria-label="Zuordnung für Verein {{ ($club['unattached'] ?? false) ? 'Vereinslose Schwimmer' : $club['name'] }}">
+                                @if(!($club['unattached'] ?? false))
+                                    <flux:select.option value="new" :selected="is_null($club['preselect'])">Neu anlegen</flux:select.option>
+                                @endif
+                                <flux:select.option value="skip" :selected="($club['unattached'] ?? false) && is_null($club['preselect'])">Überspringen</flux:select.option>
                                 @if(!empty($club['suggestions']))
                                     <flux:select.group label="Vorschlag — gleicher/ähnlicher Name oder Code">
                                         @foreach($club['suggestions'] as $sug)
