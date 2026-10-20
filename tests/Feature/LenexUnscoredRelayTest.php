@@ -4,6 +4,7 @@ use App\Models\Club;
 use App\Models\Meet;
 use App\Models\RelayResult;
 use App\Models\User;
+use App\Services\LenexParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -92,4 +93,20 @@ it('nimmt im Disziplin-Formular einen Stilcode mit mehr als sechs Zeichen an', /
     ])->assertSessionHasNoErrors();
 
     expect($meet->swimEvents()->sole()->style_code)->toBe('4x50fun');
+});
+
+it('erkennt Punktegruppen auch als "Pkt." und fragt nur die Staffel ohne Klassen ab', /** @throws Exception */ function () {
+    makeStrokeType_p5('MEDLEY');
+    makeStrokeType_p5('UNKNOWN');
+    $event = fn (int $number, string $stroke, string $group) => '<EVENT eventid="'.$number.'" number="'.$number.'" round="TIM">'
+        .'<SWIMSTYLE distance="50" relaycount="4" stroke="'.$stroke.'" />'
+        .'<AGEGROUPS><AGEGROUP agegroupid="'.$number.'" name="'.$group.'" /></AGEGROUPS></EVENT>';
+    $path = tempnam(sys_get_temp_dir(), 'lenex_lur').'.lef';
+    file_put_contents($path, '<?xml version="1.0" encoding="UTF-8"?>
+<LENEX version="3.0"><MEETS><MEET name="Punktetest" city="Wien" nation="AUT" course="SCM" startdate="2015-05-01">
+<SESSIONS><SESSION number="1" date="2015-05-01"><EVENTS>'
+        .$event(1, 'MEDLEY', '20 Pkt.').$event(2, 'MEDLEY', '34Pkt').$event(3, 'MEDLEY', '49 Punkte').$event(4, 'UNKNOWN', 'Fun').'
+</EVENTS></SESSION></SESSIONS></MEET></MEETS></LENEX>');
+
+    expect(array_column((new LenexParserService)->unclassifiedEvents($path), 'number'))->toBe([4]);
 });

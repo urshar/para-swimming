@@ -238,7 +238,7 @@ class LenexParserService
     /**
      * Bewerbe der Datei ohne jede Klassenangabe (keine AGEGROUP mit handicap) — mögliche Rahmenbewerbe, die auf der
      * Klärungsseite abgefragt werden. Das gilt auch für Staffeln (z. B. eine "Fun-Staffel"); eine Staffel mit
-     * Punktegruppe ("34 Punkte", "49 Punkte") zählt dagegen als gewertet.
+     * Punktegruppe ("34 Punkte", "49 Punkte", "20 Pkt.") zählt dagegen als gewertet.
      *
      * @return list<array{number: int, label: string, groups: string}>
      *
@@ -263,7 +263,7 @@ class LenexParserService
                     $groupName = (string) ($groupXml['name'] ?? '');
                     $groupNames[] = $groupName;
                     $hasClasses = $hasClasses || self::agegroupHandicap($groupXml) !== ''
-                        || ($relayCount > 1 && preg_match('/\d+\s*Punkte/i', $groupName) === 1);
+                        || ($relayCount > 1 && preg_match('/\d+\s*(Punkte|Pkt\b)/iu', $groupName) === 1);
                 }
                 if ($hasClasses) {
                     continue;
