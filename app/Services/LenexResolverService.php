@@ -136,6 +136,8 @@ class LenexResolverService
             'nation_id' => $nationId,
             'nation_code' => Nation::find($nationId)?->code ?? '',
             'regional_association' => $region,
+            // Splash-Platzhalter für vereinslose Schwimmer: ohne Namen, lässt sich nicht als Verein anlegen.
+            'unattached' => $name === '' || strtoupper((string) ($clubXml['type'] ?? '')) === 'UNATTACHED',
         ];
 
         return null;
