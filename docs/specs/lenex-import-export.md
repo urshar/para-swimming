@@ -199,7 +199,8 @@ Import korrigiert das über die `lenex_result_id`.
 - Abgleich über Veranstaltung + Bewerb + Verein + `relay_number` (RELAY number); App-Meldungen ohne Nummer werden als
   n-te Meldung des Vereins im Bewerb (nach Anlage) zugeordnet — genau so nummeriert der Meldeexport, das Zurückspielen
   einer exportierten Meldedatei erzeugt also keine Doppelten.
-- Staffelklasse aus `RELAY handicap`, sonst aus den Klassen der Schwimmer (`RelayClassValidator::resolveRelayClass`).
+- Staffelklasse aus `RELAY handicap`, wenn sie eine gültige Staffelklasse ist (`RelayClassValidator::fromHandicap`),
+  sonst aus den Klassen der Schwimmer (`RelayClassValidator::resolveRelayClass`).
 - Neue Meldungen sind bestätigt (`status = confirmed`); `ENTRY status="EXH"` = außer Konkurrenz.
 - Schwimmer aus `RELAYPOSITIONS`; nicht aufgelöste Athleten werden ausgelassen (`relay_entry_members.athlete_id` ist
   Pflicht). Rahmenbewerbe (`is_scored = false`) werden übersprungen.
@@ -210,7 +211,10 @@ Import korrigiert das über die `lenex_result_id`.
 `RELAYPOSITION`en per `athleteid` auch auf Athleten anderer Vereine verweisen können:
 
 - Wertung aus `RELAY gender` (M/F/X), Staffelklasse aus dem `handicap` der AGEGROUP, in der das Ergebnis platziert ist
-  (`handicap="14"` → S14), Platz aus deren RANKING.
+  (`handicap="14"` → S14), Platz aus deren RANKING. Die Klasse gilt nur, wenn sie eine gültige Staffelklasse ist (S14, S15, S20,
+  S21, S34, S49 — `RelayClassValidator::fromHandicap`); sonst gilt `RELAY handicap`, und fehlt auch dort eine gültige,
+  wird sie aus den Klassen der Schwimmer berechnet (`resolveFromMembers`, nur wenn jede Position eine Klasse hat).
+  Anlass: Die ÖSTM 2012 hat in der Herrengruppe der 4×100 m Freistil die Fehleingabe `handicap="1"` (ergab "S1").
 - Schwimmer aus `RELAYPOSITIONS`; ein nicht zuordenbarer Athlet bleibt mit Namenskopie, aber ohne `athlete_id` stehen.
   Sportklasse je Schwimmer aus `HANDICAP free`. Zwischenzeiten aus `SPLITS`.
 - Staffeln ohne Zeit und ohne Status werden übersprungen; WDR/DNS/DSQ werden importiert.

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SwimEvent;
 use Illuminate\Support\Collection;
 
 /**
@@ -28,21 +29,24 @@ use Illuminate\Support\Collection;
  */
 class RelayClassValidator
 {
+    /** Gültige Staffelklassen. */
+    public const array RELAY_CLASSES = ['S14', 'S15', 'S20', 'S21', 'S34', 'S49'];
+
     private const array VISUAL_CLASSES = [11, 12, 13];
 
     private const array INTELLECTUAL_CLASSES = [14, 21];
 
     /**
-     * Gibt true zurück, wenn die Staffelklasse nur national gültig ist.
+     * Gibt true zurück, wenn die (Staffel- oder Einzel-)Klasse nur national gültig ist.
      *
      * S21 (Trisomie) existiert international nicht — World Para Swimming
      * kennt diese Klasse nicht. Rekorde dürfen daher nur auf nationaler
      * und regionaler Ebene (AUT, AUT.JR, AUT.WBSV etc.) gesetzt werden,
-     * niemals als WR, ER oder OR.
+     * niemals als WR, ER oder OR (RecordImportService überspringt solche Einträge).
      */
-    public function isNationalOnlyClass(string $relayClass): bool
+    public static function isNationalOnlyClass(string $sportClass): bool
     {
-        return $relayClass === 'S21';
+        return $sportClass === 'S21';
     }
 
     /**
@@ -113,6 +117,29 @@ class RelayClassValidator
         }
 
         return null;
+    }
+
+    /**
+     * Staffelklasse aus einer Klassenangabe der Datei (AGEGROUP bzw. RELAY handicap, z. B. "14" → "S14"); null, wenn
+     * sie keine gültige Staffelklasse ist. Splash-Dateien enthalten auch Fehleingaben wie handicap="1".
+     */
+    public static function fromHandicap(string $handicap): ?string
+    {
+        $handicap = trim($handicap);
+        $class = is_numeric($handicap) ? 'S'.(int) $handicap : null;
+
+        return in_array($class, self::RELAY_CLASSES, true) ? $class : null;
+    }
+
+    /**
+     * Staffelklasse aus den Klassen der Mitglieder; null, wenn nicht jede Position eine Klasse hat oder die
+     * Kombination ungültig ist.
+     */
+    public function resolveFromMembers(Collection $members, SwimEvent $event): ?string
+    {
+        $classes = $this->extractMemberClasses($members, $event);
+
+        return count($classes) === $event->relay_count ? $this->resolveRelayClass($classes) : null;
     }
 
     /**

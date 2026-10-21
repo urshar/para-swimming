@@ -464,7 +464,8 @@ class RecordImportService
 
                         if (! $athlete && ! isset($seenAthleteKeys[$athKey])) {
                             $seenAthleteKeys[$athKey] = true;
-                            $suggestions = $this->suggestions->suggestAthletes($lastName, $firstName, $birthDate, $athGender);
+                            $suggestions = $this->suggestions->suggestAthletes($lastName, $firstName, $birthDate,
+                                $athGender);
                             $unknownAthletes[$athKey] = [
                                 'key' => $athKey,
                                 'last_name' => $lastName,
@@ -551,7 +552,8 @@ class RecordImportService
                 // ── S21 nur national gültig ──────────────────────────────────
                 // S21 (Trisomie) existiert international nicht (World Para Swimming).
                 // WR/ER/OR Rekorde mit Sportklasse S21 werden übersprungen.
-                if ($sportClass === 'S21' && in_array($recordType, ['WR', 'ER', 'OR'], true)) {
+                if (RelayClassValidator::isNationalOnlyClass($sportClass) && in_array($recordType, ['WR', 'ER', 'OR'],
+                    true)) {
                     $skipped++;
 
                     continue;

@@ -102,6 +102,12 @@ die eingesetzten Schwimmer des Ergebnisses (`relay_result_members`). Kein Rekord
 - ein Mitglied keinem Athleten zugeordnet ist;
 - ein Athlet eine andere Nation als AUT hat;
 - sich über `RelayClassValidator` keine gültige Staffelklasse ergibt (`resolveRelayClass`).
+- der Staffelverein ein Verband ist (`Club::TYPE_VERBAND`, Landesauswahl bzw. Nationalteam) — auch kein
+  ausstehender Rekord.
+
+Die Staffelklasse wird gleich nach der Besetzungsprüfung aus den Mitgliedern bestimmt und am Ergebnis gespeichert, also
+auch dann, wenn die Staffel danach keinen Rekord aufstellen kann (z. B. eine Landesauswahl). Fehlende oder ungültige
+Klassen im Bestand berechnet `php artisan relays:resolve-classes --dry-run` bzw. ohne `--dry-run` neu.
 
 Das Rekord-Geschlecht ist die Wertung der Staffel (M, F, X). Bei Erfolg werden die Teammitglieder als
 `RelayTeamMember` (Position, Name, Geburtsdatum, optional `athlete_id`) gespeichert; der Rekord verweist über

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AthleteClubHistory;
+use App\Models\Club;
 use App\Models\Meet;
 use App\Models\RecordSplit;
 use App\Models\RelayResult;
@@ -46,6 +47,8 @@ use Throwable;
  *   S20 / S34 / S49 / S21 / S14 / S15 ergeben, und die Zusammensetzung muss zum Staffel-Geschlecht passen
  *   (RelayResult::hasRecordComposition(): Herren nur Männer, Damen nur Frauen, Mixed 2 + 2). Eine Herrenstaffel mit
  *   Damenbeteiligung bleibt ein gültiges Ergebnis, stellt aber keinen Rekord auf.
+ *   Die Staffelklasse wird vor Nationalität und Vereinszugehörigkeit bestimmt und am Ergebnis gespeichert. Eine
+ *   Landesauswahl bzw. ein Nationalteam (Verein vom Typ Verband) stellt keinen Rekord auf, auch keinen ausstehenden.
  *
  * Jugend: Einzeln Wettkampfjahr − Geburtsjahr ≤ 18 |
  *         Staffeln: alle Mitglieder mit Geburtsdatum ≤ 18
@@ -154,6 +157,24 @@ readonly class RecordCheckerService
             return ['new' => $new, 'pending' => $pending];
         }
 
+        // Staffelklasse aus den Mitgliedern — eine Eigenschaft des Ergebnisses, daher vor Nationalität und
+        // Vereinszugehörigkeit gesetzt (auch eine Landesauswahl, die keinen Rekord aufstellen kann, hat eine Klasse).
+        $memberClasses = $this->relayValidator->extractMemberClasses($members, $event);
+        $resolvedClass = $this->relayValidator->resolveRelayClass($memberClasses);
+
+        if ($resolvedClass === null) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        if ($relayResult->relay_class !== $resolvedClass) {
+            $relayResult->update(['relay_class' => $resolvedClass]);
+        }
+
+        // Landesauswahl bzw. Nationalteam (Verein vom Typ Verband): stellt keinen Rekord auf, auch keinen ausstehenden.
+        if ($relayResult->club?->type === Club::TYPE_VERBAND) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
         // Alle Mitglieder mit österreichischer Nationalität und am Starttag beim Staffelverein.
         // Ist die Zugehörigkeit eines Mitglieds nicht belegt, wird der Rekord nur ausstehend angelegt.
         $clubUnproven = false;
@@ -171,18 +192,6 @@ readonly class RecordCheckerService
                 return ['new' => $new, 'pending' => $pending];
             }
             $clubUnproven = $clubUnproven || $belongs === null;
-        }
-
-        // Staffelklasse aus den Mitgliedern validieren
-        $memberClasses = $this->relayValidator->extractMemberClasses($members, $event);
-        $resolvedClass = $this->relayValidator->resolveRelayClass($memberClasses);
-
-        if ($resolvedClass === null) {
-            return ['new' => $new, 'pending' => $pending];
-        }
-
-        if ($relayResult->relay_class !== $resolvedClass) {
-            $relayResult->update(['relay_class' => $resolvedClass]);
         }
 
         $strokeTypeId = $event->stroke_type_id;
