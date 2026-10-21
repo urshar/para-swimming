@@ -5,7 +5,7 @@
 
 @extends('layouts.app')
 
-@section('title', $record->record_type . ' – ' . $record->sport_class . ' ' . $record->distance . 'm')
+@section('title', $record->record_type . ' – ' . $record->sport_class . ' ' . $record->discipline_label)
 
 @section('content')
 
@@ -14,8 +14,7 @@
             <flux:button href="{{ ListUrl::to('records') }}" variant="primary"
                          icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->distance }}
-                m {{ $record->strokeType?->name_de }}
+                {{ $record->record_type }} · {{ $record->sport_class }} · {{ $record->discipline_label }}
             </h1>
             <flux:badge color="{{ SwimRecord::genderColor($record->gender) }}">
                 {{ SwimRecord::genderLabel($record->gender) }}

@@ -240,7 +240,7 @@ class LenexParserService
      * Klärungsseite abgefragt werden. Das gilt auch für Staffeln (z. B. eine "Fun-Staffel"); eine Staffel mit
      * Punktegruppe ("34 Punkte", "49 Punkte", "20 Pkt.") zählt dagegen als gewertet.
      *
-     * @return list<array{number: int, label: string, groups: string}>
+     * @return list<array{number: int, label: string, groups: string, starts: int}>
      *
      * @throws Exception
      */
@@ -276,10 +276,17 @@ class LenexParserService
                     $label = $relayCount.'×'.$label.($styleName !== '' ? ' ('.$styleName.')' : '');
                 }
 
+                // Ergebnisse bzw. Meldungen in der Datei: Ein Bewerb ohne jeden Start ist oft nur ein leerer Bewerbskopf.
+                $eventId = (string) ($eventXml['eventid'] ?? '');
+                $starts = preg_match('/^[\w.-]+$/', $eventId) !== 1 ? 0 : count($meetXml->xpath(
+                    'CLUBS/CLUB//RESULT[@eventid="'.$eventId.'"] | CLUBS/CLUB//ENTRY[@eventid="'.$eventId.'"]'
+                ) ?: []);
+
                 $events[] = [
                     'number' => (int) ($eventXml['number'] ?? 0),
                     'label' => $label,
                     'groups' => implode(', ', array_filter($groupNames)),
+                    'starts' => $starts,
                 ];
             }
         }

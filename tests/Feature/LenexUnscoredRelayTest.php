@@ -110,3 +110,23 @@ it('erkennt Punktegruppen auch als "Pkt." und fragt nur die Staffel ohne Klassen
 
     expect(array_column((new LenexParserService)->unclassifiedEvents($path), 'number'))->toBe([4]);
 });
+
+it('zählt die Starts der abgefragten Bewerbe, damit leere Bewerbsköpfe erkennbar sind', /** @throws Exception */ function () {
+    makeStrokeType_p5('MEDLEY');
+    makeStrokeType_p5('UNKNOWN');
+    $path = tempnam(sys_get_temp_dir(), 'lenex_lur').'.lef';
+    file_put_contents($path, '<?xml version="1.0" encoding="UTF-8"?>
+<LENEX version="3.0"><MEETS><MEET name="Leertest" city="Wien" nation="AUT" course="SCM" startdate="2016-11-06">
+<SESSIONS><SESSION number="1" date="2016-11-06"><EVENTS>
+  <EVENT eventid="1087" number="15" round="TIM"><SWIMSTYLE distance="50" relaycount="4" stroke="MEDLEY" /></EVENT>
+  <EVENT eventid="1342" number="16" round="TIM"><SWIMSTYLE distance="50" relaycount="4" stroke="UNKNOWN" />
+    <AGEGROUPS><AGEGROUP agegroupid="1" /></AGEGROUPS></EVENT>
+</EVENTS></SESSION></SESSIONS>
+<CLUBS><CLUB name="Fun" nation="AUT"><RELAYS><RELAY number="1"><RESULTS>
+  <RESULT eventid="1342" resultid="1" swimtime="00:03:09.16" />
+</RESULTS></RELAY></RELAYS></CLUB></CLUBS></MEET></MEETS></LENEX>');
+
+    $events = (new LenexParserService)->unclassifiedEvents($path);
+
+    expect(array_column($events, 'starts', 'number'))->toBe([15 => 0, 16 => 1]);
+});

@@ -483,10 +483,10 @@ class LenexImportController extends Controller
     }
 
     /**
-     * Einzelbewerbe der Datei ohne Klassenangabe, die in der Ziel-Veranstaltung noch nicht existieren. Bestehende
+     * Bewerbe der Datei ohne Klassenangabe, die in der Ziel-Veranstaltung noch nicht existieren. Bestehende
      * Bewerbe behalten ihre Kennzeichnung (Disziplin-Formular), beim Nachimport wird also nicht erneut gefragt.
      *
-     * @return list<array{number: int, label: string, groups: string}>
+     * @return list<array{number: int, label: string, groups: string, starts: int}>
      *
      * @throws Exception
      */
