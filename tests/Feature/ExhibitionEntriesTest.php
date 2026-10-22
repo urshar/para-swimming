@@ -210,7 +210,7 @@ it('gibt der Ergebniserfassung die AK-Meldungen zur Vorbelegung mit', function (
 
     $this->actingAs(admin_ak())->get(route('meets.results.create', $meet))
         ->assertOk()
-        ->assertSee('exhibitionKeys: ["'.$event->id.'-'.$athlete->id.'"]', false);
+        ->assertViewHas('exhibitionKeys', fn ($keys): bool => $keys->all() === [$event->id.'-'.$athlete->id]);
 });
 
 // ── Rekorde ───────────────────────────────────────────────────────────────────

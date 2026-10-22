@@ -20,7 +20,9 @@ use App\Support\TimeParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
@@ -124,9 +126,10 @@ class ResultController extends Controller
             ? (string) $request->integer('swim_event_id')
             : '';
         $backUrl = MeetResultsOverviewController::backUrl($meet);
+        $splitDistances = self::splitDistances($meet, $swimEvents);
 
         return view('results.form', compact(
-            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl'
+            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl', 'splitDistances'
         ));
     }
 
@@ -135,7 +138,7 @@ class ResultController extends Controller
      */
     public function store(Request $request, Meet $meet): RedirectResponse
     {
-        $data = $this->validateResult($request);
+        $data = $this->validateResult($request, $meet);
 
         // Prüfen ob SwimEvent zum Meet gehört
         $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
@@ -188,6 +191,7 @@ class ResultController extends Controller
             'athletes' => collect(),
             'clubs' => collect(),
             'placements' => $this->scoring->placementsOf($result),
+            'splitDistances' => self::splitDistances($result->meet, $swimEvents),
         ]);
     }
 
@@ -196,7 +200,7 @@ class ResultController extends Controller
      */
     public function update(Request $request, Result $result): RedirectResponse
     {
-        $data = $this->validateResult($request);
+        $data = $this->validateResult($request, $result->meet);
 
         $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
         $data['result']['sport_class'] = $this->sportClassOrDefault($data['result'], $swimEvent);
@@ -270,13 +274,27 @@ class ResultController extends Controller
         return $this->entryService->resolveSportClass((int) $data['athlete_id'], $swimEvent);
     }
 
+    /**
+     * Vorgeschlagene Zwischenzeit-Distanzen je Bewerb (Bewerbs-ID → Distanzen); das Formular belegt damit die
+     * Distanzfelder vor und tauscht sie beim Bewerbswechsel aus.
+     *
+     * @param  Collection<int, SwimEvent>  $swimEvents
+     * @return array<int, list<int>>
+     */
+    private static function splitDistances(Meet $meet, Collection $swimEvents): array
+    {
+        return $swimEvents
+            ->mapWithKeys(fn (SwimEvent $event): array => [$event->id => $event->defaultSplitDistances($meet->course)])
+            ->all();
+    }
+
     /** @param  list<string>  $notes */
     private static function withNotes(string $message, array $notes): string
     {
         return $notes === [] ? $message : $message.' '.implode('. ', $notes).'.';
     }
 
-    private function validateResult(Request $request): array
+    private function validateResult(Request $request, Meet $meet): array
     {
         $validated = $request->validate([
             'swim_event_id' => 'required|exists:swim_events,id',
@@ -289,6 +307,7 @@ class ResultController extends Controller
             'status' => 'nullable|in:EXH,DSQ,DNS,DNF,SICK,WDR',
             'sport_class' => 'nullable|string|max:15',
             'points' => 'nullable|integer|min:0',
+            'place' => 'nullable|integer|min:1',
             'heat' => 'nullable|integer|min:1',
             'lane' => 'nullable|integer|min:0',
             // Kommt als Sekunden mit Komma aus dem Formular (z.B. "0,14", Fehlstart negativ
@@ -314,6 +333,22 @@ class ResultController extends Controller
         $validated['is_national_record'] = $request->boolean('is_national_record');
         $validated['swim_time'] = $this->parseTime($validated['swim_time'] ?? null);
         $validated['reaction_time'] = $this->parseReactionTime($validated['reaction_time'] ?? null);
+
+        // Den Platz gibt man nur bei "Plätze nicht neu berechnen" ein, sonst setzt ihn ScoringGroupService::syncPlaces().
+        if (! $meet->keep_file_places) {
+            unset($validated['place']);
+        }
+
+        // Eine Zeit ohne Distanz nicht still verwerfen (das leere Maskenfeld "00:00.00" zählt als keine Zeit).
+        $missingDistance = [];
+        foreach ($validated['splits'] ?? [] as $index => $split) {
+            if (empty($split['distance']) && $this->parseTime($split['split_time'] ?? null)) {
+                $missingDistance['splits.'.$index.'.distance'] = 'Zu dieser Zwischenzeit fehlt die Distanz.';
+            }
+        }
+        if ($missingDistance !== []) {
+            throw ValidationException::withMessages($missingDistance);
+        }
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),

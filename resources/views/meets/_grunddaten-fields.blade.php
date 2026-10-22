@@ -18,7 +18,7 @@
     </flux:field>
     <flux:field>
         <flux:label>Nation<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-        <flux:select variant="listbox" searchable name="nation_id" required>
+        <flux:select variant="listbox" searchable name="nation_id" x-model="nationId" required>
             @foreach($nations as $nation)
                 <flux:select.option value="{{ $nation->id }}"
                     :selected="old('nation_id', $meet->nation_id ?? $autId) == $nation->id">

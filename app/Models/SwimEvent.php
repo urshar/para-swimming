@@ -111,6 +111,23 @@ class SwimEvent extends Model
         return $this->relay_count > 1;
     }
 
+    /**
+     * Vorgeschlagene Zwischenzeit-Distanzen fürs Ergebnisformular: 50-m-Raster bis vor das Ziel, wie es die
+     * LENEX-Ergebnisdateien auch auf der Kurzbahn liefern; 50-m-Bewerbe nur auf der Kurzbahn mit 25 m (auf der
+     * Langbahn gibt es keine Wende). Freiwasser ohne Vorschlag.
+     *
+     * @return list<int>
+     */
+    public function defaultSplitDistances(?string $course): array
+    {
+        $step = $this->distance > 50 ? 50 : 25;
+        if ($course === 'OPEN' || ($step === 25 && $course === 'LCM') || $this->distance <= $step) {
+            return [];
+        }
+
+        return range($step, $this->distance - $step, $step);
+    }
+
     protected function casts(): array
     {
         return [

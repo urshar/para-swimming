@@ -6,7 +6,18 @@
 
 @section('content')
     {{-- Vorbelegung Nation: AUT als häufigster Fall. --}}
-    @php $autId = $nations->firstWhere('code', 'AUT')?->id; @endphp
+    @php
+        $autId = $nations->firstWhere('code', 'AUT')?->id;
+        // "Plätze nicht neu berechnen": beim Anlegen nach der Nation vorbelegt (meet-form.js).
+        $nationIdValue = (string) old('nation_id', $meet->nation_id ?? $autId);
+        $keepFilePlacesDefault = isset($meet) ? $meet->keep_file_places : $nationIdValue !== (string) $autId;
+        $meetFormConfig = [
+            'nationId' => $nationIdValue,
+            'autId' => $autId,
+            'keepFilePlaces' => session()->hasOldInput() ? (bool) old('keep_file_places') : (bool) $keepFilePlacesDefault,
+            'isEdit' => isset($meet),
+        ];
+    @endphp
     <div class="max-w-3xl">
 
         {{-- Header --}}
@@ -20,7 +31,8 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ isset($meet) ? route('meets.update', $meet) : route('meets.store') }}">
+        <form method="POST" action="{{ isset($meet) ? route('meets.update', $meet) : route('meets.store') }}"
+              x-data='meetForm(@json($meetFormConfig))'>
             @csrf
             @if(isset($meet))
                 @method('PUT')
@@ -206,14 +218,14 @@
 
                         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mt-6">
                             <flux:field>
-                                <flux:label>Plätze aus der Ergebnisdatei</flux:label>
-                                <flux:switch name="keep_file_places" value="1"
-                                             :checked="old('keep_file_places', $meet->keep_file_places ?? false)"
-                                             label="Plätze aus der LENEX-Ergebnisdatei übernehmen, nicht neu berechnen"/>
+                                <flux:label>Plätze nicht neu berechnen</flux:label>
+                                <flux:switch name="keep_file_places" value="1" x-model="keepFilePlaces"
+                                             label="Plätze aus der Ergebnisdatei bzw. manuell, nicht neu berechnen"/>
                                 <flux:description class="mt-1!">
                                     Für internationale Veranstaltungen (z. B. EM, WM), bei denen nur die österreichischen Schwimmer
-                                    importiert werden: Der internationale Platz bleibt erhalten. Wird beim Import mit Nationenfilter
-                                    automatisch gesetzt.
+                                    erfasst sind: Der Platz kommt aus der LENEX-Ergebnisdatei oder wird beim Erfassen eines
+                                    Ergebnisses eingetragen. Wird beim Import mit Nationenfilter automatisch gesetzt und beim
+                                    Anlegen einer Veranstaltung im Ausland vorbelegt.
                                 </flux:description>
                             </flux:field>
                         </div>

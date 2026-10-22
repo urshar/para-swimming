@@ -34,8 +34,33 @@
         );
 
         $existingSplits = isset($result)
-            ? $result->splits->map(fn ($s) => ['distance' => $s->distance, 'split_time' => $s->split_time])->values()->toArray()
+            ? $result->splits->sortBy('distance')->map(fn ($s) => ['distance' => $s->distance, 'split_time' => $s->split_time])->values()->toArray()
             : [];
+
+        // Distanzfelder: nach einem Validierungsfehler die Eingabe, sonst die gespeicherten Splits, ohne solche der
+        // Vorschlag zum gewählten Bewerb (ResultController::splitDistances()). Mindestens 10 Zeilen, mehr bei langen
+        // Bewerben (z. B. 400 m auf der Kurzbahn).
+        $suggestedSplits = $splitDistances[(int) $oldEventId] ?? [];
+        $splitRows = max([10, count($existingSplits), ...array_map('count', array_values($splitDistances))]);
+        $hasOldInput = session()->hasOldInput();
+        $distanceValues = [];
+        for ($i = 0; $i < $splitRows; $i++) {
+            $distanceValues[] = (string) ($hasOldInput
+                ? old('splits.'.$i.'.distance', '')
+                : ($existingSplits !== [] ? ($existingSplits[$i]['distance'] ?? '') : ($suggestedSplits[$i] ?? '')));
+        }
+
+        $formConfig = [
+            'athleteId' => $oldAthleteId,
+            'clubId' => $oldClubId,
+            'eventId' => $oldEventId,
+            'status' => $oldStatus,
+            'athleteClubMap' => $athleteClubMap,
+            'exhibitionKeys' => $exhibitionKeys,
+            'splitDistances' => (object) $splitDistances,
+            'distances' => $distanceValues,
+            'isEdit' => isset($result),
+        ];
     @endphp
     <div class="max-w-4xl">
 
@@ -55,20 +80,7 @@
             <form
                 method="POST"
                 action="{{ isset($result) ? route('results.update', $result) : route('meets.results.store', $meet) }}"
-                x-data='{
-                    athleteId: @json($oldAthleteId),
-                    clubId: @json($oldClubId),
-                    eventId: @json($oldEventId),
-                    status: @json($oldStatus),
-                    athleteClubMap: @json($athleteClubMap),
-                    exhibitionKeys: @json($exhibitionKeys),
-                    prefillExhibition() {
-                        if (this.exhibitionKeys.includes(this.eventId + "-" + this.athleteId)) { this.status = "EXH"; }
-                    },
-                }'
-                @if(! isset($result))
-                    x-init="$watch('athleteId', id => { if (athleteClubMap[id]) { clubId = String(athleteClubMap[id]); } prefillExhibition(); }); $watch('eventId', () => prefillExhibition())"
-                @endif
+                x-data='resultForm(@json($formConfig))'
             >
                 @csrf
                 @if(isset($result))
@@ -78,7 +90,12 @@
                 <flux:tab.group>
                     <flux:tabs class="mb-4">
                         <flux:tab name="grunddaten">Grunddaten</flux:tab>
-                        <flux:tab name="splitzeiten">Splitzeiten</flux:tab>
+                        <flux:tab name="splitzeiten">
+                            Splitzeiten
+                            @if($errors->has('splits.*'))
+                                <span class="text-red-500 dark:text-red-400 ms-1">(Fehler)</span>
+                            @endif
+                        </flux:tab>
                     </flux:tabs>
 
                     <flux:tab.panel name="grunddaten" class="space-y-4">
@@ -183,18 +200,7 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-4">
-                            {{-- Platz wird je Wertungsgruppe berechnet (ScoringGroupService) und gespeichert — nur Anzeige. --}}
-                            <div>
-                                <div class="text-sm font-medium text-zinc-800 dark:text-white mb-2">Platz</div>
-                                @forelse($placements ?? [] as $placement)
-                                    <div class="text-sm text-zinc-700 dark:text-zinc-300">
-                                        <span class="font-semibold">{{ $placement['place'] ? $placement['place'] . '.' : '–' }}</span>
-                                        <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $placement['label'] }}</span>
-                                    </div>
-                                @empty
-                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Wird beim Speichern aus der Wertung berechnet.</div>
-                                @endforelse
-                            </div>
+                            @include('results._place-field', ['placements' => $placements ?? [], 'place' => $result->place ?? null])
                             <flux:field>
                                 <flux:label>Lauf</flux:label>
                                 <flux:input name="heat" type="number" min="1" value="{{ old('heat', $result->heat ?? '') }}"/>
@@ -256,12 +262,15 @@
                         Zeile ist unabhängig.
                     --}}
                     <flux:tab.panel name="splitzeiten">
-                        <p class="text-xs text-zinc-400 mb-3">Leere Zeilen werden ignoriert. Kumulierte Zeit ab Start.</p>
+                        <p class="text-xs text-zinc-400 mb-3">
+                            Zeilen ohne Zeit werden ignoriert. Kumulierte Zeit ab Start. Die Distanzen sind zum Bewerb
+                            vorbelegt und änderbar.
+                        </p>
                         <div class="grid grid-cols-2 gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1 mb-1">
                             <span>Distanz (m)</span>
                             <span>Zeit (MM:SS.hh)</span>
                         </div>
-                        @for($i = 0; $i < 10; $i++)
+                        @for($i = 0; $i < $splitRows; $i++)
                             @php
                                 $splitTimeValue = old(
                                     'splits.'.$i.'.split_time',
@@ -269,16 +278,20 @@
                                 );
                             @endphp
                             <div class="grid grid-cols-2 gap-2 mb-2">
-                                <flux:input
-                                    name="splits[{{ $i }}][distance]"
-                                    type="number"
-                                    min="1"
-                                    value="{{ old('splits.'.$i.'.distance', $existingSplits[$i]['distance'] ?? '') }}"
-                                    placeholder="{{ ($i + 1) * 50 }}"
-                                />
+                                <div>
+                                    <flux:input
+                                        name="splits[{{ $i }}][distance]"
+                                        type="number"
+                                        min="1"
+                                        x-model="distances[{{ $i }}]"
+                                        aria-label="Distanz Zeile {{ $i + 1 }}"
+                                    />
+                                    <flux:error name="splits.{{ $i }}.distance"/>
+                                </div>
                                 <div x-data='maskedTimeField(@json($splitTimeValue))'>
                                     <flux:input name="splits[{{ $i }}][split_time]" type="text" x-model="value"
-                                                placeholder="00:00.00" autocomplete="off"/>
+                                                placeholder="00:00.00" autocomplete="off"
+                                                aria-label="Zwischenzeit Zeile {{ $i + 1 }}"/>
                                 </div>
                             </div>
                         @endfor
