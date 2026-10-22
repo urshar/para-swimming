@@ -8,6 +8,7 @@ use App\Models\Meet;
 use App\Models\Nation;
 use App\Models\SwimEvent;
 use App\Services\ImportSuggestionService;
+use App\Services\LenexAthleteSelectionService;
 use App\Services\LenexParserService;
 use App\Services\LenexResolverService;
 use Carbon\Carbon;
@@ -22,10 +23,14 @@ use Illuminate\View\View;
 
 class LenexImportController extends Controller
 {
+    /** Importumfang "Nur ausgewählte Athleten" in "Wettkampf zuordnen" (Sentinel, siehe CLAUDE.md). */
+    public const string SCOPE_SELECTED = 'SELECTED';
+
     public function __construct(
         private readonly LenexParserService $parser,
         private readonly LenexResolverService $resolver,
         private readonly ImportSuggestionService $suggestions,
+        private readonly LenexAthleteSelectionService $selection,
     ) {}
 
     public function showForm(): View
@@ -62,6 +67,7 @@ class LenexImportController extends Controller
                 && strtoupper((string) ($importData['meta']['nation'] ?? '')) !== 'AUT' ? 'AUT' : 'ALL',
             'type' => $importData['type'],
             'candidates' => $candidates,
+            'scopeSelected' => self::SCOPE_SELECTED,
         ]);
     }
 
@@ -81,9 +87,11 @@ class LenexImportController extends Controller
         }
 
         $meetId = (int) $request->input('meet_id') ?: null; // null = neues Meet
-        // Nationenfilter: nur eine Nation aus der Datei; "ALL" (Sentinel statt leerem Wert, siehe CLAUDE.md) = alle.
-        $onlyNation = $request->input('only_nation');
-        $onlyNation = in_array($onlyNation, $importData['meta']['nations'] ?? [], true) ? $onlyNation : null;
+        // Importumfang: "ALL" (Sentinel statt leerem Wert, siehe CLAUDE.md) = alle, ein Nationencode der Datei =
+        // Nationenfilter, "SELECTED" = nur ausgewählte Athleten (nur Ergebnisdateien, eigener Auswahlschritt).
+        $scope = (string) $request->input('only_nation');
+        $selectAthletes = $scope === self::SCOPE_SELECTED && $importData['type'] === 'results';
+        $onlyNation = in_array($scope, $importData['meta']['nations'] ?? [], true) ? $scope : null;
 
         // Nation der Veranstaltung fehlt in der Datei: Pflicht, wenn eine neue Veranstaltung angelegt wird.
         $meetNation = Nation::where('code', (string) $request->input('meet_nation'))->value('code');
@@ -91,6 +99,19 @@ class LenexImportController extends Controller
             return back()->withErrors([
                 'meet_nation' => 'Die Datei enthält keine bekannte Nation der Veranstaltung — bitte auswählen.',
             ]);
+        }
+
+        if ($selectAthletes) {
+            $newSessionKey = uniqid('lenex_import_', true);
+            Session::put($newSessionKey, [
+                'path' => $importData['path'],
+                'meta' => $importData['meta'],
+                'meet_id' => $meetId,
+                'meet_nation' => $meetNation,
+            ]);
+            Session::forget($sessionKey);
+
+            return redirect()->route('lenex.import.select-athletes', ['session' => $newSessionKey]);
         }
 
         try {
@@ -110,7 +131,7 @@ class LenexImportController extends Controller
                 return redirect()->route('lenex.import.review', ['session' => $newSessionKey]);
             }
 
-            $response = $this->startImport($importData['path'], $meetId, [], $onlyNation, $meetNation);
+            $response = $this->startImport($importData['path'], $meetId, [], ['only_nation' => $onlyNation], $meetNation);
             // Erst nach dem Lauf vergessen: Bei einem Fehler bleibt die Wettkampfauswahl samt Meldung erreichbar.
             Session::forget($sessionKey);
 
@@ -144,7 +165,7 @@ class LenexImportController extends Controller
         ));
 
         try {
-            $response = $this->startImport($importData['path'], $importData['meet_id'], $unscored, null, $importData['meet_nation'] ?? null);
+            $response = $this->startImport($importData['path'], $importData['meet_id'], $unscored, [], $importData['meet_nation'] ?? null);
             // Erst nach dem Lauf vergessen: Bei einem Fehler bleibt die Klärungsseite samt Meldung erreichbar.
             Session::forget($sessionKey);
 
@@ -154,6 +175,102 @@ class LenexImportController extends Controller
             report($e);
 
             return redirect()->route('lenex.import.review', ['session' => $sessionKey])
+                ->with('error', 'Import fehlgeschlagen: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Schritt 1e (Importumfang "Nur ausgewählte Athleten"): Treffer und Kandidaten der Datei zur Auswahl anzeigen,
+     * siehe docs/specs/lenex-athlete-selection.md. Das Angebot (Treffer mit Athleten-ID, Kandidaten) wird in der Sitzung
+     * gemerkt, damit beim Absenden nur angebotene Schwimmer übernommen werden.
+     */
+    public function selectAthletes(Request $request): RedirectResponse|View
+    {
+        $sessionKey = (string) $request->input('session');
+        $importData = Session::get($sessionKey);
+
+        if (! $importData) {
+            return redirect()->route('lenex.import')
+                ->with('error', 'Import-Session abgelaufen. Bitte Datei erneut hochladen.');
+        }
+
+        try {
+            $preview = $this->selection->preview(Storage::disk('local')->path($importData['path']));
+        } catch (Exception $e) {
+            report($e);
+
+            return redirect()->route('lenex.import')
+                ->with('error', 'Datei konnte nicht gelesen werden: '.$e->getMessage());
+        }
+
+        Session::put($sessionKey, $importData + [
+            'offer' => [
+                'matches' => array_column($preview['matches'], 'athlete_id', 'lenex_id'),
+                'candidates' => array_column($preview['candidates'], 'lenex_id'),
+            ],
+        ]);
+
+        $meet = $importData['meet_id'] ? Meet::with(['nation', 'cup'])->find($importData['meet_id']) : null;
+        $meetNation = $meet?->nation?->code ?: ($importData['meta']['nation'] ?? '') ?: ($importData['meet_nation'] ?? '');
+
+        return view('lenex.select-athletes', [
+            'importSession' => $sessionKey,
+            'meta' => $importData['meta'],
+            'meet' => $meet,
+            'matches' => $preview['matches'],
+            'candidates' => $preview['candidates'],
+            // Plätze: im Ausland die der Datei (internationaler Platz), in Österreich unter den importierten Schwimmern
+            // berechnet (der Platz der Datei gilt dort für das offene Feld).
+            'defaultPlaces' => strtoupper((string) $meetNation) !== 'AUT' ? 'file' : 'compute',
+        ]);
+    }
+
+    /**
+     * Schritt 1f: Auswahl übernehmen → Import mit Athletenauswahl. Angehakte Kandidaten kommen danach auf die
+     * Klärungsseite (neu anlegen oder zuordnen).
+     */
+    public function applyAthleteSelection(Request $request): RedirectResponse
+    {
+        $sessionKey = (string) $request->input('import_session');
+        $importData = Session::get($sessionKey);
+
+        if (! $importData || ! isset($importData['offer'])) {
+            return redirect()->route('lenex.import')
+                ->with('error', 'Import-Session abgelaufen. Bitte Datei erneut hochladen.');
+        }
+
+        // Nur angebotene Schwimmer: Treffer mit ihrer Athleten-ID, Kandidaten mit null (Klärungsseite).
+        /** @var array<string, int|null> $onlyAthletes */
+        $onlyAthletes = [];
+        foreach ((array) $request->input('athletes', []) as $lenexId) {
+            if (array_key_exists((string) $lenexId, $importData['offer']['matches'])) {
+                $onlyAthletes[(string) $lenexId] = (int) $importData['offer']['matches'][(string) $lenexId];
+            }
+        }
+        foreach ((array) $request->input('candidates', []) as $lenexId) {
+            if (in_array((string) $lenexId, $importData['offer']['candidates'], true)) {
+                $onlyAthletes[(string) $lenexId] = null;
+            }
+        }
+
+        if ($onlyAthletes === []) {
+            return redirect()->route('lenex.import.select-athletes', ['session' => $sessionKey])
+                ->with('error', 'Bitte mindestens einen Athleten auswählen.');
+        }
+
+        try {
+            $response = $this->startImport($importData['path'], $importData['meet_id'], [], [
+                'only_athletes' => $onlyAthletes,
+                'file_places' => $request->input('places') === 'file',
+            ], $importData['meet_nation'] ?? null);
+            Session::forget($sessionKey);
+
+            return $response;
+
+        } catch (Exception $e) {
+            report($e);
+
+            return redirect()->route('lenex.import.select-athletes', ['session' => $sessionKey])
                 ->with('error', 'Import fehlgeschlagen: '.$e->getMessage());
         }
     }
@@ -320,7 +437,7 @@ class LenexImportController extends Controller
             Session::put($newSessionKey, [
                 'path' => $importData['path'],
                 'force_meet_id' => $importData['force_meet_id'] ?? null,
-                'only_nation' => $importData['only_nation'] ?? null,
+                'filter' => $importData['filter'] ?? [],
                 'club_map' => $clubMap,
                 'unresolved_clubs' => [],
                 'unresolved_athletes' => $unresolvedAthletes,
@@ -446,7 +563,7 @@ class LenexImportController extends Controller
      * gewählte Veranstaltung wird gemerkt, damit die Folgeschritte keine weitere anlegen.
      *
      * @param  list<int>  $unscoredEventNumbers
-     * @param  string|null  $onlyNation  Nationenfilter (nur Schwimmer dieser Nation), null = alle
+     * @param  array{only_nation?: string|null, only_athletes?: array<string, int|null>, file_places?: bool}  $filter  Importumfang (Parser-Optionen), auch für die Läufe nach der Klärungsseite; [] = alle
      * @param  string|null  $meetNation  Nation der Veranstaltung, wenn sie in der Datei fehlt
      *
      * @throws Exception
@@ -455,12 +572,11 @@ class LenexImportController extends Controller
         string $path,
         ?int $meetId,
         array $unscoredEventNumbers,
-        ?string $onlyNation,
+        array $filter,
         ?string $meetNation
     ): RedirectResponse {
-        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, [
+        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, $filter + [
             'unscored_events' => $unscoredEventNumbers,
-            'only_nation' => $onlyNation,
             'meet_nation' => $meetNation,
         ]);
 
@@ -474,7 +590,7 @@ class LenexImportController extends Controller
         Session::put($newSessionKey, [
             'path' => $path,
             'force_meet_id' => $meetId ?: $result['meet']->id,
-            'only_nation' => $onlyNation,
+            'filter' => $filter,
             'unresolved_clubs' => $this->resolver->getUnresolvedClubs(),
             'unresolved_athletes' => $this->resolver->getUnresolvedAthletes(),
         ]);
@@ -520,14 +636,11 @@ class LenexImportController extends Controller
             $this->resolver->assignAthlete((string) $lenexId, $athleteId);
         }
 
-        // Session-Werte sind untypisiert — für den Parser auf ?string bringen.
-        $onlyNation = isset($importData['only_nation']) ? (string) $importData['only_nation'] : null;
-
         return $this->parser->import(
             Storage::disk('local')->path($importData['path']),
             $this->resolver,
             $importData['force_meet_id'] ?? null,
-            ['only_nation' => $onlyNation]
+            $importData['filter'] ?? []
         );
     }
 

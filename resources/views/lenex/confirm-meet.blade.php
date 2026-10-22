@@ -112,24 +112,39 @@
                 </div>
             @endif
 
-            {{-- Nationenfilter: nur bei Dateien mit mehreren Nationen (internationale Veranstaltungen, Gäste). --}}
-            @if(count($nations) > 1)
+            {{--
+                Importumfang: Nationenfilter bei Dateien mit mehreren Nationen (internationale Veranstaltungen, Gäste),
+                "Nur ausgewählte Athleten" bei jeder Ergebnisdatei (fremde Veranstaltungen, z. B. WM oder OSV-Meeting).
+            --}}
+            @if(count($nations) > 1 || $type === 'results')
                 <div class="mt-5 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                     <flux:field>
-                        <flux:label>Nur Schwimmer dieser Nation importieren</flux:label>
-                        <flux:select variant="listbox" name="only_nation" class="max-w-xs">
-                            <flux:select.option value="ALL" :selected="$defaultNation === 'ALL'">Alle Nationen</flux:select.option>
-                            @foreach($nations as $nationCode)
-                                <flux:select.option value="{{ $nationCode }}"
-                                                    :selected="$defaultNation === $nationCode">{{ $nationCode }}</flux:select.option>
-                            @endforeach
+                        <flux:label>Importumfang</flux:label>
+                        <flux:select variant="listbox" name="only_nation" class="max-w-sm">
+                            <flux:select.option value="ALL" :selected="$defaultNation === 'ALL'">Alle Schwimmer</flux:select.option>
+                            @if(count($nations) > 1)
+                                @foreach($nations as $nationCode)
+                                    <flux:select.option value="{{ $nationCode }}"
+                                                        :selected="$defaultNation === $nationCode">Nur Nation {{ $nationCode }}</flux:select.option>
+                                @endforeach
+                            @endif
+                            @if($type === 'results')
+                                <flux:select.option value="{{ $scopeSelected }}">Nur ausgewählte Athleten</flux:select.option>
+                            @endif
                         </flux:select>
                         <flux:description>
-                            Die Datei enthält {{ count($nations) }} Nationen. Mit Filter werden nur deren Schwimmer, Staffeln und
-                            Bewerbe importiert; nicht gefundene Vereine (z. B. Nationalteams) werden nicht abgefragt — die
-                            Ergebnisse gehen an den Heimverein der Schwimmer. Mit "Alle Nationen" gelten Vereine außerhalb
-                            Österreichs als Gäste: Ihre Ergebnisse zählen nur für Statistik und Ergebnisliste, ohne
-                            Vereins- und Athleteneintrag.
+                            @if(count($nations) > 1)
+                                Die Datei enthält {{ count($nations) }} Nationen. Mit Nationenfilter werden nur deren Schwimmer,
+                                Staffeln und Bewerbe importiert; nicht gefundene Vereine (z. B. Nationalteams) werden nicht
+                                abgefragt — die Ergebnisse gehen an den Heimverein der Schwimmer. Mit "Alle Schwimmer" gelten
+                                Vereine außerhalb Österreichs als Gäste: Ihre Ergebnisse zählen nur für Statistik und
+                                Ergebnisliste, ohne Vereins- und Athleteneintrag.
+                            @endif
+                            @if($type === 'results')
+                                "Nur ausgewählte Athleten" zeigt im nächsten Schritt die Schwimmer der Datei, die es schon in
+                                der Datenbank gibt, zur Auswahl — für fremde Veranstaltungen (z. B. WM oder ein OSV-Meeting),
+                                deren übrige Starts nicht gebraucht werden.
+                            @endif
                         </flux:description>
                     </flux:field>
                 </div>

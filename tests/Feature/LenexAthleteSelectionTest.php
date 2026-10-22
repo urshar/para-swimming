@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LenexImportController;
 use App\Models\Athlete;
 use App\Models\AthleteClassification;
 use App\Models\AthleteSportClass;
@@ -11,10 +12,14 @@ use App\Models\RelayResult;
 use App\Models\Result;
 use App\Models\ScoringGroup;
 use App\Models\SwimEvent;
+use App\Models\User;
 use App\Services\LenexAthleteSelectionService;
 use App\Services\LenexParserService;
 use App\Services\LenexResolverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 
 uses(RefreshDatabase::class)->group('lenex-athlete-selection');
 
@@ -304,3 +309,142 @@ it('lässt Nationenfilter und Athletenauswahl nicht gemeinsam zu', /** @throws E
         $path, new LenexResolverService, null, ['only_nation' => 'AUT', 'only_athletes' => []]
     ));
 })->throws(InvalidArgumentException::class);
+
+// ── Ablauf über die Oberfläche ────────────────────────────────────────────────
+
+function admin_las(): User
+{
+    return User::factory()->create(['is_admin' => true, 'club_id' => null]);
+}
+
+/** Lädt die Datei hoch und liefert die Antwort von "Wettkampf zuordnen". */
+function upload_las(User $admin): TestResponse
+{
+    foreach (['FREE', 'BREAST', 'BACK'] as $stroke) {
+        makeStrokeType_p5($stroke);
+    }
+    $upload = test()->actingAs($admin)->post(route('lenex.import.store'), [
+        'lenex_file' => UploadedFile::fake()->createWithContent('osv.lef', osvXml_las()),
+    ]);
+
+    return test()->actingAs($admin)->get($upload->headers->get('Location'));
+}
+
+function sessionKey_las(TestResponse $response): string
+{
+    preg_match('/name="import_session" value="([^"]+)"/', $response->getContent(), $m);
+
+    return $m[1];
+}
+
+/** "Wettkampf zuordnen" mit Importumfang "Nur ausgewählte Athleten" → Auswahlschritt. */
+function selectionPage_las(User $admin): TestResponse
+{
+    $run = test()->actingAs($admin)->post(route('lenex.import.run'), [
+        'import_session' => sessionKey_las(upload_las($admin)), 'meet_id' => '',
+        'only_nation' => LenexImportController::SCOPE_SELECTED,
+    ]);
+    $run->assertRedirectContains('/lenex/import/select-athletes');
+
+    return test()->actingAs($admin)->get($run->headers->get('Location'));
+}
+
+it('bietet bei Ergebnisdateien den Importumfang "Nur ausgewählte Athleten" an', function () {
+    Storage::fake('local');
+
+    upload_las(admin_las())
+        ->assertOk()
+        ->assertSee('Importumfang')
+        ->assertSee('Nur ausgewählte Athleten');
+});
+
+it('zeigt im Auswahlschritt Treffer und Kandidaten mit Platzvorbelegung für Österreich', function () {
+    Storage::fake('local');
+    knownAthletes_las();
+
+    selectionPage_las(admin_las())
+        ->assertOk()
+        ->assertSee('In der Datenbank gefunden (3)')
+        ->assertSee('Name, Nina')
+        ->assertSee('Name + Geburtsdatum')
+        ->assertSee('Kandidaten ohne Treffer (2)')
+        ->assertSee('Handicap, Hans')
+        ->assertDontSee('Offen, Otto')
+        ->assertViewHas('defaultPlaces', 'compute');
+});
+
+it('importiert nach der Auswahl nur die angehakten Athleten', function () {
+    Storage::fake('local');
+    [$lisa, , $nina] = knownAthletes_las();
+    $admin = admin_las();
+    $page = selectionPage_las($admin);
+
+    test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => sessionKey_las($page), 'athletes' => ['3'], 'places' => 'compute',
+    ])->assertRedirect(route('meets.index'));
+
+    expect(Result::pluck('athlete_id')->unique()->values()->all())->toBe([$nina->id])
+        ->and(Result::where('athlete_id', $lisa->id)->exists())->toBeFalse()
+        ->and(Meet::sole()->keep_file_places)->toBeFalse();
+});
+
+it('übernimmt nur angebotene Schwimmer und verlangt mindestens einen', function () {
+    Storage::fake('local');
+    knownAthletes_las();
+    $admin = admin_las();
+    $session = sessionKey_las(selectionPage_las($admin));
+
+    // Otto (6) wurde nicht angeboten: zählt nicht, also ist nichts ausgewählt.
+    test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => $session, 'athletes' => ['6'], 'candidates' => ['6'], 'places' => 'file',
+    ])
+        ->assertRedirect(route('lenex.import.select-athletes', ['session' => $session]))
+        ->assertSessionHas('error', 'Bitte mindestens einen Athleten auswählen.');
+
+    expect(Result::count())->toBe(0)
+        ->and(Meet::count())->toBe(0);
+});
+
+it('führt angehakte Kandidaten über die Klärungsseite und importiert danach nur sie dazu', function () {
+    Storage::fake('local');
+    [, , $nina] = knownAthletes_las();
+    // Bekannter Verein: Der neu angelegte Kandidat bekommt ihn als Heimverein (sonst siehe nächster Test).
+    $linz = Club::create(['name' => 'SV Linz', 'short_name' => 'SVL', 'code' => 'SVL', 'nation_id' => makeNation_p5()->id]);
+    $admin = admin_las();
+    $page = selectionPage_las($admin);
+
+    $apply = test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => sessionKey_las($page), 'athletes' => ['3'], 'candidates' => ['4'], 'places' => 'file',
+    ]);
+    $apply->assertRedirectContains('/lenex/import/review');
+    $review = test()->actingAs($admin)->get($apply->headers->get('Location'))->assertOk()->assertSee('Handicap');
+
+    test()->actingAs($admin)->post(route('lenex.import.resolve-athletes'), [
+        'import_session' => sessionKey_las($review), 'athletes' => [['selection' => 'new']],
+    ])->assertRedirect(route('meets.index'));
+
+    $hans = Athlete::where('last_name', 'Handicap')->sole();
+    expect(Result::pluck('athlete_id')->unique()->sort()->values()->all())->toBe(collect([$nina->id, $hans->id])->sort()->values()->all())
+        ->and($hans->club_id)->toBe($linz->id)
+        ->and(Athlete::where('last_name', 'Offen')->exists())->toBeFalse()
+        ->and(RelayResult::count())->toBe(0)
+        ->and(Meet::sole()->keep_file_places)->toBeTrue();
+});
+
+it('meldet Ergebnisse eines neu angelegten Kandidaten ohne bekannten Verein als übersprungen', function () {
+    Storage::fake('local');
+    knownAthletes_las();
+    $admin = admin_las();
+
+    $apply = test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => sessionKey_las(selectionPage_las($admin)), 'candidates' => ['4'], 'places' => 'compute',
+    ]);
+    $review = test()->actingAs($admin)->get($apply->headers->get('Location'));
+
+    test()->actingAs($admin)->post(route('lenex.import.resolve-athletes'), [
+        'import_session' => sessionKey_las($review), 'athletes' => [['selection' => 'new']],
+    ])->assertSessionHas('success', fn (string $message): bool => str_contains($message, '1 Meldung(en)/Ergebnis(se) übersprungen: Athlet ohne Verein'));
+
+    expect(Athlete::where('last_name', 'Handicap')->value('club_id'))->toBeNull()
+        ->and(Result::count())->toBe(0);
+});

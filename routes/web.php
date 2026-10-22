@@ -506,6 +506,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/import', [LenexImportController::class, 'import'])->name('import.store');
         Route::get('/import/confirm-meet', [LenexImportController::class, 'confirmMeet'])->name('import.confirm-meet');
         Route::post('/import/run', [LenexImportController::class, 'runImport'])->name('import.run');
+        Route::get('/import/select-athletes',
+            [LenexImportController::class, 'selectAthletes'])->name('import.select-athletes');
+        Route::post('/import/select-athletes',
+            [LenexImportController::class, 'applyAthleteSelection'])->name('import.apply-athlete-selection');
         Route::get('/import/review', [LenexImportController::class, 'review'])->name('import.review');
         Route::post('/import/resolve-events',
             [LenexImportController::class, 'resolveEvents'])->name('import.resolve-events');
