@@ -187,6 +187,7 @@ class RelayResultController extends Controller
             'swim_time' => 'nullable|string|max:20',
             'status' => 'nullable|in:EXH,DSQ,DNS,DNF,SICK,WDR',
             'points' => 'nullable|integer|min:0',
+            'place' => 'nullable|integer|min:1',
             'comment' => 'nullable|string|max:255',
             'members' => 'nullable|array',
             'members.*' => 'nullable|integer|exists:athletes,id',
@@ -235,7 +236,9 @@ class RelayResultController extends Controller
                 'status' => $validated['status'] ?? null,
                 'points' => $validated['points'] ?? null,
                 'comment' => $validated['comment'] ?? null,
-            ],
+            ]
+                // Den Platz gibt man nur bei "Plätze nicht neu berechnen" ein, sonst setzt ihn ScoringGroupService::syncPlaces().
+                + ($meet->keep_file_places ? ['place' => $validated['place'] ?? null] : []),
             'members' => $members,
         ];
     }
