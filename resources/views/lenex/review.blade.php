@@ -37,7 +37,11 @@
                                     Bewerb {{ $pending['number'] }} – {{ $pending['label'] }}
                                 </span>
                                 <span class="block text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                    Wertungsgruppen: {{ $pending['groups'] ?: 'keine' }} · Ankreuzen = Rahmenbewerb, nicht gewertet
+                                    Wertungsgruppen: {{ $pending['groups'] ?: 'keine' }}
+                                    @if(($pending['starts'] ?? null) === 0)
+                                        · <span class="text-amber-600 dark:text-amber-400">keine Ergebnisse oder Meldungen in der Datei</span>
+                                    @endif
+                                    · Ankreuzen = Rahmenbewerb, nicht gewertet
                                 </span>
                             </span>
                         </label>

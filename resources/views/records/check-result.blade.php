@@ -26,7 +26,7 @@
         array_column($newRecordIds, 'id'),
         array_column($pendingRecordIds, 'id'),
     );
-    $recordsMap = SwimRecord::with(['strokeType', 'athlete'])
+    $recordsMap = SwimRecord::with(['strokeType', 'athlete.club', 'club'])
         ->whereIn('id', $allIds)
         ->get()
         ->keyBy('id');
@@ -35,7 +35,7 @@
     $totalPending = count($pendingRecordIds);
 @endphp
 
-<div class="mt-6 space-y-4">
+<div class="mt-6 mb-6 space-y-4">
 
     {{-- ── Zusammenfassung ─────────────────────────────────────────────────── --}}
     <div
@@ -79,10 +79,10 @@
                                     </flux:badge>
                                 @endforeach
                                 <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
-                                <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
+                                <span class="text-zinc-500" title="{{ SwimRecord::genderLabel($record->gender) }}"
+                                      aria-label="{{ SwimRecord::genderLabel($record->gender) }}">{{ SwimRecord::genderSymbol($record->gender) }}</span>
                                 <span class="text-zinc-700 dark:text-zinc-300">
-                                    {{ $record->distance }}m
-                                    {{ $record->strokeType?->name_de }}
+                                    {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
                             </div>
@@ -91,7 +91,7 @@
                                     {{ $record->formatted_swim_time }}
                                 </span>
                                 <span class="text-zinc-500 text-xs">
-                                    {{ $record->athlete?->display_name ?? 'Staffel' }}
+                                    {{ $record->is_relay ? ($record->record_club_name ?? 'Staffel') : ($record->athlete?->display_name ?? '') }}
                                 </span>
                                 <flux:button href="{{ route('records.show', $record) }}"
                                              size="sm" variant="ghost" icon="eye"/>
@@ -122,10 +122,10 @@
                                 <flux:badge size="sm" color="amber">PENDING</flux:badge>
                                 <flux:badge size="sm" color="zinc">{{ $record->record_type }}</flux:badge>
                                 <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
-                                <span class="text-zinc-500">{{ $record->gender === 'F' ? '♀' : '♂' }}</span>
+                                <span class="text-zinc-500" title="{{ SwimRecord::genderLabel($record->gender) }}"
+                                      aria-label="{{ SwimRecord::genderLabel($record->gender) }}">{{ SwimRecord::genderSymbol($record->gender) }}</span>
                                 <span class="text-zinc-700 dark:text-zinc-300">
-                                    {{ $record->distance }}m
-                                    {{ $record->strokeType?->name_de }}
+                                    {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
                             </div>

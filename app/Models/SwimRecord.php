@@ -129,6 +129,24 @@ class SwimRecord extends Model
         return Entry::formatTime($this->swim_time);
     }
 
+    /** Disziplin als Text: "50 m Freistil", bei Staffeln "4×50 m Freistil". */
+    public function getDisciplineLabelAttribute(): string
+    {
+        $relay = $this->relay_count > 1 ? $this->relay_count.'×' : '';
+
+        return trim($relay.$this->distance.' m '.($this->strokeType?->name_de ?? ''));
+    }
+
+    /** Symbol der Wertung: ♀ Damen, ♂ Herren, ⚥ Mixed. */
+    public static function genderSymbol(?string $gender): string
+    {
+        return match ($gender) {
+            'F' => '♀',
+            'X' => '⚥',
+            default => '♂',
+        };
+    }
+
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     /**
