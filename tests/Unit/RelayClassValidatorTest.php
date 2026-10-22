@@ -372,17 +372,13 @@ describe('RelayClassValidator::extractMemberClasses', function () {
 
 describe('RelayClassValidator::isNationalOnlyClass', function () {
 
-    beforeEach(function () {
-        $this->validator = new RelayClassValidator;
-    })->group('relay-validator');
-
     it('gibt true für S21 zurück (nur national gültig)', function () {
-        expect($this->validator->isNationalOnlyClass('S21'))->toBeTrue();
+        expect(RelayClassValidator::isNationalOnlyClass('S21'))->toBeTrue();
     })->group('relay-validator');
 
     it('gibt false für alle anderen Staffelklassen zurück', function () {
         foreach (['S14', 'S15', 'S20', 'S34', 'S49'] as $class) {
-            expect($this->validator->isNationalOnlyClass($class))
+            expect(RelayClassValidator::isNationalOnlyClass($class))
                 ->toBeFalse('Erwartet false für '.$class);
         }
     })->group('relay-validator');

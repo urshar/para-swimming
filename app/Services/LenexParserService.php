@@ -1160,7 +1160,7 @@ class LenexParserService
                     'swim_event_id' => $header['swimEventId'],
                     'is_relay' => true,
                     'gender' => in_array($gender, ['M', 'F', 'X'], true) ? $gender : null,
-                    'sport_class' => is_numeric($handicap) && (int) $handicap > 0 ? 'S'.(int) $handicap : null,
+                    'sport_class' => RelayClassValidator::fromHandicap($handicap),
                     'swim_time' => $header['swimTime'],
                     'status' => $header['status'],
                     'place' => $header['lenexResultId'] !== null ? ($this->rankingIndex[$header['lenexResultId']] ?? null) : null,
@@ -1492,9 +1492,8 @@ class LenexParserService
         }
 
         $handicap = trim((string) ($relayXml['handicap'] ?? ''));
-        $relayClass = is_numeric($handicap) && (int) $handicap > 0
-            ? 'S'.(int) $handicap
-            : (new RelayClassValidator)->resolveRelayClass(array_values(array_filter(array_column($members, 'sport_class'))));
+        $relayClass = RelayClassValidator::fromHandicap($handicap)
+            ?? (new RelayClassValidator)->resolveRelayClass(array_values(array_filter(array_column($members, 'sport_class'))));
 
         $relayEntry = $this->findRelayEntry($meet->id, $swimEventId, $club->id, $relayNumber)
             ?? new RelayEntry(['meet_id' => $meet->id, 'swim_event_id' => $swimEventId, 'club_id' => $club->id, 'status' => 'confirmed']);
@@ -1561,10 +1560,10 @@ class LenexParserService
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
 
         $handicap = $lenexResultId !== null ? ($this->rankingGroupIndex[$lenexResultId]['handicap'] ?? '') : '';
-        // Gruppe mit mehreren oder ohne Klassen: Staffelklasse aus RELAY handicap (schreibt auch der eigene Export).
-        if (! is_numeric($handicap)) {
-            $handicap = trim((string) ($relayXml['handicap'] ?? ''));
-        }
+        // Gruppe mit mehreren, ohne oder ungültiger Klasse (Splash-Fehleingabe wie handicap="1"): Staffelklasse aus
+        // RELAY handicap (schreibt auch der eigene Export), sonst nach dem Speichern aus den Mitgliedern.
+        $relayClass = RelayClassValidator::fromHandicap($handicap)
+            ?? RelayClassValidator::fromHandicap((string) ($relayXml['handicap'] ?? ''));
         $relayNumber = (int) ($relayXml['number'] ?? 0) ?: null;
 
         $members = [];
@@ -1600,7 +1599,7 @@ class LenexParserService
             'relay_number' => $relayNumber,
             'name' => (string) ($relayXml['name'] ?? '') ?: null,
             'gender' => $relayGender,
-            'relay_class' => is_numeric($handicap) && (int) $handicap > 0 ? 'S'.(int) $handicap : null,
+            'relay_class' => $relayClass,
             'swim_time' => $swimTime,
             'status' => $statusCode,
             'place' => $lenexResultId !== null ? ($this->rankingIndex[$lenexResultId] ?? null) : null,
@@ -1611,6 +1610,13 @@ class LenexParserService
         $relayResult->members()->delete();
         foreach ($members as $member) {
             RelayResultMember::create(['relay_result_id' => $relayResult->id] + $member);
+        }
+
+        if ($relayClass === null) {
+            $event = SwimEvent::with('strokeType')->findOrFail($swimEventId);
+            $relayResult->update(['relay_class' => (new RelayClassValidator)->resolveFromMembers(
+                $relayResult->members()->with('athlete.sportClasses')->get(), $event
+            )]);
         }
 
         $this->replaceSplits($relayResult, $resultXml->SPLITS ?? null);
