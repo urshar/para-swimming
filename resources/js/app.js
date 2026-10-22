@@ -16,6 +16,7 @@ import recordImportPreview from './record-import-preview';
 import recordRelayTeam from './record-relay-team';
 import relayEntryForm from './relay-entry-form';
 import relayResultForm from './relay-result-form';
+import resultForm from './result-form';
 import scoringGroupsEditor from './scoring-groups-editor';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
@@ -49,6 +50,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('recordRelayTeam', recordRelayTeam);
     window.Alpine.data('relayEntryForm', relayEntryForm);
     window.Alpine.data('relayResultForm', relayResultForm);
+    window.Alpine.data('resultForm', resultForm);
     window.Alpine.data('scoringGroupsEditor', scoringGroupsEditor);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);

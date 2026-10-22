@@ -258,7 +258,7 @@ it('öffnet nach "Speichern und nächstes" das Formular mit derselben Disziplin'
 
     $this->get(route('meets.results.create', ['meet' => $meet, 'swim_event_id' => $otherEvent->id]))
         ->assertOk()
-        ->assertSee('eventId: "'.$otherEvent->id.'"', false)
+        ->assertViewHas('presetEventId', (string) $otherEvent->id)
         ->assertSee('Speichern und nächstes');
 
     expect(Result::where('swim_event_id', $otherEvent->id)->count())->toBe(1);
