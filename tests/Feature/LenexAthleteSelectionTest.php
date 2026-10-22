@@ -4,8 +4,15 @@ use App\Models\Athlete;
 use App\Models\AthleteClassification;
 use App\Models\AthleteSportClass;
 use App\Models\Club;
+use App\Models\ForeignStart;
+use App\Models\Meet;
 use App\Models\Nation;
+use App\Models\RelayResult;
+use App\Models\Result;
+use App\Models\ScoringGroup;
+use App\Models\SwimEvent;
 use App\Services\LenexAthleteSelectionService;
+use App\Services\LenexParserService;
 use App\Services\LenexResolverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -42,7 +49,9 @@ function osvXml_las(): string
 <LENEX version="3.0"><MEETS><MEET name="Linzer Herbstmeeting" city="Linz" nation="AUT" course="SCM" startdate="2016-10-15">
 <SESSIONS><SESSION number="1" date="2016-10-15"><EVENTS>
   <EVENT eventid="1" number="1"><SWIMSTYLE distance="100" relaycount="1" stroke="FREE" />
-    <AGEGROUPS><AGEGROUP agegroupid="1" agemin="6" agemax="8" name="Jg. 2008-2010" /></AGEGROUPS></EVENT>
+    <AGEGROUPS><AGEGROUP agegroupid="1" agemin="6" agemax="8" name="Jg. 2008-2010"><RANKINGS>
+      <RANKING order="1" place="12" resultid="31" /><RANKING order="2" place="37" resultid="11" />
+    </RANKINGS></AGEGROUP></AGEGROUPS></EVENT>
   <EVENT eventid="2" number="2"><SWIMSTYLE distance="50" relaycount="1" stroke="BREAST" />
     <AGEGROUPS><AGEGROUP agegroupid="2" agemin="-1" agemax="-1" name="Offen" /></AGEGROUPS></EVENT>
   <EVENT eventid="3" number="3"><SWIMSTYLE distance="50" relaycount="1" stroke="BACK" />
@@ -65,18 +74,53 @@ function osvXml_las(): string
 </CLUBS></MEET></MEETS></LENEX>';
 }
 
-/** @throws Exception */
-function preview_las(): array
+/**
+ * Schreibt die Datei in eine Temp-Datei und ruft $use damit auf. Der Parser erkennt ZIP bzw. XML am Inhalt, die
+ * Dateiendung spielt keine Rolle.
+ *
+ * @template T
+ *
+ * @param  Closure(string): T  $use
+ * @return T
+ */
+function withFile_las(Closure $use): mixed
 {
-    // Der Parser erkennt ZIP bzw. XML am Inhalt, die Dateiendung spielt keine Rolle.
     $path = tempnam(sys_get_temp_dir(), 'las');
     file_put_contents($path, osvXml_las());
 
     try {
-        return app(LenexAthleteSelectionService::class)->preview($path);
+        return $use($path);
     } finally {
         unlink($path);
     }
+}
+
+/** @throws Exception */
+function preview_las(): array
+{
+    return withFile_las(fn (string $path): array => app(LenexAthleteSelectionService::class)->preview($path));
+}
+
+/**
+ * Importiert die Datei mit Athletenauswahl.
+ *
+ * @param  array<string, int|null>  $selection
+ * @param  int|null  $meetId  bestehende Veranstaltung (wie "Wettkampf zuordnen"), null = aus der Datei anlegen
+ * @return LenexResolverService der Resolver nach dem Lauf (für die vorgemerkten Klärungsfälle)
+ *
+ * @throws Exception
+ */
+function import_las(array $selection, bool $filePlaces, ?int $meetId): LenexResolverService
+{
+    foreach (['FREE', 'BREAST', 'BACK'] as $stroke) {
+        makeStrokeType_p5($stroke);
+    }
+    $resolver = new LenexResolverService;
+    withFile_las(fn (string $path): array => app(LenexParserService::class)->import(
+        $path, $resolver, $meetId, ['only_athletes' => $selection, 'file_places' => $filePlaces]
+    ));
+
+    return $resolver;
 }
 
 /** @return array{0: Athlete, 1: Athlete, 2: Athlete} */
@@ -165,3 +209,98 @@ it('schreibt beim Abgleich nichts in die Datenbank', /** @throws Exception */ fu
     expect($counts())->toBe($before)
         ->and($name->sportClasses()->count())->toBe(0);
 });
+
+// ── Import mit Athletenauswahl ────────────────────────────────────────────────
+
+it('importiert nur Einzelergebnisse der ausgewählten Athleten in deren Bewerben', /** @throws Exception */ function () {
+    [$lisa, , $nina] = knownAthletes_las();
+    $clubs = Club::count();
+    $athletes = Athlete::count();
+
+    $resolver = import_las(['1' => $lisa->id, '3' => $nina->id], false, null);
+
+    $meet = Meet::where('name', 'Linzer Herbstmeeting')->firstOrFail();
+    // Lisa: 100 Freistil + 50 Brust, Nina: 100 Freistil. Simon (Treffer, aber nicht ausgewählt) und alle anderen nicht.
+    expect(Result::where('meet_id', $meet->id)->count())->toBe(3)
+        ->and(Result::pluck('athlete_id')->unique()->sort()->values()->all())->toBe([$lisa->id, $nina->id])
+        // Nur Bewerbe mit ausgewählten Startern: kein Para-Bewerb 3, keine Staffel 4.
+        ->and(SwimEvent::where('meet_id', $meet->id)->orderBy('event_number')->pluck('event_number')->all())->toBe([1, 2])
+        ->and(RelayResult::count())->toBe(0)
+        ->and(ForeignStart::count())->toBe(0)
+        ->and(ScoringGroup::count())->toBe(0)
+        ->and(Club::count())->toBe($clubs)
+        ->and(Athlete::count())->toBe($athletes)
+        // Verein "SV Linz" ist unbekannt: kein Klärungsfall, die Ergebnisse gehen an den Heimverein.
+        ->and($resolver->getUnresolvedClubs())->toBe([])
+        ->and($resolver->getUnresolvedAthletes())->toBe([])
+        ->and(Result::where('athlete_id', $lisa->id)->pluck('club_id')->unique()->all())->toBe([$lisa->club_id]);
+});
+
+it('ordnet Ergebnisse einem bekannten Verein der Datei zu', /** @throws Exception */ function () {
+    [, , $nina] = knownAthletes_las();
+    $linz = Club::create(['name' => 'SV Linz', 'short_name' => 'SVL', 'code' => 'SVL', 'nation_id' => makeNation_p5()->id]);
+
+    import_las(['3' => $nina->id], false, null);
+
+    expect(Result::where('athlete_id', $nina->id)->value('club_id'))->toBe($linz->id);
+});
+
+it('leitet eine fehlende Sportklasse aus dem Athleten zur Lage des Bewerbs ab', /** @throws Exception */ function () {
+    [$lisa, , $nina] = knownAthletes_las();
+    AthleteSportClass::create(['athlete_id' => $lisa->id, 'category' => 'SB', 'class_number' => '4', 'sport_class' => 'SB4']);
+
+    import_las(['1' => $lisa->id, '3' => $nina->id], false, null);
+
+    $breast = SwimEvent::where('event_number', 2)->value('id');
+    $free = SwimEvent::where('event_number', 1)->value('id');
+    // Lisa hat in der Datei kein HANDICAP → aus den Stammdaten; Nina hat HANDICAP free="9" → wie bisher aus der Datei.
+    expect(Result::where('athlete_id', $lisa->id)->where('swim_event_id', $breast)->value('sport_class'))->toBe('SB4')
+        ->and(Result::where('athlete_id', $nina->id)->where('swim_event_id', $free)->value('sport_class'))->toBe('S9');
+});
+
+it('übernimmt auf Wunsch die Plätze aus der Datei', /** @throws Exception */ function () {
+    [$lisa, , $nina] = knownAthletes_las();
+
+    import_las(['1' => $lisa->id, '3' => $nina->id], true, null);
+
+    $free = SwimEvent::where('event_number', 1)->value('id');
+    expect(Meet::where('name', 'Linzer Herbstmeeting')->value('keep_file_places'))->toBeTrue()
+        ->and(Result::where('athlete_id', $lisa->id)->where('swim_event_id', $free)->value('place'))->toBe(37)
+        ->and(Result::where('athlete_id', $nina->id)->where('swim_event_id', $free)->value('place'))->toBe(12);
+});
+
+it('berechnet die Plätze sonst unter den importierten Schwimmern', /** @throws Exception */ function () {
+    [, , $nina] = knownAthletes_las();
+
+    import_las(['3' => $nina->id], false, null);
+
+    // In der Datei Platz 12 im offenen Feld, unter den importierten Schwimmern allein in ihrer Wertung → Platz 1.
+    expect(Meet::where('name', 'Linzer Herbstmeeting')->value('keep_file_places'))->toBeFalse()
+        ->and(Result::where('athlete_id', $nina->id)->value('place'))->toBe(1);
+});
+
+it('merkt ausgewählte Kandidaten zur Klärung vor, nicht ausgewählte Unbekannte nicht', /** @throws Exception */ function () {
+    knownAthletes_las();
+
+    $resolver = import_las(['4' => null], false, null);
+
+    expect(collect($resolver->getUnresolvedAthletes())->pluck('lenex_id')->all())->toBe(['4'])
+        ->and(Result::count())->toBe(0);
+});
+
+it('verdoppelt bei einem erneuten Import mit größerer Auswahl nichts', /** @throws Exception */ function () {
+    [$lisa, , $nina] = knownAthletes_las();
+
+    import_las(['1' => $lisa->id], false, null);
+    // Zweiter Lauf auf die bestehende Veranstaltung, wie im Ablauf über "Wettkampf zuordnen".
+    import_las(['1' => $lisa->id, '3' => $nina->id], false, Meet::value('id'));
+
+    expect(Result::count())->toBe(3)
+        ->and(Result::where('athlete_id', $lisa->id)->count())->toBe(2);
+});
+
+it('lässt Nationenfilter und Athletenauswahl nicht gemeinsam zu', /** @throws Exception */ function () {
+    withFile_las(fn (string $path): array => app(LenexParserService::class)->import(
+        $path, new LenexResolverService, null, ['only_nation' => 'AUT', 'only_athletes' => []]
+    ));
+})->throws(InvalidArgumentException::class);
