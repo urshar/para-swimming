@@ -183,18 +183,7 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-4">
-                            {{-- Platz wird je Wertungsgruppe berechnet (ScoringGroupService) und gespeichert — nur Anzeige. --}}
-                            <div>
-                                <div class="text-sm font-medium text-zinc-800 dark:text-white mb-2">Platz</div>
-                                @forelse($placements ?? [] as $placement)
-                                    <div class="text-sm text-zinc-700 dark:text-zinc-300">
-                                        <span class="font-semibold">{{ $placement['place'] ? $placement['place'] . '.' : '–' }}</span>
-                                        <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $placement['label'] }}</span>
-                                    </div>
-                                @empty
-                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Wird beim Speichern aus der Wertung berechnet.</div>
-                                @endforelse
-                            </div>
+                            @include('results._place-field', ['placements' => $placements ?? [], 'place' => $result->place ?? null])
                             <flux:field>
                                 <flux:label>Lauf</flux:label>
                                 <flux:input name="heat" type="number" min="1" value="{{ old('heat', $result->heat ?? '') }}"/>

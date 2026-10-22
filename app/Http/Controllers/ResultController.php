@@ -135,7 +135,7 @@ class ResultController extends Controller
      */
     public function store(Request $request, Meet $meet): RedirectResponse
     {
-        $data = $this->validateResult($request);
+        $data = $this->validateResult($request, $meet);
 
         // Prüfen ob SwimEvent zum Meet gehört
         $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
@@ -196,7 +196,7 @@ class ResultController extends Controller
      */
     public function update(Request $request, Result $result): RedirectResponse
     {
-        $data = $this->validateResult($request);
+        $data = $this->validateResult($request, $result->meet);
 
         $swimEvent = SwimEvent::findOrFail($data['result']['swim_event_id']);
         $data['result']['sport_class'] = $this->sportClassOrDefault($data['result'], $swimEvent);
@@ -276,7 +276,7 @@ class ResultController extends Controller
         return $notes === [] ? $message : $message.' '.implode('. ', $notes).'.';
     }
 
-    private function validateResult(Request $request): array
+    private function validateResult(Request $request, Meet $meet): array
     {
         $validated = $request->validate([
             'swim_event_id' => 'required|exists:swim_events,id',
@@ -289,6 +289,7 @@ class ResultController extends Controller
             'status' => 'nullable|in:EXH,DSQ,DNS,DNF,SICK,WDR',
             'sport_class' => 'nullable|string|max:15',
             'points' => 'nullable|integer|min:0',
+            'place' => 'nullable|integer|min:1',
             'heat' => 'nullable|integer|min:1',
             'lane' => 'nullable|integer|min:0',
             // Kommt als Sekunden mit Komma aus dem Formular (z.B. "0,14", Fehlstart negativ
@@ -314,6 +315,11 @@ class ResultController extends Controller
         $validated['is_national_record'] = $request->boolean('is_national_record');
         $validated['swim_time'] = $this->parseTime($validated['swim_time'] ?? null);
         $validated['reaction_time'] = $this->parseReactionTime($validated['reaction_time'] ?? null);
+
+        // Den Platz gibt man nur bei "Plätze nicht neu berechnen" ein, sonst setzt ihn ScoringGroupService::syncPlaces().
+        if (! $meet->keep_file_places) {
+            unset($validated['place']);
+        }
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),
