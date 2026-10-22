@@ -314,11 +314,12 @@ class LenexParserService
 
     /**
      * Lädt eine LENEX-Datei als SimpleXMLElement.
-     * Unterstützt sowohl .lxf (ZIP-komprimiert) als auch .xml/.lef (plain XML).
+     * Unterstützt sowohl .lxf (ZIP-komprimiert) als auch .xml/.lef (plain XML). Öffentlich für die Athletenauswahl vor
+     * dem Import (LenexAthleteSelectionService).
      *
      * @throws Exception
      */
-    private function loadXml(string $filePath): SimpleXMLElement
+    public function loadXml(string $filePath): SimpleXMLElement
     {
         if (! file_exists($filePath)) {
             throw new Exception('Datei nicht gefunden: '.$filePath);
@@ -337,6 +338,35 @@ class LenexParserService
         }
 
         return $xml;
+    }
+
+    /** Nation eines Athleten: eigenes nation-Attribut, sonst das seines Vereins. */
+    public static function athleteNation(SimpleXMLElement $athleteXml, SimpleXMLElement $clubXml): string
+    {
+        return strtoupper((string) ($athleteXml['nation'] ?? '') ?: (string) ($clubXml['nation'] ?? ''));
+    }
+
+    /**
+     * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
+     * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
+     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
+     */
+    public static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
+    {
+        $handicap = trim((string) ($agegroupXml['handicap'] ?? ''));
+        if ($handicap !== '') {
+            return $handicap;
+        }
+
+        $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
+        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
+            return '';
+        }
+
+        $from = (int) $m[1];
+        $to = isset($m[2]) ? (int) $m[2] : $from;
+
+        return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
     }
 
     /**
@@ -425,12 +455,6 @@ class LenexParserService
         }
 
         return $count > 0;
-    }
-
-    /** Nation eines Athleten: eigenes nation-Attribut, sonst das seines Vereins. */
-    private static function athleteNation(SimpleXMLElement $athleteXml, SimpleXMLElement $clubXml): string
-    {
-        return strtoupper((string) ($athleteXml['nation'] ?? '') ?: (string) ($clubXml['nation'] ?? ''));
     }
 
     /**
@@ -881,29 +905,6 @@ class LenexParserService
         uksort($classes, fn ($a, $b) => (int) $a <=> (int) $b);
 
         return implode(' ', array_keys($classes));
-    }
-
-    /**
-     * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
-     * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
-     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
-     */
-    private static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
-    {
-        $handicap = trim((string) ($agegroupXml['handicap'] ?? ''));
-        if ($handicap !== '') {
-            return $handicap;
-        }
-
-        $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
-        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
-            return '';
-        }
-
-        $from = (int) $m[1];
-        $to = isset($m[2]) ? (int) $m[2] : $from;
-
-        return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
     }
 
     // ── Entries ───────────────────────────────────────────────────────────────
