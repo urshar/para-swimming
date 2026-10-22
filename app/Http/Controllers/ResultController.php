@@ -20,7 +20,9 @@ use App\Support\TimeParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
@@ -124,9 +126,10 @@ class ResultController extends Controller
             ? (string) $request->integer('swim_event_id')
             : '';
         $backUrl = MeetResultsOverviewController::backUrl($meet);
+        $splitDistances = self::splitDistances($meet, $swimEvents);
 
         return view('results.form', compact(
-            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl'
+            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl', 'splitDistances'
         ));
     }
 
@@ -188,6 +191,7 @@ class ResultController extends Controller
             'athletes' => collect(),
             'clubs' => collect(),
             'placements' => $this->scoring->placementsOf($result),
+            'splitDistances' => self::splitDistances($result->meet, $swimEvents),
         ]);
     }
 
@@ -270,6 +274,20 @@ class ResultController extends Controller
         return $this->entryService->resolveSportClass((int) $data['athlete_id'], $swimEvent);
     }
 
+    /**
+     * Vorgeschlagene Zwischenzeit-Distanzen je Bewerb (Bewerbs-ID → Distanzen); das Formular belegt damit die
+     * Distanzfelder vor und tauscht sie beim Bewerbswechsel aus.
+     *
+     * @param  Collection<int, SwimEvent>  $swimEvents
+     * @return array<int, list<int>>
+     */
+    private static function splitDistances(Meet $meet, Collection $swimEvents): array
+    {
+        return $swimEvents
+            ->mapWithKeys(fn (SwimEvent $event): array => [$event->id => $event->defaultSplitDistances($meet->course)])
+            ->all();
+    }
+
     /** @param  list<string>  $notes */
     private static function withNotes(string $message, array $notes): string
     {
@@ -314,6 +332,17 @@ class ResultController extends Controller
         $validated['is_national_record'] = $request->boolean('is_national_record');
         $validated['swim_time'] = $this->parseTime($validated['swim_time'] ?? null);
         $validated['reaction_time'] = $this->parseReactionTime($validated['reaction_time'] ?? null);
+
+        // Eine Zeit ohne Distanz nicht still verwerfen (das leere Maskenfeld "00:00.00" zählt als keine Zeit).
+        $missingDistance = [];
+        foreach ($validated['splits'] ?? [] as $index => $split) {
+            if (empty($split['distance']) && $this->parseTime($split['split_time'] ?? null)) {
+                $missingDistance['splits.'.$index.'.distance'] = 'Zu dieser Zwischenzeit fehlt die Distanz.';
+            }
+        }
+        if ($missingDistance !== []) {
+            throw ValidationException::withMessages($missingDistance);
+        }
 
         return [
             'result' => collect($validated)->except('splits')->toArray(),
