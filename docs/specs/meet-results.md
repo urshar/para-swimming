@@ -63,6 +63,17 @@ zurück, wo man herkam, inklusive Filter.
   zuerst prüfen, ob die richtige Basiswert-Version eingespielt ist (Oktober 2026: Herrenstaffeln S14 auf Dev aus einer
   noch nicht gültigen Tabelle, gültig ist MM-2021).
 
+## Erfassen: Splitzeiten und Platz
+
+- **Splitzeiten** (Reiter im Ergebnisformular, Alpine `resultForm` in `resources/js/result-form.js`): Die
+  Distanzfelder sind je Bewerb vorbelegt (`SwimEvent::defaultSplitDistances()`: 50-m-Raster bis vor das Ziel wie in
+  den LENEX-Ergebnisdateien, 50-m-Bewerbe auf der Kurzbahn mit 25 m, Freiwasser ohne Vorschlag) und werden beim
+  Bewerbswechsel ausgetauscht, solange sie unverändert sind; gespeicherte Splits haben beim Bearbeiten Vorrang.
+  Mindestens 10 Zeilen, mehr bei langen Bewerben. Zeilen ohne Zeit werden ignoriert; eine Zeit ohne Distanz ist ein
+  Validierungsfehler am Feld (früher wurde die Zeile still verworfen), der Reiter zeigt dann "(Fehler)".
+- **Platz:** wird je Wertungsgruppe berechnet und nur angezeigt. Ist an der Veranstaltung "Plätze nicht neu
+  berechnen" gesetzt, wird er eingetragen (Einzel- und Staffelergebnis) — siehe [scoring-groups.md](scoring-groups.md).
+
 ## Ergebnisliste (PDF)
 
 Button "Ergebnisliste (PDF)" in der Sammelansicht (Route `meets.results-overview.pdf`, View

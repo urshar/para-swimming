@@ -34,6 +34,13 @@ use SimpleXMLElement;
  */
 class LenexResolverService
 {
+    /** Trefferarten von findAthlete() */
+    public const string MATCH_LICENSE = 'license';
+
+    public const string MATCH_LICENSE_IPC = 'license_ipc';
+
+    public const string MATCH_NAME = 'name';
+
     /** Cache-Schlüssel (LENEX clubid/id bzw. "code:XYZ") → App Club ID */
     private array $clubCache = [];
 
@@ -171,42 +178,16 @@ class LenexResolverService
         int $nationId
     ): ?Athlete {
         $lenexId = (string) ($athleteXml['athleteid'] ?? '');
-        $license = (string) ($athleteXml['license'] ?? '');
-        $licenseIpc = (string) ($athleteXml['license_ipc'] ?? '');
-        $lastName = (string) ($athleteXml['lastname'] ?? '');
-        $firstName = (string) ($athleteXml['firstname'] ?? '');
-        $birthDate = (string) ($athleteXml['birthdate'] ?? '');
-        $gender = (string) ($athleteXml['gender'] ?? '');
 
         if ($lenexId && isset($this->athleteCache[$lenexId])) {
             return Athlete::find($this->athleteCache[$lenexId]);
         }
 
-        // 0. Auf der Klärungsseite einem bestehenden Athleten zugeordnet
+        // 0. Auf der Klärungsseite einem bestehenden Athleten zugeordnet, sonst 1.-3. über findAthlete()
         $athlete = $lenexId && isset($this->assignedAthletes[$lenexId])
             ? Athlete::find($this->assignedAthletes[$lenexId])
             : null;
-
-        // 1. Lizenznummer (ohne Leerzeichen verglichen: "W - 1653" = "W-1653")
-        if (! $athlete && $license) {
-            $athlete = $this->suggestions->athleteByLicense('license', $license);
-        }
-
-        // 2. SDMS ID (IPC Lizenznummer) —, nur wenn nicht "0"
-        if (! $athlete && $licenseIpc && $licenseIpc !== '0') {
-            $athlete = $this->suggestions->athleteByLicense('license_ipc', $licenseIpc);
-        }
-
-        // 3. Name + Geburtsdatum + Geschlecht + Nation
-        if (! $athlete && $lastName && $firstName && $birthDate) {
-            $athlete = Athlete::where(DB::raw('LOWER(last_name)'), '=', mb_strtolower($lastName))
-                ->where(DB::raw('LOWER(first_name)'), '=', mb_strtolower($firstName))
-                ->whereDate('birth_date', $birthDate)
-                ->where('gender', $gender)
-                ->where('nation_id', $nationId)
-                ->whereNull('deleted_at')
-                ->first();
-        }
+        $athlete ??= $this->findAthlete($athleteXml, $nationId)['athlete'] ?? null;
 
         if ($athlete) {
             // lenex_athlete_id NICHT in DB speichern — sie ist pro Export unterschiedlich
@@ -225,14 +206,7 @@ class LenexResolverService
         }
 
         // Nicht gefunden → vormerken
-        $this->unresolvedAthletes[] = [
-            'lenex_id' => $lenexId,
-            'license' => $license,
-            'license_ipc' => $licenseIpc,
-            'last_name' => $lastName,
-            'first_name' => $firstName,
-            'birth_date' => $birthDate,
-            'gender' => $gender,
+        $this->unresolvedAthletes[] = ['lenex_id' => $lenexId] + self::athleteData($athleteXml) + [
             'nation_id' => $nationId,
             'club_id' => $clubId,
             'sport_class' => isset($athleteXml->HANDICAP)
@@ -241,6 +215,47 @@ class LenexResolverService
         ];
 
         return null;
+    }
+
+    /**
+     * Sucht den bestehenden Athleten zu einem LENEX-ATHLETE, ohne etwas zu schreiben oder vorzumerken (kein Cache,
+     * kein HANDICAP-Abgleich). Grundlage von resolveAthlete() und der Athletenauswahl vor dem Import
+     * (LenexAthleteSelectionService), damit Vorschau und Import dieselben Treffer ergeben.
+     *
+     * @return array{athlete: Athlete, matchedBy: string}|null matchedBy: MATCH_LICENSE, MATCH_LICENSE_IPC oder MATCH_NAME
+     */
+    public function findAthlete(SimpleXMLElement $athleteXml, int $nationId): ?array
+    {
+        [
+            'license' => $license, 'license_ipc' => $licenseIpc, 'last_name' => $lastName,
+            'first_name' => $firstName, 'birth_date' => $birthDate, 'gender' => $gender,
+        ] = self::athleteData($athleteXml);
+
+        // 1. Lizenznummer (ohne Leerzeichen verglichen: "W - 1653" = "W-1653")
+        $athlete = $license ? $this->suggestions->athleteByLicense('license', $license) : null;
+        if ($athlete) {
+            return ['athlete' => $athlete, 'matchedBy' => self::MATCH_LICENSE];
+        }
+
+        // 2. SDMS ID (IPC Lizenznummer) —, nur wenn nicht "0"
+        $athlete = $licenseIpc && $licenseIpc !== '0' ? $this->suggestions->athleteByLicense('license_ipc', $licenseIpc) : null;
+        if ($athlete) {
+            return ['athlete' => $athlete, 'matchedBy' => self::MATCH_LICENSE_IPC];
+        }
+
+        // 3. Name + Geburtsdatum + Geschlecht + Nation
+        if (! $lastName || ! $firstName || ! $birthDate) {
+            return null;
+        }
+        $athlete = Athlete::where(DB::raw('LOWER(last_name)'), '=', mb_strtolower($lastName))
+            ->where(DB::raw('LOWER(first_name)'), '=', mb_strtolower($firstName))
+            ->whereDate('birth_date', $birthDate)
+            ->where('gender', $gender)
+            ->where('nation_id', $nationId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        return $athlete ? ['athlete' => $athlete, 'matchedBy' => self::MATCH_NAME] : null;
     }
 
     public function createAthlete(array $data): Athlete
@@ -304,6 +319,24 @@ class LenexResolverService
     public function hasUnresolved(): bool
     {
         return ! empty($this->unresolvedClubs) || ! empty($this->unresolvedAthletes);
+    }
+
+    /**
+     * Stammdaten eines LENEX-ATHLETE als Strings (fehlende Attribute = ""), wie sie findAthlete() vergleicht und die
+     * Klärungsseite anzeigt.
+     *
+     * @return array{license: string, license_ipc: string, last_name: string, first_name: string, birth_date: string, gender: string}
+     */
+    private static function athleteData(SimpleXMLElement $athleteXml): array
+    {
+        return [
+            'license' => (string) ($athleteXml['license'] ?? ''),
+            'license_ipc' => (string) ($athleteXml['license_ipc'] ?? ''),
+            'last_name' => (string) ($athleteXml['lastname'] ?? ''),
+            'first_name' => (string) ($athleteXml['firstname'] ?? ''),
+            'birth_date' => (string) ($athleteXml['birthdate'] ?? ''),
+            'gender' => (string) ($athleteXml['gender'] ?? ''),
+        ];
     }
 
     // ── Unaufgelöste Einträge ─────────────────────────────────────────────────

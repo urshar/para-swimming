@@ -95,7 +95,8 @@ it('bietet bei mehreren Nationen den Filter mit Vorauswahl Österreich an', func
 
     upload_lnf(admin_lnf())
         ->assertOk()
-        ->assertSee('Nur Schwimmer dieser Nation importieren')
+        ->assertSee('Importumfang')
+        ->assertSee('Nur Nation AUT')
         ->assertSee('Die Datei enthält 2 Nationen');
 });
 

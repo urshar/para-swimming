@@ -19,6 +19,7 @@ use App\Models\StrokeType;
 use App\Models\SwimEvent;
 use App\Support\TimeParser;
 use Exception;
+use InvalidArgumentException;
 use SimpleXMLElement;
 use ZipArchive;
 
@@ -91,6 +92,22 @@ class LenexParserService
      */
     private ?string $onlyNation = null;
 
+    /**
+     * Athletenauswahl (Importumfang "Nur ausgewählte Athleten", siehe import()): LENEX athleteid → bestehender Athlet,
+     * bzw. null für einen Kandidaten, der über die Klärungsseite angelegt oder zugeordnet wird. null = kein Filter.
+     *
+     * @var array<string, int|null>|null
+     */
+    private ?array $onlyAthletes = null;
+
+    /**
+     * Bei Athletenauswahl: LENEX eventids der Einzelergebnisse ausgewählter Schwimmer (eventid → true). Nur diese
+     * Bewerbe werden angelegt.
+     *
+     * @var array<string, true>
+     */
+    private array $selectedEventIds = [];
+
     /** Nation der Veranstaltung, falls sie in der Datei fehlt oder unbekannt ist (Auswahl beim Import). */
     private ?string $meetNationFallback = null;
 
@@ -133,12 +150,19 @@ class LenexParserService
      *     Nation (Athlet nation, sonst Verein nation) samt deren Bewerben; nicht gefundene Vereine (z. B. Nationalteams)
      *     werden nicht zur Klärung vorgemerkt, Meldungen und Ergebnisse gehen an den Heimverein.
      *   - meet_nation: Nation der Veranstaltung, wenn sie in der Datei fehlt oder unbekannt ist.
+     *   - only_athletes: Athletenauswahl für Ergebnisdateien fremder Veranstaltungen (docs/specs/
+     *     lenex-athlete-selection.md), LENEX athleteid → Athleten-ID (null = über die Klärungsseite auflösen). Nur
+     *     Einzelergebnisse dieser Schwimmer und nur deren Bewerbe; keine Staffeln, keine foreign_starts, keine
+     *     Wertungsgruppen aus der Datei, kein Verein zur Klärung (Ergebnis sonst an den Heimverein). Schließt
+     *     only_nation aus.
+     *   - file_places: nur mit only_athletes — true = Plätze aus der Datei (keep_file_places), false = nach dem Import
+     *     unter den importierten Schwimmern neu berechnen.
      *
      * Ohne Nationenfilter gelten Vereine mit einer Nation ≠ AUT als Gäste: Aus einer Ergebnisdatei kommen ihre Starts
      * nur in foreign_starts (Statistik, Ergebnisliste), es entstehen weder Vereine noch Athleten; aus einer Meldedatei
      * werden sie übergangen (importForeignClub()).
      *
-     * @param  array{unscored_events?: list<int>, only_nation?: ?string, meet_nation?: ?string}  $options
+     * @param  array{unscored_events?: list<int>, only_nation?: ?string, meet_nation?: ?string, only_athletes?: array<string, int|null>|null, file_places?: bool}  $options
      *
      * @throws Exception
      */
@@ -149,11 +173,17 @@ class LenexParserService
         array $options = []
     ): array {
         $onlyNation = $options['only_nation'] ?? null;
+        $onlyAthletes = $options['only_athletes'] ?? null;
+        if ($onlyNation !== null && $onlyAthletes !== null) {
+            throw new InvalidArgumentException('only_nation und only_athletes schließen sich aus.');
+        }
         $this->meetNationFallback = $options['meet_nation'] ?? null;
         $this->unscoredEventNumbers = $options['unscored_events'] ?? [];
         $this->unscoredEventIds = [];
         $this->onlyNation = null;
         $this->nationEventIds = [];
+        $this->onlyAthletes = null;
+        $this->selectedEventIds = [];
         // Stats und Index für jeden Import-Aufruf zurücksetzen
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
@@ -178,6 +208,18 @@ class LenexParserService
             $this->nationEventIdsAreEntries = $type === 'entries';
         }
 
+        // Athletenauswahl nur bei Ergebnisdateien. Ausgewählte Treffer werden vorab zugeordnet, damit der Import
+        // dieselben Athleten nimmt wie die Vorschau (LenexAthleteSelectionService).
+        if ($onlyAthletes !== null && $type === 'results') {
+            $this->onlyAthletes = $onlyAthletes;
+            $this->selectedEventIds = $this->collectSelectedEventIds($xml->MEETS->MEET[0]);
+            foreach ($onlyAthletes as $lenexId => $athleteId) {
+                if ($athleteId !== null) {
+                    $resolver->assignAthlete((string) $lenexId, $athleteId);
+                }
+            }
+        }
+
         // Ranking-Index aufbauen bevor Clubs/Results importiert werden
         if ($type === 'results') {
             $this->buildRankingIndex($xml->MEETS->MEET[0]);
@@ -188,6 +230,21 @@ class LenexParserService
         // Internationale Veranstaltung (Nationenfilter auf einer Ergebnisdatei): Plätze aus der Datei behalten.
         if ($this->onlyNation !== null && $type === 'results' && ! $meet->keep_file_places) {
             $meet->update(['keep_file_places' => true]);
+        }
+
+        // Athletenauswahl: Plätze laut Einstellung aus der Datei behalten oder unter den importierten Schwimmern
+        // berechnen (die Plätze der Datei gelten dann für das offene Feld, z. B. bei einem OSV-Meeting).
+        if ($this->onlyAthletes !== null) {
+            $filePlaces = (bool) ($options['file_places'] ?? false);
+            if ($meet->keep_file_places !== $filePlaces) {
+                $meet->update(['keep_file_places' => $filePlaces]);
+            }
+            if (! $filePlaces) {
+                $scoring = app(ScoringGroupService::class);
+                foreach ($meet->swimEvents()->get() as $swimEvent) {
+                    $scoring->syncPlaces($swimEvent);
+                }
+            }
         }
 
         return [
@@ -314,11 +371,12 @@ class LenexParserService
 
     /**
      * Lädt eine LENEX-Datei als SimpleXMLElement.
-     * Unterstützt sowohl .lxf (ZIP-komprimiert) als auch .xml/.lef (plain XML).
+     * Unterstützt sowohl .lxf (ZIP-komprimiert) als auch .xml/.lef (plain XML). Öffentlich für die Athletenauswahl vor
+     * dem Import (LenexAthleteSelectionService).
      *
      * @throws Exception
      */
-    private function loadXml(string $filePath): SimpleXMLElement
+    public function loadXml(string $filePath): SimpleXMLElement
     {
         if (! file_exists($filePath)) {
             throw new Exception('Datei nicht gefunden: '.$filePath);
@@ -337,6 +395,35 @@ class LenexParserService
         }
 
         return $xml;
+    }
+
+    /** Nation eines Athleten: eigenes nation-Attribut, sonst das seines Vereins. */
+    public static function athleteNation(SimpleXMLElement $athleteXml, SimpleXMLElement $clubXml): string
+    {
+        return strtoupper((string) ($athleteXml['nation'] ?? '') ?: (string) ($clubXml['nation'] ?? ''));
+    }
+
+    /**
+     * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
+     * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
+     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
+     */
+    public static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
+    {
+        $handicap = trim((string) ($agegroupXml['handicap'] ?? ''));
+        if ($handicap !== '') {
+            return $handicap;
+        }
+
+        $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
+        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
+            return '';
+        }
+
+        $from = (int) $m[1];
+        $to = isset($m[2]) ? (int) $m[2] : $from;
+
+        return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
     }
 
     /**
@@ -427,12 +514,6 @@ class LenexParserService
         return $count > 0;
     }
 
-    /** Nation eines Athleten: eigenes nation-Attribut, sonst das seines Vereins. */
-    private static function athleteNation(SimpleXMLElement $athleteXml, SimpleXMLElement $clubXml): string
-    {
-        return strtoupper((string) ($athleteXml['nation'] ?? '') ?: (string) ($clubXml['nation'] ?? ''));
-    }
-
     /**
      * Nationenfilter: eventids der Ergebnisse bzw. Meldungen von Schwimmern der Nation und der Staffeln von Vereinen
      * der Nation.
@@ -459,6 +540,37 @@ class LenexParserService
         }
 
         return $ids;
+    }
+
+    /**
+     * Athletenauswahl: eventids der Einzelergebnisse ausgewählter Schwimmer. Staffeln werden in diesem Modus nicht
+     * importiert, ihre Bewerbe also auch nicht angelegt.
+     *
+     * @return array<string, true>
+     */
+    private function collectSelectedEventIds(SimpleXMLElement $meetXml): array
+    {
+        $ids = [];
+        foreach ($meetXml->CLUBS->CLUB ?? [] as $clubXml) {
+            foreach ($clubXml->ATHLETES->ATHLETE ?? [] as $athleteXml) {
+                if (! $this->isSelectedAthlete($athleteXml)) {
+                    continue;
+                }
+                foreach ($athleteXml->xpath('RESULTS/RESULT/@eventid') as $eventId) {
+                    $ids[(string) $eventId] = true;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    /** Athletenauswahl: Ist der Schwimmer ausgewählt (Treffer oder Kandidat)? */
+    private function isSelectedAthlete(SimpleXMLElement $athleteXml): bool
+    {
+        $lenexId = (string) ($athleteXml['athleteid'] ?? '');
+
+        return $lenexId !== '' && array_key_exists($lenexId, $this->onlyAthletes ?? []);
     }
 
     /** Baut den heatid → Laufnummer Index aus EVENT > HEATS > HEAT. */
@@ -734,6 +846,11 @@ class LenexParserService
             return;
         }
 
+        // Athletenauswahl: nur Bewerbe, in denen ausgewählte Schwimmer ein Einzelergebnis haben.
+        if ($this->onlyAthletes !== null && ! isset($this->selectedEventIds[(string) ($eventXml['eventid'] ?? '')])) {
+            return;
+        }
+
         $lenexStroke = (string) ($swimStyleXml['stroke'] ?? 'UNKNOWN');
         $strokeType = StrokeType::findByLenexCode($lenexStroke)
             ?? StrokeType::where('code', 'UNKNOWN')->first();
@@ -781,7 +898,9 @@ class LenexParserService
             ] + (in_array($eventNumber, $this->unscoredEventNumbers, true) ? ['is_scored' => false] : [])
         );
 
-        if (isset($eventXml->AGEGROUPS)) {
+        // Bei Athletenauswahl (fremde Veranstaltung) sind die AGEGROUPs meist Jahrgangsklassen ohne Bezug zur
+        // Para-Wertung — keine Wertungsgruppen, die Wertung fällt auf Geschlecht und Sportklasse zurück.
+        if (isset($eventXml->AGEGROUPS) && $this->onlyAthletes === null) {
             $this->importScoringGroups($swimEvent, $eventXml->AGEGROUPS);
         }
 
@@ -883,29 +1002,6 @@ class LenexParserService
         return implode(' ', array_keys($classes));
     }
 
-    /**
-     * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
-     * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
-     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
-     */
-    private static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
-    {
-        $handicap = trim((string) ($agegroupXml['handicap'] ?? ''));
-        if ($handicap !== '') {
-            return $handicap;
-        }
-
-        $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
-        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
-            return '';
-        }
-
-        $from = (int) $m[1];
-        $to = isset($m[2]) ? (int) $m[2] : $from;
-
-        return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
-    }
-
     // ── Entries ───────────────────────────────────────────────────────────────
 
     private function mapGender(string $gender): string
@@ -949,7 +1045,9 @@ class LenexParserService
 
         // Gäste (Vereine außerhalb Österreichs) ohne Nationenfilter: Ihre Starts landen nur in foreign_starts, ohne
         // Athleten- und Vereinsdatensatz. Ein erneuter Import ersetzt sie, statt sie zu verdoppeln.
-        $guestsAsForeignStarts = $this->onlyNation === null && $type === 'results';
+        // Bei Athletenauswahl gibt es keine Gäste: Ausgewählte Schwimmer kommen unabhängig von der Nation, alle
+        // anderen gar nicht.
+        $guestsAsForeignStarts = $this->onlyNation === null && $this->onlyAthletes === null && $type === 'results';
         if ($guestsAsForeignStarts) {
             ForeignStart::where('meet_id', $meet->id)->delete();
         }
@@ -959,7 +1057,7 @@ class LenexParserService
         foreach ($clubsXml->CLUB as $clubXml) {
             $nationCode = (string) ($clubXml['nation'] ?? '');
 
-            if ($this->onlyNation === null && ForeignStart::isForeignClubNation($nationCode)) {
+            if ($this->onlyNation === null && $this->onlyAthletes === null && ForeignStart::isForeignClubNation($nationCode)) {
                 if ($guestsAsForeignStarts) {
                     $this->importForeignClub($meet, $clubXml, $nationCode, $resolver);
                 }
@@ -967,26 +1065,29 @@ class LenexParserService
                 continue;
             }
 
-            // Nationenfilter: Vereine ohne Schwimmer der Nation gar nicht erst suchen.
-            $athletesXml = $this->onlyNation === null
-                ? iterator_to_array($clubXml->ATHLETES->ATHLETE ?? [], false)
-                : array_values(array_filter(
-                    iterator_to_array($clubXml->ATHLETES->ATHLETE ?? [], false),
-                    fn (SimpleXMLElement $a): bool => self::athleteNation($a, $clubXml) === $this->onlyNation
-                ));
-            $clubOfNation = $this->onlyNation === null || strtoupper($nationCode) === $this->onlyNation;
+            // Nationenfilter bzw. Athletenauswahl: Vereine ohne passende Schwimmer gar nicht erst suchen.
+            $athletesXml = array_values(array_filter(
+                iterator_to_array($clubXml->ATHLETES->ATHLETE ?? [], false),
+                fn (SimpleXMLElement $a): bool => ($this->onlyNation === null || self::athleteNation($a, $clubXml) === $this->onlyNation)
+                    && ($this->onlyAthletes === null || $this->isSelectedAthlete($a))
+            ));
+            // Staffeln nur von Vereinen der Nation — bei Athletenauswahl von keinem Verein.
+            $clubOfNation = $this->onlyAthletes === null
+                && ($this->onlyNation === null || strtoupper($nationCode) === $this->onlyNation);
             if (! $clubOfNation && $athletesXml === []) {
                 continue;
             }
 
+            $filtered = $this->onlyNation !== null || $this->onlyAthletes !== null;
             $nation = Nation::where('code', $nationCode)->first();
-            // Mit Nationenfilter wird ein nicht gefundener Verein (z. B. Nationalteam "Austria") nicht zur Klärung
-            // vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer. Ebenso wenig ein Verein, aus dem nichts
-            // Gewertetes käme (nur Offizielle, nur Rahmenbewerbe) — ein bekannter wird trotzdem zugeordnet.
+            // Mit Nationenfilter bzw. Athletenauswahl wird ein nicht gefundener Verein (z. B. Nationalteam "Austria")
+            // nicht zur Klärung vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer. Ebenso wenig ein
+            // Verein, aus dem nichts Gewertetes käme (nur Offizielle, nur Rahmenbewerbe) — ein bekannter wird trotzdem
+            // zugeordnet.
             $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0,
-                $this->onlyNation === null && $this->hasScoredContent($meet, $clubXml, $type, $resolver));
+                ! $filtered && $this->hasScoredContent($meet, $clubXml, $type, $resolver));
 
-            if (! $club && $this->onlyNation === null) {
+            if (! $club && ! $filtered) {
                 // Unbekannter Club — wird in Review-Seite aufgelöst
                 continue;
             }
@@ -1369,6 +1470,11 @@ class LenexParserService
         //   FREE/BACK/FLY → S (free-Attribut), BREAST → SB (breast), MEDLEY → SM (medley)
         $sportClass = $this->deriveSportClass($swimEventId, $handicapXml)
             ?: ((string) ($resultXml['handicap'] ?? '') ?: null); // Fallback standard LENEX
+        // Athletenauswahl (fremde Veranstaltung, oft ohne Klassenangabe): wie bei der manuellen Erfassung die Klasse
+        // des Athleten zur Lage des Bewerbs.
+        if ($sportClass === null && $this->onlyAthletes !== null) {
+            $sportClass = app(ClubEntryService::class)->resolveSportClass($athleteId, SwimEvent::findOrFail($swimEventId));
+        }
 
         $heat = $this->heatNumber($resultXml);
         $lane = (int) ($resultXml['lane'] ?? 0) ?: null;

@@ -14,14 +14,15 @@ Tabellen: [../data-model.md](../data-model.md).
 
 ## Beteiligte Bausteine
 
-| Baustein                        | Datei                                                                    |
-|---------------------------------|--------------------------------------------------------------------------|
-| Parser / Import                 | `App\Services\LenexParserService`                                        |
-| Auflösung Clubs/Athleten/Events | `App\Services\LenexResolverService`                                      |
-| Export                          | `App\Services\LenexExportService`                                        |
-| Import (HTTP, mehrstufig)       | `App\Http\Controllers\LenexImportController`                             |
-| Export (HTTP)                   | `App\Http\Controllers\LenexExportController`                             |
-| Views                           | `resources/views/lenex/*` (`import`, `confirm-meet`, `review`, `export`) |
+| Baustein                        | Datei                                                                                       |
+|---------------------------------|---------------------------------------------------------------------------------------------|
+| Parser / Import                 | `App\Services\LenexParserService`                                                           |
+| Auflösung Clubs/Athleten/Events | `App\Services\LenexResolverService`                                                         |
+| Athletenauswahl (Vorschau)      | `App\Services\LenexAthleteSelectionService`                                                 |
+| Export                          | `App\Services\LenexExportService`                                                           |
+| Import (HTTP, mehrstufig)       | `App\Http\Controllers\LenexImportController`                                                |
+| Export (HTTP)                   | `App\Http\Controllers\LenexExportController`                                                |
+| Views                           | `resources/views/lenex/*` (`import`, `confirm-meet`, `select-athletes`, `review`, `export`) |
 
 ## Dateiformat
 
@@ -77,8 +78,8 @@ Ausnahmecodes; HANDICAP-Werte werden gegen die `exception_codes`-Tabelle gematch
 
 ## Nationenfilter (internationale Veranstaltungen)
 
-Enthält eine Melde- oder Ergebnisdatei mehrere Nationen, bietet "Wettkampf zuordnen" die Auswahl **"Nur Schwimmer
-dieser Nation importieren"** an (`ALL` = alle). Vorauswahl seit `feature/foreign-starts` (11.10.2026): Österreich nur
+Enthält eine Melde- oder Ergebnisdatei mehrere Nationen, bietet "Wettkampf zuordnen" unter **"Importumfang"** je
+Nation "Nur Nation …" an (`ALL` = "Alle Schwimmer"; Feldname weiterhin `only_nation`). Vorauswahl seit `feature/foreign-starts` (11.10.2026): Österreich nur
 bei Veranstaltungen im Ausland; bei Veranstaltungen in Österreich "Alle Nationen" (die übrigen sind Gäste, siehe
 "Gastvereine" unten). Option `only_nation` von `LenexParserService::import()`:
 
@@ -91,9 +92,36 @@ bei Veranstaltungen im Ausland; bei Veranstaltungen in Österreich "Alle Natione
   Verein), werden sie gezählt übersprungen ("Athlet ohne Verein" in der Rückmeldung; `club_id` ist Pflicht).
 - Mit Filter entfällt die Abfrage der Rahmenbewerbe (internationale Meisterschaften haben keine).
 - Die Plätze aus der Datei (RANKINGS) sind die internationalen Plätze (z. B. EM-Platz). Ein Import mit Nationenfilter
-  auf einer Ergebnisdatei setzt an der Veranstaltung `keep_file_places` ("Plätze aus der Ergebnisdatei übernehmen",
-  im Veranstaltungsformular unter "Punkteberechnung" änderbar): Die Wertung rechnet dann nicht neu, sondern sortiert
+  auf einer Ergebnisdatei setzt an der Veranstaltung `keep_file_places` ("Plätze nicht neu berechnen", im
+  Veranstaltungsformular unter "Punkteberechnung" änderbar): Die Wertung rechnet dann nicht neu, sondern sortiert
   nach dem gespeicherten Platz — siehe [scoring-groups.md](scoring-groups.md).
+
+## Athletenauswahl (fremde Veranstaltungen)
+
+Seit `feature/lenex-athlete-selection` (22.10.2026, Spec [lenex-athlete-selection.md](lenex-athlete-selection.md)):
+Bei jeder Ergebnisdatei bietet "Importumfang" zusätzlich **"Nur ausgewählte Athleten"** (`SELECTED`,
+`LenexImportController::SCOPE_SELECTED`) an — für Veranstaltungen, deren übrige Starts nicht gebraucht werden: WM/EM,
+aber auch österreichische Veranstaltungen außerhalb des ÖBSV (z. B. OSV-Meetings), wo der Nationenfilter nicht hilft.
+
+- **Auswahlschritt** (`lenex.import.select-athletes`): `LenexAthleteSelectionService::preview()` gleicht die Schwimmer
+  der Datei ohne Schreibzugriff ab (`LenexResolverService::findAthlete()`, dieselben Regeln wie `resolveAthlete()`:
+  Lizenz, SDMS-ID, Name + Geburtsdatum + Geschlecht + Nation). **Treffer** sind angehakt (Trefferart als Badge, über
+  den Namen gelb). **Kandidaten** — nicht gefunden, aber mit Para-Hinweis (`HANDICAP` oder Start in einem Bewerb mit
+  Klassenangabe) — stehen eingeklappt und nicht angehakt darunter; alle anderen werden nicht angezeigt. Gezählt werden
+  nur Einzelstarts. Dazu die Plätze-Einstellung (Ausland → aus der Datei, Österreich → berechnen) und ein Cup-Hinweis
+  (Warnung, wenn die gewählte Veranstaltung einem Cup zugeordnet ist; ein fehlender Cup ist das Kennzeichen, die
+  Ergebnisse zählen sonst normal).
+- Die Sitzung merkt sich das Angebot; beim Absenden zählen nur angebotene Schwimmer. Angehakte Kandidaten durchlaufen
+  die normale Klärungsseite für Athleten. Der Importumfang gilt als `filter` auch für alle Läufe danach.
+- **Import** (Option `only_athletes`, LENEX athleteid → Athleten-ID bzw. `null` für Kandidaten; schließt `only_nation`
+  aus): nur Einzelergebnisse der Ausgewählten und nur deren Bewerbe, Treffer vorab zugeordnet (`assignAthlete()`).
+  Keine Staffeln, keine `foreign_starts`, keine Wertungsgruppen aus der Datei (meist Jahrgangsklassen — die Wertung
+  fällt auf Geschlecht und Sportklasse zurück), keine Rahmenbewerb-Abfrage. Ein Verein der Datei wird gesucht, aber
+  nie zur Klärung vorgemerkt; unbekannt → Heimverein. Ein neu angelegter Kandidat ohne bekannten Verein hat keinen
+  Heimverein, seine Ergebnisse werden als "Athlet ohne Verein" übersprungen. Fehlt die Sportklasse in der Datei, kommt
+  sie aus den Stammdaten zur Lage des Bewerbs (`ClubEntryService::resolveSportClass()`).
+- **Plätze** (Option `file_places`): `true` setzt `keep_file_places` und übernimmt RANKINGS; `false` schaltet es aus
+  und rechnet nach dem Import alle Bewerbe der Veranstaltung mit `ScoringGroupService::syncPlaces()` neu.
 
 ## Gastvereine (Nation ≠ AUT) — nur Statistik
 
@@ -292,6 +320,8 @@ Der Zwischenstand wird unter einem Session-Key gehalten (nur IDs/Arrays, keine E
    behalten ihre Kennzeichnung, beim Nachimport wird also nicht erneut gefragt. Danach (`startImport`) läuft der
    Import via Parser + Resolver. Gibt es ungelöste Clubs/Athleten, folgt **review**; sonst ist der Import fertig.
    Wurde keine bestehende Veranstaltung gewählt, wird die beim ersten Lauf angelegte für die Folgeschritte gemerkt.
+   Mit Importumfang "Nur ausgewählte Athleten" geht es stattdessen zuerst zum **Auswahlschritt**
+   (`selectAthletes` / `applyAthleteSelection`, siehe "Athletenauswahl"); ohne Rahmenbewerb-Abfrage.
 5. `review(Request)` — Klärungsseite (`lenex.review`), wie beim Rekord-Import: je unbekanntem Verein bzw. Athleten
    "Neu anlegen", "Überspringen", Vorschläge (Verein: Name/Kurzname/Code; Athlet: Name + Geburtsjahr, bei genau
    einem Treffer vorbelegt) oder "Bestehendem zuordnen" (Vereine: alle; Athleten: gleicher Anfangsbuchstabe des
@@ -321,17 +351,22 @@ Die Daten der unbekannten Einträge stehen in der Session; das Formular schickt 
 
 Alle unter `auth`, Prefix `lenex`:
 
-| Route                                 | Name                            |
-|---------------------------------------|---------------------------------|
-| `GET /lenex/import`                   | `lenex.import`                  |
-| `POST /lenex/import`                  | `lenex.import.store`            |
-| `GET /lenex/import/confirm-meet`      | `lenex.import.confirm-meet`     |
-| `POST /lenex/import/run`              | `lenex.import.run`              |
-| `GET /lenex/import/review`            | `lenex.import.review`           |
-| `POST /lenex/import/resolve-clubs`    | `lenex.import.resolve-clubs`    |
-| `POST /lenex/import/resolve-athletes` | `lenex.import.resolve-athletes` |
-| `GET /lenex/export`                   | `lenex.export`                  |
-| `POST /lenex/export/download`         | `lenex.export.download`         |
+Import nur für Admins (`RequireAdmin`):
+
+| Route                                 | Name                                    |
+|---------------------------------------|-----------------------------------------|
+| `GET /lenex/import`                   | `lenex.import`                          |
+| `POST /lenex/import`                  | `lenex.import.store`                    |
+| `GET /lenex/import/confirm-meet`      | `lenex.import.confirm-meet`             |
+| `POST /lenex/import/run`              | `lenex.import.run`                      |
+| `GET /lenex/import/select-athletes`   | `lenex.import.select-athletes`          |
+| `POST /lenex/import/select-athletes`  | `lenex.import.apply-athlete-selection`  |
+| `GET /lenex/import/review`            | `lenex.import.review`                   |
+| `POST /lenex/import/resolve-events`   | `lenex.import.resolve-events`           |
+| `POST /lenex/import/resolve-clubs`    | `lenex.import.resolve-clubs`            |
+| `POST /lenex/import/resolve-athletes` | `lenex.import.resolve-athletes`         |
+| `GET /lenex/export`                   | `lenex.export`                          |
+| `POST /lenex/export/download`         | `lenex.export.download`                 |
 
 ## Tests
 
@@ -341,6 +376,10 @@ Alle unter `auth`, Prefix `lenex`:
 - `tests/Feature/LenexRelayExportTest.php` — Export von Staffelmeldungen als LENEX-`RELAY`-Elemente.
 - `tests/Feature/LenexExportClubsTest.php` — Vereine im Export ohne `meet_club`-Eintrag (Meldungen, Ergebnisse,
   Import-Zuordnungen) und "Teilnehmende Vereine" auf `meets/show`.
+- `tests/Feature/LenexAthleteSelectionTest.php` (Gruppe `lenex-athlete-selection`) — Athletenauswahl: Vorschau
+  (Trefferarten, Kandidaten nur mit Para-Hinweis, keine Schreibzugriffe), Import mit `only_athletes` (nur Ausgewählte,
+  keine Staffeln/Gaststarts/Wertungsgruppen, Heimverein, Sportklasse aus den Stammdaten, Plätze aus der Datei bzw.
+  berechnet, Wiederholungsimport) und der Ablauf über die Oberfläche bis zur Klärungsseite.
 
 Die Relais-XML-Struktur beim Import (`RELAY > ENTRIES > ENTRY` mit `eventid`/
 `entrytime` am `ENTRY`, `RELAYPOSITIONS` innerhalb des `ENTRY`) und die
