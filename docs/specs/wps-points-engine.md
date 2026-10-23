@@ -842,6 +842,7 @@ Vorgesehene Services:
 | `WpsPointVersionResolver`        | Versionsbestimmung nach Priorität (§10.3 Schritt 2)                  |
 | `WpsPointCalculationService`     | Persistenz: einzelnes Ergebnis, Meet, Saison                         |
 | `WpsParameterImportService`      | Import der Point-Score-Dateien (Phase 3)                             |
+| `WpsPointTableTextParser`        | Parser für Punktetabellen im Textformat (§11.5)                      |
 | `WpsScmConversionService`        | Faktorauflösung (Kaskade §9.3) und Zeitumrechnung                    |
 | `WpsScmFactorCalibrationService` | Faktoren aus eigenen Daten ermitteln, Faktorenbericht (§9.7)         |
 
@@ -1041,6 +1042,65 @@ hinterlegen:
 
 Der Fall S2 (`939.91` → `939`) ist der entscheidende Nachweis für das Abrunden nach §5.3 — mit `round()`
 ergäbe sich `940`.
+
+## 11.5 Zweites Dateiformat: Punktetabelle als Text (`.txt`)
+
+Referenzdatei: **`WPS_2017.txt`** ("WPP 2017", `Id=1023`), vermutlich ein Punktetabellen-Export aus Splash Meet
+Manager. Damit lassen sich ältere WPS-Tabellen importieren, für die keine Excel-Datei vorliegt — insbesondere für die
+historischen Ergebnisse vor 2026.
+
+Das Format wird an der **Dateiendung** erkannt (`.txt`, Groß-/Kleinschreibung egal); alles andere wird als Excel nach
+§11.4 gelesen. Das Parsen übernimmt `WpsPointTableTextParser`, Vorschau und Import (§11.2) sind für beide Formate
+identisch — auch `course = LCM`, `relay_count = 1` und `official = true` (§11.4.3).
+
+### 11.5.1 Aufbau
+
+```
+Formula=GOMPERTZ
+Id=1023
+Name=World Para Points Table
+Options=HANDICAP
+ShortNameVersion=WPP 2017
+Version=2017
+
+<BASETIMES>
+GENDER;RELAYCOUNT;DISTANCE;STROKE;HANDICAP;GOMPERTZA;GOMPERTZB;GOMPERTZC
+M;1;50;FREE;S1;1200;6.137220;505.689
+...
+```
+
+- **Kopfblock** mit `Key=Value`-Zeilen bis `<BASETIMES>`. `Name`, `ShortNameVersion`, `Version` und `Id` erscheinen
+  in der Vorschau; die Versionsangaben selbst legt der Administrator wie beim Excel-Import im Formular fest.
+- **Tabelle** nach `<BASETIMES>`: eine Überschriftszeile, danach Datenzeilen mit `;` als Trenner und `.` als
+  Dezimalzeichen. Ein weiterer `<…>`-Abschnitt beendet die Tabelle.
+
+| Feld         | Inhalt                                     | Import                                  |
+|--------------|--------------------------------------------|-----------------------------------------|
+| `GENDER`     | `M` / `W`                                  | → `gender` `M` / `F`                    |
+| `RELAYCOUNT` | `1`                                        | nur `1` zulässig (keine Staffeln, §7.2) |
+| `DISTANCE`   | Strecke in Metern                          | → `distance`                            |
+| `STROKE`     | `FREE`, `BACK`, `BREAST`, `FLY`, `MEDLEY`  | → `stroke_type_id` über `lenex_code`    |
+| `HANDICAP`   | Sportklasse `S`/`SB`/`SM` + Zahl           | → `sport_class`                         |
+| `GOMPERTZA`  | Parameter A                                | → `parameter_a`                         |
+| `GOMPERTZB`  | Parameter B                                | → `parameter_b`                         |
+| `GOMPERTZC`  | Parameter C                                | → `parameter_c`                         |
+
+`GOMPERTZA/B/C` haben **dieselbe Bedeutung** wie `a`/`b`/`c` der Excel-Datei (Formel §5) — nur die Werte der
+Tabelle 2017 weichen ab (z. B. M 50 m Freistil S1: 2017 `b = 6.137220`, `c = 505.689`; 2026 `b = 6.190278`,
+`c = 515.385`). Die Referenzdatei enthält 342 Datenzeilen, alle mit `a = 1200` und `RELAYCOUNT = 1`.
+
+### 11.5.2 Validierung
+
+Abbruch der ganzen Datei (Fehlermeldung zurück ans Formular), wenn
+
+- im Kopfblock nicht `Formula=GOMPERTZ` und `Options=HANDICAP` stehen — eine andere Formel oder eine Tabelle ohne
+  Sportklassen hätte Parameter mit anderer Bedeutung,
+- der Abschnitt `<BASETIMES>` fehlt oder
+- die Überschriftszeile nicht exakt der obigen entspricht.
+
+Pro Zeile (gesammelt, mit Zeilennummer **der Datei**): falsche Feldanzahl, unbekanntes Geschlecht, `RELAYCOUNT ≠ 1`,
+ungültige Strecke, unbekannter Stil, unbekanntes Sportklassenformat, nicht numerische Parameter (auch Dezimalkomma),
+`a ≤ 0`, doppelte Kombination. UTF-8-BOM, CRLF/LF und Leerzeilen werden toleriert.
 
 ---
 

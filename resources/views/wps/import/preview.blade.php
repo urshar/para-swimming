@@ -46,11 +46,23 @@
             @endforeach
         </div>
 
+        {{-- Anzeigenamen der Metadaten-Schlüssel (Excel: version/date/comment, Text: name/short_name/version/id). --}}
+        @php
+            $metadataLabels = [
+                'version' => 'Version',
+                'date' => 'Datum',
+                'comment' => 'Kommentar',
+                'name' => 'Name',
+                'short_name' => 'Kurzname',
+                'id' => 'Id',
+            ];
+        @endphp
+
         @if($preview->metadata !== [])
             <div class="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400">
                 <span class="font-medium text-zinc-700 dark:text-zinc-300">Angaben aus der Datei:</span>
                 @foreach($preview->metadata as $key => $value)
-                    <span class="ml-2">{{ $key }}: {{ $value }}</span>
+                    <span class="ml-2">{{ $metadataLabels[$key] ?? $key }}: {{ $value }}</span>
                 @endforeach
             </div>
         @endif

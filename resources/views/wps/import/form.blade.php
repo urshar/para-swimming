@@ -21,9 +21,11 @@
         @endif
 
         <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400">
-            Erwartet wird die offizielle Datei von World Para Swimming (xlsx) mit dem
-            Arbeitsblatt <span class="font-mono">Parameters</span>. Die Datei enthält
-            ausschließlich Langbahn-Parameter (LCM); Kurzbahn-Werte werden separat abgeleitet.
+            Erwartet wird entweder die offizielle Datei von World Para Swimming (xlsx) mit dem
+            Arbeitsblatt <span class="font-mono">Parameters</span> oder eine Punktetabelle im Textformat
+            (txt, z. B. "WPP 2017") mit dem Abschnitt <span class="font-mono">&lt;BASETIMES&gt;</span>.
+            Beide Formate enthalten ausschließlich Langbahn-Parameter (LCM); Kurzbahn-Werte werden
+            separat abgeleitet.
         </div>
 
         <form method="POST" action="{{ route('wps.import.preview') }}" enctype="multipart/form-data">
@@ -37,8 +39,8 @@
                     <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Datei</h2>
 
                     <flux:field x-data="fileUploadField()">
-                        <flux:label>WPS Point Scores (.xlsx)<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:file-upload name="wps_file" accept=".xlsx" x-on:change="onChange">
+                        <flux:label>WPS Point Scores (.xlsx oder .txt)<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                        <flux:file-upload name="wps_file" accept=".xlsx,.txt" x-on:change="onChange">
                             <flux:file-upload.dropzone heading="Datei hierher ziehen" text="oder klicken zum Auswählen"/>
                         </flux:file-upload>
                         <p x-show="fileName" x-cloak class="mt-1 text-sm text-zinc-600 dark:text-zinc-400" x-text="fileName"></p>

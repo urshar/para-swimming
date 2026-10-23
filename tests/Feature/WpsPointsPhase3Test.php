@@ -9,6 +9,7 @@ use App\Services\WpsParameterImportService;
 use App\Services\WpsPointCalculationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -291,6 +292,10 @@ describe('WpsParameterImportService::import', function () {
 describe('Import-Flow', function () {
     beforeEach(function () {
         seedStrokeTypes_wps3();
+
+        // Der Controller legt die hochgeladene Datei auf der Disk "local" ab — ohne Fake blieben
+        // nach jedem Testlauf Dateien im echten storage/app liegen.
+        Storage::fake('local');
     });
 
     it('zeigt die Vorschau, ohne etwas zu speichern', function () {

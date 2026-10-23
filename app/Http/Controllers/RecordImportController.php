@@ -46,11 +46,22 @@ class RecordImportController extends Controller
         // Stichtag: nur Rekorde vor diesem Datum (siehe RecordImportService::preview()).
         $before = $request->input('before');
         $file = $request->file('lenex_file');
+
+        // Eine neue Vorschau ersetzt die vorherige — deren Datei ist danach nicht mehr
+        // erreichbar und würde sonst liegen bleiben (z. B. beim mehrfachen Hochladen derselben Datei).
+        $previousPath = Session::pull('record_import_path');
+
+        if ($previousPath !== null) {
+            Storage::disk('local')->delete($previousPath);
+        }
+
         $path = $file->storeAs('record-imports', uniqid('rec_').'.'.$file->getClientOriginalExtension(), 'local');
 
         try {
             $preview = $this->importService->preview(Storage::disk('local')->path($path), $before);
         } catch (Throwable $e) {
+            Storage::disk('local')->delete($path);
+
             return redirect()->route('records.import')
                 ->withErrors(['lenex_file' => 'Datei konnte nicht gelesen werden: '.$e->getMessage()]);
         }
@@ -114,6 +125,7 @@ class RecordImportController extends Controller
         }
 
         Session::forget(['record_import_path', 'record_import_name', 'record_import_before']);
+        Storage::disk('local')->delete($path);
 
         $msg = "{$result['imported']} Rekord(e) importiert, {$result['skipped']} übersprungen";
         if (($result['regional_auto'] ?? 0) > 0) {

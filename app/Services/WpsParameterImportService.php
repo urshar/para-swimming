@@ -33,6 +33,9 @@ use Throwable;
  *
  * Die Datei enthält ausschließlich Langbahn-Parameter; course wird deshalb auf LCM und
  * official auf true gesetzt. SCM-Parameter werden separat abgeleitet.
+ *
+ * Zusätzlich werden Punktetabellen im Textformat (.txt, z. B. "WPP 2017") gelesen — das
+ * Parsen übernimmt WpsPointTableTextParser, der Import selbst ist für beide Formate gleich.
  */
 final readonly class WpsParameterImportService
 {
@@ -58,8 +61,15 @@ final readonly class WpsParameterImportService
         'individual medley' => 'MEDLEY',
     ];
 
+    public function __construct(
+        private WpsPointTableTextParser $textParser
+    ) {}
+
     /**
      * Liest und validiert die Datei, ohne etwas zu speichern.
+     *
+     * Das Format wird an der Dateiendung erkannt: .txt geht an den Text-Parser, alles andere
+     * wird als Excel-Datei gelesen.
      *
      * Der Service wirft ausschließlich RuntimeException mit deutschsprachiger Meldung.
      * Technische Ausnahmen von PhpSpreadsheet werden übersetzt, damit der Aufrufer eine
@@ -70,6 +80,10 @@ final readonly class WpsParameterImportService
      */
     public function parse(string $path): WpsImportPreview
     {
+        if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'txt') {
+            return $this->textParser->parse($path);
+        }
+
         try {
             $spreadsheet = IOFactory::load($path);
         } catch (SpreadsheetReaderException $e) {
@@ -91,9 +105,7 @@ final readonly class WpsParameterImportService
 
         $this->assertHeaders($sheet);
 
-        $rows = [];
-        $errors = [];
-        $seen = [];
+        $parsedRows = [];
         $strokeTypes = $this->strokeTypeIdsByLenexCode();
 
         // Bewusst eine Zählschleife statt getRowIterator(2): der Iterator wirft eine
@@ -111,40 +123,12 @@ final readonly class WpsParameterImportService
                 break;
             }
 
-            $parsed = $this->parseRow($sheet, $number, $strokeTypes);
-
-            if (is_string($parsed)) {
-                $errors[] = "Zeile $number: $parsed";
-
-                continue;
-            }
-
-            $key = implode('|', [
-                $parsed['gender'],
-                $parsed['stroke_type_id'],
-                $parsed['distance'],
-                $parsed['sport_class'],
-            ]);
-
-            if (isset($seen[$key])) {
-                $errors[] = "Zeile $number: Kombination bereits in Zeile $seen[$key] enthalten.";
-
-                continue;
-            }
-
-            $seen[$key] = $number;
-            $rows[] = $parsed;
+            $parsedRows[$number] = $this->parseRow($sheet, $number, $strokeTypes);
         }
 
-        if ($rows === [] && $errors === []) {
-            $errors[] = 'Die Datei enthält keine Datenzeilen.';
-        }
-
-        return new WpsImportPreview(
-            rows: $rows,
-            errors: $errors,
-            metadata: $this->versionMetadata($spreadsheet->getSheetByName(self::SHEET_VERSION)),
-            counts: $this->counts($rows),
+        return WpsImportPreview::fromParsedRows(
+            $parsedRows,
+            $this->versionMetadata($spreadsheet->getSheetByName(self::SHEET_VERSION)),
         );
     }
 
@@ -402,22 +386,5 @@ final readonly class WpsParameterImportService
             'date' => $date !== '' ? $date : null,
             'comment' => $comment !== '' ? $comment : null,
         ], static fn (mixed $value): bool => $value !== null);
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $rows
-     * @return array<string, int>
-     */
-    private function counts(array $rows): array
-    {
-        return [
-            'rows' => count($rows),
-            'genders' => count(array_unique(array_column($rows, 'gender'))),
-            'events' => count(array_unique(array_map(
-                static fn (array $row): string => $row['stroke_type_id'].'-'.$row['distance'],
-                $rows
-            ))),
-            'sport_classes' => count(array_unique(array_column($rows, 'sport_class'))),
-        ];
     }
 }

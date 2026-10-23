@@ -152,7 +152,8 @@ Hintergrund und verworfene Alternativen in `docs/specs/wps-qualification.md`.
 - **Excel** – World-Aquatics-Basiszeiten via PhpSpreadsheet (`BaseTimeImportService`).
 - **Excel** – WPS Point Scores via PhpSpreadsheet (`WpsParameterImportService`). Dreistufig:
   Formular → Vorschau (parst und validiert, schreibt nichts) → Import in einer Transaktion. Der Vorschauschritt ist
-  verbindlich.
+  verbindlich. Alternativ nimmt derselbe Import Punktetabellen im Textformat (`.txt`, `WpsPointTableTextParser`)
+  an — Format in `docs/specs/wps-points-engine.md` §11.5.
 - **Excel** – WPS-Qualifikationsnormen via PhpSpreadsheet (`ChampionshipStandardImportService`), ebenfalls dreistufig.
   Der Import füllt **ausschließlich** MQS und MET; ÖBSV-Prozentsätze und -Zeiten bleiben unberührt, damit ein erneuter
   Import die eigenen Festlegungen nicht überschreibt. Die Dateien stammen aus PDF-Konvertierungen und tragen deren

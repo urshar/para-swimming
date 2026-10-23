@@ -39,7 +39,7 @@ class WpsPointImportController extends Controller
     public function preview(Request $request): View|RedirectResponse
     {
         $validated = $request->validate([
-            'wps_file' => 'required|file|extensions:xlsx|max:20480',
+            'wps_file' => 'required|file|extensions:xlsx,txt|max:20480',
             'label' => 'required|string|max:100',
             'year' => 'required|integer|min:1990|max:2100',
             'version' => 'nullable|string|max:20',
@@ -50,9 +50,11 @@ class WpsPointImportController extends Controller
 
         $file = $request->file('wps_file');
 
+        // Die Endung muss erhalten bleiben (kleingeschrieben): Der Service erkennt daran das
+        // Format — auch beim erneuten Lesen in run().
         $path = $file->storeAs(
             self::STORAGE_DIRECTORY,
-            uniqid('wps_').'.'.$file->getClientOriginalExtension(),
+            uniqid('wps_').'.'.strtolower($file->getClientOriginalExtension()),
             'local'
         );
 
