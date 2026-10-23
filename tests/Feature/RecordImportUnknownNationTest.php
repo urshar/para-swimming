@@ -11,6 +11,7 @@ use App\Services\RecordImportReviewService;
 use App\Services\RecordImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class)->group('record-import-unknown-nation');
 
@@ -59,6 +60,10 @@ beforeEach(function () {
     $this->stroke = StrokeType::firstOrCreate(['lenex_code' => 'FREE'], ['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'code' => 'FREE']);
     $this->club = Club::query()->create(['name' => 'VCA Wien', 'code' => 'VCAW', 'nation_id' => $this->austria->id,
         'type' => 'CLUB', 'regional_association' => 'WBSV']);
+
+    // Der Controller legt die hochgeladene Datei auf der Disk "local" ab — ohne Fake blieben
+    // nach jedem Testlauf Dateien im echten storage/app liegen.
+    Storage::fake('local');
 });
 
 it('legt einen Eintrag ohne Nationalität nicht als Rekord an, sondern in die Prüfliste', /** @throws Throwable */ function () {

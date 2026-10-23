@@ -14,6 +14,7 @@ use App\Services\RecordImportReviewService;
 use App\Services\RecordImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class)->group('record-import-review');
 
@@ -153,6 +154,10 @@ function import_rir(string $xml, array $approvedAthletes, string $source): array
 
 beforeEach(function () {
     stroke_rir();
+
+    // Der Controller legt die hochgeladene Datei auf der Disk "local" ab — ohne Fake blieben
+    // nach jedem Testlauf Dateien im echten storage/app liegen.
+    Storage::fake('local');
 });
 
 // ── Vorschau ──────────────────────────────────────────────────────────────────

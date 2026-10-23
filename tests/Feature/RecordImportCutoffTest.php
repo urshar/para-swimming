@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\RecordImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class)->group('record-import-cutoff');
 
@@ -45,6 +46,10 @@ function file_ric(string $records, string $gender = 'M'): string
 beforeEach(function () {
     Nation::firstOrCreate(['code' => 'AUT'], ['name_de' => 'Österreich', 'name_en' => 'Austria', 'is_active' => true]);
     StrokeType::firstOrCreate(['lenex_code' => 'FREE'], ['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'code' => 'FREE']);
+
+    // Der Controller legt die hochgeladene Datei auf der Disk "local" ab — ohne Fake blieben
+    // nach jedem Testlauf Dateien im echten storage/app liegen.
+    Storage::fake('local');
 });
 
 it('überspringt in der Vorschau Rekorde ab dem Stichtag und behält ältere und solche ohne Datum', /** @throws Exception */ function () {
@@ -87,6 +92,48 @@ it('übergibt den Stichtag von der Vorschau an den Import', function () {
         ->assertRedirect(route('records.index'));
 
     expect(SwimRecord::orderBy('distance')->pluck('distance')->all())->toBe([50, 200]);
+});
+
+// Die hochgeladene Datei wird nach dem Import nicht mehr gebraucht und darf nicht liegen bleiben.
+describe('Aufräumen der hochgeladenen Datei', function () {
+    it('löscht die Datei nach einem erfolgreichen Import', function () {
+        $admin = User::factory()->create(['is_admin' => true, 'club_id' => null]);
+        $datei = new UploadedFile(file_ric(record_ric(50, '2011-12-31')), 'Rekorde.lxf', 'application/xml', null, true);
+
+        $this->actingAs($admin)->post(route('records.import.preview'), ['lenex_file' => $datei])->assertOk();
+
+        expect(Storage::disk('local')->files('record-imports'))->toHaveCount(1);
+
+        $this->actingAs($admin)->post(route('records.import.run'))->assertRedirect(route('records.index'));
+
+        expect(Storage::disk('local')->files('record-imports'))->toBe([])
+            ->and(SwimRecord::count())->toBe(1);
+    });
+
+    it('ersetzt bei einer erneuten Vorschau die vorherige Datei', function () {
+        $admin = User::factory()->create(['is_admin' => true, 'club_id' => null]);
+
+        foreach ([1, 2] as $durchgang) {
+            $datei = new UploadedFile(file_ric(record_ric(50, '2011-12-31')), "Rekorde$durchgang.lxf", 'application/xml', null, true);
+            $this->actingAs($admin)->post(route('records.import.preview'), ['lenex_file' => $datei])->assertOk();
+        }
+
+        $dateien = Storage::disk('local')->files('record-imports');
+
+        expect($dateien)->toHaveCount(1)
+            ->and($dateien[0])->toBe(session('record_import_path'));
+    });
+
+    it('löscht eine nicht lesbare Datei sofort wieder', function () {
+        $admin = User::factory()->create(['is_admin' => true, 'club_id' => null]);
+        $datei = UploadedFile::fake()->createWithContent('kaputt.lxf', 'kein XML');
+
+        $this->actingAs($admin)->post(route('records.import.preview'), ['lenex_file' => $datei])
+            ->assertRedirect(route('records.import'))
+            ->assertSessionHasErrors('lenex_file');
+
+        expect(Storage::disk('local')->files('record-imports'))->toBe([]);
+    });
 });
 
 it('lehnt einen ungültigen Stichtag ab', function () {
