@@ -1,6 +1,12 @@
 # Spec: LENEX-Import nur ausgewählter Athleten
 
-Status: Entwurf (22.10.2026), zur Freigabe. Ergänzt [lenex-import-export.md](lenex-import-export.md).
+Status: umgesetzt (22.10.2026, `feature/lenex-athlete-selection`). Die laufende Beschreibung steht in
+[lenex-import-export.md](lenex-import-export.md) unter "Athletenauswahl"; dieses Dokument hält Ziel und Entscheidungen
+fest.
+
+Abweichung von der Planung: Ein neu angelegter Kandidat bekommt den Verein aus der Datei nur, wenn es ihn schon gibt.
+Sonst hat er keinen Heimverein, und seine Ergebnisse werden als "Athlet ohne Verein" übersprungen (wie beim
+Nationenfilter); der Auswahlschritt weist darauf hin.
 
 ## Ziel
 
