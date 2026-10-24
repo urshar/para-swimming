@@ -41,6 +41,10 @@
                         </flux:button>
                     </form>
                 @endif
+                <flux:button href="{{ route('meets.result-clubs', $meet) }}" variant="filled" icon="building-office"
+                             size="sm" class="text-blue-500!">
+                    Vereine korrigieren
+                </flux:button>
                 {{-- Eigener Tab, damit die Sammelansicht erhalten bleibt; übernimmt einen gesetzten Disziplin-Filter. --}}
                 <flux:button href="{{ route('meets.results-overview.pdf', array_filter(['meet' => $meet, 'event_id' => $filterConfig['event_id']])) }}"
                              target="_blank" variant="filled" icon="document-text" size="sm" class="text-blue-500!">

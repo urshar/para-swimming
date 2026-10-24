@@ -30,6 +30,7 @@ use App\Http\Controllers\MeetEntriesReopenController;
 use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetParticipantsController;
+use App\Http\Controllers\MeetResultClubsController;
 use App\Http\Controllers\MeetResultsOverviewController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
@@ -466,6 +467,13 @@ Route::middleware(['auth'])->group(function () {
             ->name('meets.results-overview.pdf');
         Route::delete('meets/{meet}/events/{swimEvent}/results', [MeetResultsOverviewController::class, 'destroyEvent'])
             ->name('meets.results-overview.destroy-event');
+        // Verein der Einzelergebnisse gesammelt je Athlet korrigieren (z. B. Nationalteam → Stammverein).
+        Route::get('meets/{meet}/result-clubs', [MeetResultClubsController::class, 'index'])
+            ->name('meets.result-clubs');
+        Route::put('meets/{meet}/result-clubs', [MeetResultClubsController::class, 'update'])
+            ->name('meets.result-clubs.update');
+        Route::post('meets/{meet}/result-clubs/home-clubs', [MeetResultClubsController::class, 'adoptHomeClubs'])
+            ->name('meets.result-clubs.home-clubs');
     });
 
     // ── Meldebasierte Listen (PDF + Excel) ─────────────────────────────────────
