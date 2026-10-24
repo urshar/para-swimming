@@ -12,6 +12,7 @@ use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimEvent;
 use App\Services\ClubEntryService;
+use App\Services\ResultClubChangeService;
 use App\Services\ResultPointsService;
 use App\Services\ScoringGroupService;
 use App\Services\WorldAquaticsPointsService;
@@ -35,6 +36,7 @@ class ResultController extends Controller
         private readonly ClubEntryService $entryService,
         private readonly ResultPointsService $resultPoints,
         private readonly ScoringGroupService $scoring,
+        private readonly ResultClubChangeService $clubChange,
     ) {}
 
     public function index(Request $request): View
@@ -200,7 +202,7 @@ class ResultController extends Controller
             'result' => $result,
             'swimEvents' => $swimEvents,
             'athletes' => collect(),
-            'clubs' => collect(),
+            'clubs' => Club::with('nation')->orderBy('name')->get(),
             'placements' => $this->scoring->placementsOf($result),
             'splitDistances' => self::splitDistances($result->meet, $swimEvents),
         ]);
@@ -222,6 +224,7 @@ class ResultController extends Controller
         $manualPoints = $points !== null && ($result->points === null || (int) $points !== (int) $result->points);
 
         $previousEvent = $result->swimEvent;
+        $clubChanged = (int) $data['result']['club_id'] !== $result->club_id;
 
         $notes = DB::transaction(function () use ($result, $data, $manualPoints) {
             $result->update($data['result']);
@@ -237,6 +240,11 @@ class ResultController extends Controller
         $this->scoring->syncPlaces($swimEvent);
         if ($previousEvent && $previousEvent->id !== $swimEvent->id) {
             $this->scoring->syncPlaces($previousEvent);
+        }
+
+        // Neuer Verein: Rekorde aus dem Ergebnis mitziehen, Landesrekorde nachprüfen.
+        if ($clubChanged) {
+            $notes = [...$notes, ...$this->clubChange->apply($result)];
         }
 
         // Bearbeiten/Löschen erreicht man über eine Ergebnisliste (global oder die Sammelansicht der

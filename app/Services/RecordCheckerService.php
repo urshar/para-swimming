@@ -380,10 +380,13 @@ readonly class RecordCheckerService
         string $recordStatus = 'APPROVED',
         ?int $athleteId = null,
     ): array {
-        // Erneuter Rekord-Check derselben Veranstaltung: aus diesem Ergebnis gibt es den Rekord schon.
+        // Erneuter Rekord-Check derselben Veranstaltung: aus diesem Ergebnis gibt es den Rekord schon. Ein anerkannter
+        // zählt weiter als gebrochen — sonst setzte updateResultFlags() z. B. das ÖR-Flag zurück, sobald beim erneuten
+        // Prüfen nur ein Landesrekord neu hinzukommt (nach einer Vereinskorrektur, ResultClubChangeService).
         $sourceColumn = $result instanceof RelayResult ? 'relay_result_id' : 'result_id';
-        if (SwimRecord::where($sourceColumn, $result->id)->where('record_type', $recordType)->exists()) {
-            return [false, null];
+        $existing = SwimRecord::where($sourceColumn, $result->id)->where('record_type', $recordType)->first();
+        if ($existing !== null) {
+            return [in_array($existing->record_status, ['APPROVED', 'APPROVED.HISTORY'], true), null];
         }
 
         // Maßstab ist der geltende Rekord — ein noch ausstehender (PENDING) ist (noch) keiner.
