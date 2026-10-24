@@ -121,6 +121,15 @@ class ResultController extends Controller
             ->map(fn (Entry $e): string => $e->swim_event_id.'-'.$e->athlete_id)
             ->values();
 
+        // Athletenfilter im Formular: Geschlecht je Bewerb und Athlet, gemeldete Athleten je Bewerb
+        // (für den Umschalter "nur gemeldete").
+        $eventGenders = $swimEvents->pluck('gender', 'id');
+        $athleteGenders = $athletes->pluck('gender', 'id');
+        $enteredAthletes = Entry::where('meet_id', $meet->id)
+            ->get(['swim_event_id', 'athlete_id'])
+            ->groupBy('swim_event_id')
+            ->map(fn (Collection $entries): array => $entries->pluck('athlete_id')->unique()->values()->all());
+
         // "Speichern und nächstes" kommt mit der Disziplin des eben gespeicherten Ergebnisses zurück.
         $presetEventId = $swimEvents->contains('id', $request->integer('swim_event_id'))
             ? (string) $request->integer('swim_event_id')
@@ -129,7 +138,8 @@ class ResultController extends Controller
         $splitDistances = self::splitDistances($meet, $swimEvents);
 
         return view('results.form', compact(
-            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl', 'splitDistances'
+            'meet', 'swimEvents', 'athletes', 'clubs', 'exhibitionKeys', 'presetEventId', 'backUrl', 'splitDistances',
+            'eventGenders', 'athleteGenders', 'enteredAthletes'
         ));
     }
 
