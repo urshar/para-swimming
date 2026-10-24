@@ -57,8 +57,7 @@
                             <flux:select.group label="Session {{ $session }}">
                                 @foreach($events as $event)
                                     <flux:select.option value="{{ $event->id }}" :selected="old('swim_event_id') == $event->id">
-                                        {{ $event->display_name }}
-                                        {{ $event->gender !== 'A' ? '(' . $event->gender . ')' : '' }}
+                                        {{ $event->selection_label }}
                                         {{ $event->sport_classes ? '– ' . SportClassRanges::format($event->sport_classes) : '' }}
                                     </flux:select.option>
                                 @endforeach

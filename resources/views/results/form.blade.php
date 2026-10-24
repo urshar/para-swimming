@@ -106,7 +106,7 @@
                                     @foreach($swimEvents as $event)
                                         <flux:select.option
                                             value="{{ $event->id }}" :selected="$oldEventId === (string) $event->id">
-                                            {{ $event->display_name }}
+                                            {{ $event->selection_label }}
                                         </flux:select.option>
                                     @endforeach
                                 </flux:select>

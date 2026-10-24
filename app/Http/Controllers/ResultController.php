@@ -181,6 +181,7 @@ class ResultController extends Controller
 
         $swimEvents = $result->meet->swimEvents()
             ->with('strokeType')
+            ->orderBy('session_number')
             ->orderBy('event_number')
             ->get();
 
