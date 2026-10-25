@@ -161,7 +161,8 @@ genau einen Athleten hat. Details: [specs/meet-results.md](specs/meet-results.md
 `nation_id`, da Rekorde oft im Ausland aufgestellt werden), `athlete_id` (null bei Staffeln),
 `result_id` (Herkunft), `superseded_by_id` / `supersedes_id` (Rekord-Historie),
 `club_id`, `record_type`, `sport_class`, `gender`, `course`, `distance`,
-`relay_count`, `swim_time`, `record_status`, `is_current`, `set_date`,
+`relay_count`, `from_split` (Rekord aus einer Zwischenzeit, siehe [specs/split-records.md](specs/split-records.md)),
+`swim_time`, `record_status`, `is_current`, `set_date`,
 `meet_name`, `meet_city`, `meet_course`. → hat viele **RecordSplit** und (bei Staffeln) **RelayTeamMember**; verkettet
 sich über `supersedes_id`/`superseded_by_id` zur Historie.
 

@@ -75,10 +75,12 @@ vorhanden), wird jede rekordfähige Zwischenzeit als **eigener Kandidat** geprü
 
 Die Zwischenzeiten werden **nach** allen Endzeiten des Wettkampfs geprüft (Einzel und Staffel), je Kategorie wieder
 schnellste zuerst. So ist der Maßstab für eine 50-m-Zwischenzeit schon ein neuer 50-m-Rekord aus der Endzeit desselben
-Wettkampfs. Da Zwischenzeit-Rekorde PENDING sind, lösen sie untereinander und gegenüber Endzeit-Rekorden nichts ab;
-ausstehende Rekorde derselben Kategorie entscheidet der Verband bei der Bestätigung (`SwimRecord::approve()`
-historisiert
-einen bestätigten, wenn inzwischen ein schnellerer anerkannt ist).
+Wettkampfs.
+
+**Je Kategorie und Wettkampf nur die schnellste Zwischenzeit** (Entscheidung Erik, 25.10.2026): Schwimmen mehrere
+Athleten (oder ein Athlet in mehreren Rennen) eine rekordfähige 50-m-Freistil-Zwischenzeit, entsteht nur aus der
+schnellsten ein ausstehender Rekord. Das gilt auch über einen erneuten Rekord-Check hinweg: Ein schon vorhandener,
+gleich schneller oder schnellerer Zwischenzeit-Rekord desselben Wettkampfs sperrt die Kategorie.
 
 ### Herkunft am Rekord
 

@@ -10,6 +10,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
+/**
+ * @property bool $from_split Rekord aus einer Zwischenzeit (docs/specs/split-records.md)
+ */
 class SwimRecord extends Model
 {
     protected $fillable = [
@@ -27,6 +30,7 @@ class SwimRecord extends Model
         'course',
         'distance',
         'relay_count',
+        'from_split',
         'swim_time',
         'record_status',
         'is_current',
@@ -41,6 +45,7 @@ class SwimRecord extends Model
     protected $casts = [
         'set_date' => 'date',
         'is_current' => 'boolean',
+        'from_split' => 'boolean',
     ];
 
     // ── Relationen ────────────────────────────────────────────────────────────

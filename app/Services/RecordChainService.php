@@ -155,10 +155,11 @@ final readonly class RecordChainService
             'comment' => Str::limit(collect([$note, $other->comment])->filter()->implode(' | '), 252),
         ]);
 
-        // Nur zurücksetzen, wenn das Ergebnis keinen weiteren anerkannten Rekord desselben Typs hält.
+        // Nur zurücksetzen, wenn das Ergebnis keinen weiteren anerkannten Rekord desselben Typs aus seiner Endzeit hält.
         $stillRecord = SwimRecord::query()
             ->whereKeyNot($other->id)
             ->where('record_type', $other->record_type)
+            ->where('from_split', false)
             ->whereIn('record_status', self::CHAIN_STATUSES)
             ->where(fn (Builder $q) => $q
                 ->when($other->result_id !== null, fn (Builder $q) => $q->orWhere('result_id', $other->result_id))
@@ -171,10 +172,15 @@ final readonly class RecordChainService
     }
 
     /**
-     * Setzt bzw. löscht das zum Rekordtyp passende Flag am Ergebnis bzw. Staffelergebnis.
+     * Setzt bzw. löscht das zum Rekordtyp passende Flag am Ergebnis bzw. Staffelergebnis. Ein Rekord aus einer
+     * Zwischenzeit lässt das Flag unberührt — die Flags gehören zur Endzeit des Bewerbs.
      */
     private function setResultFlag(SwimRecord $record, bool $value): void
     {
+        if ($record->from_split) {
+            return;
+        }
+
         $flag = self::flagFor($record->record_type);
 
         $record->result?->update([$flag => $value]);
