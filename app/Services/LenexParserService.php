@@ -45,6 +45,7 @@ class LenexParserService
         'relay_results' => 0,
         'relay_entries' => 0,
         'without_club' => 0,
+        'results_home_club' => 0,
     ];
 
     /**
@@ -188,7 +189,7 @@ class LenexParserService
         $this->stats = [
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
             'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
-            'relay_results' => 0, 'relay_entries' => 0, 'without_club' => 0,
+            'relay_results' => 0, 'relay_entries' => 0, 'without_club' => 0, 'results_home_club' => 0,
             'foreign_clubs' => 0, 'foreign_starts' => 0,
         ];
         $this->rankingIndex = [];
@@ -1338,11 +1339,23 @@ class LenexParserService
         }
 
         if ($type === 'results' && isset($athleteXml->RESULTS)) {
+            // Steht der Athlet in der Datei unter einem Verband (Nationalteam bzw. Landesauswahl, z. B. ÖBSV bei einem
+            // internationalen Wettkampf), zählen seine Einzelergebnisse für den Heimverein — sonst fehlt der
+            // Landesverband und es werden keine Landesrekorde erkannt. Staffeln bleiben beim Verband (Landesauswahl).
+            $home = $athlete->club;
+            $fromFederation = $club?->type === Club::TYPE_VERBAND && $home !== null
+                && $home->type !== Club::TYPE_VERBAND && $home->id !== $club->id;
+            $resultClubId = $fromFederation ? $home->id : $clubId;
+
+            $before = $this->stats['results'];
             foreach ($athleteXml->RESULTS->RESULT as $resultXml) {
                 $this->importResult(
-                    $meet, $resultXml, $athlete->id, $clubId, $resolver,
+                    $meet, $resultXml, $athlete->id, $resultClubId, $resolver,
                     $athleteXml->HANDICAP ?? null
                 );
+            }
+            if ($fromFederation) {
+                $this->stats['results_home_club'] += $this->stats['results'] - $before;
             }
         }
     }

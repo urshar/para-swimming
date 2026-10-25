@@ -540,6 +540,8 @@ class LenexImportController extends Controller
             .($stats['results'] > 0 ? self::resultMatchSummary($stats) : '').', '
             .($stats['relay_results'] ?? 0).' Staffelergebnisse.'
             .(! empty($stats['without_club']) ? ' '.$stats['without_club'].' Meldung(en)/Ergebnis(se) übersprungen: Athlet ohne Verein.' : '')
+            .(! empty($stats['results_home_club']) ? ' '.$stats['results_home_club']
+                .' Ergebnis(se) unter einem Verband dem Heimverein des Athleten zugeordnet.' : '')
             .(! empty($stats['foreign_starts']) ? ' '.$stats['foreign_starts'].' Start(s) von '.$stats['foreign_clubs']
                 .' ausländischen Gastverein(en) nur für Statistik und Ergebnisliste gespeichert.' : '');
 
