@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<LENEX version="2.0"><CONSTRUCTOR name="MSECM(R) Export Module" version="6.2019.1110"><CONTACT city="Teststadt" country="GER" email="info@example.org" name="Testkontakt"/></CONSTRUCTOR>
+<MEETS><MEET city="Wien" course="SCM" deadline="2019-11-13" name="Test Cup 2019 Runde 5" nation="AUT" organizer="Testveranstalter" timing="AUTOMATIC">
+<AGEDATE type="YEAR" value="2019-11-17"/>
+<POINTTABLE name="FINA Point Scoring Short Course 2018" version="2018"/>
+<SESSIONS><SESSION course="SCM" date="2019-11-17" daytime="09:00" name="Abschnitt 1" number="1"><EVENTS>
+<EVENT eventid="1" gender="F" number="41" order="1" round="TIM"><SWIMSTYLE distance="200" name="4x200m Freistil Damen" relaycount="4" stroke="FREE"/>
+<AGEGROUPS><AGEGROUP agegroupid="10001" agemax="-1" agemin="13" gender="F" name="Offene Klasse"/></AGEGROUPS></EVENT>
+<EVENT eventid="3" gender="F" number="43" order="2" round="TIM"><SWIMSTYLE distance="50" name="50m Rücken Damen" relaycount="1" stroke="BACK"/>
+<AGEGROUPS><AGEGROUP agegroupid="30001" agemax="14" agemin="13" gender="F" name="Jugend II+I"/>
+<AGEGROUP agegroupid="30002" agemax="16" agemin="15" gender="F" name="Junioren u. Jugend III"/>
+<AGEGROUP agegroupid="30003" agemax="-1" agemin="13" gender="F" name="Allg. Klasse"/></AGEGROUPS></EVENT>
+</EVENTS></SESSION></SESSIONS>
+<CLUBS>
+<CLUB code="TSV" name="Testschwimmverein Wien" nation="AUT" region="WI" type="CLUB"><ATHLETES>
+<ATHLETE athleteid="2" birthdate="2006-01-01" firstname="Anna" gender="F" lastname="Muster" license="41515"><ENTRIES/><RESULTS>
+<RESULT agegroupid="30001" eventid="3" points="430" place="3" reactiontime="+71" swimtime="00:00:34.10"><SPLITS><SPLIT distance="25" swimtime="00:00:16.40"/></SPLITS></RESULT>
+<RESULT agegroupid="30003" eventid="3" points="430" place="20" reactiontime="+71" swimtime="00:00:34.10"><SPLITS><SPLIT distance="25" swimtime="00:00:16.40"/></SPLITS></RESULT>
+</RESULTS></ATHLETE>
+<ATHLETE athleteid="3" birthdate="2004-01-01" firstname="Lara" gender="F" lastname="Beispiel" license="41714"><ENTRIES/><RESULTS>
+<RESULT agegroupid="30002" eventid="3" points="472" place="4" reactiontime="+72" swimtime="00:00:32.95"/>
+<RESULT agegroupid="30003" eventid="3" points="472" place="14" reactiontime="+72" swimtime="00:00:32.95"/>
+</RESULTS></ATHLETE>
+<ATHLETE athleteid="4" birthdate="2002-01-01" firstname="Sophie" gender="F" lastname="Probe" license="38000"><ENTRIES/><RESULTS>
+<RESULT agegroupid="30003" eventid="3" place="-1" status="DSQ" swimtime="NT"/>
+</RESULTS></ATHLETE>
+<ATHLETE athleteid="5" birthdate="2001-01-01" firstname="Jana" gender="F" lastname="Versuch" license="39956"><ENTRIES/><RESULTS/></ATHLETE>
+</ATHLETES>
+<RELAYS><RELAY agemax="-1" agemin="-1" agetotalmax="-1" agetotalmin="-1" gender="F" name="1. Mannschaft" number="1"><ENTRIES/><RESULTS>
+<RESULT agegroupid="10001" eventid="1" points="610" place="2" reactiontime="+75" swimtime="00:08:53.81"><RELAYPOSITIONS>
+<RELAYPOSITION athleteid="2" number="1" reactiontime="+75"/>
+<RELAYPOSITION athleteid="3" number="2" reactiontime="+63"/>
+<RELAYPOSITION athleteid="4" number="3" reactiontime="+40"/>
+<RELAYPOSITION athleteid="5" number="4" reactiontime="+35"/>
+</RELAYPOSITIONS><SPLITS><SPLIT distance="200" swimtime="00:02:11.27"/><SPLIT distance="400" swimtime="00:04:26.71"/><SPLIT distance="600" swimtime="00:06:41.00"/></SPLITS></RESULT>
+</RESULTS></RELAY></RELAYS>
+</CLUB>
+<CLUB code="GST" name="Gastverein Grün-Weiß" nation="HUN" region="" type="CLUB"><ATHLETES>
+<ATHLETE athleteid="40" birthdate="2003-01-01" firstname="Eva" gender="F" lastname="Gast" license="50001"><ENTRIES/><RESULTS>
+<RESULT agegroupid="30002" eventid="3" points="500" place="1" reactiontime="+66" swimtime="00:00:32.10"/>
+<RESULT agegroupid="30003" eventid="3" points="500" place="10" reactiontime="+66" swimtime="00:00:32.10"/>
+</RESULTS></ATHLETE>
+</ATHLETES></CLUB>
+</CLUBS></MEET></MEETS></LENEX>

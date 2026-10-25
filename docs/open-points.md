@@ -166,7 +166,7 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 **Laufende Datenpflege und Import-Themen (Stand 25.10.2026)** — je unten ausführlich beschrieben:
 
-1. "LENEX 2.0 (sem2004) importieren" — als Nächstes, Plan in [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md)
+1. "LENEX 2.0 (sem2004) importieren" — Code fertig, offen nur Datenpflege Erik (Wettkampf 26 prüfen, Rekord-Check)
 2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
 3. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
 4. "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" — Code, Entscheidung Erik
@@ -191,8 +191,15 @@ in jeder "Startklasse"-Wertungsgruppe (die Klasse steht nur im Gruppennamen und 
 der aus der "Offenen Wertung" statt aus der eigenen Klasse (je Start ein RESULT pro Wertungsgruppe, der letzte
 gewinnt). Die Ergebnisse selbst sind nicht verdoppelt.
 
-**Zum Schließen nötig:** Plan, Befund und offene Fragen in [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md).
-Danach Wettkampf 25 neu einlesen (Erik).
+**Stand:** Import umgesetzt (Branch `feature/lenex-2-import`, Phasen 1–4 in
+[specs/lenex-2.0-import.md](specs/lenex-2.0-import.md), Eigenheiten in
+[specs/lenex-import-export.md](specs/lenex-import-export.md) "LENEX 2.0"): Klassen aus "Startklasse S4", nur
+Klassengruppen und offene Gruppe, ein Ergebnis je Start mit dem Platz der Startklasse, Ersatz-ID, Vereine ohne Code,
+"NPC Austria" über die Klärungsseite. Getestet mit sem2004 (IDM Berlin 2018) und MSECM (Wiener Lagen Cup 2019).
+
+**Zum Schließen nötig (Erik):** Die IDM ist als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine doppelten) —
+prüfen, den alten Wettkampf 25 löschen, falls noch vorhanden, dann Rekord-Check. Weitere LENEX-2.0-Dateien mit neuen
+Abweichungen als eigene Phase nachziehen.
 
 ## Historischer Import 2012–2017: Restarbeiten
 

@@ -531,7 +531,8 @@ class LenexImportController extends Controller
     private function redirectAfterImport(array $result): RedirectResponse
     {
         $stats = $result['stats'];
-        $message = 'LENEX ('.$result['type'].') importiert: '
+        // Format laut Datei, z. B. "LENEX 2.0 (sem2004)" (LenexParserService::fileFormat()).
+        $message = (($result['format']['label'] ?? '') ?: 'LENEX').', '.$result['type'].' importiert: '
             .$stats['meets'].' Wettkampf/Wettkämpfe, '
             .$stats['athletes'].' Athlet(en), '
             .$stats['entries'].' Meldungen, '
@@ -543,7 +544,9 @@ class LenexImportController extends Controller
             .(! empty($stats['results_home_club']) ? ' '.$stats['results_home_club']
                 .' Ergebnis(se) unter einem Verband dem Heimverein des Athleten zugeordnet.' : '')
             .(! empty($stats['foreign_starts']) ? ' '.$stats['foreign_starts'].' Start(s) von '.$stats['foreign_clubs']
-                .' ausländischen Gastverein(en) nur für Statistik und Ergebnisliste gespeichert.' : '');
+                .' ausländischen Gastverein(en) nur für Statistik und Ergebnisliste gespeichert.' : '')
+            .(! empty($stats['results_merged']) ? ' '.$stats['results_merged']
+                .' weitere Platzierung(en) in anderen Wertungsgruppen zusammengefasst (je Start ein Ergebnis, Platz aus der Startklasse bzw. der offenen Wertung).' : '');
 
         return redirect()->route('meets.index')->with('success', $message);
     }
