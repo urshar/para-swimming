@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<LENEX version="2.0">
+	<CONSTRUCTOR name="swimming event management 2004 'sem2004'" version="3.7.622">
+		<CONTACT city="Teststadt" country="DE" email="info@example.org" name="Testkontakt">
+		</CONTACT>
+	</CONSTRUCTOR>
+	<MEETS>
+		<MEET city="Berlin" course="LCM" deadline="2018-05-07" name="Internationale Testmeisterschaften" nation="GER" organizer="Testveranstalter" timing="AUTOMATIC">
+			<SESSIONS>
+				<SESSION date="2018-06-07" number="1">
+					<EVENTS>
+						<EVENT eventid="1" gender="M" number="1" order="1" round="PRE">
+							<AGEGROUPS>
+								<AGEGROUP agegroupid="4" agemax="17" agemin="16" name="Jugend A">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="5" agemax="49" agemin="40" name="Masters I">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="9" agemax="-1" agemin="-1" name="Offene Wertung">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="13" agemax="-1" agemin="-1" name="Startklasse S4">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="14" agemax="-1" agemin="-1" name="Startklasse S5">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="18" agemax="-1" agemin="-1" name="Startklasse S9">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="24" agemax="-1" agemin="-1" name="Startklasse AB">
+								</AGEGROUP>
+							</AGEGROUPS>
+							<SWIMSTYLE distance="200" name="200m Freistil Männer Vorlauf" relaycount="1" stroke="FREE" swimstyleid="3">
+							</SWIMSTYLE>
+						</EVENT>
+						<EVENT eventid="5" gender="M" number="5" order="2" round="PRE">
+							<AGEGROUPS>
+								<AGEGROUP agegroupid="101" agemax="17" agemin="10" name="Jugendwertung">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="105" agemax="-1" agemin="-1" name="Offene Wertung">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="109" agemax="-1" agemin="-1" name="Startklasse SB4">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="113" agemax="-1" agemin="-1" name="Startklasse SB8">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="120" agemax="-1" agemin="-1" name="Startklasse AB">
+								</AGEGROUP>
+							</AGEGROUPS>
+							<SWIMSTYLE distance="100" name="100m Brust Männer Vorlauf" relaycount="1" stroke="BREAST" swimstyleid="5">
+							</SWIMSTYLE>
+						</EVENT>
+						<EVENT eventid="7" gender="M" number="7" order="3" round="TIM">
+							<AGEGROUPS>
+								<AGEGROUP agegroupid="130" agemax="-1" agemin="-1" name="Offene Wertung">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="135" agemax="-1" agemin="-1" name="Startklasse SM5">
+								</AGEGROUP>
+								<AGEGROUP agegroupid="139" agemax="-1" agemin="-1" name="Startklasse SM9">
+								</AGEGROUP>
+							</AGEGROUPS>
+							<SWIMSTYLE distance="200" name="200m Lagen Männer" relaycount="1" stroke="MEDLEY" swimstyleid="7">
+							</SWIMSTYLE>
+						</EVENT>
+						<EVENT eventid="11" gender="X" number="11" order="4" round="TIM">
+							<AGEGROUPS>
+								<AGEGROUP agegroupid="148" agemax="-1" agemin="-1" name="Offene Wertung">
+								</AGEGROUP>
+							</AGEGROUPS>
+							<SWIMSTYLE distance="50" name="4 x 50m Lagen Mixed" relaycount="4" stroke="MEDLEY" swimstyleid="4">
+							</SWIMSTYLE>
+						</EVENT>
+					</EVENTS>
+				</SESSION>
+				<SESSION date="2018-06-07" number="2">
+					<EVENTS>
+						<EVENT eventid="12" gender="M" number="201" order="5" preveventid="1" round="FIN">
+							<AGEGROUPS>
+								<AGEGROUP agegroupid="149" agemax="-1" agemin="-1" name="Offene Wertung">
+								</AGEGROUP>
+							</AGEGROUPS>
+							<SWIMSTYLE distance="200" name="200m Freistil Männer B-Finale" relaycount="1" stroke="FREE" swimstyleid="3">
+							</SWIMSTYLE>
+						</EVENT>
+					</EVENTS>
+				</SESSION>
+			</SESSIONS>
+			<CLUBS>
+				<CLUB name="NPC Austria" nation="AUT" region="0" shortname="NPC Austria">
+					<ATHLETES>
+						<ATHLETE athleteid="365" birthdate="1975-01-01" firstname="Max" gender="M" lastname="Muster" license="200001">
+							<HANDICAP free="5" breast="4" medley="5">
+							</HANDICAP>
+							<RESULTS>
+								<RESULT agegroupid="5" eventid="1" points="512" place="2" swimtime="00:03:01.20">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:42.10">
+										</SPLIT>
+										<SPLIT distance="100" swimtime="00:01:28.40">
+										</SPLIT>
+										<SPLIT distance="150" swimtime="00:02:15.00">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="9" eventid="1" points="512" place="42" swimtime="00:03:01.20">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:42.10">
+										</SPLIT>
+										<SPLIT distance="100" swimtime="00:01:28.40">
+										</SPLIT>
+										<SPLIT distance="150" swimtime="00:02:15.00">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="14" eventid="1" points="512" place="7" swimtime="00:03:01.20">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:42.10">
+										</SPLIT>
+										<SPLIT distance="100" swimtime="00:01:28.40">
+										</SPLIT>
+										<SPLIT distance="150" swimtime="00:02:15.00">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="105" eventid="5" points="676" place="18" swimtime="00:01:56.34">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:55.58">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="109" eventid="5" points="676" place="3" swimtime="00:01:56.34">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:55.58">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="120" eventid="5" points="676" place="1" swimtime="00:01:56.34">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:55.58">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="130" eventid="7" points="590" place="9" swimtime="00:03:40.07">
+								</RESULT>
+								<RESULT agegroupid="135" eventid="7" points="590" place="2" swimtime="00:03:40.07">
+								</RESULT>
+								<RESULT agegroupid="149" eventid="12" points="530" place="4" swimtime="00:02:58.90">
+								</RESULT>
+							</RESULTS>
+						</ATHLETE>
+						<ATHLETE athleteid="366" birthdate="2002-01-01" firstname="Jörg" gender="M" lastname="Beispiel">
+							<HANDICAP free="9" breast="8" medley="9" exception="N 12+">
+							</HANDICAP>
+							<RESULTS>
+								<RESULT agegroupid="4" eventid="1" points="701" place="1" swimtime="00:02:21.50">
+								</RESULT>
+								<RESULT agegroupid="9" eventid="1" points="701" place="11" swimtime="00:02:21.50">
+								</RESULT>
+								<RESULT agegroupid="18" eventid="1" points="701" place="1" swimtime="00:02:21.50">
+								</RESULT>
+								<RESULT agegroupid="101" eventid="5" place="-1" status="DSQ" swimtime="NT">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:38.63">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="105" eventid="5" place="-1" status="DSQ" swimtime="NT">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:38.63">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="113" eventid="5" place="-1" status="DSQ" swimtime="NT">
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:38.63">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+								<RESULT agegroupid="130" eventid="7" place="-1" status="DNS" swimtime="NT">
+								</RESULT>
+								<RESULT agegroupid="139" eventid="7" place="-1" status="DNS" swimtime="NT">
+								</RESULT>
+							</RESULTS>
+						</ATHLETE>
+						<ATHLETE athleteid="367" birthdate="1990-01-01" firstname="Lena" gender="F" lastname="Probe">
+							<HANDICAP free="6" breast="5" medley="6">
+							</HANDICAP>
+						</ATHLETE>
+						<ATHLETE athleteid="368" birthdate="1994-01-01" firstname="Sara" gender="F" lastname="Versuch">
+							<HANDICAP free="8" breast="7" medley="8">
+							</HANDICAP>
+						</ATHLETE>
+					</ATHLETES>
+					<RELAYS>
+						<RELAY agemax="-1" agemin="-1" agetotalmax="-1" agetotalmin="-1" gender="X" name="1. Team" number="1">
+							<RESULTS>
+								<RESULT agegroupid="148" eventid="11" points="402" place="3" swimtime="00:03:10.77">
+									<RELAYPOSITIONS>
+										<RELAYPOSITION athleteid="367" number="1">
+										</RELAYPOSITION>
+										<RELAYPOSITION athleteid="365" number="2">
+										</RELAYPOSITION>
+										<RELAYPOSITION athleteid="366" number="3">
+										</RELAYPOSITION>
+										<RELAYPOSITION athleteid="368" number="4">
+										</RELAYPOSITION>
+									</RELAYPOSITIONS>
+									<SPLITS>
+										<SPLIT distance="50" swimtime="00:00:51.76">
+										</SPLIT>
+										<SPLIT distance="100" swimtime="00:01:47.51">
+										</SPLIT>
+										<SPLIT distance="150" swimtime="00:02:27.96">
+										</SPLIT>
+									</SPLITS>
+								</RESULT>
+							</RESULTS>
+						</RELAY>
+					</RELAYS>
+				</CLUB>
+				<CLUB name="SV Grün-Weiß Teststadt" nation="GER" region="0" shortname="SV Grün-Weiß">
+					<ATHLETES>
+						<ATHLETE athleteid="98" birthdate="1980-01-01" firstname="Paul" gender="M" lastname="Gast" license="101255">
+							<HANDICAP free="4" breast="4" medley="4">
+							</HANDICAP>
+							<RESULTS>
+								<RESULT agegroupid="9" eventid="1" points="420" place="50" swimtime="00:03:30.00">
+								</RESULT>
+								<RESULT agegroupid="13" eventid="1" points="420" place="1" swimtime="00:03:30.00">
+								</RESULT>
+								<RESULT agegroupid="105" eventid="5" place="-1" status="WDR" swimtime="NT">
+								</RESULT>
+								<RESULT agegroupid="109" eventid="5" place="-1" status="WDR" swimtime="NT">
+								</RESULT>
+							</RESULTS>
+						</ATHLETE>
+					</ATHLETES>
+				</CLUB>
+			</CLUBS>
+		</MEET>
+	</MEETS>
+</LENEX>

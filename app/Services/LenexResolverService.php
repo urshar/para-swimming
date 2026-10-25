@@ -41,7 +41,7 @@ class LenexResolverService
 
     public const string MATCH_NAME = 'name';
 
-    /** Cache-Schlüssel (LENEX clubid/id bzw. "code:XYZ") → App Club ID */
+    /** Cache-Schlüssel (LENEX clubid/id, "code:XYZ" bzw. "name:{nation_id}:{name}") → App Club ID */
     private array $clubCache = [];
 
     /** lenex_athlete_id → App Athlete ID */
@@ -91,8 +91,14 @@ class LenexResolverService
         $name = (string) ($clubXml['name'] ?? '');
         $region = $this->mapRegionalAssociation((string) ($clubXml['region'] ?? ''));
 
-        // Stabiler Cache-Key: lenex_id wenn vorhanden, sonst "code:BSRO" als Fallback
-        $cacheKey = $lenexId ?: ('code:'.$code);
+        // Stabiler Cache-Key: lenex_id wenn vorhanden, sonst "code:BSRO", sonst Nation + Name (LENEX 2.0 / sem2004
+        // hat weder clubid noch code — ein gemeinsamer Schlüssel "code:" würde alle Vereine auf den ersten abbilden).
+        $cacheKey = $lenexId ?: match (true) {
+            $code !== '' => 'code:'.$code,
+            trim($name) !== '' => 'name:'.$nationId.':'.mb_strtolower(trim($name)),
+            // Vereinslose Schwimmer (Splash-Platzhalter ohne Namen) wie bisher.
+            default => 'code:',
+        };
 
         if ($cacheKey && isset($this->clubCache[$cacheKey])) {
             return Club::find($this->clubCache[$cacheKey]);

@@ -265,6 +265,37 @@ Der Parser gleicht mehrere Splash-Besonderheiten aus:
   und numerisch sortiert (1 … 9, 10 … 21). Fehlen AGEGROUPs (Entries-Export), bleibt der bestehende DB-Wert des Events
   erhalten.
 
+## LENEX 2.0 (sem2004, MSECM u. a.)
+
+Plan, Befund und Antworten von Erik: [lenex-2.0-import.md](lenex-2.0-import.md). LENEX 2.0 kommt von Veranstaltern,
+deren Software kein 3.0 kann (bisher sem2004 von Titanium Media und das MSECM-Exportmodul). Kein eigener Importer —
+der `LenexParserService` erkennt die Bauart und gleicht sie aus:
+
+- **Erkennung nach der Struktur, nicht nach dem Programm** (`LenexParserService::fileFormat()`): `places_in_results` =
+  kein `AGEGROUP > RANKINGS`, aber RESULTs mit `agegroupid`. Version und Erzeuger (`LENEX version`,
+  `CONSTRUCTOR name`) nur für die Rückmeldung ("LENEX 2.0 (sem2004), results importiert: …").
+- **Klasse im Gruppennamen mit Präfix**: "Startklasse S4", "Startklasse SB4", "Startklasse SM4", "Klasse S5"
+  (`agegroupHandicap()`); "Startklasse AB" (deutsche Besonderheit) bleibt ohne Klasse.
+- **Wertungsgruppen**: nur Klassengruppen und die offene Gruppe (`scoringAgegroups()`); Altersgruppen ("Jugend A",
+  "Jugendwertung", "Masters I", MSECM "Jugend II+I") und "Startklasse AB" entfallen, beim erneuten Import werden
+  solche Gruppen eines früheren Imports (gleiche agegroupid) entfernt. **Offene Gruppe** (`openAgegroup()`): ohne
+  Klasse, `agemax="-1"`, niedrigstes `agemin`, bei Gleichstand die erste — "Offene Wertung" (sem2004), "Allg. Klasse"
+  bzw. "Offene Klasse" (MSECM).
+- **Ein RESULT je Wertungsgruppe**: je Bewerb wird nur das erste RESULT eines Athleten bzw. einer Staffel übernommen
+  (`startResults()`, auch für `foreign_starts`); die Rückmeldung nennt die Zahl der zusammengefassten. Der Platz kommt
+  aus der Klassengruppe des Athleten (Klasse aus `HANDICAP` zur Lage des Bewerbs), sonst aus der offenen Gruppe, sonst
+  aus dem ersten RESULT (`buildLegacyPlaceIndex()`); `place="-1"` (DSQ) ergibt keinen Platz. Mit "Plätze aus der
+  Datei" gilt dieser eine Platz in allen Wertungsgruppen des Ergebnisses; die Sammelansicht zeigt das Ergebnis in der
+  offenen Gruppe und in seiner Startklasse (Entscheidung Erik: so gewollt).
+- **Ohne `resultid`, Lauf und Bahn**: Ersatz-ID als `lenex_result_id` (`legacyResultId()`): Einzel
+  `a{athleteid}-e{eventid}`, Staffel `r{code bzw. Kurz-Hash des Vereinsnamens}-{number}-e{eventid}` — Herkunft
+  "LENEX" in der Ergebnisliste, erneuter Import über Regel 1 des Abgleichs.
+- **Vereine ohne `clubid` und `code`** (sem2004): Der Cache-Schlüssel der Auflösung ist dann
+  `name:{nation_id}:{name}` (vorher ein gemeinsames `code:` für alle Vereine).
+- **Nationalteam als Verein** ("NPC Austria"): Mit Nationenfilter kommt ein nicht gefundener Verein der Nation zur
+  Klärung, wenn er gewertete Staffeln hat (`hasScoredRelays()`) — dort dem ÖBSV (Typ Verband) zuordnen; die
+  Einzelergebnisse gehen weiter an den Heimverein, die Staffeln an den Verband.
+
 ## Zeiten & Mappings
 
 - Zeiten: `parseTime()` (→ Hundertstelsekunden) bzw. `parseTimeCode()` für Codes wie `NT`.
@@ -380,6 +411,9 @@ Import nur für Admins (`RequireAdmin`):
   (Trefferarten, Kandidaten nur mit Para-Hinweis, keine Schreibzugriffe), Import mit `only_athletes` (nur Ausgewählte,
   keine Staffeln/Gaststarts/Wertungsgruppen, Heimverein, Sportklasse aus den Stammdaten, Plätze aus der Datei bzw.
   berechnet, Wiederholungsimport) und der Ablauf über die Oberfläche bis zur Klärungsseite.
+- `tests/Feature/LenexLegacy*Test.php` (Gruppen `lenex-2-p1` … `lenex-2-p4`) — LENEX 2.0 mit den anonymisierten
+  Auszügen `tests/Fixtures/lenex/sem2004-results.lef` und `msecm-results.lef` (ISO-8859-1): Erkennung, Klassen aus
+  Gruppennamen, Wertungsgruppen, Platzwahl, Ersatz-ID, erneuter Import, Gäste, Staffel, Vereine, Rückmeldung.
 
 Die Relais-XML-Struktur beim Import (`RELAY > ENTRIES > ENTRY` mit `eventid`/
 `entrytime` am `ENTRY`, `RELAYPOSITIONS` innerhalb des `ENTRY`) und die

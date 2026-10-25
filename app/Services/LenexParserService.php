@@ -109,6 +109,12 @@ class LenexParserService
      */
     private array $selectedEventIds = [];
 
+    /**
+     * LENEX 2.0: Plätze am RESULT statt in RANKINGS (siehe fileFormat()). Dann werden nur Klassengruppen und die
+     * offene Gruppe als Wertungsgruppen übernommen (scoringAgegroups()).
+     */
+    private bool $placesInResults = false;
+
     /** Nation der Veranstaltung, falls sie in der Datei fehlt oder unbekannt ist (Auswahl beim Import). */
     private ?string $meetNationFallback = null;
 
@@ -190,7 +196,7 @@ class LenexParserService
             'meets' => 0, 'clubs' => 0, 'athletes' => 0,
             'events' => 0, 'entries' => 0, 'results' => 0, 'results_new' => 0, 'results_ambiguous' => 0,
             'relay_results' => 0, 'relay_entries' => 0, 'without_club' => 0, 'results_home_club' => 0,
-            'foreign_clubs' => 0, 'foreign_starts' => 0,
+            'foreign_clubs' => 0, 'foreign_starts' => 0, 'results_merged' => 0,
         ];
         $this->rankingIndex = [];
         $this->rankingGroupIndex = [];
@@ -200,6 +206,8 @@ class LenexParserService
 
         $xml = $this->loadXml($filePath);
         $type = $this->detectType($xml);
+        $format = self::fileFormat($xml);
+        $this->placesInResults = $format['places_in_results'];
         $this->buildHeatIndex($xml->MEETS->MEET[0]);
 
         // Nationenfilter nur bei Melde-/Ergebnisdateien — eine Strukturdatei hat keine Schwimmer.
@@ -224,6 +232,9 @@ class LenexParserService
         // Ranking-Index aufbauen bevor Clubs/Results importiert werden
         if ($type === 'results') {
             $this->buildRankingIndex($xml->MEETS->MEET[0]);
+            if ($this->placesInResults) {
+                $this->buildLegacyPlaceIndex($xml->MEETS->MEET[0]);
+            }
         }
 
         $meet = $this->importMeet($xml, $resolver, $type, $forceMeetId);
@@ -250,9 +261,54 @@ class LenexParserService
 
         return [
             'type' => $type,
+            'format' => $format,
             'meet' => $meet,
             'stats' => $this->stats,
         ];
+    }
+
+    /**
+     * Version und Erzeuger der Datei (LENEX version, CONSTRUCTOR) für die Rückmeldung, z. B. label "LENEX 2.0 (sem2004)".
+     * places_in_results: Die Plätze stehen nicht in AGEGROUP > RANKINGS, sondern am RESULT, ein RESULT je
+     * Wertungsgruppe mit agegroupid (LENEX 2.0, z. B. sem2004 und MSECM, siehe docs/specs/lenex-2.0-import.md).
+     *
+     * @return array{version: string, constructor: string, constructor_version: string, label: string, places_in_results: bool}
+     */
+    public static function fileFormat(SimpleXMLElement $xml): array
+    {
+        $version = trim((string) ($xml['version'] ?? ''));
+        $constructor = trim((string) ($xml->CONSTRUCTOR['name'] ?? ''));
+
+        // Kurzname: sem2004 nennt ihn in Hochkommas ("swimming event management 2004 'sem2004'"), sonst den Namen
+        // ohne "(R)".
+        $short = preg_match("/'([^']+)'/", $constructor, $m)
+            ? $m[1]
+            : trim(str_replace('(R)', '', $constructor));
+
+        $meetXml = $xml->MEETS->MEET[0] ?? null;
+        $placesInResults = $meetXml !== null
+            && ! $meetXml->xpath('SESSIONS/SESSION/EVENTS/EVENT/AGEGROUPS/AGEGROUP/RANKINGS/RANKING')
+            && $meetXml->xpath('CLUBS/CLUB/ATHLETES/ATHLETE/RESULTS/RESULT[@agegroupid] | CLUBS/CLUB/RELAYS/RELAY/RESULTS/RESULT[@agegroupid]');
+
+        return [
+            'version' => $version,
+            'constructor' => $constructor,
+            'constructor_version' => trim((string) ($xml->CONSTRUCTOR['version'] ?? '')),
+            'label' => trim('LENEX '.$version).($short !== '' ? ' ('.$short.')' : ''),
+            'places_in_results' => $placesInResults,
+        ];
+    }
+
+    /**
+     * Version und Erzeuger einer Datei, ohne zu importieren (siehe fileFormat()).
+     *
+     * @return array{version: string, constructor: string, constructor_version: string, label: string, places_in_results: bool}
+     *
+     * @throws Exception
+     */
+    public function fileFormatFromFile(string $filePath): array
+    {
+        return self::fileFormat($this->loadXml($filePath));
     }
 
     /**
@@ -407,7 +463,9 @@ class LenexParserService
     /**
      * Klassen einer AGEGROUP als handicap-Liste ("1,2,3"). Ältere Splash-Dateien (z. B. ÖSTM 2012) lassen das
      * handicap-Attribut leer und nennen die Klasse nur im Gruppennamen: "S1", "SB2", "SM14", auch als Bereich
-     * "S1-S10" bzw. "S1 - 10". Andere Namen ("Open Class", "Testwertung") liefern keine Klassen.
+     * "S1-S10" bzw. "S1 - 10". LENEX-2.0-Dateien (sem2004) setzen ein Präfix davor: "Startklasse S4",
+     * "Startklasse SB4", "Startklasse SM4", ebenso "Klasse S4". Andere Namen ("Open Class", "Testwertung",
+     * "Startklasse AB") liefern keine Klassen.
      */
     public static function agegroupHandicap(SimpleXMLElement $agegroupXml): string
     {
@@ -417,7 +475,7 @@ class LenexParserService
         }
 
         $name = strtoupper(trim((string) ($agegroupXml['name'] ?? '')));
-        if (! preg_match('/^S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
+        if (! preg_match('/^(?:(?:START)?KLASSE\s+)?S[BM]?\s*(\d{1,2})(?:\s*-\s*(?:S[BM]?)?\s*(\d{1,2}))?$/', $name, $m)) {
             return '';
         }
 
@@ -425,6 +483,55 @@ class LenexParserService
         $to = isset($m[2]) ? (int) $m[2] : $from;
 
         return $to >= $from ? implode(',', range($from, $to)) : (string) $from;
+    }
+
+    /**
+     * LENEX 2.0: die offene Gruppe eines Bewerbs — ohne Klasse, nach oben offen (agemax -1) und mit dem niedrigsten
+     * agemin, bei Gleichstand die erste. Trifft "Offene Wertung" (sem2004), "Allg. Klasse" und "Offene Klasse"
+     * (MSECM), nicht aber "Masters III" (agemin 60). Gruppen, die nach einer Klasse benannt sind, deren Klasse aber
+     * nicht erkannt wird ("Startklasse AB", eine deutsche Besonderheit), zählen nicht.
+     */
+    public static function openAgegroup(SimpleXMLElement $ageGroupsXml): ?SimpleXMLElement
+    {
+        $open = null;
+        $openMin = PHP_INT_MAX;
+        foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+            $name = strtoupper(trim((string) ($ageGroupXml['name'] ?? '')));
+            if (self::agegroupHandicap($ageGroupXml) !== ''
+                || preg_match('/^(START)?KLASSE\b/', $name) === 1
+                || (int) ($ageGroupXml['agemax'] ?? -1) >= 0) {
+                continue;
+            }
+            $ageMin = max(0, (int) ($ageGroupXml['agemin'] ?? -1));
+            if ($ageMin < $openMin) {
+                $open = $ageGroupXml;
+                $openMin = $ageMin;
+            }
+        }
+
+        return $open;
+    }
+
+    /**
+     * AGEGROUPs eines Bewerbs, die als Wertungsgruppe übernommen werden. LENEX 2.0 (Plätze am RESULT): nur
+     * Klassengruppen und die offene Gruppe (openAgegroup()); Altersgruppen ("Jugend A", "Jugendwertung",
+     * "Masters I") und "Startklasse AB" entfallen (docs/specs/lenex-2.0-import.md, Antworten 3 und 5). Sonst alle.
+     *
+     * @return list<SimpleXMLElement>
+     */
+    public static function scoringAgegroups(SimpleXMLElement $ageGroupsXml, bool $placesInResults): array
+    {
+        $open = $placesInResults ? self::openAgegroup($ageGroupsXml) : null;
+        $groups = [];
+        foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+            if (! $placesInResults
+                || self::agegroupHandicap($ageGroupXml) !== ''
+                || ($open !== null && dom_import_simplexml($open)->isSameNode(dom_import_simplexml($ageGroupXml)))) {
+                $groups[] = $ageGroupXml;
+            }
+        }
+
+        return $groups;
     }
 
     /**
@@ -647,6 +754,145 @@ class LenexParserService
                 }
             }
         }
+    }
+
+    /**
+     * LENEX 2.0 (Plätze am RESULT): je Start ein RESULT pro Wertungsgruppe, ohne resultid. Legt je Start den Platz
+     * unter der Ersatz-ID (legacyResultId()) in den rankingIndex: Platz in der Klassengruppe des Athleten (Klasse aus
+     * HANDICAP zur Lage des Bewerbs), sonst in der offenen Gruppe (openAgegroup()), sonst der erste in der Datei
+     * (docs/specs/lenex-2.0-import.md, Antwort 4).
+     */
+    private function buildLegacyPlaceIndex(SimpleXMLElement $meetXml): void
+    {
+        // eventid → [Schwimmlage, AGEGROUPS]
+        $events = [];
+        foreach ($meetXml->xpath('SESSIONS/SESSION/EVENTS/EVENT') ?: [] as $eventXml) {
+            $events[(string) ($eventXml['eventid'] ?? '')] = [
+                strtoupper((string) ($eventXml->SWIMSTYLE['stroke'] ?? '')),
+                $eventXml->AGEGROUPS ?? null,
+            ];
+        }
+
+        $starters = $meetXml->xpath('CLUBS/CLUB/ATHLETES/ATHLETE | CLUBS/CLUB/RELAYS/RELAY') ?: [];
+        foreach ($starters as $starterXml) {
+            $byEvent = [];
+            foreach ($starterXml->RESULTS->RESULT ?? [] as $resultXml) {
+                $byEvent[(string) ($resultXml['eventid'] ?? '')][] = $resultXml;
+            }
+
+            foreach ($byEvent as $eventId => $resultsXml) {
+                [$stroke, $ageGroupsXml] = $events[$eventId] ?? ['', null];
+                $chosen = $this->legacyPlacedResult($resultsXml, $stroke, $ageGroupsXml, $starterXml->HANDICAP ?? null);
+                $place = (int) ($chosen['place'] ?? -1);
+                $this->rankingIndex[$this->legacyResultId($resultsXml[0])] = $place > 0 ? $place : null;
+            }
+        }
+    }
+
+    /**
+     * Das RESULT eines Starts, dessen Platz zählt (siehe buildLegacyPlaceIndex()).
+     *
+     * @param  list<SimpleXMLElement>  $resultsXml  alle RESULTs eines Starts (ein Bewerb)
+     */
+    private function legacyPlacedResult(
+        array $resultsXml,
+        string $stroke,
+        ?SimpleXMLElement $ageGroupsXml,
+        ?SimpleXMLElement $handicapXml
+    ): SimpleXMLElement {
+        if ($ageGroupsXml === null) {
+            return $resultsXml[0];
+        }
+
+        $groups = [];
+        foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+            $groups[(string) ($ageGroupXml['agegroupid'] ?? '')] = $ageGroupXml;
+        }
+        $groupOf = fn (SimpleXMLElement $resultXml): ?SimpleXMLElement => $groups[(string) ($resultXml['agegroupid'] ?? '')] ?? null;
+
+        $classNumber = $handicapXml === null ? '' : trim((string) match ($stroke) {
+            'BREAST' => $handicapXml['breast'] ?? '',
+            'MEDLEY', 'IMRELAY' => $handicapXml['medley'] ?? '',
+            default => $handicapXml['free'] ?? '',
+        });
+        if ($classNumber !== '' && $classNumber !== '0') {
+            foreach ($resultsXml as $resultXml) {
+                $group = $groupOf($resultXml);
+                if ($group !== null && in_array((int) $classNumber, ScoringGroup::parseClassNumbers(self::agegroupHandicap($group)), true)) {
+                    return $resultXml;
+                }
+            }
+        }
+
+        $open = self::openAgegroup($ageGroupsXml);
+        if ($open !== null) {
+            foreach ($resultsXml as $resultXml) {
+                if ((string) ($resultXml['agegroupid'] ?? '') === (string) ($open['agegroupid'] ?? '')) {
+                    return $resultXml;
+                }
+            }
+        }
+
+        return $resultsXml[0];
+    }
+
+    /**
+     * LENEX 2.0: stabile Ersatz-ID für ein RESULT ohne resultid, je Start gleich — Einzel "a{athleteid}-e{eventid}",
+     * Staffel "r{Vereinskennung}-{RELAY number}-e{eventid}" (Vereinskennung: code, sonst Kurz-Hash des Namens). Damit
+     * zeigt die Ergebnisliste die Herkunft "LENEX" und ein erneuter Import findet das Ergebnis über die resultid.
+     */
+    private function legacyResultId(SimpleXMLElement $resultXml): ?string
+    {
+        if (! $this->placesInResults) {
+            return null;
+        }
+
+        $eventId = (string) ($resultXml['eventid'] ?? '');
+        $starterXml = $resultXml->xpath('../..')[0] ?? null;
+        if ($starterXml === null || $eventId === '') {
+            return null;
+        }
+
+        if ($starterXml->getName() === 'ATHLETE') {
+            $athleteId = (string) ($starterXml['athleteid'] ?? '');
+
+            return $athleteId !== '' ? 'a'.$athleteId.'-e'.$eventId : null;
+        }
+
+        $clubXml = $starterXml->xpath('../..')[0] ?? null;
+        $clubKey = trim((string) ($clubXml['code'] ?? '')) ?: substr(md5((string) ($clubXml['name'] ?? '')), 0, 8);
+
+        return 'r'.$clubKey.'-'.((int) ($starterXml['number'] ?? 0)).'-e'.$eventId;
+    }
+
+    /**
+     * RESULTs eines Athleten bzw. einer Staffel, bei LENEX 2.0 (ein RESULT je Wertungsgruppe) nur das erste je Bewerb
+     * — Zeit, Status und Splits sind in allen gleich, der Platz kommt aus buildLegacyPlaceIndex().
+     *
+     * @return list<SimpleXMLElement>
+     */
+    private function startResults(?SimpleXMLElement $resultsXml): array
+    {
+        $results = [];
+        foreach ($resultsXml->RESULT ?? [] as $resultXml) {
+            $key = $this->placesInResults ? (string) ($resultXml['eventid'] ?? '') : count($results);
+            $results[$key] ??= $resultXml;
+        }
+
+        return array_values($results);
+    }
+
+    /**
+     * startResults() beim Import: zählt die zusammengefassten RESULTs für die Rückmeldung (results_merged).
+     *
+     * @return list<SimpleXMLElement>
+     */
+    private function importedStartResults(?SimpleXMLElement $resultsXml): array
+    {
+        $results = $this->startResults($resultsXml);
+        $this->stats['results_merged'] += count($resultsXml->RESULT ?? []) - count($results);
+
+        return $results;
     }
 
     private function importMeet(
@@ -924,11 +1170,13 @@ class LenexParserService
      * - Geschlecht aus gender (fehlt es: A = alle), Klassen aus handicap ("1,2,3" bzw. Leerzeichen-getrennt),
      *   Alter aus agemin/agemax (-1 = keine Grenze).
      * - Titel aus dem Namen: "ÖSTM…" → Staatsmeisterschaft, "ÖM…" → Meisterschaft.
+     * - LENEX 2.0: nur Klassengruppen und die offene Gruppe (scoringAgegroups()).
      */
     private function importScoringGroups(SwimEvent $swimEvent, SimpleXMLElement $ageGroupsXml): void
     {
         $order = 0;
-        foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+        $ageGroups = self::scoringAgegroups($ageGroupsXml, $this->placesInResults);
+        foreach ($ageGroups as $ageGroupXml) {
             $order++;
             $lenexId = trim((string) ($ageGroupXml['agegroupid'] ?? ''));
             $name = trim((string) ($ageGroupXml['name'] ?? ''));
@@ -956,6 +1204,23 @@ class LenexParserService
                 ScoringGroup::updateOrCreate(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId], $values);
             } else {
                 ScoringGroup::create(['swim_event_id' => $swimEvent->id] + $values);
+            }
+        }
+
+        // LENEX 2.0: Gruppen, die nicht (mehr) übernommen werden, aber von einem früheren Import derselben Datei
+        // stammen (z. B. "Jugend A", "Startklasse AB"), entfernen — nur über die agegroupid der Datei, manuell
+        // angelegte Gruppen bleiben.
+        if ($this->placesInResults) {
+            $keptIds = array_map(fn (SimpleXMLElement $xml) => trim((string) ($xml['agegroupid'] ?? '')), $ageGroups);
+            $droppedIds = [];
+            foreach ($ageGroupsXml->AGEGROUP as $ageGroupXml) {
+                $lenexId = trim((string) ($ageGroupXml['agegroupid'] ?? ''));
+                if ($lenexId !== '' && ! in_array($lenexId, $keptIds, true)) {
+                    $droppedIds[] = $lenexId;
+                }
+            }
+            if ($droppedIds !== []) {
+                ScoringGroup::where('swim_event_id', $swimEvent->id)->whereIn('lenex_agegroup_id', $droppedIds)->delete();
             }
         }
     }
@@ -1085,8 +1350,11 @@ class LenexParserService
             // nicht zur Klärung vorgemerkt: Die Ergebnisse gehen an den Heimverein der Schwimmer. Ebenso wenig ein
             // Verein, aus dem nichts Gewertetes käme (nur Offizielle, nur Rahmenbewerbe) — ein bekannter wird trotzdem
             // zugeordnet.
-            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0,
-                ! $filtered && $this->hasScoredContent($meet, $clubXml, $type, $resolver));
+            // Ausnahme Nationenfilter: Ein Verein der Nation mit gewerteten Staffeln kommt zur Klärung
+            // (hasScoredRelays()).
+            $club = $resolver->resolveClub($clubXml, $nation?->id ?? 0, $filtered
+                ? $this->onlyNation !== null && $clubOfNation && $this->hasScoredRelays($meet, $clubXml, $type, $resolver)
+                : $this->hasScoredContent($meet, $clubXml, $type, $resolver));
 
             if (! $club && ! $filtered) {
                 // Unbekannter Club — wird in Review-Seite aufgelöst
@@ -1118,7 +1386,7 @@ class LenexParserService
 
                     continue;
                 }
-                foreach ($relayXml->RESULTS->RESULT ?? [] as $resultXml) {
+                foreach ($this->importedStartResults($relayXml->RESULTS ?? null) as $resultXml) {
                     $this->importRelayResult($meet, $relayXml, $resultXml, $club, $resolver);
                 }
             }
@@ -1142,6 +1410,16 @@ class LenexParserService
             }
         }
 
+        return $this->hasScoredRelays($meet, $clubXml, $type, $resolver);
+    }
+
+    /**
+     * true, wenn der Verein eine Staffel mit Ergebnis (bzw. Meldung) in einem gewerteten Bewerb hat. Mit
+     * Nationenfilter kommt ein nicht gefundener Verein (Nationalteam, z. B. "NPC Austria") deshalb zur Klärung: Seine
+     * Einzelergebnisse gehen an den Heimverein, Staffeln brauchen aber den Verein (z. B. den ÖBSV als Verband).
+     */
+    private function hasScoredRelays(Meet $meet, SimpleXMLElement $clubXml, string $type, LenexResolverService $resolver): bool
+    {
         foreach ($clubXml->RELAYS->RELAY ?? [] as $relayXml) {
             foreach ($this->startItems($relayXml, $type) as $itemXml) {
                 if ($this->isScoredItem($meet, $itemXml, $resolver)) {
@@ -1222,7 +1500,7 @@ class LenexParserService
             $birthDate = TimeParser::sanitizeDate((string) ($athleteXml['birthdate'] ?? ''));
             $gender = strtoupper((string) ($athleteXml['gender'] ?? ''));
 
-            foreach ($athleteXml->RESULTS->RESULT ?? [] as $resultXml) {
+            foreach ($this->importedStartResults($athleteXml->RESULTS ?? null) as $resultXml) {
                 $header = $this->resultHeader($meet, $resultXml, $resolver);
                 if ($header === null || isset($this->unscoredEventIds[$header['swimEventId']])) {
                     continue;
@@ -1248,7 +1526,7 @@ class LenexParserService
         }
 
         foreach ($clubXml->RELAYS->RELAY ?? [] as $relayXml) {
-            foreach ($relayXml->RESULTS->RESULT ?? [] as $resultXml) {
+            foreach ($this->importedStartResults($relayXml->RESULTS ?? null) as $resultXml) {
                 $header = $this->resultHeader($meet, $resultXml, $resolver);
                 if ($header === null || (! $header['swimTime'] && $header['status'] === null)
                     || isset($this->unscoredEventIds[$header['swimEventId']])) {
@@ -1327,7 +1605,7 @@ class LenexParserService
         if (! $clubId) {
             $this->stats['without_club'] += $type === 'entries'
                 ? count($athleteXml->ENTRIES->ENTRY ?? [])
-                : count($athleteXml->RESULTS->RESULT ?? []);
+                : count($this->startResults($athleteXml->RESULTS ?? null));
 
             return;
         }
@@ -1348,7 +1626,7 @@ class LenexParserService
             $resultClubId = $fromFederation ? $home->id : $clubId;
 
             $before = $this->stats['results'];
-            foreach ($athleteXml->RESULTS->RESULT as $resultXml) {
+            foreach ($this->importedStartResults($athleteXml->RESULTS) as $resultXml) {
                 $this->importResult(
                     $meet, $resultXml, $athlete->id, $resultClubId, $resolver,
                     $athleteXml->HANDICAP ?? null
@@ -1474,9 +1752,12 @@ class LenexParserService
         }
         ['swimEventId' => $swimEventId, 'swimTime' => $swimTime, 'status' => $statusCode, 'lenexResultId' => $lenexResultId] = $header;
 
-        // place steht nicht im RESULT-Element sondern in EVENT > AGEGROUP > RANKING.
-        $place = $this->rankingIndex[$lenexResultId]
-            ?? ((int) ($resultXml['place'] ?? 0) ?: null);
+        // place steht nicht im RESULT-Element sondern in EVENT > AGEGROUP > RANKING (LENEX 2.0: buildLegacyPlaceIndex()).
+        // Ein Index-Eintrag null (DSQ, place -1) gilt — nicht auf das place-Attribut zurückfallen.
+        $filePlace = (int) ($resultXml['place'] ?? 0);
+        $place = $lenexResultId !== null && array_key_exists($lenexResultId, $this->rankingIndex)
+            ? $this->rankingIndex[$lenexResultId]
+            : ($filePlace > 0 ? $filePlace : null);
 
         // sport_class: Splash speichert kein handicap-Attribut im RESULT.
         // Ableitung aus ATHLETE.HANDICAP + Stroke des Events:
@@ -1847,7 +2128,7 @@ class LenexParserService
             'swimEventId' => $swimEventId,
             'swimTime' => $this->parseTime((string) ($resultXml['swimtime'] ?? '')),
             'status' => $this->mapResultStatus((string) ($resultXml['status'] ?? '')),
-            'lenexResultId' => (string) ($resultXml['resultid'] ?? '') ?: null,
+            'lenexResultId' => (string) ($resultXml['resultid'] ?? '') ?: $this->legacyResultId($resultXml),
         ];
     }
 
