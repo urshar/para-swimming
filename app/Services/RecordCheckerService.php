@@ -38,6 +38,10 @@ use Throwable;
  * Rekord ebenfalls unterboten hätten, landen nicht in der Kette. Jedes Ergebnis wird trotzdem auf alle Typen geprüft
  * (z. B. kein ÖR, aber Landesrekord seines Verbands).
  *
+ * Chronologische Kette (RecordChainService): Maßstab ist der Rekord, der am Wettkampftag galt. Ein Rekord aus einem
+ * nachträglich geprüften älteren Wettkampf kommt an seinem Datum in die Kette; spätere, gleich schnelle oder
+ * langsamere Rekorde werden INVALID und im Prüfergebnis gemeldet (invalid_records).
+ *
  * Außer Konkurrenz (Ergebnisstatus EXH, Einzel + Staffel): alle Rekordtypen werden geprüft, neue Rekorde aber
  * als PENDING angelegt — der Verband (Admin) bestätigt sie (SwimRecord::approve()).
  *
@@ -63,6 +67,7 @@ readonly class RecordCheckerService
 
     public function __construct(
         private RelayClassValidator $relayValidator,
+        private RecordChainService $chain,
     ) {}
 
     /**
@@ -71,6 +76,7 @@ readonly class RecordCheckerService
      * @return array{
      *     new_records: array<int, array{record: SwimRecord, types: string[]}>,
      *     pending_records: array<int, array{record: SwimRecord, athlete_name: string}>,
+     *     invalid_records: list<SwimRecord>,
      *     checked: int,
      * }
      *
@@ -109,25 +115,29 @@ readonly class RecordCheckerService
 
         $newRecords = [];
         $pendingRecords = [];
+        $invalidRecords = [];
         $checked = 0;
 
         foreach ($results as $result) {
-            ['new' => $new, 'pending' => $pending] = $this->checkResult($result, $meet);
-            $newRecords = array_merge($newRecords, $new);
-            $pendingRecords = array_merge($pendingRecords, $pending);
+            $outcome = $this->checkResult($result, $meet);
+            $newRecords = array_merge($newRecords, $outcome['new']);
+            $pendingRecords = array_merge($pendingRecords, $outcome['pending']);
+            $invalidRecords = array_merge($invalidRecords, $outcome['invalidated'] ?? []);
             $checked++;
         }
 
         foreach ($relayResults as $relayResult) {
-            ['new' => $new, 'pending' => $pending] = $this->checkRelayResult($relayResult, $meet);
-            $newRecords = array_merge($newRecords, $new);
-            $pendingRecords = array_merge($pendingRecords, $pending);
+            $outcome = $this->checkRelayResult($relayResult, $meet);
+            $newRecords = array_merge($newRecords, $outcome['new']);
+            $pendingRecords = array_merge($pendingRecords, $outcome['pending']);
+            $invalidRecords = array_merge($invalidRecords, $outcome['invalidated'] ?? []);
             $checked++;
         }
 
         return [
             'new_records' => $newRecords,
             'pending_records' => $pendingRecords,
+            'invalid_records' => $invalidRecords,
             'checked' => $checked,
         ];
     }
@@ -137,7 +147,7 @@ readonly class RecordCheckerService
     /**
      * Prüft ein Staffelergebnis auf neue Rekorde.
      *
-     * @return array{new: array, pending: array}
+     * @return array{new: array, pending: array, invalidated?: list<SwimRecord>}
      *
      * @throws Throwable
      */
@@ -220,12 +230,14 @@ readonly class RecordCheckerService
         }
 
         $broken = [];
+        $invalidated = [];
         foreach (array_keys($types) as $type) {
-            [$isRecord, $newRecord] = $this->checkRecordType(
+            [$isRecord, $newRecord, $invalid] = $this->checkRecordType(
                 $type, $strokeTypeId, $resolvedClass, $gender,
                 $course, $distance, $relayCount, $relayResult, null, $recordStatus
             );
             $broken[$type] = $isRecord;
+            $invalidated = [...$invalidated, ...$invalid];
 
             if ($newRecord) {
                 $this->saveRelayMembers($newRecord, $members);
@@ -238,13 +250,13 @@ readonly class RecordCheckerService
             $this->updateResultFlags($relayResult, $broken, $regionalBase);
         }
 
-        return ['new' => $new, 'pending' => $pending];
+        return ['new' => $new, 'pending' => $pending, 'invalidated' => $invalidated];
     }
 
     /**
      * Prüft ein einzelnes (Nicht-Staffel) Result auf alle relevanten Rekord-Typen.
      *
-     * @return array{new: array, pending: array}
+     * @return array{new: array, pending: array, invalidated?: list<SwimRecord>}
      *
      * @throws Throwable
      */
@@ -289,12 +301,14 @@ readonly class RecordCheckerService
         }
 
         $broken = [];
+        $invalidated = [];
         foreach (array_keys(array_filter($types)) as $type) {
-            [$isRecord, $newRecord] = $this->checkRecordType(
+            [$isRecord, $newRecord, $invalid] = $this->checkRecordType(
                 $type, $strokeTypeId, $sportClass, $gender,
                 $course, $distance, $relayCount, $result, $nationId, $recordStatus, $result->athlete_id
             );
             $broken[$type] = $isRecord;
+            $invalidated = [...$invalidated, ...$invalid];
 
             if ($newRecord) {
                 $this->collect($new, $pending, $newRecord, $type, $isPending, $result->athlete?->display_name ?? '–', $reason);
@@ -306,7 +320,7 @@ readonly class RecordCheckerService
             $this->updateResultFlags($result, $broken, $regionalBase);
         }
 
-        return ['new' => $new, 'pending' => $pending];
+        return ['new' => $new, 'pending' => $pending, 'invalidated' => $invalidated];
     }
 
     /**
@@ -363,7 +377,8 @@ readonly class RecordCheckerService
      * Prüft, ob das Result einen Rekord eines bestimmten Typs bricht.
      * Legt bei Bedarf einen neuen SwimRecord an.
      *
-     * @return array{0: bool, 1: SwimRecord|null}
+     * @return array{0: bool, 1: SwimRecord|null, 2: list<SwimRecord>} gebrochen, neuer Rekord, dabei ungültig
+     *                                                                 gewordene spätere Rekorde
      *
      * @throws Throwable
      */
@@ -386,80 +401,76 @@ readonly class RecordCheckerService
         $sourceColumn = $result instanceof RelayResult ? 'relay_result_id' : 'result_id';
         $existing = SwimRecord::where($sourceColumn, $result->id)->where('record_type', $recordType)->first();
         if ($existing !== null) {
-            return [in_array($existing->record_status, ['APPROVED', 'APPROVED.HISTORY'], true), null];
+            return [in_array($existing->record_status, ['APPROVED', 'APPROVED.HISTORY'], true), null, []];
         }
 
-        // Maßstab ist der geltende Rekord — ein noch ausstehender (PENDING) ist (noch) keiner.
-        $current = SwimRecord::where('record_type', $recordType)
-            ->where('stroke_type_id', $strokeTypeId)
-            ->where('sport_class', $sportClass)
-            ->where('gender', $gender)
-            ->where('course', $course)
-            ->where('distance', $distance)
-            ->where('relay_count', $relayCount)
-            ->where('is_current', true)
-            ->where('record_status', '!=', 'PENDING')
-            ->first();
+        // Maßstab ist der Rekord, der am Wettkampftag galt (RecordChainService) — ein noch ausstehender (PENDING) ist
+        // (noch) keiner. So kommt ein Rekord aus einem nachträglich geprüften älteren Wettkampf an seine Stelle in der
+        // Kette, statt einen jüngeren Rekord abzulösen.
+        $category = [
+            'record_type' => $recordType,
+            'stroke_type_id' => $strokeTypeId,
+            'sport_class' => $sportClass,
+            'gender' => $gender,
+            'course' => $course,
+            'distance' => $distance,
+            'relay_count' => $relayCount,
+        ];
+        $setDate = $result->meet?->start_date;
+        $valid = $this->chain->validOn(new SwimRecord($category), $setDate);
 
-        if (! $current || $result->swim_time < $current->swim_time) {
-            $createdRecord = null;
+        if ($valid !== null && $result->swim_time >= $valid->swim_time) {
+            return [false, null, []];
+        }
 
-            DB::transaction(function () use (
-                $recordType,
-                $strokeTypeId,
-                $sportClass,
-                $gender,
-                $course,
-                $distance,
-                $relayCount,
-                $result,
-                $nationId,
-                $current,
-                $recordStatus,
-                $athleteId,
-                &$createdRecord
-            ) {
-                $createdRecord = SwimRecord::create([
-                    'stroke_type_id' => $strokeTypeId,
-                    'nation_id' => $nationId,
-                    'meet_nation_id' => $result->meet?->nation_id,
-                    'athlete_id' => $athleteId,
-                    'club_id' => $result->club_id,
-                    'result_id' => $result instanceof Result ? $result->id : null,
-                    'relay_result_id' => $result instanceof RelayResult ? $result->id : null,
-                    'supersedes_id' => $current?->id,
-                    'record_type' => $recordType,
-                    'sport_class' => $sportClass,
-                    'gender' => $gender,
-                    'course' => $course,
-                    'distance' => $distance,
-                    'relay_count' => $relayCount,
-                    'swim_time' => $result->swim_time,
-                    'record_status' => $recordStatus,
-                    'is_current' => true,
-                    'set_date' => $result->meet?->start_date,
-                    'meet_name' => $result->meet?->name,
-                    'meet_city' => $result->meet?->city,
-                    'meet_course' => $result->meet?->course,
+        $createdRecord = null;
+        $invalidated = [];
+
+        DB::transaction(function () use (
+            $category,
+            $result,
+            $nationId,
+            $valid,
+            $recordStatus,
+            $athleteId,
+            $setDate,
+            &$createdRecord,
+            &$invalidated
+        ) {
+            $createdRecord = SwimRecord::create([
+                ...$category,
+                'nation_id' => $nationId,
+                'meet_nation_id' => $result->meet?->nation_id,
+                'athlete_id' => $athleteId,
+                'club_id' => $result->club_id,
+                'result_id' => $result instanceof Result ? $result->id : null,
+                'relay_result_id' => $result instanceof RelayResult ? $result->id : null,
+                'supersedes_id' => $valid?->id,
+                'swim_time' => $result->swim_time,
+                'record_status' => $recordStatus,
+                'is_current' => true,
+                'set_date' => $setDate,
+                'meet_name' => $result->meet?->name,
+                'meet_city' => $result->meet?->city,
+                'meet_course' => $result->meet?->course,
+            ]);
+
+            foreach ($result->splits as $split) {
+                RecordSplit::create([
+                    'swim_record_id' => $createdRecord->id,
+                    'distance' => $split->distance,
+                    'split_time' => $split->split_time,
                 ]);
+            }
 
-                foreach ($result->splits as $split) {
-                    RecordSplit::create([
-                        'swim_record_id' => $createdRecord->id,
-                        'distance' => $split->distance,
-                        'split_time' => $split->split_time,
-                    ]);
-                }
+            // Anerkannt: an seinem Datum in die Kette einfügen. Ausstehend: wartet auf die Bestätigung, erst
+            // SwimRecord::approve() fügt ihn ein.
+            if ($recordStatus === 'APPROVED') {
+                $invalidated = $this->chain->insert($createdRecord);
+            }
+        });
 
-                if ($recordStatus === 'APPROVED') {
-                    $current?->markAsSupersededBy($createdRecord);
-                }
-            });
-
-            return [true, $createdRecord];
-        }
-
-        return [false, null];
+        return [true, $createdRecord, $invalidated];
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────

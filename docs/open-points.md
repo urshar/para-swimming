@@ -166,11 +166,12 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 **Laufende Datenpflege und Import-Themen (Stand 25.10.2026)** — je unten ausführlich beschrieben:
 
-1. "LENEX 2.0 (sem2004) importieren" — Code fertig, offen nur Datenpflege Erik (Wettkampf 26 prüfen, Rekord-Check)
-2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
-3. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
-4. "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" — Code, Entscheidung Erik
-5. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+1. "LENEX 2.0 (sem2004) importieren" — erledigt (25.10.2026); weitere 2.0-Dateien bei Bedarf als eigene Phase
+2. "Rekorde aus Zwischenzeiten" — Code, Entscheidungen Erik (eigene Session)
+3. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
+4. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
+5. "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" — Code, Entscheidung Erik
+6. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
@@ -197,9 +198,29 @@ gewinnt). Die Ergebnisse selbst sind nicht verdoppelt.
 Klassengruppen und offene Gruppe, ein Ergebnis je Start mit dem Platz der Startklasse, Ersatz-ID, Vereine ohne Code,
 "NPC Austria" über die Klärungsseite. Getestet mit sem2004 (IDM Berlin 2018) und MSECM (Wiener Lagen Cup 2019).
 
-**Zum Schließen nötig (Erik):** Die IDM ist als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine doppelten) —
-prüfen, den alten Wettkampf 25 löschen, falls noch vorhanden, dann Rekord-Check. Weitere LENEX-2.0-Dateien mit neuen
-Abweichungen als eigene Phase nachziehen.
+**Erledigt (25.10.2026, Erik):** Wettkampf 25 gelöscht, die IDM als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine
+doppelten), Rekord-Check ohne Befund. Weitere LENEX-2.0-Dateien mit neuen Abweichungen als eigene Phase nachziehen.
+
+## Rekorde aus Zwischenzeiten
+
+**Seit:** 25.10.2026 (Frage Erik nach dem Rekord-Check der IDM Berlin 2018).
+
+**Ausgangslage:** `RecordCheckerService` prüft nur die Endzeit eines Ergebnisses. Zwischenzeiten (`result_splits`)
+werden lediglich als Kopie an einen neu aufgestellten Rekord gehängt (`RecordSplit`), aber nie selbst als Rekord
+geprüft. Nach den internationalen Regeln (World Aquatics / World Para Swimming, ÖBSV-Handhabung noch zu bestätigen)
+kann eine Zwischenzeit unter Bedingungen einen Rekord aufstellen: Rekordstrecke im selben Stil (z. B. 50 m im 100-m-,
+800 m im 1500-m-Rennen), automatische Zeitnahme, Rennen gültig beendet (keine DSQ), bei Staffeln nur die erste
+Teilstrecke als Einzelrekord; Lagen-Zwischenzeiten zählen nicht (Stilwechsel).
+
+**Wer entscheidet:** Erik — vor der Umsetzung:
+1. Lässt der ÖBSV Zwischenzeiten als Rekord zu (national, Landes-, Jugendrekorde)?
+2. Welche Strecken zählen (alle Rekordstrecken im selben Stil oder eine feste Liste)?
+3. Werden solche Rekorde gleich bestätigt (APPROVED) oder als ausstehend (PENDING) zur Bestätigung angelegt?
+4. Zählt die erste Teilstrecke einer Staffel als Einzelrekord?
+5. Welche Bedingungen an Zeitnahme und Status (z. B. nur automatische Zeitnahme, kein DSQ/EXH)?
+
+**Zum Schließen nötig:** Entscheidungen, dann Erweiterung von `RecordCheckerService` (Zwischenzeit als eigener
+Kandidat mit Strecke = Split-Distanz, Herkunft am Rekord erkennbar) mit Tests und Ergänzung in `docs/specs/records.md`.
 
 ## Historischer Import 2012–2017: Restarbeiten
 

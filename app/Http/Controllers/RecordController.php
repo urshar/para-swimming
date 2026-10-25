@@ -204,15 +204,17 @@ class RecordController extends Controller
         $wasPending = $record->record_status === 'PENDING';
         $record->update($validated);
 
-        // Ausstehender Rekord bestätigt → bisherigen Rekord ablösen (SwimRecord::approve()).
+        // Ausstehender Rekord bestätigt → an seinem Datum in die Kette einordnen (SwimRecord::approve()).
         $regionalTypes = [];
+        $invalidated = [];
         if ($wasPending && $record->record_status === 'APPROVED') {
-            $record->approve();
+            $invalidated = $record->approve();
             $record->refresh();
             $regionalTypes = $record->is_current ? $this->regional->propagate($record) : [];
         }
 
-        return back()->with('success', 'Status aktualisiert.'.$this->regionalMessage($regionalTypes));
+        return back()->with('success', 'Status aktualisiert.'.$this->regionalMessage($regionalTypes)
+            .$this->invalidMessage($invalidated));
     }
 
     // ── Rekord-Check eines gesamten Meets ────────────────────────────────────
@@ -272,7 +274,9 @@ class RecordController extends Controller
         $wasPending = $record->record_status === 'PENDING';
         $clubBefore = $record->club_id;
 
-        DB::transaction(function () use ($record, $data, $wasPending) {
+        $invalidated = [];
+
+        DB::transaction(function () use ($record, $data, $wasPending, &$invalidated) {
             $splits = $this->extractSplits($data);
 
             $record->update($data);
@@ -281,9 +285,9 @@ class RecordController extends Controller
             $this->storeSplits($record->id, $splits);
             $this->storeRelayMembers($record, $data);
 
-            // Ausstehender Rekord bestätigt → bisherigen Rekord ablösen (SwimRecord::approve()).
+            // Ausstehender Rekord bestätigt → an seinem Datum in die Kette einordnen (SwimRecord::approve()).
             if ($wasPending && $record->record_status === 'APPROVED') {
-                $record->approve();
+                $invalidated = $record->approve();
             }
         });
 
@@ -301,7 +305,8 @@ class RecordController extends Controller
 
         return redirect()
             ->route('records.show', $record)
-            ->with('success', 'Rekord aktualisiert.'.$this->regionalMessage($regionalTypes));
+            ->with('success', 'Rekord aktualisiert.'.$this->regionalMessage($regionalTypes)
+                .$this->invalidMessage($invalidated));
     }
 
     /**
@@ -328,6 +333,11 @@ class RecordController extends Controller
         if ($pendingCount > 0) {
             $message .= ', '.$pendingCount.' ausstehend (Bestätigung durch den Verband nötig)';
         }
+        $invalidCount = count(array_unique(array_map(fn (SwimRecord $r) => $r->id, $result['invalid_records'])));
+        if ($invalidCount > 0) {
+            $message .= ', '.$invalidCount.' '.($invalidCount === 1 ? 'späterer Rekord' : 'spätere Rekorde')
+                .' dadurch ungültig';
+        }
         if ($newCount === 0 && $pendingCount === 0) {
             $message .= ' — keine neuen Rekorde';
         }
@@ -348,6 +358,11 @@ class RecordController extends Controller
                     'athlete_name' => $item['athlete_name'],
                     'reason' => $item['reason'],
                 ])
+                ->all(),
+            'invalid_record_ids' => collect($result['invalid_records'])
+                ->map(fn (SwimRecord $record) => $record->id)
+                ->unique()
+                ->values()
                 ->all(),
         ];
 
@@ -467,6 +482,24 @@ class RecordController extends Controller
 
         return ' Zusätzlich '.(count($regionalTypes) === 1 ? 'Landesrekord ' : 'Landesrekorde ')
             .implode(', ', $regionalTypes).' eingetragen.';
+    }
+
+    /**
+     * Hinweis auf spätere Rekorde, die durch einen älteren, schnelleren ungültig wurden (RecordChainService).
+     *
+     * @param  list<SwimRecord>  $invalidated
+     */
+    private function invalidMessage(array $invalidated): string
+    {
+        $count = count($invalidated);
+
+        if ($count === 0) {
+            return '';
+        }
+
+        return $count === 1
+            ? ' 1 späterer Rekord ist dadurch ungültig.'
+            : ' '.$count.' spätere Rekorde sind dadurch ungültig.';
     }
 
     /**
