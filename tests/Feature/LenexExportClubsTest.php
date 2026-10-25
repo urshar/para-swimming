@@ -116,6 +116,10 @@ it('behält per LENEX-Import zugeordnete Vereine und listet jeden Verein nur ein
 it('zeigt unter "Teilnehmende Vereine" die Vereine aus Meldungen und Ergebnissen', function () {
     [$meet, $club, $athlete, $event] = setup_lxc();
     $resultClub = makeClub_p5();
+    // Feste Namen: Die Liste ist alphabetisch sortiert, und ob "TV9" vor oder nach "TV10" steht, hängt bei den
+    // durchnummerierten Testnamen davon ab, wie viele Vereine der Prozess schon angelegt hat (parallele Läufe).
+    $club->update(['name' => 'A-Verein', 'short_name' => 'A-Verein']);
+    $resultClub->update(['name' => 'B-Verein', 'short_name' => 'B-Verein']);
     Entry::create(['meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id, 'club_id' => $club->id]);
     result_lxc($meet, $event, makeAthlete_p5($resultClub));
 

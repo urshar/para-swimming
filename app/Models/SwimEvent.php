@@ -8,6 +8,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SwimEvent extends Model
 {
+    /** Geschlecht in der Bewerbsbezeichnung; A (alle) bekommt keinen Zusatz. */
+    public const array GENDER_LABELS = ['M' => 'Herren', 'F' => 'Damen', 'X' => 'Mixed'];
+
+    /** LENEX-Runden in der Bewerbsbezeichnung; TIM (Zeitläufe, der Normalfall) bekommt keinen Zusatz. */
+    public const array ROUND_LABELS = [
+        'PRE' => 'Vorlauf',
+        'QUA' => 'Viertelfinale',
+        'SEM' => 'Halbfinale',
+        'FIN' => 'Finale',
+        'FHT' => 'Schnellster Lauf',
+        'SOP' => 'Stechen nach Vorlauf',
+        'SOQ' => 'Stechen nach Viertelfinale',
+        'SOS' => 'Stechen nach Halbfinale',
+        'TIMETRIAL' => 'Zeitlauf',
+    ];
+
     protected $fillable = [
         'meet_id',
         'stroke_type_id',
@@ -104,6 +120,19 @@ class SwimEvent extends Model
         $stroke = $this->strokeType?->name_de ?? $this->style_name ?? '';
 
         return $relay.$this->distance.'m '.$stroke;
+    }
+
+    /**
+     * Eindeutige Bezeichnung für Auswahllisten, z. B. "Nr. 7 – 50m Freistil Herren, Vorlauf": Pro Disziplin gibt es
+     * oft mehrere Bewerbe (Damen/Herren, Vorlauf/Finale), die display_name allein nicht unterscheidet.
+     */
+    public function getSelectionLabelAttribute(): string
+    {
+        $number = $this->event_number ? 'Nr. '.$this->event_number.' – ' : '';
+        $gender = self::GENDER_LABELS[$this->gender] ?? null;
+        $round = self::ROUND_LABELS[$this->round] ?? null;
+
+        return $number.trim($this->display_name).($gender ? ' '.$gender : '').($round ? ', '.$round : '');
     }
 
     public function isRelay(): bool

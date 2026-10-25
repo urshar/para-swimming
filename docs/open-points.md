@@ -164,6 +164,14 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
+**Laufende Datenpflege und Import-Themen (Stand 25.10.2026)** — je unten ausführlich beschrieben:
+
+1. "LENEX 2.0 (sem2004) importieren" — als Nächstes, Plan in [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md)
+2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
+3. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
+4. "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" — Code, Entscheidung Erik
+5. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
 1. "Barrierefreiheitserklärung — Konformitätsstand & Schlichtungsverfahren" unten — Konformitätsstand braucht eine
@@ -171,6 +179,69 @@ Erik klären, erst danach Branch anlegen/implementieren.
 2. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — erst, wenn es Veranstaltungen mit Mannschaften gibt
 3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
+
+## LENEX 2.0 (sem2004) importieren
+
+**Seit:** 25.10.2026, Import `IDM_Berlin_2018.lxf` (32. Internationale Deutsche Meisterschaften, Wettkampf 25 auf dev).
+Erik: Es kommen noch mehrere solcher LENEX-2.0-Dateien.
+
+**Ausgangslage:** Die Datei ist gültiges LENEX 2.0 aus "sem2004" (Titanium Media), weicht aber in mehreren Punkten von
+den Splash-Dateien ab, für die der Import gebaut ist. Sichtbare Folgen auf dev: Jeder österreichische Schwimmer steht
+in jeder "Startklasse"-Wertungsgruppe (die Klasse steht nur im Gruppennamen und wird nicht erkannt), und der Platz ist
+der aus der "Offenen Wertung" statt aus der eigenen Klasse (je Start ein RESULT pro Wertungsgruppe, der letzte
+gewinnt). Die Ergebnisse selbst sind nicht verdoppelt.
+
+**Zum Schließen nötig:** Plan, Befund und offene Fragen in [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md).
+Danach Wettkampf 25 neu einlesen (Erik).
+
+## Historischer Import 2012–2017: Restarbeiten
+
+**Seit:** Oktober 2026 (Import der ÖBSV-Ergebnisdateien 2012–2017 und Rekordprüfung vor dem Umzug auf prod).
+
+**Offen:**
+
+- **Wettkampf 12 (Wien 2016), Bewerb 15** auf "nicht gewertet" setzen — Datenpflege Erik.
+- **7 HSC-Staffeln (Wr. LM 2013, Bewerb 15) ohne Staffelklasse:** Den Mitgliedern fehlen die Sportklassen, deshalb
+  lässt sich keine Staffelklasse bestimmen. Zum Schließen: Klassen der Athleten nachtragen, dann Rekord-Check erneut.
+- **Athleten zusammenführen**, u. a. Athlet 733 — wartet auf den Punkt "Athleten zusammenführen (Dubletten)" unten.
+- **Danach Export nach prod** (`php artisan team-data:export`, auf prod `TeamDataSeeder`, siehe "Athleten-Import aus
+  MSAccess-Datei", Phase 3).
+
+**Wer entscheidet / macht:** Erik (Datenpflege, Zeitpunkt des Umzugs).
+
+## WPS-Punktetabelle 2017 einspielen
+
+**Seit:** `feature/wps-txt-import` (PR #68, gemergt).
+
+**Offen:** `docs/snippets/WPS_2017.txt` über "WPS Punkte → Importieren" einspielen, inkl. Gültigkeitszeitraum, danach
+die WPS-Punkte neu berechnen. Auf dev sind derzeit 2 WPS-Versionen importiert, die Tabelle 2026 noch nicht.
+
+**Wer macht:** Erik.
+
+## Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung
+
+**Seit:** `feature/result-form-fixes` (24.10.2026, Vereinskorrektur mit Nachprüfung der Landesrekorde).
+
+**Ausgangslage:** `RecordCheckerService::checkRecordType()` vergleicht nur mit dem aktuellen Rekord, nicht mit dessen
+Datum. Wird ein älterer Wettkampf nachträglich geprüft (historischer Import, Vereinskorrektur), löst ein schnelleres,
+aber älteres Ergebnis einen jüngeren aktuellen Rekord ab und landet am Ende statt an seiner Stelle in der Kette.
+`RegionalRecordService::createIfFaster()` hat dafür bereits eine Sperre ("ein älterer nationaler Rekord löst keinen
+jüngeren Landesrekord ab").
+
+**Wer entscheidet:** Erik — wie ein älterer, schnellerer Rekord eingeordnet werden soll: übergehen (wie beim
+Landesrekord), als ausstehend zur Prüfung anlegen oder in die Kette an der richtigen Stelle einfügen.
+
+**Zum Schließen nötig:** Entscheidung, dann Anpassung in `checkRecordType()` mit Tests. Bis dahin Wettkämpfe beim
+historischen Import in zeitlicher Reihenfolge prüfen.
+
+## Alte Uploads des Rekord-Imports
+
+**Seit:** `feature/wps-txt-import` (Aufräumen der Uploads eingebaut).
+
+**Offen:** In `storage/app/private/record-imports` liegen noch 96 echte Uploads aus früheren Importen (darunter 4
+gezippte `test-import.lef` vom 30.08.). Neue Importe räumen ihre Datei selbst auf.
+
+**Wer entscheidet:** Erik — Löschen nur auf seine ausdrückliche Anweisung.
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 
@@ -397,6 +468,8 @@ oder Meldungen dranhängen.
 **alles, was am Athleten hängt**: Ergebnisse (Einzel und Staffelmitgliedschaften), Meldungen (Einzel und
 Staffelmeldungen), Rekorde, Klassifikations-, Vereins- und Level-History, Sportklassen, Ausnahme-Codes,
 Kaderzugehörigkeiten, Leistungsnotizen, Prüflisten-Einträge, Cup-Wertungen.
+
+**Bekannte Fälle:** u. a. Athlet 733 aus dem historischen Import 2012–2017.
 
 **Offene Fragen (Erik):** Welche Stammdaten gewinnen bei Abweichungen (Feld für Feld wählen oder immer der
 behaltene)? Was passiert bei Kollisionen (beide haben ein Ergebnis im selben Bewerb, beide eine Sportklasse je

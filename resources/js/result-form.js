@@ -3,6 +3,10 @@
  *
  * - Anlegen: belegt beim Athleten-Wechsel den Verein vor (athleteClubMap, bleibt änderbar) und setzt für
  *   Meldungen außer Konkurrenz den Status EXH (exhibitionKeys, Schlüssel "Bewerb-Athlet").
+ * - Anlegen: zeigt in der Athletenauswahl nur zum Bewerb passende Athleten (athleteVisible()): bei Herren-/
+ *   Damenbewerben nur dieses Geschlecht (Athleten ohne Geschlecht M/F bleiben sichtbar), bei Mixed bzw. ohne
+ *   Geschlecht alle; mit dem Umschalter "nur gemeldete" zusätzlich nur die zum Bewerb gemeldeten (enteredAthletes).
+ *   Fällt der gewählte Athlet aus dem Filter, wird die Auswahl geleert.
  * - Splitzeiten: belegt die Distanzfelder mit den vorgeschlagenen Distanzen des gewählten Bewerbs vor
  *   (splitDistances, Bewerbs-ID → Distanzen). Beim Bewerbswechsel werden sie nur ausgetauscht, solange sie
  *   noch dem Vorschlag des bisherigen Bewerbs entsprechen (oder leer sind) — eigene Eingaben bleiben stehen.
@@ -19,6 +23,10 @@ export default function resultForm(config) {
         status: config.status,
         athleteClubMap: config.athleteClubMap,
         exhibitionKeys: config.exhibitionKeys,
+        eventGenders: config.eventGenders,
+        athleteGenders: config.athleteGenders,
+        enteredAthletes: config.enteredAthletes,
+        onlyEntered: false,
         splitDistances: config.splitDistances,
         distances: config.distances,
 
@@ -26,16 +34,38 @@ export default function resultForm(config) {
             this.$watch('eventId', (id, previousId) => {
                 this.prefillExhibition();
                 this.replaceSplitDistances(previousId, id);
+                this.clearHiddenAthlete();
             });
             if (config.isEdit) {
                 return;
             }
+            this.$watch('onlyEntered', () => this.clearHiddenAthlete());
             this.$watch('athleteId', (id) => {
                 if (this.athleteClubMap[id]) {
                     this.clubId = String(this.athleteClubMap[id]);
                 }
                 this.prefillExhibition();
             });
+        },
+
+        athleteVisible(id) {
+            const eventGender = this.eventGenders[this.eventId];
+            const athleteGender = this.athleteGenders[id];
+            if (['M', 'F'].includes(eventGender) && ['M', 'F'].includes(athleteGender) && eventGender !== athleteGender) {
+                return false;
+            }
+
+            return !this.onlyEntered || (this.enteredAthletes[this.eventId] ?? []).includes(Number(id));
+        },
+
+        hasEntries() {
+            return (this.enteredAthletes[this.eventId] ?? []).length > 0;
+        },
+
+        clearHiddenAthlete() {
+            if (!config.isEdit && this.athleteId && !this.athleteVisible(this.athleteId)) {
+                this.athleteId = '';
+            }
         },
 
         prefillExhibition() {

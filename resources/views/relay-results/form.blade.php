@@ -64,7 +64,7 @@
                         <flux:select variant="listbox" name="swim_event_id" x-model="eventId" required>
                             @foreach($relayEvents as $event)
                                 <flux:select.option value="{{ $event->id }}">
-                                    {{ $event->event_number ? 'Nr. ' . $event->event_number . ' – ' : '' }}{{ $event->display_name }}
+                                    {{ $event->selection_label }}
                                 </flux:select.option>
                             @endforeach
                         </flux:select>

@@ -14,11 +14,16 @@
         // naiv an jedem Komma auf (Blade\Compilers\Concerns\CompilesJson::compileJson()) —
         // old("key", "default") hat selbst ein Komma und würde mitten im Ausdruck zerschnitten.
         $oldAthleteId = old('athlete_id', '');
-        $oldClubId = old('club_id', '');
+        $oldClubId = (string) old('club_id', $result->club_id ?? '');
         $oldEventId = (string) old('swim_event_id', $result->swim_event_id ?? $presetEventId);
         $oldStatus = (string) old('status', $result->status ?? '');
         // Anlegen: Meldungen außer Konkurrenz ("Bewerb-Athlet") → Status EXH vorbelegen (ResultController::create()).
         $exhibitionKeys = $exhibitionKeys ?? collect();
+
+        // Athletenfilter (nur Anlegen): Geschlecht je Bewerb/Athlet, gemeldete Athleten je Bewerb.
+        $eventGenders = $eventGenders ?? collect();
+        $athleteGenders = $athleteGenders ?? collect();
+        $enteredAthletes = $enteredAthletes ?? collect();
 
         // Zurück/Abbrechen: beim Bearbeiten zur Detailseite, beim Anlegen zur Ergebnis-Sammelansicht (backUrl vom Controller).
         $cancelUrl = isset($result) ? route('results.show', $result) : $backUrl;
@@ -57,6 +62,9 @@
             'status' => $oldStatus,
             'athleteClubMap' => $athleteClubMap,
             'exhibitionKeys' => $exhibitionKeys,
+            'eventGenders' => (object) $eventGenders->all(),
+            'athleteGenders' => (object) $athleteGenders->all(),
+            'enteredAthletes' => (object) $enteredAthletes->all(),
             'splitDistances' => (object) $splitDistances,
             'distances' => $distanceValues,
             'isEdit' => isset($result),
@@ -106,7 +114,7 @@
                                     @foreach($swimEvents as $event)
                                         <flux:select.option
                                             value="{{ $event->id }}" :selected="$oldEventId === (string) $event->id">
-                                            {{ $event->display_name }}
+                                            {{ $event->selection_label }}
                                         </flux:select.option>
                                     @endforeach
                                 </flux:select>
@@ -122,36 +130,50 @@
                                     <flux:label>Athlet<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                                     <flux:select variant="listbox" searchable name="athlete_id" x-model="athleteId" required>
                                         @foreach($athletes as $athlete)
-                                            <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id">
+                                            <flux:select.option value="{{ $athlete->id }}" :selected="old('athlete_id') == $athlete->id"
+                                                                x-show="athleteVisible({{ $athlete->id }})"
+                                                                x-bind:disabled="!athleteVisible({{ $athlete->id }})">
                                                 {{ $athlete->display_name }}
                                                 {{ $athlete->sport_classes_display ? '– ' . $athlete->sport_classes_display : '' }}
                                                 ({{ $athlete->nation?->code }})
                                             </flux:select.option>
                                         @endforeach
                                     </flux:select>
-                                    <flux:description class="mt-1!">Auch ohne Meldung zu diesem Wettkampf wählbar.</flux:description>
+                                    <flux:description class="mt-1!">
+                                        Passend zum Geschlecht des Bewerbs (bei Mixed alle). Auch ohne Meldung wählbar.
+                                    </flux:description>
                                     <flux:error name="athlete_id"/>
+                                    @if($enteredAthletes->isNotEmpty())
+                                        <div class="mt-2">
+                                            <flux:switch x-model="onlyEntered" label="Nur zu diesem Bewerb gemeldete Athleten"/>
+                                        </div>
+                                        <p x-show="onlyEntered && !hasEntries()" style="display: none"
+                                           class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                            Zu diesem Bewerb gibt es keine Meldungen.
+                                        </p>
+                                    @endif
                                 @endif
                             </flux:field>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
-                                @if(isset($result))
-                                    <flux:label>Club</flux:label>
-                                    <flux:input value="{{ $result->club?->display_name }}" disabled/>
-                                    <input type="hidden" name="club_id" value="{{ $result->club_id }}">
-                                @else
-                                    <flux:label>Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                                    <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
-                                        @foreach($clubs as $club)
-                                            <flux:select.option
-                                                value="{{ $club->id }}" :selected="old('club_id') == $club->id">{{ $club->name }}</flux:select.option>
-                                        @endforeach
-                                    </flux:select>
-                                    <flux:description class="mt-1!">Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.</flux:description>
-                                    <flux:error name="club_id"/>
-                                @endif
+                                <flux:label>Club<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                                <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
+                                    @foreach($clubs as $club)
+                                        <flux:select.option
+                                            value="{{ $club->id }}" :selected="$oldClubId === (string) $club->id">{{ $club->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:description class="mt-1!">
+                                    @if(isset($result))
+                                        Verein zum Zeitpunkt des Starts. Bei einer Änderung bekommen die Rekorde aus diesem
+                                        Ergebnis den neuen Verein, und die Landesrekorde werden neu geprüft.
+                                    @else
+                                        Wird beim Athleten-Wechsel automatisch vorbelegt — bleibt änderbar.
+                                    @endif
+                                </flux:description>
+                                <flux:error name="club_id"/>
                             </flux:field>
 
                             <flux:field>
