@@ -12,7 +12,9 @@ use SimpleXMLElement;
  * docs/specs/lenex-athlete-selection.md): gleicht die Schwimmer der Datei ohne Schreibzugriff mit der Datenbank ab.
  *
  * - matches:    Schwimmer mit bestehendem Athleten (LenexResolverService::findAthlete(), dieselben Regeln wie beim
- *               Import) — im Auswahlschritt vorausgewählt.
+ *               Import) — im Auswahlschritt vorausgewählt. Findet findAthlete() nichts, zusätzlich über Name + Jahrgang
+ *               (findAthleteByBirthYear(), für fremde Veranstaltungen mit fremder Lizenz und nur dem Jahrgang) — nicht
+ *               vorausgewählt.
  * - candidates: nicht gefundene Schwimmer mit Para-Hinweis (HANDICAP-Element oder Start in einem Bewerb mit
  *               Klassenangabe) — können bewusst neu angelegt werden. Alle anderen bleiben unerwähnt.
  *
@@ -28,7 +30,7 @@ final readonly class LenexAthleteSelectionService
 
     /**
      * @return array{
-     *     matches: list<array{lenex_id: string, athlete_id: int, athlete_name: string, birth_year: ?string, matched_by: string, file_name: string, file_club: string, file_nation: string, events: list<string>}>,
+     *     matches: list<array{lenex_id: string, athlete_id: int, athlete_name: string, birth_year: ?string, matched_by: string, preselected: bool, file_name: string, file_club: string, file_nation: string, events: list<string>}>,
      *     candidates: list<array{lenex_id: string, file_name: string, birth_date: string, gender: string, file_club: string, file_nation: string, events: list<string>}>
      * }
      *
@@ -68,7 +70,8 @@ final readonly class LenexAthleteSelectionService
                     'events' => array_values(array_unique(array_map(fn (string $id): string => $events[$id]['label'], $eventIds))),
                 ];
 
-                $found = $this->resolver->findAthlete($athleteXml, $nationIds[$nation] ?? 0);
+                $found = $this->resolver->findAthlete($athleteXml, $nationIds[$nation] ?? 0)
+                    ?? $this->resolver->findAthleteByBirthYear($athleteXml, $nationIds[$nation] ?? 0);
                 if ($found) {
                     $athlete = $found['athlete'];
                     $matches[] = $file + [
@@ -76,6 +79,8 @@ final readonly class LenexAthleteSelectionService
                         'athlete_name' => $athlete->display_name,
                         'birth_year' => $athlete->birth_date?->format('Y'),
                         'matched_by' => $found['matchedBy'],
+                        // Treffer nur über den Jahrgang muss der Admin bewusst anhaken
+                        'preselected' => $found['matchedBy'] !== LenexResolverService::MATCH_NAME_YEAR,
                     ];
 
                     continue;

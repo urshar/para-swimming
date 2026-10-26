@@ -9,6 +9,7 @@
             LenexResolverService::MATCH_LICENSE => 'Lizenz',
             LenexResolverService::MATCH_LICENSE_IPC => 'SDMS-ID',
             LenexResolverService::MATCH_NAME => 'Name + Geburtsdatum',
+            LenexResolverService::MATCH_NAME_YEAR => 'Name + Jahrgang',
         ];
     @endphp
     <div class="max-w-4xl">
@@ -57,7 +58,8 @@
                 </h2>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                     Gefunden über Lizenz, SDMS-ID oder Name mit Geburtsdatum — dieselben Regeln wie beim Import.
-                    Treffer nur über den Namen bitte kurz prüfen.
+                    Treffer nur über den Namen bitte kurz prüfen. Treffer über Name + Jahrgang (fremde Veranstaltungen
+                    nennen oft nur den Jahrgang) sind nicht angehakt.
                 </p>
                 @if($matches === [])
                     <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Keine.</p>
@@ -65,14 +67,14 @@
                     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700 mb-6">
                         @foreach($matches as $match)
                             <label class="p-4 flex items-start gap-3 cursor-pointer">
-                                <input type="checkbox" name="athletes[]" value="{{ $match['lenex_id'] }}" checked
+                                <input type="checkbox" name="athletes[]" value="{{ $match['lenex_id'] }}" @checked($match['preselected'])
                                        class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
                                 <span class="flex-1 min-w-0">
                                     <span class="flex flex-wrap items-center gap-2">
                                         <span class="font-medium text-zinc-900 dark:text-zinc-100">
                                             {{ $match['athlete_name'] }}{{ $match['birth_year'] ? ' (' . $match['birth_year'] . ')' : '' }}
                                         </span>
-                                        <flux:badge size="sm" :color="$match['matched_by'] === LenexResolverService::MATCH_NAME ? 'amber' : 'zinc'">
+                                        <flux:badge size="sm" :color="in_array($match['matched_by'], [LenexResolverService::MATCH_NAME, LenexResolverService::MATCH_NAME_YEAR], true) ? 'amber' : 'zinc'">
                                             {{ $matchLabels[$match['matched_by']] ?? $match['matched_by'] }}
                                         </flux:badge>
                                     </span>
