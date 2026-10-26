@@ -38,12 +38,12 @@
             </p>
         </div>
 
-        @if($matches === [] && $candidates === [])
+        @if($matches === [] && $candidates === [] && $others === [])
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 mb-6">
-                <p class="font-medium text-zinc-900 dark:text-zinc-100">Keine bekannten Athleten in der Datei</p>
+                <p class="font-medium text-zinc-900 dark:text-zinc-100">Keine Schwimmer mit Einzelergebnis in der Datei</p>
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                    Kein Schwimmer mit Einzelergebnis wurde in der Datenbank gefunden, und keiner hat einen Para-Hinweis
-                    (Sportklasse) in der Datei.
+                    Die Datei enthält nur Staffeln oder gar keine Ergebnisse; Staffeln werden in diesem Modus nicht
+                    importiert.
                 </p>
             </div>
             <flux:button href="{{ route('lenex.import') }}" variant="ghost">Abbrechen</flux:button>
@@ -120,6 +120,74 @@
                                         <span class="block text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                                             {{ $candidate['file_club'] ?: 'ohne Verein' }} · {{ $candidate['file_nation'] ?: '–' }}
                                             · {{ implode(', ', $candidate['events']) }}
+                                        </span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </details>
+                @endif
+
+                {{-- Weitere Schwimmer: erst nach Wahl eines Vereins sichtbar, z. B. Para-Schwimmer ohne Sportklasse bei
+                     einem Fremdverein (docs/specs/lenex-athlete-selection-other-swimmers.md). Die Vereinsauswahl gibt
+                     es je Nation einmal (x-if), damit sie nur die Vereine der gewählten Nation anbietet. --}}
+                @if($others !== [])
+                    <details class="mb-6" x-data="otherSwimmersFilter()">
+                        <summary class="cursor-pointer text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                            Weitere Schwimmer ({{ count($others) }})
+                            <span x-show="selected.length > 0" x-cloak
+                                  class="text-sm font-normal text-zinc-500 dark:text-zinc-400"
+                                  x-text="'· ' + selected.length + ' angehakt'"></span>
+                        </summary>
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                            Alle übrigen Schwimmer der Datei, z. B. Para-Schwimmer, die für einen anderen Verein ohne
+                            Sportklasse starten. Nation und Verein wählen, dann die gesuchten Schwimmer anhaken. Sie kommen
+                            im nächsten Schritt auf die Klärungsseite: einem bestehenden Athleten zuordnen (der Normalfall)
+                            oder neu anlegen. Ein neu angelegter Athlet bekommt den Verein aus der Datei nur, wenn es ihn
+                            schon gibt — sonst werden seine Ergebnisse übersprungen.
+                        </p>
+                        <div class="flex flex-wrap items-end gap-3 mb-3">
+                            <flux:select variant="listbox" x-model="nation" label="Nation" placeholder="Alle Nationen"
+                                         clearable class="w-48">
+                                @foreach($otherFilters['nations'] as $nationKey => $nationLabel)
+                                    <flux:select.option value="{{ $nationKey }}">{{ $nationLabel }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            @foreach($otherFilters['clubs'] as $nationKey => $clubOptions)
+                                <template x-if="nationKey === '{{ $nationKey }}'">
+                                    <flux:select variant="listbox" searchable x-model="club" label="Verein"
+                                                 placeholder="Verein wählen …" clearable class="w-80">
+                                        @foreach($clubOptions as $clubOption)
+                                            <flux:select.option value="{{ $clubOption['key'] }}">
+                                                {{ $clubOption['label'] }}
+                                            </flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                </template>
+                            @endforeach
+                        </div>
+                        <p x-show="!club" class="text-sm text-zinc-500 dark:text-zinc-400">
+                            Bitte einen Verein wählen.
+                        </p>
+                        <div x-show="club" x-cloak
+                             class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+                            @foreach($others as $other)
+                                <label class="p-4 flex items-start gap-3 cursor-pointer"
+                                       x-show="shows('{{ $other['club_key'] }}', '{{ $other['file_nation'] !== '' ? $other['file_nation'] : 'NONE' }}')"
+                                       x-cloak>
+                                    <input type="checkbox" name="others[]" value="{{ $other['lenex_id'] }}"
+                                           x-model="selected"
+                                           class="mt-1 rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
+                                    <span class="flex-1 min-w-0">
+                                        <span class="block font-medium text-zinc-900 dark:text-zinc-100">
+                                            {{ $other['file_name'] }}
+                                            @if($other['birth_date'] !== '')
+                                                (*{{ Carbon::parse($other['birth_date'])->format('d.m.Y') }})
+                                            @endif
+                                        </span>
+                                        <span class="block text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                            {{ $other['file_club'] ?: 'ohne Verein' }} · {{ $other['file_nation'] ?: '–' }}
+                                            · {{ implode(', ', $other['events']) }}
                                         </span>
                                     </span>
                                 </label>

@@ -60,6 +60,9 @@ function osvXml_lso(): string
         .$athlete(5, 'Nora', 'Nation', 'F', '2004-01-01', ' nation="GER"')
         .$athlete(6, 'Lena', 'Lizenz', 'F', '2001-01-01', ' license="W-1"').'
   </ATHLETES></CLUB>
+  <CLUB name="SV Gast" nation="GER"><ATHLETES>'
+        .$athlete(7, 'Gustav', 'Gast', 'M', '2002-01-01', '').'
+  </ATHLETES></CLUB>
 </CLUBS></MEET></MEETS></LENEX>';
 }
 
@@ -162,6 +165,23 @@ it('findet Jahrgangs-Treffer beim normalen Import nicht', function () {
         ->and(collect($resolver->getUnresolvedAthletes())->pluck('lenex_id')->all())->toBe(['1']);
 });
 
+it('bietet alle übrigen Schwimmer mit Einzelergebnis als weitere Schwimmer an', /** @throws Exception */ function () {
+    knownAthletes_lso();
+
+    $others = collect(preview_lso()['others'])->keyBy('lenex_id');
+
+    // 1 und 6 sind Treffer; alle anderen ohne Para-Hinweis, also keine Kandidaten.
+    expect($others->pluck('lenex_id')->sort()->values()->all())->toBe(['2', '3', '4', '5', '7'])
+        ->and($others['2']['file_name'])->toBe('Mehrfach, Max')
+        ->and($others['2']['birth_date'])->toBe('2004-01-01')
+        ->and($others['2']['gender'])->toBe('M')
+        ->and($others['2']['club_key'])->toBe('c0')
+        ->and($others['5']['file_nation'])->toBe('GER')
+        ->and($others['7']['file_club'])->toBe('SV Gast')
+        ->and($others['7']['club_key'])->toBe('c1')
+        ->and($others['7']['events'])->toBe(['100 m FREE', '50 m BREAST']);
+});
+
 // ── Import ────────────────────────────────────────────────────────────────────
 
 it('importiert einen ausgewählten Jahrgangs-Treffer mit Klasse aus den Stammdaten und Heimverein', /** @throws Exception */ function () {
@@ -234,4 +254,66 @@ it('zeigt Jahrgangs-Treffer im Auswahlschritt nicht angehakt und importiert sie,
     expect(Result::pluck('athlete_id')->unique()->values()->all())->toBe([$falk->id])
         ->and(Result::where('athlete_id', $lizenz->id)->exists())->toBeFalse()
         ->and(Meet::count())->toBe(1);
+});
+
+it('zeigt weitere Schwimmer mit Nation- und Vereinsfilter je Nation', function () {
+    Storage::fake('local');
+    knownAthletes_lso();
+
+    selectionPage_lso(User::factory()->create(['is_admin' => true, 'club_id' => null]))
+        ->assertOk()
+        ->assertSee('Weitere Schwimmer (5)')
+        ->assertSee('Bitte einen Verein wählen.')
+        ->assertSee('Mehrfach, Max')
+        ->assertViewHas('otherFilters', [
+            'nations' => ['AUT' => 'AUT', 'GER' => 'GER'],
+            'clubs' => [
+                // Nora Nation startet laut Datei als Deutsche für SC Diana Wien: Der Verein steht unter beiden Nationen.
+                'ALL' => [['key' => 'c0', 'label' => 'SC Diana Wien · AUT (4)'], ['key' => 'c1', 'label' => 'SV Gast · GER (1)']],
+                'AUT' => [['key' => 'c0', 'label' => 'SC Diana Wien (3)']],
+                'GER' => [['key' => 'c0', 'label' => 'SC Diana Wien (1)'], ['key' => 'c1', 'label' => 'SV Gast (1)']],
+            ],
+        ]);
+});
+
+it('führt weitere Schwimmer über die Klärungsseite und importiert sie nach Zuordnung', function () {
+    Storage::fake('local');
+    knownAthletes_lso();
+    // Gustav Gast ist in der Datenbank, aber mit anderem Vornamen: kein Treffer, nur über den Vereinsfilter zu finden.
+    $gustl = athlete_lso('Gustl', 'Gast', 'M', '2002-04-04', []);
+    $admin = User::factory()->create(['is_admin' => true, 'club_id' => null]);
+    preg_match('/name="import_session" value="([^"]+)"/', selectionPage_lso($admin)->getContent(), $m);
+
+    $apply = test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => $m[1], 'others' => ['7'], 'places' => 'compute',
+    ]);
+    $apply->assertRedirectContains('/lenex/import/review');
+    $review = test()->actingAs($admin)->get($apply->headers->get('Location'))->assertOk()->assertSee('Gast');
+    preg_match('/name="import_session" value="([^"]+)"/', $review->getContent(), $r);
+
+    test()->actingAs($admin)->post(route('lenex.import.resolve-athletes'), [
+        'import_session' => $r[1], 'athletes' => [['selection' => (string) $gustl->id]],
+    ])->assertRedirect(route('meets.index'));
+
+    expect(Result::pluck('athlete_id')->unique()->values()->all())->toBe([$gustl->id])
+        ->and(Result::count())->toBe(2)
+        // "SV Gast" ist unbekannt → Heimverein, kein neuer Verein, kein neuer Athlet
+        ->and(Result::pluck('club_id')->unique()->all())->toBe([$gustl->club_id])
+        ->and(Club::where('name', 'SV Gast')->exists())->toBeFalse()
+        ->and(Athlete::where('first_name', 'Gustav')->exists())->toBeFalse();
+});
+
+it('übernimmt als weitere Schwimmer nur angebotene', function () {
+    Storage::fake('local');
+    knownAthletes_lso();
+    $admin = User::factory()->create(['is_admin' => true, 'club_id' => null]);
+    preg_match('/name="import_session" value="([^"]+)"/', selectionPage_lso($admin)->getContent(), $m);
+
+    // 1 ist ein Treffer, kein weiterer Schwimmer; 99 gibt es nicht.
+    test()->actingAs($admin)->post(route('lenex.import.apply-athlete-selection'), [
+        'import_session' => $m[1], 'others' => ['1', '99'], 'places' => 'compute',
+    ])->assertSessionHas('error', 'Bitte mindestens einen Athleten auswählen.');
+
+    expect(Result::count())->toBe(0)
+        ->and(Meet::count())->toBe(0);
 });

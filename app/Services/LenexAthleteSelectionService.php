@@ -16,7 +16,10 @@ use SimpleXMLElement;
  *               (findAthleteByBirthYear(), für fremde Veranstaltungen mit fremder Lizenz und nur dem Jahrgang) — nicht
  *               vorausgewählt.
  * - candidates: nicht gefundene Schwimmer mit Para-Hinweis (HANDICAP-Element oder Start in einem Bewerb mit
- *               Klassenangabe) — können bewusst neu angelegt werden. Alle anderen bleiben unerwähnt.
+ *               Klassenangabe) — können bewusst neu angelegt werden.
+ * - others:     alle übrigen Schwimmer (weder Treffer noch Kandidat), z. B. Para-Schwimmer ohne Sportklasse bei einem
+ *               Fremdverein (docs/specs/lenex-athlete-selection-other-swimmers.md). Im Auswahlschritt erst nach Wahl
+ *               eines Vereins sichtbar; club_key ("c" + Position des CLUB in der Datei) trennt gleichnamige Vereine.
  *
  * Gezählt werden nur Einzelergebnisse; Staffeln werden in diesem Modus nicht importiert. Wer nur in Staffeln startet,
  * erscheint deshalb nicht.
@@ -31,7 +34,8 @@ final readonly class LenexAthleteSelectionService
     /**
      * @return array{
      *     matches: list<array{lenex_id: string, athlete_id: int, athlete_name: string, birth_year: ?string, matched_by: string, preselected: bool, file_name: string, file_club: string, file_nation: string, events: list<string>}>,
-     *     candidates: list<array{lenex_id: string, file_name: string, birth_date: string, gender: string, file_club: string, file_nation: string, events: list<string>}>
+     *     candidates: list<array{lenex_id: string, file_name: string, birth_date: string, gender: string, file_club: string, file_nation: string, events: list<string>}>,
+     *     others: list<array{lenex_id: string, file_name: string, birth_date: string, gender: string, file_club: string, file_nation: string, club_key: string, events: list<string>}>
      * }
      *
      * @throws Exception
@@ -44,9 +48,13 @@ final readonly class LenexAthleteSelectionService
 
         $matches = [];
         $candidates = [];
+        $others = [];
         $seen = [];
+        // SimpleXML liefert beim foreach den Elementnamen als Schlüssel, nicht die Position
+        $clubIndex = -1;
 
         foreach ($meetXml->CLUBS->CLUB ?? [] as $clubXml) {
+            $clubIndex++;
             foreach ($clubXml->ATHLETES->ATHLETE ?? [] as $athleteXml) {
                 $lenexId = (string) ($athleteXml['athleteid'] ?? '');
                 $eventIds = [];
@@ -88,11 +96,14 @@ final readonly class LenexAthleteSelectionService
 
                 $paraHint = isset($athleteXml->HANDICAP)
                     || array_filter($eventIds, fn (string $id): bool => $events[$id]['classified']) !== [];
+                $person = $file + [
+                    'birth_date' => (string) ($athleteXml['birthdate'] ?? ''),
+                    'gender' => (string) ($athleteXml['gender'] ?? ''),
+                ];
                 if ($paraHint) {
-                    $candidates[] = $file + [
-                        'birth_date' => (string) ($athleteXml['birthdate'] ?? ''),
-                        'gender' => (string) ($athleteXml['gender'] ?? ''),
-                    ];
+                    $candidates[] = $person;
+                } else {
+                    $others[] = $person + ['club_key' => 'c'.$clubIndex];
                 }
             }
         }
@@ -100,6 +111,7 @@ final readonly class LenexAthleteSelectionService
         return [
             'matches' => self::sortByName($matches, 'athlete_name'),
             'candidates' => self::sortByName($candidates, 'file_name'),
+            'others' => self::sortByName($others, 'file_name'),
         ];
     }
 

@@ -369,7 +369,9 @@ it('zeigt im Auswahlschritt Treffer und Kandidaten mit Platzvorbelegung für Ös
         ->assertSee('Name + Geburtsdatum')
         ->assertSee('Kandidaten ohne Treffer (2)')
         ->assertSee('Handicap, Hans')
-        ->assertDontSee('Offen, Otto')
+        // Otto (offenes Feld) und Gustav (Gast) sind keine Kandidaten, stehen aber unter "Weitere Schwimmer"
+        // (docs/specs/lenex-athlete-selection-other-swimmers.md).
+        ->assertSee('Weitere Schwimmer (2)')
         ->assertViewHas('defaultPlaces', 'compute');
 });
 
