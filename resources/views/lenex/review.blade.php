@@ -23,7 +23,8 @@
                 </h2>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                     Diese Bewerbe haben in der Datei keine Klassenangabe. Rahmenbewerbe (z. B. Schnupperbewerbe für
-                    nicht klassifizierte Schwimmer oder eine Fun-Staffel) ankreuzen: Sie werden angelegt und exportiert, aber nicht gewertet —
+                    nicht klassifizierte Schwimmer oder eine Fun-Staffel) ankreuzen: Sie werden angelegt und exportiert,
+                    aber nicht gewertet —
                     ihre Ergebnisse und Schwimmer werden nicht importiert. Später im Disziplin-Formular änderbar.
                 </p>
                 <div
@@ -77,7 +78,8 @@
                                 <div class="font-medium text-zinc-900 dark:text-zinc-100">
                                     {{ ($club['unattached'] ?? false) ? 'Vereinslose Schwimmer (ohne Verein in der Datei)' : $club['name'] }}
                                     @if($club['preselect'] !== null)
-                                        <flux:badge size="sm" color="green" class="ml-1">Vorschlag vorbelegt</flux:badge>
+                                        <flux:badge size="sm" color="green" class="ml-1">Vorschlag vorbelegt
+                                        </flux:badge>
                                     @elseif(!empty($club['suggestions']))
                                         <flux:badge size="sm" color="amber" class="ml-1">Vorschlag</flux:badge>
                                     @endif
@@ -93,9 +95,14 @@
                                          class="w-full md:w-96" searchable
                                          aria-label="Zuordnung für Verein {{ ($club['unattached'] ?? false) ? 'Vereinslose Schwimmer' : $club['name'] }}">
                                 @if(!($club['unattached'] ?? false))
-                                    <flux:select.option value="new" :selected="is_null($club['preselect'])">Neu anlegen</flux:select.option>
+                                    <flux:select.option value="new" :selected="is_null($club['preselect'])">Neu
+                                        anlegen
+                                    </flux:select.option>
                                 @endif
-                                <flux:select.option value="skip" :selected="($club['unattached'] ?? false) && is_null($club['preselect'])">Überspringen</flux:select.option>
+                                <flux:select.option value="skip"
+                                                    :selected="($club['unattached'] ?? false) && is_null($club['preselect'])">
+                                    Überspringen
+                                </flux:select.option>
                                 @if(!empty($club['suggestions']))
                                     <flux:select.group label="Vorschlag — gleicher/ähnlicher Name oder Code">
                                         @foreach($club['suggestions'] as $sug)
@@ -107,7 +114,8 @@
                                 <flux:select.group label="Bestehendem Verein zuordnen">
                                     @foreach($clubOptions as $existingClub)
                                         @continue(in_array($existingClub['id'], $clubSuggestedIds, true))
-                                        <flux:select.option value="{{ $existingClub['id'] }}">{{ $existingClub['label'] }}</flux:select.option>
+                                        <flux:select.option
+                                            value="{{ $existingClub['id'] }}">{{ $existingClub['label'] }}</flux:select.option>
                                     @endforeach
                                 </flux:select.group>
                             </flux:select>
@@ -141,19 +149,24 @@
                     class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700 mb-6">
                     @foreach($unresolvedAthletes as $i => $athlete)
                         @php
-                            // Bestehende Athleten auf denselben Anfangsbuchstaben des Nachnamens eingegrenzt
-                            // (sonst 500+ Namen); bereits vorgeschlagene nicht doppelt zeigen.
-                            $suggestedIds = array_column($athlete['suggestions'], 'id');
-                            $initial = mb_strtoupper(mb_substr($athlete['last_name'], 0, 1));
-                            $sameInitial = $athletes->filter(fn ($a) => $a['initial'] === $initial && ! in_array($a['id'], $suggestedIds, true));
+                            // Bestehende Athleten auf den Anfangsbuchstaben des Nachnamens eingegrenzt (sonst 700+
+                            // Namen) — und auf den des Vornamens, falls die Datei Vor- und Nachname vertauscht;
+                            // bereits vorgeschlagene nicht doppelt zeigen.
+                            $suggestedIds = array_merge(array_column($athlete['suggestions'], 'id'), array_column($athlete['birth_date_suggestions'], 'id'));
+                            $initials = array_values(array_unique(array_filter([
+                                mb_strtoupper(mb_substr($athlete['last_name'], 0, 1)),
+                                mb_strtoupper(mb_substr($athlete['first_name'], 0, 1)),
+                            ])));
+                            $sameInitial = $athletes->filter(fn ($a) => in_array($a['initial'], $initials, true) && ! in_array($a['id'], $suggestedIds, true));
                         @endphp
                         <div class="p-4 flex flex-col md:flex-row md:items-center gap-3">
                             <div class="flex-1 min-w-0">
                                 <div class="font-medium text-zinc-900 dark:text-zinc-100">
                                     {{ $athlete['last_name'] }}, {{ $athlete['first_name'] }}
                                     @if($athlete['preselect'] !== null)
-                                        <flux:badge size="sm" color="green" class="ml-1">Jahrgang-Treffer vorbelegt</flux:badge>
-                                    @elseif(!empty($athlete['suggestions']))
+                                        <flux:badge size="sm" color="green" class="ml-1">Jahrgang-Treffer vorbelegt
+                                        </flux:badge>
+                                    @elseif(!empty($athlete['suggestions']) || !empty($athlete['birth_date_suggestions']))
                                         <flux:badge size="sm" color="amber" class="ml-1">Vorschlag</flux:badge>
                                     @endif
                                 </div>
@@ -170,22 +183,35 @@
                                 </div>
                             </div>
                             <flux:select variant="listbox" name="athletes[{{ $i }}][selection]" size="sm"
-                                         class="w-full md:w-[28rem]" searchable
+                                         class="w-full md:w-md" searchable
                                          aria-label="Zuordnung für {{ $athlete['last_name'] }}, {{ $athlete['first_name'] }}">
-                                <flux:select.option value="new" :selected="is_null($athlete['preselect'])">Neu anlegen</flux:select.option>
+                                <flux:select.option value="new" :selected="is_null($athlete['preselect'])">Neu anlegen
+                                </flux:select.option>
                                 <flux:select.option value="skip">Überspringen</flux:select.option>
                                 @if(!empty($athlete['suggestions']))
-                                    <flux:select.group label="Vorschlag — gleicher Name{{ $athlete['birth_date'] !== '' ? ' & Geburtsjahr' : '' }}">
+                                    <flux:select.group
+                                        label="Vorschlag — gleicher Name{{ $athlete['birth_date'] !== '' ? ' & Geburtsjahr' : '' }}">
                                         @foreach($athlete['suggestions'] as $sug)
                                             <flux:select.option value="{{ $sug['id'] }}"
                                                                 :selected="$athlete['preselect'] === $sug['id']">{{ $sug['label'] }}</flux:select.option>
                                         @endforeach
                                     </flux:select.group>
                                 @endif
+                                @if(!empty($athlete['birth_date_suggestions']))
+                                    <flux:select.group
+                                        label="Vorschlag — gleiches Geburtsdatum, Name abweichend oder vertauscht">
+                                        @foreach($athlete['birth_date_suggestions'] as $sug)
+                                            <flux:select.option
+                                                value="{{ $sug['id'] }}">{{ $sug['label'] }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select.group>
+                                @endif
                                 @if($sameInitial->isNotEmpty())
-                                    <flux:select.group label="Bestehendem Athleten zuordnen (Nachname {{ $initial }}…)">
+                                    <flux:select.group
+                                        label="Bestehendem Athleten zuordnen (Nachname {{ implode('… oder ', $initials) }}…)">
                                         @foreach($sameInitial as $existing)
-                                            <flux:select.option value="{{ $existing['id'] }}">{{ $existing['label'] }}</flux:select.option>
+                                            <flux:select.option
+                                                value="{{ $existing['id'] }}">{{ $existing['label'] }}</flux:select.option>
                                         @endforeach
                                     </flux:select.group>
                                 @endif

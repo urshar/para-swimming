@@ -373,14 +373,21 @@ class LenexImportController extends Controller
             $suggestions = $this->suggestions->suggestAthletes(
                 $athlete['last_name'], $athlete['first_name'], $athlete['birth_date'], $athlete['gender']
             );
+            // Vertauschter/verschriebener Name: gleiches Geburtsdatum + ein gemeinsamer Namensteil, nie vorbelegt
+            $birthDateSuggestions = $this->suggestions->suggestAthletesByBirthDate(
+                $athlete['last_name'], $athlete['first_name'], $athlete['birth_date'], $athlete['gender'],
+                $suggestions->pluck('id')->all()
+            );
+            $toOptions = fn (SupportCollection $athletes): array => $athletes->map(fn (Athlete $a): array => [
+                'id' => $a->id,
+                'label' => self::athleteLabel($a, $clubNames),
+            ])->all();
 
             return $athlete + [
                 'club_name' => $clubNames[$athlete['club_id']] ?? null,
                 'birth_date_display' => $athlete['birth_date'] !== '' ? Carbon::parse($athlete['birth_date'])->format('d.m.Y') : '',
-                'suggestions' => $suggestions->map(fn (Athlete $a): array => [
-                    'id' => $a->id,
-                    'label' => self::athleteLabel($a, $clubNames),
-                ])->all(),
+                'suggestions' => $toOptions($suggestions),
+                'birth_date_suggestions' => $toOptions($birthDateSuggestions),
                 'preselect' => $athlete['birth_date'] !== '' && $suggestions->count() === 1 ? $suggestions->first()->id : null,
             ];
         }, $importData['unresolved_athletes'] ?? []);
