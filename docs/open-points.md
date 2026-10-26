@@ -168,8 +168,9 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 1. "LENEX 2.0 (sem2004) importieren" — erledigt (25.10.2026); weitere 2.0-Dateien bei Bedarf als eigene Phase
 2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
-3. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
-4. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+3. "Rekorde aus Zwischenzeiten: Nacharbeiten auf dev" — Datenpflege Erik, vor dem Export nach prod
+4. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
+5. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
 
 "Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" sind erledigt
 (`feature/split-records`, [specs/split-records.md](specs/split-records.md)).
@@ -212,16 +213,31 @@ doppelten), Rekord-Check ohne Befund. Weitere LENEX-2.0-Dateien mit neuen Abweic
 - **7 HSC-Staffeln (Wr. LM 2013, Bewerb 15) ohne Staffelklasse:** Den Mitgliedern fehlen die Sportklassen, deshalb
   lässt sich keine Staffelklasse bestimmen. Zum Schließen: Klassen der Athleten nachtragen, dann Rekord-Check erneut.
 - **Athleten zusammenführen**, u. a. Athlet 733 — wartet auf den Punkt "Athleten zusammenführen (Dubletten)" unten.
-- **Zwischenzeiten nachprüfen** (`feature/split-records`): `php artisan records:check-splits --dry-run`, danach ohne
-  `--dry-run`; die ausstehenden Zwischenzeit-Rekorde (Statusfilter "Ausstehend", Badge "Zwischenzeit") prüfen und
-  bestätigen. Vom Rekord-Check des 15.09.2018 warten bereits #2759–#2763.
-- **5 Rekorde vom 04.05.2013 langsamer als ein früherer derselben Kategorie** (#937, #985, #990, #1073, #1074 — vor der
-  chronologischen Rekordkette entstanden): Die neue Logik räumt solche Altfälle nicht von selbst auf. Prüfen und ggf.
-  auf "Ungültig" setzen bzw. die Kette korrigieren.
+- **Rekorde aus Zwischenzeiten nacharbeiten** — siehe eigenen Punkt unten.
 - **Danach Export nach prod** (`php artisan team-data:export`, auf prod `TeamDataSeeder`, siehe "Athleten-Import aus
   MSAccess-Datei", Phase 3).
 
 **Wer entscheidet / macht:** Erik (Datenpflege, Zeitpunkt des Umzugs).
+
+## Rekorde aus Zwischenzeiten: Nacharbeiten auf dev
+
+**Seit:** `feature/split-records` (PR #71, gemergt 26.10.2026; Regeln in
+[specs/split-records.md](specs/split-records.md)). Die Migration `from_split` ist auf dev gelaufen.
+
+**Offen:**
+
+1. **Zwischenzeiten nachprüfen:** `php artisan records:check-splits --dry-run` (Vorschau, speichert nichts), danach
+   `php artisan records:check-splits`. Prüft alle Wettkämpfe nach Datum, älteste zuerst; ein zweiter Lauf legt nichts
+   doppelt an.
+2. **Ausstehende Zwischenzeit-Rekorde prüfen und bestätigen** (Rekordliste, Statusfilter "Ausstehend", Badge
+   "Zwischenzeit"). Mit der Bestätigung kommt der Rekord an seinem Datum in die Kette; spätere, langsamere Rekorde werden
+   "Ungültig". Vom Rekord-Check des 15.09.2018 (Klagenfurt) warten bereits #2759–#2763.
+3. **5 Altfälle vom 04.05.2013 prüfen:** #937, #985, #990, #1073, #1074 sind langsamer als ein früherer Rekord derselben
+   Kategorie (vor der chronologischen Rekordkette entstanden). Die neue Logik räumt solche Altfälle nicht von selbst auf
+   — prüfen und ggf. auf "Ungültig" setzen bzw. die Kette korrigieren.
+
+**Wer macht:** Erik (Datenpflege). Vor dem Export nach prod erledigen (siehe "Historischer Import 2012–2017:
+Restarbeiten").
 
 ## WPS-Punktetabelle 2017 einspielen
 
