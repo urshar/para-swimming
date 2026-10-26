@@ -119,6 +119,47 @@ final readonly class ImportSuggestionService
             ->values();
     }
 
+    /**
+     * Schwächere Athleten-Kandidaten für Dateien mit vertauschtem oder verschriebenem Namen (z. B. Vorname
+     * "Shaih", Nachname "Habibollah" statt "Habibollah Shahi"): exakt gleiches Geburtsdatum + Geschlecht und
+     * mindestens ein gemeinsamer Namensteil, egal ob als Vor- oder Nachname. Nur zum Anbieten, nie vorbelegen.
+     *
+     * @param  list<int>  $excludeIds  bereits über suggestAthletes() vorgeschlagene Athleten
+     * @return Collection<int, Athlete>
+     */
+    public function suggestAthletesByBirthDate(
+        string $lastName,
+        string $firstName,
+        string $birthDate,
+        string $gender,
+        array $excludeIds
+    ): Collection {
+        $parts = $this->nameParts($lastName.' '.$firstName);
+        if ($parts === [] || $birthDate === '') {
+            return collect();
+        }
+
+        return Athlete::where('gender', $gender)
+            ->whereDate('birth_date', $birthDate)
+            ->whereNotIn('id', $excludeIds)
+            ->whereNull('deleted_at')
+            ->orderBy('last_name')
+            ->get()
+            ->filter(fn (Athlete $a) => array_intersect($parts, $this->nameParts($a->last_name.' '.$a->first_name)) !== [])
+            ->values();
+    }
+
+    /**
+     * Normalisierte Namensteile (an Leerraum und Bindestrichen getrennt), z. B. "Weber-Treiber Anna" → weber,
+     * treiber, anna.
+     *
+     * @return list<string>
+     */
+    private function nameParts(string $name): array
+    {
+        return array_values(array_filter(preg_split('/[\s-]+/u', mb_strtolower(trim($name)))));
+    }
+
     /** true, wenn der kürzere der beiden Namen ein mehrwortiges Wort-Präfix des längeren ist. */
     private function isWordBoundaryPrefixMatch(string $a, string $b): bool
     {

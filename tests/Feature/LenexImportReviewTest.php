@@ -140,7 +140,10 @@ it('ordnet Vereine und Athleten bestehenden Datensätzen zu, legt neue an und ü
         ->assertOk()
         ->assertSee('Unbekannte Athleten (4)')
         ->assertSee('Jahrgang-Treffer vorbelegt')
-        ->assertSee('Bestehendem Athleten zuordnen (Nachname S…)')
+        // Singer (Vorname verschrieben, gleiches Geburtsdatum) über den Geburtsdatum-Vorschlag, Huber/Anna mit
+        // bestehenden Athleten unter H und A (Angerer)
+        ->assertSee('Vorschlag — gleiches Geburtsdatum, Name abweichend oder vertauscht')
+        ->assertSee('Bestehendem Athleten zuordnen (Nachname H… oder A…)')
         ->assertSee('Verein laut Datei: '.$club->name)
         ->assertSee('Stammverein: '.$otherClub->name);
 
