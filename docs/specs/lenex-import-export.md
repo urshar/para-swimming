@@ -107,8 +107,22 @@ aber auch österreichische Veranstaltungen außerhalb des ÖBSV (z. B. OSV-Meeti
   der Datei ohne Schreibzugriff ab (`LenexResolverService::findAthlete()`, dieselben Regeln wie `resolveAthlete()`:
   Lizenz, SDMS-ID, Name + Geburtsdatum + Geschlecht + Nation). **Treffer** sind angehakt (Trefferart als Badge, über
   den Namen gelb). **Kandidaten** — nicht gefunden, aber mit Para-Hinweis (`HANDICAP` oder Start in einem Bewerb mit
-  Klassenangabe) — stehen eingeklappt und nicht angehakt darunter; alle anderen werden nicht angezeigt. Gezählt werden
-  nur Einzelstarts. Dazu die Plätze-Einstellung (Ausland → aus der Datei, Österreich → berechnen) und ein Cup-Hinweis
+  Klassenangabe) — stehen eingeklappt und nicht angehakt darunter. Gezählt werden nur Einzelstarts.
+- **Para-Schwimmer bei Fremdvereinen** (seit `feature/lenex-selection-other-swimmers`, 26.10.2026, Spec
+  [lenex-athlete-selection-other-swimmers.md](lenex-athlete-selection-other-swimmers.md)): Fremde Veranstaltungen
+  (z. B. OSV) liefern oft nur den Jahrgang (`birthdate="2003-01-01"`) und eine fremde Lizenz, die Schwimmer starten
+  ohne Sportklasse. Deshalb zwei Ergänzungen:
+  - **Treffer über "Name + Jahrgang"** (`LenexResolverService::findAthleteByBirthYear()`, `MATCH_NAME_YEAR`): nur wenn
+    `findAthlete()` nichts findet; Name, Geschlecht, Nation und Geburtsjahr, genau ein passender Athlet. **Nicht
+    angehakt** (`preselected: false`). Nur in der Vorschau — `resolveAthlete()` nutzt die Suche nicht; der Treffer wirkt,
+    weil die Auswahl ihn dem Import vorab zuordnet.
+  - **"Weitere Schwimmer"**: alle übrigen Schwimmer mit Einzelergebnis, eingeklappt, sichtbar erst nach Wahl von Nation
+    (optional) und Verein (Alpine `otherSwimmersFilter`, Vereinsauswahl je Nation,
+    `LenexImportController::otherSwimmerFilters()`). Angehakte gehen wie Kandidaten auf die Klärungsseite (Normalfall:
+    einem bestehenden Athleten zuordnen).
+
+  Für das Ergebnis gelten die Regeln unten unverändert (Verein der Datei, falls bekannt, sonst Heimverein; Sportklasse
+  aus den Stammdaten; zählt für alles außer den Cup). Dazu die Plätze-Einstellung (Ausland → aus der Datei, Österreich → berechnen) und ein Cup-Hinweis
   (Warnung, wenn die gewählte Veranstaltung einem Cup zugeordnet ist; ein fehlender Cup ist das Kennzeichen, die
   Ergebnisse zählen sonst normal).
 - Die Sitzung merkt sich das Angebot; beim Absenden zählen nur angebotene Schwimmer. Angehakte Kandidaten durchlaufen
@@ -413,6 +427,10 @@ Import nur für Admins (`RequireAdmin`):
   (Trefferarten, Kandidaten nur mit Para-Hinweis, keine Schreibzugriffe), Import mit `only_athletes` (nur Ausgewählte,
   keine Staffeln/Gaststarts/Wertungsgruppen, Heimverein, Sportklasse aus den Stammdaten, Plätze aus der Datei bzw.
   berechnet, Wiederholungsimport) und der Ablauf über die Oberfläche bis zur Klärungsseite.
+- `tests/Feature/LenexAthleteSelectionOthersTest.php` (Gruppe `lenex-athlete-selection-others`) — Para-Schwimmer bei
+  Fremdvereinen: Treffer über Name + Jahrgang (nicht vorausgewählt, eindeutig, Vorrang der übrigen Regeln, nicht im
+  normalen Import), Import mit Klasse aus den Stammdaten und Heimverein, "Weitere Schwimmer" (Inhalt, Filterwerte je
+  Nation, Ablauf über die Klärungsseite, nur angebotene).
 - `tests/Feature/LenexLegacy*Test.php` (Gruppen `lenex-2-p1` … `lenex-2-p4`) — LENEX 2.0 mit den anonymisierten
   Auszügen `tests/Fixtures/lenex/sem2004-results.lef` und `msecm-results.lef` (ISO-8859-1): Erkennung, Klassen aus
   Gruppennamen, Wertungsgruppen, Platzwahl, Ersatz-ID, erneuter Import, Gäste, Staffel, Vereine, Rückmeldung.

@@ -1,6 +1,7 @@
 # Spec: Athletenauswahl — Para-Schwimmer ohne Sportklasse bei Fremdvereinen
 
-Status: Entwurf (26.10.2026, `feature/lenex-selection-other-swimmers`). Erweitert
+Status: umgesetzt (26.10.2026, `feature/lenex-selection-other-swimmers`). Die laufende Beschreibung steht in
+[lenex-import-export.md](lenex-import-export.md) unter "Athletenauswahl". Erweitert
 [lenex-athlete-selection.md](lenex-athlete-selection.md); dort beschriebene Regeln gelten unverändert, sofern hier
 nichts anderes steht.
 
@@ -79,7 +80,7 @@ Jede Phase mit eigenen Tests (Gruppe `lenex-athlete-selection-others`), `compose
 `vendor/bin/pest --parallel` grün, Freigabe nach jeder Phase:
 
 1. **Jahrgangs-Treffer (A):** Konstante `MATCH_NAME_YEAR`, Suche in `LenexAthleteSelectionService` (bzw. reine Methode
-   im Resolver), Rückgabefeld `preselect` je Treffer; View: Badge-Beschriftung und nicht angehakte Checkbox.
+   im Resolver), Rückgabefeld `preselected` je Treffer; View: Badge-Beschriftung und nicht angehakte Checkbox.
    Tests: Treffer über Jahrgang bei OSV-artiger Datei (Datum `01.01.`, fremde Lizenz, keine Klassen); kein Treffer bei
    anderem Jahr, anderer Nation, anderem Geschlecht oder zwei passenden Athleten; Regel 1-3 haben Vorrang; normaler
    Import (`resolveAthlete()`) findet den Schwimmer weiterhin nicht; Import mit ausgewähltem Jahrgangs-Treffer legt
