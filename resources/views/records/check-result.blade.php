@@ -92,6 +92,9 @@
                                     {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0 ml-4">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
@@ -135,6 +138,9 @@
                                     {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0 ml-4">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
@@ -189,6 +195,9 @@
                                     {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0 ml-4">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">

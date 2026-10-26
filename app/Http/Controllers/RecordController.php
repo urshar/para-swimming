@@ -132,7 +132,6 @@ class RecordController extends Controller
             ->join('stroke_types', 'stroke_types.id', '=', 'swim_records.stroke_type_id')
             ->with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam', 'meetNation'])
             ->whereIn('swim_records.record_type', $recordTypes)
-            ->where('swim_records.is_current', true)
             ->when($relayFilter === 'single', fn ($q) => $q->where('swim_records.relay_count', 1))
             ->when($relayFilter === 'relay', fn ($q) => $q->where('swim_records.relay_count', '>', 1))
             ->orderBy('swim_records.sport_class')
@@ -169,6 +168,12 @@ class RecordController extends Controller
         }
         if ($status) {
             $query->where('swim_records.record_status', $status);
+        }
+        // Nur die geltenden Rekorde — außer beim Filter "Ungültig": Ein durch einen älteren, schnelleren Rekord
+        // ungültig gewordener ist aus der Kette genommen (is_current = false, RecordChainService) und soll trotzdem
+        // auffindbar sein.
+        if ($status !== 'INVALID') {
+            $query->where('swim_records.is_current', true);
         }
 
         $records = $query->paginate(30)->withQueryString();
