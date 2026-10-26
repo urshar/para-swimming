@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\ForeignStart;
@@ -532,6 +533,61 @@ class LenexParserService
         }
 
         return $groups;
+    }
+
+    /**
+     * Level einer AGEGROUP als kommagetrennte Liste: aus levels ("A,B") bzw. dem Bereich levelmin/levelmax, abgebildet
+     * auf die vergebenen Level (Athlete::knownLevels(), Vergleich ohne Rücksicht auf Groß-/Kleinschreibung; fehlt eine
+     * Grenze, ist der Bereich dort offen). null = die Datei nennt kein Level (oder der Bereich trifft keins).
+     */
+    public static function agegroupLevels(SimpleXMLElement $agegroupXml): ?string
+    {
+        $levels = ScoringGroup::parseLevels((string) ($agegroupXml['levels'] ?? ''));
+        if ($levels === []) {
+            $min = trim((string) ($agegroupXml['levelmin'] ?? ''));
+            $max = trim((string) ($agegroupXml['levelmax'] ?? ''));
+            if ($min === '' && $max === '') {
+                return null;
+            }
+            $levels = array_values(array_filter(Athlete::knownLevels(), fn (string $level): bool => ($min === '' || strcasecmp($level, $min) >= 0)
+                && ($max === '' || strcasecmp($level, $max) <= 0)));
+        }
+
+        return $levels !== [] ? implode(',', $levels) : null;
+    }
+
+    /**
+     * Landesverband aus dem Gruppennamen (LENEX kennt dafür kein Attribut), nur für Gruppen ohne eigene Angabe — manuell
+     * gesetzte bleiben: "LM Wien …" → nur WBSV (ScoringGroup::associationFromName()); "Gäste …" → alle außer den
+     * Verbänden der LM-Gruppen desselben Bewerbs (gibt es keine, bleibt die Gruppe offen).
+     *
+     * @param  list<ScoringGroup>  $groups  Wertungsgruppen eines Bewerbs
+     */
+    public static function restrictByName(array $groups): void
+    {
+        $lmCodes = [];
+        foreach ($groups as $group) {
+            $code = ScoringGroup::associationFromName($group->name);
+            if ($code === null) {
+                continue;
+            }
+            $lmCodes[] = $code;
+            if ($group->regional_associations === null) {
+                $group->update(['regional_associations' => $code, 'regional_mode' => ScoringGroup::REGION_ONLY]);
+            }
+        }
+
+        $lmCodes = array_values(array_unique($lmCodes));
+        sort($lmCodes);
+        if ($lmCodes === []) {
+            return;
+        }
+
+        foreach ($groups as $group) {
+            if (ScoringGroup::isGuestName($group->name) && $group->regional_associations === null) {
+                $group->update(['regional_associations' => implode(',', $lmCodes), 'regional_mode' => ScoringGroup::REGION_EXCEPT]);
+            }
+        }
     }
 
     /**
@@ -1170,11 +1226,13 @@ class LenexParserService
      * - Geschlecht aus gender (fehlt es: A = alle), Klassen aus handicap ("1,2,3" bzw. Leerzeichen-getrennt),
      *   Alter aus agemin/agemax (-1 = keine Grenze).
      * - Titel aus dem Namen: "ÖSTM…" → Staatsmeisterschaft, "ÖM…" → Meisterschaft.
+     * - Level aus levels bzw. levelmin/levelmax (agegroupLevels()), Landesverband aus dem Namen (restrictByName()).
      * - LENEX 2.0: nur Klassengruppen und die offene Gruppe (scoringAgegroups()).
      */
     private function importScoringGroups(SwimEvent $swimEvent, SimpleXMLElement $ageGroupsXml): void
     {
         $order = 0;
+        $imported = [];
         $ageGroups = self::scoringAgegroups($ageGroupsXml, $this->placesInResults);
         foreach ($ageGroups as $ageGroupXml) {
             $order++;
@@ -1199,13 +1257,17 @@ class LenexParserService
                 },
                 'sort_order' => $order,
             ];
-
-            if ($lenexId !== '') {
-                ScoringGroup::updateOrCreate(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId], $values);
-            } else {
-                ScoringGroup::create(['swim_event_id' => $swimEvent->id] + $values);
+            // Level nur, wenn die Datei welche nennt (sonst bleibt ein manuell gesetztes stehen); Staffeln haben keins.
+            $levels = $swimEvent->relay_count > 1 ? null : self::agegroupLevels($ageGroupXml);
+            if ($levels !== null) {
+                $values['levels'] = $levels;
             }
+
+            $imported[] = $lenexId !== ''
+                ? ScoringGroup::updateOrCreate(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId], $values)
+                : ScoringGroup::create(['swim_event_id' => $swimEvent->id] + $values);
         }
+        self::restrictByName($imported);
 
         // LENEX 2.0: Gruppen, die nicht (mehr) übernommen werden, aber von einem früheren Import derselben Datei
         // stammen (z. B. "Jugend A", "Startklasse AB"), entfernen — nur über die agegroupid der Datei, manuell

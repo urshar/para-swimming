@@ -1,3 +1,5 @@
+@php use App\Models\Club; use App\Models\ScoringGroup; @endphp
+
 @extends('layouts.app')
 
 @section('title', isset($event) ? 'Disziplin bearbeiten' : 'Disziplin hinzufügen')
@@ -22,15 +24,31 @@
                 'sport_classes' => $g->sport_classes ?? '',
                 'age_min' => $g->age_min ?? '',
                 'age_max' => $g->age_max ?? '',
+                'regional_associations' => $g->regional_associations ?? '',
+                'regional_mode' => $g->regional_mode ?? '',
+                'levels' => $g->levels ?? '',
                 'title' => $g->title ?? '',
                 'lenex_agegroup_id' => $g->lenex_agegroup_id ?? '',
             ])->values()->all()
             : []);
-        $groupConfig = ['groups' => array_values($groupRows)];
+        // Landesverbände und Level als Listen für die Flux-Checkbox-Gruppen; Modus beim ersten Verband "nur diese".
+        $groupRows = array_map(fn (array $row): array => [
+            ...$row,
+            'regional_associations' => ScoringGroup::parseCodes($row['regional_associations'] ?? ''),
+            'regional_mode' => ($row['regional_mode'] ?? '') ?: ScoringGroup::REGION_ONLY,
+            'levels' => ScoringGroup::parseLevels($row['levels'] ?? ''),
+            'title' => ($row['title'] ?? '') ?: 'NONE',
+        ], array_values($groupRows));
+        $groupConfig = ['groups' => $groupRows];
+        // Level gibt es nur bei Einzelbewerben (eine Staffel hat kein Level).
+        $isRelay = (int) old('relay_count', $event->relay_count ?? 1) > 1;
         // Rahmenbewerb: Checkbox sendet "0" = nicht gewertet.
         $unscored = (string) old('is_scored', isset($event) && ! $event->is_scored ? '0' : '1') === '0';
         $resultCount = isset($event) ? $event->results()->count() + $event->relayResults()->count() : 0;
         $inputClass = 'w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-900 dark:text-zinc-100';
+        // Knopf der Flux-Selects in den Wertungsgruppen wie $inputClass (Höhe, Farben, Rundung); "!" nötig, weil
+        // flux:select.button eigene Klassen (h-10, dark:bg-white/10 ...) mitbringt.
+        $selectButtonClass = 'h-[34px]! rounded-lg! px-2.5! shadow-none! bg-white! dark:bg-zinc-900! border-zinc-200! dark:border-zinc-600! text-zinc-900 dark:text-zinc-100';
     @endphp
     <div class="max-w-4xl">
         <div class="mb-6">
@@ -187,6 +205,8 @@
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
                     Ergebnisse werden in jeder Gruppe gewertet, zu der Geschlecht, Klasse und Jahrgangsalter passen
                     (bei Staffeln Wertung und Staffelklasse). Klassen als Nummern, z.&nbsp;B. "1,2,3,4,5,6,7,8"; leer = alle.
+                    Landesverband: Verein im Ergebnis, z.&nbsp;B. LM "nur WBSV", Gäste "alle außer WBSV"; Level: Einstufung
+                    des Athleten zum Wettkampf. Ohne Auswahl keine Einschränkung.
                     Ohne Gruppen wird je Geschlecht und Sportklasse gewertet.
                 </p>
                 <template x-if="groups.length === 0">
@@ -200,14 +220,18 @@
                                 <input type="text" maxlength="100" required class="{{ $inputClass }}" placeholder="ÖSTM: S01 - S08"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][name]'" x-model="group.name">
                             </label>
-                            <label class="md:col-span-2 text-xs text-zinc-500">Geschlecht
-                                <select class="{{ $inputClass }}" :name="'scoring_groups[' + groups.indexOf(group) + '][gender]'" x-model="group.gender">
-                                    <option value="A">Alle</option>
-                                    <option value="M">Herren</option>
-                                    <option value="F">Damen</option>
-                                    <option value="X">Mixed</option>
-                                </select>
-                            </label>
+                            {{-- Flux-Selects binden nur an Alpine, abgeschickt wird über die versteckten Felder. --}}
+                            <div class="md:col-span-2 text-xs text-zinc-500">
+                                <span aria-hidden="true">Geschlecht</span>
+                                <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][gender]'" :value="group.gender">
+                                <flux:select variant="listbox" x-model="group.gender" aria-label="Geschlecht">
+                                    <x-slot name="trigger"><flux:select.button class="{{ $selectButtonClass }}"/></x-slot>
+                                    <flux:select.option value="A">Alle</flux:select.option>
+                                    <flux:select.option value="M">Herren</flux:select.option>
+                                    <flux:select.option value="F">Damen</flux:select.option>
+                                    <flux:select.option value="X">Mixed</flux:select.option>
+                                </flux:select>
+                            </div>
                             <label class="md:col-span-2 text-xs text-zinc-500">Klassen
                                 <input type="text" maxlength="100" class="{{ $inputClass }}" placeholder="1,2,3"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][sport_classes]'" x-model="group.sport_classes">
@@ -220,17 +244,56 @@
                                 <input type="number" min="0" max="99" class="{{ $inputClass }}"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][age_max]'" x-model="group.age_max">
                             </label>
-                            <label class="md:col-span-2 text-xs text-zinc-500">Titel
-                                <select class="{{ $inputClass }}" :name="'scoring_groups[' + groups.indexOf(group) + '][title]'" x-model="group.title">
-                                    <option value="">ohne</option>
-                                    <option value="OSTM">ÖSTM</option>
-                                    <option value="OM">ÖM</option>
-                                </select>
-                            </label>
+                            {{-- "ohne" als Sentinel NONE: eine leere Flux-Option kommt nicht zuverlässig an (CLAUDE.md). --}}
+                            <div class="md:col-span-2 text-xs text-zinc-500">
+                                <span aria-hidden="true">Titel</span>
+                                <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][title]'" :value="group.title === 'NONE' ? '' : group.title">
+                                <flux:select variant="listbox" x-model="group.title" aria-label="Titel">
+                                    <x-slot name="trigger"><flux:select.button class="{{ $selectButtonClass }}"/></x-slot>
+                                    <flux:select.option value="NONE">ohne</flux:select.option>
+                                    <flux:select.option value="OSTM">ÖSTM</flux:select.option>
+                                    <flux:select.option value="OM">ÖM</flux:select.option>
+                                </flux:select>
+                            </div>
                             <div class="md:col-span-1 text-right">
                                 <flux:button type="button" size="sm" variant="ghost" icon="trash" class="text-red-500!"
                                              title="Gruppe entfernen" aria-label="Gruppe entfernen"
                                              @click="removeGroup(groups.indexOf(group))"/>
+                            </div>
+                            {{-- Einschränkung nach Landesverband des Ergebnisvereins und Athleten-Level (z. B. LM: nur WBSV,
+                                 Gäste: alle außer WBSV). Die Flux-Felder binden nur an Alpine; abgeschickt wird über die
+                                 versteckten Felder (Listen kommagetrennt, Modus nur mit Verbänden). --}}
+                            <div class="col-span-2 md:col-span-12 flex flex-wrap items-center gap-x-6 gap-y-2 md:pb-2">
+                                <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][regional_associations]'" :value="group.regional_associations.join(',')">
+                                <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][regional_mode]'" :value="group.regional_associations.length > 0 ? group.regional_mode : ''">
+                                <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][levels]'" :value="group.levels.join(',')">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <flux:text size="sm">Landesverband</flux:text>
+                                    <flux:checkbox.group variant="pills" x-model="group.regional_associations" aria-label="Landesverbände">
+                                        @foreach(Club::REGIONAL_ASSOCIATION_STATES as $code => $state)
+                                            <flux:checkbox class="rounded-md!" value="{{ $code }}" label="{{ $code }}" title="{{ $state }}"/>
+                                        @endforeach
+                                    </flux:checkbox.group>
+                                </div>
+                                @if(! $isRelay && $levelOptions !== [])
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <flux:text size="sm">Level</flux:text>
+                                        <flux:checkbox.group variant="pills" x-model="group.levels" aria-label="Level">
+                                            @foreach($levelOptions as $level)
+                                                <flux:checkbox class="rounded-md!" value="{{ $level }}" label="{{ $level }}"/>
+                                            @endforeach
+                                        </flux:checkbox.group>
+                                    </div>
+                                @endif
+                                {{-- Modus nach dem Level, damit er beim Umbrechen allein in die nächste Zeile rutscht. --}}
+                                <div class="w-44" x-show="group.regional_associations.length > 0">
+                                    <flux:select variant="listbox" x-model="group.regional_mode" aria-label="Modus Landesverband">
+                                        <x-slot name="trigger"><flux:select.button class="{{ $selectButtonClass }}"/></x-slot>
+                                        @foreach(ScoringGroup::REGION_MODES as $mode => $modeLabel)
+                                            <flux:select.option value="{{ $mode }}">{{ $modeLabel }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -242,19 +305,23 @@
                 <flux:button type="submit" variant="primary">
                     {{ isset($event) ? 'Speichern' : 'Disziplin anlegen' }}
                 </flux:button>
+                {{-- Gehört zum eigenen Formular unten (form-Attribut), steht aber in der Knopfzeile. --}}
+                @if(isset($event) && $event->scoringGroups->isNotEmpty())
+                    <flux:button type="submit" variant="primary" color="emerald" icon="document-duplicate" form="scoring-groups-copy">
+                        Wertungsgruppen auf andere Bewerbe übernehmen
+                    </flux:button>
+                @endif
                 <flux:button href="{{ route('meets.show', $meet) }}" variant="ghost">Abbrechen</flux:button>
             </div>
         </form>
 
-        {{-- Eigenes Formular (nicht im Bewerbsformular verschachtelt): gespeicherte Gruppen auf andere Bewerbe übernehmen. --}}
+        {{-- Eigenes Formular (nicht im Bewerbsformular verschachtelt): gespeicherte Gruppen auf andere Bewerbe übernehmen;
+             abgeschickt über den Knopf in der Knopfzeile des Bewerbsformulars. --}}
         @if(isset($event) && $event->scoringGroups->isNotEmpty())
-            <form method="POST" action="{{ route('events.scoring-groups.copy', $event) }}" class="mt-4"
+            <form method="POST" action="{{ route('events.scoring-groups.copy', $event) }}" id="scoring-groups-copy"
                   x-data="{ submit() { if (confirm('Die gespeicherten Wertungsgruppen auf alle anderen Bewerbe dieser Veranstaltung mit gleicher Klassenkategorie übernehmen? Deren Gruppen werden ersetzt.')) this.$el.submit() } }"
                   @submit.prevent="submit()">
                 @csrf
-                <flux:button type="submit" size="sm" variant="filled" icon="document-duplicate" class="text-blue-500!">
-                    Wertungsgruppen auf andere Bewerbe übernehmen
-                </flux:button>
             </form>
         @endif
     </div>

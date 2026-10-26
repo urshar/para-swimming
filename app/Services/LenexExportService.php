@@ -348,6 +348,10 @@ class LenexExportService
             if ($group->classNumbers() !== []) {
                 $ag->setAttribute('handicap', implode(',', $group->classNumbers()));
             }
+            // Der Landesverband hat kein LENEX-Attribut; die RANKINGS enthalten trotzdem nur die Zugehörigen.
+            if ($group->levelCodes() !== []) {
+                $ag->setAttribute('levels', implode(',', $group->levelCodes()));
+            }
 
             if (! empty($rowsByGroup[$group->id])) {
                 $ag->appendChild($this->buildRankings($rowsByGroup[$group->id]));

@@ -32,6 +32,7 @@ use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetParticipantsController;
 use App\Http\Controllers\MeetResultClubsController;
 use App\Http\Controllers\MeetResultsOverviewController;
+use App\Http\Controllers\MeetScoringGroupRestrictionsController;
 use App\Http\Controllers\MeetSessionController;
 use App\Http\Controllers\NationController;
 use App\Http\Controllers\QualifyingExcludedDisciplineController;
@@ -393,6 +394,11 @@ Route::middleware(['auth'])->group(function () {
             ->parameters(['events' => 'event']);
         Route::post('events/{event}/scoring-groups/copy', [SwimEventController::class, 'copyScoringGroups'])
             ->name('events.scoring-groups.copy');
+        // Landesverband und Level gesammelt an den Wertungsgruppen der Veranstaltung setzen (nach Namensanfang).
+        Route::get('meets/{meet}/scoring-group-restrictions', [MeetScoringGroupRestrictionsController::class, 'index'])
+            ->name('meets.scoring-group-restrictions');
+        Route::put('meets/{meet}/scoring-group-restrictions', [MeetScoringGroupRestrictionsController::class, 'update'])
+            ->name('meets.scoring-group-restrictions.update');
 
         Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
             ->name('meets.recalculate-points');

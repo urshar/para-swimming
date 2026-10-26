@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\AthleteLevelHistory;
+use App\Models\Club;
+use App\Models\Meet;
 use App\Models\RelayResult;
 use App\Models\Result;
 use App\Models\ScoringGroup;
@@ -13,7 +16,8 @@ use Illuminate\Support\Collection;
  *
  * Zuordnung (berechnet, nicht gespeichert): Ein Ergebnis gehört in jede Wertungsgruppe des Bewerbs, zu der es passt
  * (ScoringGroup::matches()) — Einzelergebnis über Geschlecht, Sportklasse und Jahrgangsalter des Athleten,
- * Staffelergebnis über Wertung (M/F/X) und Staffelklasse. Mehrfachwertung ist möglich (z. B. Klassen- und
+ * Staffelergebnis über Wertung (M/F/X) und Staffelklasse; dazu der Landesverband des Vereins im Ergebnis und (nur
+ * Einzel) das Level des Athleten zum Wettkampfdatum. Mehrfachwertung ist möglich (z. B. Klassen- und
  * Jugendwertung). Passt ein Ergebnis in keine Gruppe, steht es unter "Ohne Wertungsgruppe", damit nichts verschwindet.
  *
  * Bewerbe ohne Wertungsgruppen (Altbestand): Rückfall je Geschlecht und Sportklasse ("Herren – S9"), damit Damen und
@@ -55,7 +59,7 @@ final readonly class ScoringGroupService
 
         return $groups->isEmpty()
             ? $this->fallbackGroups($results, $meetYear, $keepFilePlaces)
-            : $this->definedGroups($groups, $results, $meetYear, $keepFilePlaces);
+            : $this->definedGroups($groups, $results, $meetYear, $event->meet?->start_date?->toDateString(), $keepFilePlaces);
     }
 
     /**
@@ -93,6 +97,51 @@ final readonly class ScoringGroupService
     }
 
     /**
+     * Wertungsgruppen einer Veranstaltung, deren Name mit $prefix beginnt (Groß-/Kleinschreibung egal).
+     *
+     * @return Collection<int, ScoringGroup>
+     */
+    public function groupsByNamePrefix(Meet $meet, string $prefix): Collection
+    {
+        $prefix = mb_strtolower(trim($prefix));
+
+        return ScoringGroup::whereHas('swimEvent', fn ($q) => $q->where('meet_id', $meet->id))
+            ->with('swimEvent.meet')
+            ->get()
+            ->filter(fn (ScoringGroup $g): bool => $prefix !== '' && str_starts_with(mb_strtolower($g->name), $prefix))
+            ->values();
+    }
+
+    /**
+     * Sammelaktion: setzt Landesverbände (mit Modus) und Level an allen Wertungsgruppen der Veranstaltung, deren Name
+     * mit $prefix beginnt — leere Listen heben die jeweilige Einschränkung auf. Staffelgruppen bekommen kein Level.
+     * Danach werden die Plätze der betroffenen Bewerbe neu berechnet.
+     *
+     * @param  list<string>  $associations
+     * @param  list<string>  $levels
+     * @return array{groups: int, events: int}
+     */
+    public function restrictByNamePrefix(Meet $meet, string $prefix, array $associations, ?string $mode, array $levels): array
+    {
+        $groups = $this->groupsByNamePrefix($meet, $prefix);
+        foreach ($groups as $group) {
+            $isRelay = $group->swimEvent->relay_count > 1;
+            $group->update([
+                'regional_associations' => $associations !== [] ? implode(',', $associations) : null,
+                'regional_mode' => $associations !== [] ? $mode : null,
+                'levels' => $levels !== [] && ! $isRelay ? implode(',', $levels) : null,
+            ]);
+        }
+
+        $events = $groups->pluck('swimEvent')->unique('id');
+        foreach ($events as $event) {
+            $this->syncPlaces($event);
+        }
+
+        return ['groups' => $groups->count(), 'events' => $events->count()];
+    }
+
+    /**
      * Berechnete Plätze eines Ergebnisses je Wertungsgruppe (für die Anzeige im Formular).
      *
      * @return list<array{label: string, place: ?int}>
@@ -121,14 +170,15 @@ final readonly class ScoringGroupService
      * @param  Collection<int, Result|RelayResult>  $results
      * @return list<array{group: ?ScoringGroup, gender: ?string, name: string, label: string, missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}>
      */
-    private function definedGroups(Collection $groups, Collection $results, int $meetYear, bool $keepFilePlaces): array
+    private function definedGroups(Collection $groups, Collection $results, int $meetYear, ?string $meetDate, bool $keepFilePlaces): array
     {
+        [$regions, $levels] = self::restrictionTraits($groups, $results, $meetDate);
         $assigned = [];
         $out = [];
         foreach ($groups as $group) {
-            $members = $results->filter(function (Result|RelayResult $r) use ($group, $meetYear, &$assigned): bool {
-                [$gender, $class, $age] = self::traits($r, $meetYear);
-                $match = $group->matches($gender, $class, $age);
+            $members = $results->filter(function (Result|RelayResult $r) use ($group, $meetYear, $regions, $levels, &$assigned): bool {
+                [$gender, $class, $age, $region, $level] = self::traits($r, $meetYear, $regions, $levels);
+                $match = $group->matches($gender, $class, $age, $region, $level);
                 if ($match) {
                     $assigned[spl_object_id($r)] = true;
                 }
@@ -160,7 +210,7 @@ final readonly class ScoringGroupService
     {
         return $results
             ->groupBy(function (Result|RelayResult $r) use ($meetYear): string {
-                [$gender] = self::traits($r, $meetYear);
+                [$gender] = self::traits($r, $meetYear, [], []);
                 $class = self::classLabel($r);
 
                 // Schlüssel "Geschlechtsreihenfolge#Klassensortierung#Geschlecht#Klasse" — sortierbar und zerlegbar.
@@ -183,14 +233,19 @@ final readonly class ScoringGroupService
     }
 
     /**
-     * Wertungsmerkmale eines Ergebnisses: [Geschlecht, Klassennummer, Jahrgangsalter].
+     * Wertungsmerkmale eines Ergebnisses: [Geschlecht, Klassennummer, Jahrgangsalter, Landesverband, Level].
+     * Landesverband und Level kommen aus restrictionTraits(); ohne Eintrag dort gilt das aktuelle Level des Athleten.
      *
-     * @return array{0: ?string, 1: ?int, 2: ?int}
+     * @param  array<int, ?string>  $regions  club_id => Landesverband
+     * @param  array<int, string>  $levels  athlete_id => Level zum Wettkampfdatum
+     * @return array{0: ?string, 1: ?int, 2: ?int, 3: ?string, 4: ?string}
      */
-    private static function traits(Result|RelayResult $result, int $meetYear): array
+    private static function traits(Result|RelayResult $result, int $meetYear, array $regions, array $levels): array
     {
+        $region = $regions[$result->club_id] ?? null;
+
         if ($result instanceof RelayResult) {
-            return [$result->gender, self::classNumber($result->relay_class), null];
+            return [$result->gender, self::classNumber($result->relay_class), null, $region, null];
         }
 
         $birthYear = $result->athlete?->birth_date?->year;
@@ -199,7 +254,45 @@ final readonly class ScoringGroupService
             $result->athlete?->gender,
             self::classNumber($result->sport_class),
             $birthYear ? $meetYear - $birthYear : null,
+            $region,
+            $levels[$result->athlete_id] ?? $result->athlete?->level,
         ];
+    }
+
+    /**
+     * Landesverbände der Ergebnisvereine und Level der Athleten zum Wettkampfdatum — nur abgefragt, wenn eine Gruppe
+     * danach einschränkt. Level: letzter Eintrag der Level-Historie bis zum Wettkampfbeginn; fehlt er, gilt in traits()
+     * das aktuelle Level.
+     *
+     * @param  Collection<int, ScoringGroup>  $groups
+     * @param  Collection<int, Result|RelayResult>  $results
+     * @return array{0: array<int, ?string>, 1: array<int, string>}
+     */
+    private static function restrictionTraits(Collection $groups, Collection $results, ?string $meetDate): array
+    {
+        $regions = [];
+        if ($groups->contains(fn (ScoringGroup $g): bool => $g->regionalAssociationCodes() !== [])) {
+            $regions = Club::withTrashed()
+                ->whereIn('id', $results->pluck('club_id')->filter()->unique()->values())
+                ->pluck('regional_association', 'id')
+                ->all();
+        }
+
+        $levels = [];
+        if ($meetDate !== null && $groups->contains(fn (ScoringGroup $g): bool => $g->levelCodes() !== [])) {
+            $athleteIds = $results->whereInstanceOf(Result::class)->pluck('athlete_id')->filter()->unique()->values();
+            $history = AthleteLevelHistory::whereIn('athlete_id', $athleteIds)
+                ->whereDate('changed_at', '<=', $meetDate)
+                ->oldest('changed_at')
+                ->oldest('id')
+                ->get(['athlete_id', 'level']);
+            // Aufsteigend sortiert: der letzte Eintrag je Athlet gewinnt.
+            foreach ($history as $entry) {
+                $levels[$entry->athlete_id] = $entry->level;
+            }
+        }
+
+        return [$regions, $levels];
     }
 
     private static function classNumber(?string $class): ?int
