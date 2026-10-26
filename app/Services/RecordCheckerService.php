@@ -103,34 +103,8 @@ readonly class RecordCheckerService
      */
     public function checkMeet(Meet $meet): array
     {
-        $results = $meet->results()
-            ->with([
-                'athlete.nation',
-                'athlete.club',
-                'club',
-                'swimEvent.strokeType',
-                'splits',
-            ])
-            // Reguläre Ergebnisse und Starts außer Konkurrenz (EXH, werden als ausstehend angelegt).
-            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
-            ->whereNotNull('swim_time')
-            ->orderBy('swim_time')
-            ->orderBy('id')
-            ->get();
-
-        $relayResults = $meet->relayResults()
-            ->with([
-                'club',
-                'swimEvent.strokeType',
-                'splits',
-                'members.athlete.nation',
-                'members.athlete.sportClasses',
-            ])
-            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
-            ->whereNotNull('swim_time')
-            ->orderBy('swim_time')
-            ->orderBy('id')
-            ->get();
+        $results = $this->checkableResults($meet);
+        $relayResults = $this->checkableRelayResults($meet);
 
         $newRecords = [];
         $pendingRecords = [];
@@ -154,25 +128,8 @@ readonly class RecordCheckerService
         }
 
         // Zwischenzeiten erst nach allen Endzeiten — Maßstab für eine 50-m-Zwischenzeit ist dann schon ein neuer
-        // 50-m-Rekord aus diesem Wettkampf. Schnellste zuerst: je Kategorie entsteht nur aus der schnellsten
-        // Zwischenzeit des Wettkampfs ein Rekord (fasterSplitRecordInMeet()).
-        // Dazu die erste Teilstrecke der Freistilstaffeln als Einzelzeit des Startschwimmers (leadOffSplit()).
-        $splits = $results
-            ->flatMap(fn (Result $result) => $this->recordSplits($result, $meet)
-                ->map(fn (ResultSplit $split): array => [$result, $split]))
-            ->merge($relayResults
-                ->map(fn (RelayResult $relayResult): array => [$relayResult, $this->leadOffSplit($relayResult, $meet)])
-                ->filter(fn (array $candidate): bool => $candidate[1] !== null))
-            ->sortBy(fn (array $candidate): string => sprintf('%010d-%d-%010d', $candidate[1]->split_time,
-                $candidate[0] instanceof RelayResult ? 1 : 0, $candidate[1]->id));
-
-        foreach ($splits as [$result, $split]) {
-            $outcome = $result instanceof RelayResult
-                ? $this->checkLeadOff($result, $split, $meet)
-                : $this->checkSplit($result, $split, $meet);
-            $newRecords = array_merge($newRecords, $outcome['new']);
-            $pendingRecords = array_merge($pendingRecords, $outcome['pending']);
-        }
+        // 50-m-Rekord aus diesem Wettkampf.
+        $pendingRecords = array_merge($pendingRecords, $this->checkSplits($meet, $results, $relayResults));
 
         return [
             'new_records' => $newRecords,
@@ -180,6 +137,20 @@ readonly class RecordCheckerService
             'invalid_records' => $invalidRecords,
             'checked' => $checked,
         ];
+    }
+
+    /**
+     * Prüft nur die Zwischenzeiten eines Meets (Einzelrennen und Staffel-Startschwimmer) — für die Nachprüfung bereits
+     * geprüfter Wettkämpfe (records:check-splits). Die Endzeiten bleiben unberührt.
+     *
+     * @return array<int, array{record: SwimRecord, athlete_name: string, type: string, reason: string}> die neuen,
+     *                                                                                                   ausstehenden Rekorde
+     *
+     * @throws Throwable
+     */
+    public function checkMeetSplits(Meet $meet): array
+    {
+        return $this->checkSplits($meet, $this->checkableResults($meet), $this->checkableRelayResults($meet));
     }
 
     // ── Einzelrekord-Prüfung ──────────────────────────────────────────────────
@@ -470,6 +441,84 @@ readonly class RecordCheckerService
         }
 
         return ['new' => $new, 'pending' => $pending];
+    }
+
+    /**
+     * Schnellste Zwischenzeit zuerst: je Kategorie entsteht nur aus der schnellsten Zwischenzeit des Wettkampfs ein
+     * Rekord (fasterSplitRecordInMeet()). Dazu die erste Teilstrecke der Freistilstaffeln als Einzelzeit des
+     * Startschwimmers (leadOffSplit()).
+     *
+     * @param  Collection<int, Result>  $results
+     * @param  Collection<int, RelayResult>  $relayResults
+     * @return array<int, array{record: SwimRecord, athlete_name: string, type: string, reason: string}>
+     *
+     * @throws Throwable
+     */
+    private function checkSplits(Meet $meet, Collection $results, Collection $relayResults): array
+    {
+        $splits = $results
+            ->flatMap(fn (Result $result) => $this->recordSplits($result, $meet)
+                ->map(fn (ResultSplit $split): array => [$result, $split]))
+            ->merge($relayResults
+                ->map(fn (RelayResult $relayResult): array => [$relayResult, $this->leadOffSplit($relayResult, $meet)])
+                ->filter(fn (array $candidate): bool => $candidate[1] !== null))
+            ->sortBy(fn (array $candidate): string => sprintf('%010d-%d-%010d', $candidate[1]->split_time,
+                $candidate[0] instanceof RelayResult ? 1 : 0, $candidate[1]->id));
+
+        $pending = [];
+        foreach ($splits as [$result, $split]) {
+            $outcome = $result instanceof RelayResult
+                ? $this->checkLeadOff($result, $split, $meet)
+                : $this->checkSplit($result, $split, $meet);
+            $pending = array_merge($pending, $outcome['pending']);
+        }
+
+        return $pending;
+    }
+
+    /**
+     * Prüfbare Einzelergebnisse eines Meets: reguläre und Starts außer Konkurrenz (EXH, werden als ausstehend
+     * angelegt), schnellste zuerst.
+     *
+     * @return Collection<int, Result>
+     */
+    private function checkableResults(Meet $meet): Collection
+    {
+        return $meet->results()
+            ->with([
+                'athlete.nation',
+                'athlete.club',
+                'club',
+                'swimEvent.strokeType',
+                'splits',
+            ])
+            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
+            ->whereNotNull('swim_time')
+            ->orderBy('swim_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Prüfbare Staffelergebnisse eines Meets, schnellste zuerst.
+     *
+     * @return Collection<int, RelayResult>
+     */
+    private function checkableRelayResults(Meet $meet): Collection
+    {
+        return $meet->relayResults()
+            ->with([
+                'club',
+                'swimEvent.strokeType',
+                'splits',
+                'members.athlete.nation',
+                'members.athlete.sportClasses',
+            ])
+            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', 'EXH'))
+            ->whereNotNull('swim_time')
+            ->orderBy('swim_time')
+            ->orderBy('id')
+            ->get();
     }
 
     /** Startschwimmer (Position 1) einer Staffel. */
