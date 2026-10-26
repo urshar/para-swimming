@@ -181,8 +181,9 @@ class LenexImportController extends Controller
 
     /**
      * Schritt 1e (Importumfang "Nur ausgewählte Athleten"): Treffer und Kandidaten der Datei zur Auswahl anzeigen,
-     * siehe docs/specs/lenex-athlete-selection.md. Das Angebot (Treffer mit Athleten-ID, Kandidaten) wird in der Sitzung
-     * gemerkt, damit beim Absenden nur angebotene Schwimmer übernommen werden.
+     * siehe docs/specs/lenex-athlete-selection.md, dazu die weiteren Schwimmer mit Nation-/Vereinsfilter
+     * (docs/specs/lenex-athlete-selection-other-swimmers.md). Das Angebot (Treffer mit Athleten-ID, Kandidaten, weitere
+     * Schwimmer) wird in der Sitzung gemerkt, damit beim Absenden nur angebotene Schwimmer übernommen werden.
      */
     public function selectAthletes(Request $request): RedirectResponse|View
     {
@@ -207,6 +208,7 @@ class LenexImportController extends Controller
             'offer' => [
                 'matches' => array_column($preview['matches'], 'athlete_id', 'lenex_id'),
                 'candidates' => array_column($preview['candidates'], 'lenex_id'),
+                'others' => array_column($preview['others'], 'lenex_id'),
             ],
         ]);
 
@@ -219,6 +221,8 @@ class LenexImportController extends Controller
             'meet' => $meet,
             'matches' => $preview['matches'],
             'candidates' => $preview['candidates'],
+            'others' => $preview['others'],
+            'otherFilters' => self::otherSwimmerFilters($preview['others']),
             // Plätze: im Ausland die der Datei (internationaler Platz), in Österreich unter den importierten Schwimmern
             // berechnet (der Platz der Datei gilt dort für das offene Feld).
             'defaultPlaces' => strtoupper((string) $meetNation) !== 'AUT' ? 'file' : 'compute',
@@ -249,6 +253,12 @@ class LenexImportController extends Controller
         }
         foreach ((array) $request->input('candidates', []) as $lenexId) {
             if (in_array((string) $lenexId, $importData['offer']['candidates'], true)) {
+                $onlyAthletes[(string) $lenexId] = null;
+            }
+        }
+        // Weitere Schwimmer (über Nation-/Vereinsfilter gewählt) gehen wie Kandidaten auf die Klärungsseite
+        foreach ((array) $request->input('others', []) as $lenexId) {
+            if (in_array((string) $lenexId, $importData['offer']['others'] ?? [], true)) {
                 $onlyAthletes[(string) $lenexId] = null;
             }
         }
@@ -494,6 +504,42 @@ class LenexImportController extends Controller
             return redirect()->route('lenex.import.review', ['session' => $sessionKey])
                 ->with('error', 'Fehler beim Klären der Athleten: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Auswahlwerte für den Abschnitt "Weitere Schwimmer": Nationen der Datei (Schlüssel = Code, "NONE" ohne Nation) und
+     * je Nation die Vereine mit Anzahl Schwimmer; unter "ALL" alle Vereine mit Nation im Namen.
+     *
+     * @param  list<array{file_club: string, file_nation: string, club_key: string}>  $others
+     * @return array{nations: array<string, string>, clubs: array<string, list<array{key: string, label: string}>>}
+     */
+    private static function otherSwimmerFilters(array $others): array
+    {
+        $nationKey = fn (array $row): string => $row['file_nation'] !== '' ? $row['file_nation'] : 'NONE';
+        $clubOptions = fn (SupportCollection $rows, bool $withNation): array => $rows->groupBy('club_key')
+            ->map(fn (SupportCollection $clubRows, string $key): array => [
+                'key' => $key,
+                'label' => sprintf(
+                    '%s%s (%d)',
+                    $clubRows->first()['file_club'] ?: 'ohne Verein',
+                    $withNation ? ' · '.($clubRows->first()['file_nation'] ?: '–') : '',
+                    $clubRows->count(),
+                ),
+            ])
+            ->sortBy(fn (array $option): string => mb_strtolower($option['label']))
+            ->values()
+            ->all();
+
+        $rows = collect($others);
+        $nations = $rows->map($nationKey)->unique()->sort()->values();
+
+        return [
+            'nations' => $nations->mapWithKeys(fn (string $key): array => [$key => $key === 'NONE' ? 'ohne Nation' : $key])->all(),
+            'clubs' => ['ALL' => $clubOptions($rows, true)]
+                + $nations->mapWithKeys(fn (string $key): array => [
+                    $key => $clubOptions($rows->filter(fn (array $row): bool => $nationKey($row) === $key), false),
+                ])->all(),
+        ];
     }
 
     /**

@@ -41,6 +41,9 @@ class LenexResolverService
 
     public const string MATCH_NAME = 'name';
 
+    /** Nur Athletenauswahl (findAthleteByBirthYear()), nie beim normalen Import */
+    public const string MATCH_NAME_YEAR = 'name_year';
+
     /** Cache-Schlüssel (LENEX clubid/id, "code:XYZ" bzw. "name:{nation_id}:{name}") → App Club ID */
     private array $clubCache = [];
 
@@ -262,6 +265,40 @@ class LenexResolverService
             ->first();
 
         return $athlete ? ['athlete' => $athlete, 'matchedBy' => self::MATCH_NAME] : null;
+    }
+
+    /**
+     * Schwächere Suche nur für die Athletenauswahl (docs/specs/lenex-athlete-selection-other-swimmers.md): Name +
+     * Geschlecht + Nation + Geburtsjahr. Fremde Veranstaltungen (z. B. OSV) liefern oft nur den Jahrgang ("2003-01-01")
+     * und eine fremde Lizenznummer, sodass findAthlete() den Para-Schwimmer nicht findet. Nur bei genau einem passenden
+     * Athleten ein Treffer. resolveAthlete() nutzt diese Suche bewusst nicht — ein Treffer wirkt nur, weil die Auswahl
+     * ihn dem Import vorab zuordnet (assignAthlete()). Ohne Nebenwirkungen.
+     *
+     * @return array{athlete: Athlete, matchedBy: string}|null matchedBy: MATCH_NAME_YEAR
+     */
+    public function findAthleteByBirthYear(SimpleXMLElement $athleteXml, int $nationId): ?array
+    {
+        [
+            'last_name' => $lastName, 'first_name' => $firstName, 'birth_date' => $birthDate, 'gender' => $gender,
+        ] = self::athleteData($athleteXml);
+
+        $year = substr($birthDate, 0, 4);
+        if (! $lastName || ! $firstName || preg_match('/^\d{4}$/', $year) !== 1) {
+            return null;
+        }
+
+        // Standard-SQL-Datumsbereich statt YEAR() (SQLite in den Tests, siehe CLAUDE.md)
+        $athletes = Athlete::where(DB::raw('LOWER(last_name)'), '=', mb_strtolower($lastName))
+            ->where(DB::raw('LOWER(first_name)'), '=', mb_strtolower($firstName))
+            ->whereDate('birth_date', '>=', $year.'-01-01')
+            ->whereDate('birth_date', '<=', $year.'-12-31')
+            ->where('gender', $gender)
+            ->where('nation_id', $nationId)
+            ->whereNull('deleted_at')
+            ->limit(2)
+            ->get();
+
+        return $athletes->count() === 1 ? ['athlete' => $athletes->first(), 'matchedBy' => self::MATCH_NAME_YEAR] : null;
     }
 
     public function createAthlete(array $data): Athlete

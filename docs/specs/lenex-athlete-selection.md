@@ -2,7 +2,9 @@
 
 Status: umgesetzt (22.10.2026, `feature/lenex-athlete-selection`). Die laufende Beschreibung steht in
 [lenex-import-export.md](lenex-import-export.md) unter "Athletenauswahl"; dieses Dokument hält Ziel und Entscheidungen
-fest.
+fest. Erweitert um Treffer über Name + Jahrgang und "Weitere Schwimmer" für Para-Schwimmer ohne Sportklasse bei
+Fremdvereinen: [lenex-athlete-selection-other-swimmers.md](lenex-athlete-selection-other-swimmers.md). Die Aussage
+unten "Schwimmer ohne Treffer und ohne Para-Hinweis werden nicht angezeigt" gilt seitdem nicht mehr.
 
 Abweichung von der Planung: Ein neu angelegter Kandidat bekommt den Verein aus der Datei nur, wenn es ihn schon gibt.
 Sonst hat er keinen Heimverein, und seine Ergebnisse werden als "Athlet ohne Verein" übersprungen (wie beim

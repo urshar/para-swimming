@@ -9,6 +9,7 @@ import initFluxFileUploadSync from './flux-file-upload-sync';
 import maskedTimeField from './masked-time-field';
 import meetForm from './meet-form';
 import meetPointSystems from './meet-point-systems';
+import otherSwimmersFilter from './other-swimmers-filter';
 import qualificationFilters from './qualification-filters';
 import qualifyingTimesFilter from './qualifying-times-filter';
 import qualifyingTimesShowFilter from './qualifying-times-show-filter';
@@ -45,6 +46,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('maskedTimeField', maskedTimeField);
     window.Alpine.data('meetForm', meetForm);
     window.Alpine.data('meetPointSystems', meetPointSystems);
+    window.Alpine.data('otherSwimmersFilter', otherSwimmersFilter);
     window.Alpine.data('qualificationFilters', qualificationFilters);
     window.Alpine.data('qualifyingTimesFilter', qualifyingTimesFilter);
     window.Alpine.data('qualifyingTimesShowFilter', qualifyingTimesShowFilter);
