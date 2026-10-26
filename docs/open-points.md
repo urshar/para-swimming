@@ -167,11 +167,12 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Laufende Datenpflege und Import-Themen (Stand 25.10.2026)** — je unten ausführlich beschrieben:
 
 1. "LENEX 2.0 (sem2004) importieren" — erledigt (25.10.2026); weitere 2.0-Dateien bei Bedarf als eigene Phase
-2. "Rekorde aus Zwischenzeiten" — Code, Entscheidungen Erik (eigene Session)
-3. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
-4. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
-5. "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" — Code, Entscheidung Erik
-6. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
+3. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
+4. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+
+"Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" sind erledigt
+(`feature/split-records`, [specs/split-records.md](specs/split-records.md)).
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
@@ -201,27 +202,6 @@ Klassengruppen und offene Gruppe, ein Ergebnis je Start mit dem Platz der Startk
 **Erledigt (25.10.2026, Erik):** Wettkampf 25 gelöscht, die IDM als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine
 doppelten), Rekord-Check ohne Befund. Weitere LENEX-2.0-Dateien mit neuen Abweichungen als eigene Phase nachziehen.
 
-## Rekorde aus Zwischenzeiten
-
-**Seit:** 25.10.2026 (Frage Erik nach dem Rekord-Check der IDM Berlin 2018).
-
-**Ausgangslage:** `RecordCheckerService` prüft nur die Endzeit eines Ergebnisses. Zwischenzeiten (`result_splits`)
-werden lediglich als Kopie an einen neu aufgestellten Rekord gehängt (`RecordSplit`), aber nie selbst als Rekord
-geprüft. Nach den internationalen Regeln (World Aquatics / World Para Swimming, ÖBSV-Handhabung noch zu bestätigen)
-kann eine Zwischenzeit unter Bedingungen einen Rekord aufstellen: Rekordstrecke im selben Stil (z. B. 50 m im 100-m-,
-800 m im 1500-m-Rennen), automatische Zeitnahme, Rennen gültig beendet (keine DSQ), bei Staffeln nur die erste
-Teilstrecke als Einzelrekord; Lagen-Zwischenzeiten zählen nicht (Stilwechsel).
-
-**Wer entscheidet:** Erik — vor der Umsetzung:
-1. Lässt der ÖBSV Zwischenzeiten als Rekord zu (national, Landes-, Jugendrekorde)?
-2. Welche Strecken zählen (alle Rekordstrecken im selben Stil oder eine feste Liste)?
-3. Werden solche Rekorde gleich bestätigt (APPROVED) oder als ausstehend (PENDING) zur Bestätigung angelegt?
-4. Zählt die erste Teilstrecke einer Staffel als Einzelrekord?
-5. Welche Bedingungen an Zeitnahme und Status (z. B. nur automatische Zeitnahme, kein DSQ/EXH)?
-
-**Zum Schließen nötig:** Entscheidungen, dann Erweiterung von `RecordCheckerService` (Zwischenzeit als eigener
-Kandidat mit Strecke = Split-Distanz, Herkunft am Rekord erkennbar) mit Tests und Ergänzung in `docs/specs/records.md`.
-
 ## Historischer Import 2012–2017: Restarbeiten
 
 **Seit:** Oktober 2026 (Import der ÖBSV-Ergebnisdateien 2012–2017 und Rekordprüfung vor dem Umzug auf prod).
@@ -232,6 +212,12 @@ Kandidat mit Strecke = Split-Distanz, Herkunft am Rekord erkennbar) mit Tests un
 - **7 HSC-Staffeln (Wr. LM 2013, Bewerb 15) ohne Staffelklasse:** Den Mitgliedern fehlen die Sportklassen, deshalb
   lässt sich keine Staffelklasse bestimmen. Zum Schließen: Klassen der Athleten nachtragen, dann Rekord-Check erneut.
 - **Athleten zusammenführen**, u. a. Athlet 733 — wartet auf den Punkt "Athleten zusammenführen (Dubletten)" unten.
+- **Zwischenzeiten nachprüfen** (`feature/split-records`): `php artisan records:check-splits --dry-run`, danach ohne
+  `--dry-run`; die ausstehenden Zwischenzeit-Rekorde (Statusfilter "Ausstehend", Badge "Zwischenzeit") prüfen und
+  bestätigen. Vom Rekord-Check des 15.09.2018 warten bereits #2759–#2763.
+- **5 Rekorde vom 04.05.2013 langsamer als ein früherer derselben Kategorie** (#937, #985, #990, #1073, #1074 — vor der
+  chronologischen Rekordkette entstanden): Die neue Logik räumt solche Altfälle nicht von selbst auf. Prüfen und ggf.
+  auf "Ungültig" setzen bzw. die Kette korrigieren.
 - **Danach Export nach prod** (`php artisan team-data:export`, auf prod `TeamDataSeeder`, siehe "Athleten-Import aus
   MSAccess-Datei", Phase 3).
 
@@ -245,22 +231,6 @@ Kandidat mit Strecke = Split-Distanz, Herkunft am Rekord erkennbar) mit Tests un
 die WPS-Punkte neu berechnen. Auf dev sind derzeit 2 WPS-Versionen importiert, die Tabelle 2026 noch nicht.
 
 **Wer macht:** Erik.
-
-## Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung
-
-**Seit:** `feature/result-form-fixes` (24.10.2026, Vereinskorrektur mit Nachprüfung der Landesrekorde).
-
-**Ausgangslage:** `RecordCheckerService::checkRecordType()` vergleicht nur mit dem aktuellen Rekord, nicht mit dessen
-Datum. Wird ein älterer Wettkampf nachträglich geprüft (historischer Import, Vereinskorrektur), löst ein schnelleres,
-aber älteres Ergebnis einen jüngeren aktuellen Rekord ab und landet am Ende statt an seiner Stelle in der Kette.
-`RegionalRecordService::createIfFaster()` hat dafür bereits eine Sperre ("ein älterer nationaler Rekord löst keinen
-jüngeren Landesrekord ab").
-
-**Wer entscheidet:** Erik — wie ein älterer, schnellerer Rekord eingeordnet werden soll: übergehen (wie beim
-Landesrekord), als ausstehend zur Prüfung anlegen oder in die Kette an der richtigen Stelle einfügen.
-
-**Zum Schließen nötig:** Entscheidung, dann Anpassung in `checkRecordType()` mit Tests. Bis dahin Wettkämpfe beim
-historischen Import in zeitlicher Reihenfolge prüfen.
 
 ## Alte Uploads des Rekord-Imports
 

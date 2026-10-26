@@ -5,6 +5,9 @@ Zwischenzeiten (`result_splits`, bei Staffeln `relay_result_splits`), die nach d
 aufstellen können. Grundlage: offener Punkt "Rekorde aus Zwischenzeiten" in [../open-points.md](../open-points.md),
 Rekordlogik in [records.md](records.md).
 
+**Stand:** umgesetzt (Branch `feature/split-records`, Phasen 1–6, 25.–26.10.2026); die Zusammenfassung steht in
+[records.md](records.md) unter "Chronologische Rekordkette" und "Rekorde aus Zwischenzeiten".
+
 ## Entscheidungen (Erik, 25.10.2026)
 
 | # | Frage                                   | Entscheidung                                                                                                                                                                                                                                   |

@@ -60,22 +60,72 @@ den Landesrekord seines Verbands aufstellen, je Verband wieder nur das beste.
 
 ### Vergleich & Anlage — `checkRecordType`
 
-Für jeden geprüften Typ wird der aktuelle Rekord gesucht über die Kombination
-`record_type + stroke_type_id + sport_class + gender + course + distance +
-relay_count` mit `is_current = true`. Gibt es **keinen** aktuellen Rekord oder ist die neue Zeit **schneller**
-(`swim_time <`), entsteht in einer Transaktion:
+Eine Kategorie ist die Kombination `record_type + stroke_type_id + sport_class + gender + course + distance +
+relay_count`. **Maßstab ist der Rekord, der am Wettkampftag galt** (seit `feature/split-records`, 25.10.2026,
+`RecordChainService::validOn()`): der schnellste anerkannte Rekord (`APPROVED`, `APPROVED.HISTORY`) der Kategorie mit
+`set_date <=` Wettkampfdatum; Rekorde ohne Datum zählen als älter. Bis dahin war es der heute aktuelle Rekord — ein
+nachträglich geprüfter älterer Wettkampf löste damit einen jüngeren Rekord ab. Gibt es keinen solchen Rekord oder ist
+die neue Zeit **schneller** (`swim_time <`), entsteht in einer Transaktion:
 
-1. ein neuer `SwimRecord` mit `supersedes_id = <alter Rekord>`, `is_current = true`,
-   `set_date = meet.start_date` und den denormalisierten Meet-Feldern (`meet_name`, `meet_city`, `meet_course`);
+1. ein neuer `SwimRecord` mit `supersedes_id = <Maßstab>`, `set_date = meet.start_date` und den denormalisierten
+   Meet-Feldern (`meet_name`, `meet_city`, `meet_course`);
 2. die Kopien der Zwischenzeiten (`RecordSplit` aus `result.splits`);
-3. **nur bei `record_status = APPROVED`**: der alte Rekord wird per
-   `markAsSupersededBy()` abgelöst.
+3. **nur bei `record_status = APPROVED`**: das Einordnen an seinem Datum (siehe "Chronologische Rekordkette").
 
-**Wichtig:** Ein **PENDING**-Rekord löst den bestehenden aktuellen Rekord **nicht** ab — er wartet auf die Genehmigung.
-Erst mit der Genehmigung wird der Vorgänger historisiert: Wechselt der Status von PENDING auf APPROVED
-(Rekordbearbeitung oder Status-Schnelländerung in der Liste), ruft `RecordController` `SwimRecord::approve()` auf. Das
-löst alle geltenden, langsameren Rekorde derselben Kategorie ab und setzt das Rekord-Flag am Ergebnis; ist inzwischen
-ein schnellerer Rekord anerkannt, wandert der bestätigte direkt in die Historie (`APPROVED.HISTORY`).
+Ein erneuter Rekord-Check legt aus demselben Ergebnis keinen Rekord desselben Typs, derselben Strecke und
+Staffelgröße doppelt an (Strecke und Staffelgröße gehören dazu, seit ein Ergebnis auch Zwischenzeit-Rekorde haben kann).
+
+**Wichtig:** Ein **PENDING**-Rekord löst den bestehenden Rekord **nicht** ab — er wartet auf die Genehmigung. Wechselt
+der Status von PENDING auf APPROVED (Rekordbearbeitung oder Status-Schnelländerung in der Liste), ruft
+`RecordController` `SwimRecord::approve()` auf; das ordnet den Rekord wie unten an seinem Datum ein und setzt das
+Rekord-Flag am Ergebnis. Galt an seinem Datum schon ein gleich schneller oder schnellerer Rekord, wandert der
+bestätigte direkt in die Historie (`APPROVED.HISTORY`).
+
+### Chronologische Rekordkette — `RecordChainService`
+
+`insert(SwimRecord)` ordnet einen anerkannten Rekord an seinem Datum in die Kette seiner Kategorie ein (aus dem
+Rekord-Check und aus `approve()`):
+
+- Er löst den am Datum geltenden Rekord ab (`supersedes_id`, Vorgänger per `markAsSupersededBy()` historisiert).
+- **Spätere Rekorde, die gleich schnell oder langsamer sind**, wären damals keiner gewesen: Sie kommen aus der Kette
+  (`supersedes_id`/`superseded_by_id` = null), bekommen `record_status = INVALID`, `is_current = false` und den
+  Kommentar "Ungültig: älterer Rekord <Zeit> vom <Datum>"; das Rekord-Flag an ihrem Ergebnis wird zurückgesetzt, sofern
+  das Ergebnis keinen weiteren anerkannten Rekord dieses Typs aus seiner Endzeit hält. Gelöscht wird nichts
+  (Entscheidung Erik, 25.10.2026).
+- Gibt es einen späteren, **schnelleren** Rekord, löst dieser den neuen ab (`APPROVED.HISTORY`, der spätere verweist
+  per `supersedes_id` auf ihn); sonst ist der neue der aktuelle Rekord.
+
+Der Rekord-Check meldet die ungültig gewordenen Rekorde (`invalid_records`, Block "Ungültig gewordene Rekorde" im
+Prüfergebnis, Hinweis in der Erfolgsmeldung); die Rekordliste zeigt sie im Statusfilter "Ungültig" samt Begründung,
+auch wenn sie nicht mehr gelten. Unverändert: Import und manuelle Pflege fügen nicht chronologisch ein,
+`RegionalRecordService::createIfFaster()` behält seine eigene Sperre.
+
+### Rekorde aus Zwischenzeiten
+
+Seit `feature/split-records` (25.10.2026; Regeln, Entscheidungen und Phasen in
+[split-records.md](split-records.md)) prüft `checkMeet()` nach allen Endzeiten auch die Zwischenzeiten
+(`checkMeetSplits()`):
+
+- **Einzelergebnisse** (`recordSplits()`): Zwischenzeiten auf einer Standardstrecke, die kürzer als das Rennen ist —
+  Freistil 50/100/200/400/800/1500 m, Brust und Schmetterling 50/100/200 m; **Rücken und Lagen nie**. Zeitnahme des
+  Bewerbs, sonst des Wettkampfs, muss `AUTOMATIC` sein; Ergebnisstatus leer oder `EXH`. Stil, Klasse, Geschlecht,
+  Verein, Landesverband und Jugend wie bei der Endzeit, Strecke = Split-Distanz.
+- **Staffel-Startschwimmer** (`leadOffSplit()`, `checkLeadOff()`): nur Freistilstaffeln, nur die **volle** erste
+  Teilstrecke (Freistil-Standardstrecke). Klasse, Geschlecht und Jugend vom Startschwimmer (Position 1, Nation AUT),
+  Verein und Landesverband von der Staffel; Vereinszugehörigkeit am Starttag wie bei Staffelrekorden, ein Verband als
+  Staffelverein ergibt keinen Rekord. Einzelrekord (`relay_count = 1`) mit `athlete_id` und `relay_result_id`, ohne
+  Staffelmitglieder.
+- Daraus entstehen **nur ausstehende Rekorde** (Grund `RecordCheckerService::PENDING_SPLIT`, auch bei `EXH`) mit
+  `from_split = true` und einem Kommentar ("Zwischenzeit aus 100 m Freistil" bzw. "Startschwimmer 4×50 m Freistil").
+  Je Kategorie und Wettkampf nur aus der **schnellsten** Zwischenzeit (Einzelrennen und Startschwimmer gemeinsam, auch
+  über einen erneuten Rekord-Check hinweg, `fasterSplitRecordInMeet()`). Am Rekord stehen nur die Zwischenzeiten vor
+  seiner Strecke.
+- Ein Zwischenzeit-Rekord setzt **kein Rekord-Flag** am Ergebnis (auch nicht bei der Bestätigung) — die Flags gehören zur
+  Endzeit des Bewerbs.
+- Anzeige: Badge "Zwischenzeit" in Rekordliste, Rekord-Detail (inkl. Historie) und Prüfergebnis.
+- Nachprüfung bereits geprüfter Wettkämpfe: `php artisan records:check-splits {--dry-run} {--meet=}` — alle Wettkämpfe
+  nach Datum (älteste zuerst), nur die Zwischenzeiten; `--dry-run` rollt alles zurück, ein zweiter Lauf legt nichts
+  doppelt an.
 
 ### Jugend- und Regionalrekorde
 
@@ -366,11 +416,12 @@ Alle unter `auth`, Prefix `records`:
 
 ## Genehmigungs-Workflow (Zusammenfassung)
 
-1. Ein Ergebnis eines AUT-Athleten, das schneller als der aktuelle Rekord ist, wird als **APPROVED** angelegt und löst
-   den Vorgänger sofort ab.
+1. Ein Ergebnis eines AUT-Athleten, das schneller als der am Wettkampftag geltende Rekord ist, wird als **APPROVED**
+   angelegt und sofort an seinem Datum in die Kette eingeordnet (spätere, langsamere Rekorde werden INVALID).
 2. Ist die Nationalität unklar (`nation = null` bzw. Club-Nation fehlt beim Import), entsteht ein **PENDING**-Rekord,
    der den aktuellen Rekord noch **nicht** ablöst und in `pending_records` zur Bestätigung erscheint.
-   Ebenso bei Starts außer Konkurrenz (`EXH`) — dort für alle Rekordtypen. Bestätigen = Status auf APPROVED setzen.
+   Ebenso bei Starts außer Konkurrenz (`EXH`) — dort für alle Rekordtypen — und immer bei Rekorden aus Zwischenzeiten.
+   Bestätigen = Status auf APPROVED setzen; der Rekord wird dann an seinem Datum eingeordnet.
 3. Nicht-AUT-Ergebnisse werden gar nicht als AUT-Rekord angelegt.
 
 ## Tests
@@ -387,5 +438,12 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/RelayReviewChecksTest.php` — falscher Verband und Nationalität nicht AUT bei Staffelrekorden
   (Befund, Anzeige, "Rekord entfernen" mit Vorgänger und Flag am Staffelergebnis).
 - `tests/Feature/RecordRelayFilterTest.php` — Staffelklassen-Filter mit Brust/Lagen, Wertung Mixed (Filter, Anzeige).
+- `tests/Feature/RecordChainTest.php` (`--group=split-records-p1`) — chronologische Rekordkette: Maßstab am
+  Wettkampftag, Einordnen, INVALID samt Flag-Rücksetzung, Bestätigen, Prüfergebnis.
+- `tests/Feature/SplitRecordsTest.php` (`split-records-p2`) — Zwischenzeiten aus Einzelrennen (Strecken, Stile,
+  Zeitnahme, AK, nur die schnellste, keine Doppelten, gekürzte Splits, Bestätigen ohne Flag).
+- `tests/Feature/SplitRecordDisplayTest.php` (`split-records-p3`) — Anzeige in Liste, Detail und Prüfergebnis.
+- `tests/Feature/RelayLeadOffRecordTest.php` (`split-records-p4`) — Staffel-Startschwimmer.
+- `tests/Feature/CheckSplitRecordsCommandTest.php` (`split-records-p5`) — `records:check-splits`.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).
