@@ -20,9 +20,12 @@
                 {{ SwimRecord::genderLabel($record->gender) }}
             </flux:badge>
             <flux:badge color="zinc">{{ $record->course }}</flux:badge>
+            @if($record->from_split)
+                <flux:badge color="violet">Zwischenzeit</flux:badge>
+            @endif
         </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Aktueller Rekord seit {{ $record->set_date?->format('d.m.Y') }}
+            {{ $record->is_current && $record->record_status === 'APPROVED' ? 'Aktueller Rekord seit' : 'Aufgestellt am' }} {{ $record->set_date?->format('d.m.Y') }}
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
@@ -55,7 +58,9 @@
 
         {{-- Aktueller Rekord --}}
         <div class="col-span-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6">
-            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Aktueller Rekord</h2>
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+                {{ $record->is_current && $record->record_status === 'APPROVED' ? 'Aktueller Rekord' : 'Rekord' }}
+            </h2>
 
             <div class="text-4xl font-mono font-bold text-blue-600 dark:text-blue-400 mb-4">
                 {{ $record->formatted_swim_time }}
@@ -171,6 +176,19 @@
                 {{ $record->record_status }}
             </flux:badge>
 
+            @if($record->record_status === 'INVALID')
+                <p class="text-sm text-red-600 dark:text-red-400">
+                    Nicht in der Rekordkette — ein älterer Rekord war gleich schnell oder schneller (siehe Anmerkung).
+                </p>
+            @endif
+
+            @if($record->from_split)
+                <p class="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+                    Rekord aus einer Zwischenzeit — das Rekord-Flag am Ergebnis gehört zur Endzeit und bleibt
+                    unverändert.
+                </p>
+            @endif
+
             @if($record->result)
                 <div class="mt-3 text-sm">
                     <div class="text-zinc-500 dark:text-zinc-400 mb-1">Ergebnis-Referenz</div>
@@ -198,12 +216,15 @@
             </flux:table.columns>
             <flux:table.rows>
                 @foreach($history->sortByDesc('set_date') as $histRecord)
-                    <flux:table.row class="{{ $histRecord->is_current ? 'bg-blue-50 dark:bg-blue-950/20' : '' }}">
+                    <flux:table.row class="{{ $histRecord->is_current && $histRecord->record_status === 'APPROVED' ? 'bg-blue-50 dark:bg-blue-950/20' : '' }}">
                         <flux:table.cell
-                            class="font-mono font-bold {{ $histRecord->is_current ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500' }}">
+                            class="font-mono font-bold {{ $histRecord->is_current && $histRecord->record_status === 'APPROVED' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500' }}">
                             {{ $histRecord->formatted_swim_time }}
-                            @if($histRecord->is_current)
+                            @if($histRecord->is_current && $histRecord->record_status === 'APPROVED')
                                 <flux:badge size="sm" color="blue" class="ml-2">Aktuell</flux:badge>
+                            @endif
+                            @if($histRecord->from_split)
+                                <flux:badge size="sm" color="violet" class="ml-2">Zwischenzeit</flux:badge>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell class="text-sm">
@@ -216,7 +237,11 @@
                             class="text-sm text-zinc-500">{{ $histRecord->set_date?->format('d.m.Y') ?? '–' }}</flux:table.cell>
                         <flux:table.cell>
                             <flux:badge size="sm"
-                                        color="{{ str_contains($histRecord->record_status, 'HISTORY') ? 'zinc' : 'emerald' }}">
+                                        color="{{ match(true) {
+                                            str_contains($histRecord->record_status, 'HISTORY') => 'zinc',
+                                            $histRecord->record_status === 'PENDING' => 'amber',
+                                            default => 'emerald',
+                                        } }}">
                                 {{ $histRecord->record_status }}
                             </flux:badge>
                         </flux:table.cell>

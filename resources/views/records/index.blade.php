@@ -226,6 +226,12 @@
                             <span class="text-zinc-400">{{ $record->relay_count }}x</span>
                         @endif
                         {{ $record->distance }}m {{ $record->strokeType?->name_de }}
+                        @if($record->from_split)
+                            <flux:badge size="sm" color="violet" class="ml-1">Zwischenzeit</flux:badge>
+                        @endif
+                        @if($record->record_status === 'INVALID' && $record->comment)
+                            <div class="text-xs font-normal text-red-600 dark:text-red-400">{{ $record->comment }}</div>
+                        @endif
                     </flux:table.cell>
                     @unless($course)
                         <flux:table.cell>

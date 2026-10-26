@@ -11,6 +11,7 @@
             'checked'            => 42,
             'new_record_ids'     => [['id' => 1, 'types' => ['AUT', 'AUT.WBSV']], ...],
             'pending_record_ids' => [['id' => 5, 'athlete_name' => '...'], ...],
+            'invalid_record_ids' => [7, ...],
         ]
 --}}
 
@@ -19,12 +20,14 @@
 
     $newRecordIds     = $checkResult['new_record_ids'] ?? [];
     $pendingRecordIds = $checkResult['pending_record_ids'] ?? [];
+    $invalidRecordIds = $checkResult['invalid_record_ids'] ?? [];
     $checked          = $checkResult['checked'] ?? 0;
 
     // Alle benötigten Rekorde in einer Query laden
     $allIds     = array_merge(
         array_column($newRecordIds, 'id'),
         array_column($pendingRecordIds, 'id'),
+        $invalidRecordIds,
     );
     $recordsMap = SwimRecord::with(['strokeType', 'athlete.club', 'club'])
         ->whereIn('id', $allIds)
@@ -33,6 +36,7 @@
 
     $totalNew     = count($newRecordIds);
     $totalPending = count($pendingRecordIds);
+    $totalInvalid = count($invalidRecordIds);
 @endphp
 
 <div class="mt-6 mb-6 space-y-4">
@@ -51,6 +55,9 @@
         @endif
         @if($totalPending > 0)
             <flux:badge color="amber" size="sm">{{ $totalPending }} ausstehend</flux:badge>
+        @endif
+        @if($totalInvalid > 0)
+            <flux:badge color="red" size="sm">{{ $totalInvalid }} ungültig</flux:badge>
         @endif
     </div>
 
@@ -85,6 +92,9 @@
                                     {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0 ml-4">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
@@ -128,6 +138,9 @@
                                     {{ $record->discipline_label }}
                                     <span class="text-zinc-400">· {{ $record->course }}</span>
                                 </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
                             </div>
                             <div class="flex items-center gap-3 shrink-0 ml-4">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
@@ -151,8 +164,56 @@
             <div class="px-4 py-3 bg-amber-50 dark:bg-amber-950/20 border-t border-amber-200 dark:border-amber-800">
                 <p class="text-xs text-amber-700 dark:text-amber-400">
                     Ausstehende Rekorde prüfen (bei fehlender Nationalität diese hinterlegen) und danach bestätigen
-                    (Status → "Bestätigt"). Der bisherige Rekord wird dabei automatisch abgelöst.
+                    (Status → "Bestätigt"). Der Rekord wird dabei an seinem Datum in die Rekordkette eingeordnet.
                 </p>
+            </div>
+        </div>
+    @endif
+
+    {{-- ── Ungültig gewordene spätere Rekorde (älterer, schnellerer Rekord eingeordnet) ── --}}
+    @if($totalInvalid > 0)
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-red-200 dark:border-red-800 overflow-hidden">
+            <div
+                class="px-4 py-3 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800 flex items-center gap-2">
+                <flux:icon.x-circle class="size-4 text-red-600"/>
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ungültig gewordene Rekorde</h3>
+                <span class="text-xs text-zinc-500">— ein älterer Rekord war schneller</span>
+            </div>
+
+            <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
+                @foreach($invalidRecordIds as $id)
+                    @php $record = $recordsMap[$id] ?? null; @endphp
+                    @if($record)
+                        <div class="flex items-center justify-between px-4 py-3 text-sm">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <flux:badge size="sm" color="red">INVALID</flux:badge>
+                                <flux:badge size="sm" color="zinc">{{ $record->record_type }}</flux:badge>
+                                <flux:badge size="sm" color="blue">{{ $record->sport_class }}</flux:badge>
+                                <span class="text-zinc-500" title="{{ SwimRecord::genderLabel($record->gender) }}"
+                                      aria-label="{{ SwimRecord::genderLabel($record->gender) }}">{{ SwimRecord::genderSymbol($record->gender) }}</span>
+                                <span class="text-zinc-700 dark:text-zinc-300">
+                                    {{ $record->discipline_label }}
+                                    <span class="text-zinc-400">· {{ $record->course }}</span>
+                                </span>
+                                @if($record->from_split)
+                                    <flux:badge size="sm" color="violet">Zwischenzeit</flux:badge>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0 ml-4">
+                                <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                                    {{ $record->formatted_swim_time }}
+                                </span>
+                                <span class="text-zinc-500 text-xs">
+                                    {{ $record->set_date?->format('d.m.Y') }}
+                                    · {{ $record->is_relay ? ($record->record_club_name ?? 'Staffel') : ($record->athlete?->display_name ?? '') }}
+                                </span>
+                                <flux:button href="{{ route('records.show', $record) }}"
+                                             size="sm" variant="ghost" icon="eye"
+                                             title="Rekord ansehen" aria-label="Rekord ansehen"/>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
             </div>
         </div>
     @endif
