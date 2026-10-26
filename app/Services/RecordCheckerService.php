@@ -46,8 +46,10 @@ use Throwable;
  *
  * Zwischenzeiten (docs/specs/split-records.md): Nach allen Endzeiten prüft checkMeet() die rekordfähigen
  * Zwischenzeiten der Einzelergebnisse (recordSplits(): Standardstrecke kürzer als das Rennen, Freistil/Brust/
- * Schmetterling, Zeitnahme AUTOMATIC) als eigene Kandidaten mit Strecke = Split-Distanz. Neue Rekorde daraus sind
- * immer PENDING (PENDING_SPLIT), tragen from_split = true und setzen kein Rekord-Flag am Ergebnis.
+ * Schmetterling, Zeitnahme AUTOMATIC) als eigene Kandidaten mit Strecke = Split-Distanz, dazu die volle erste
+ * Teilstrecke einer Freistilstaffel als Einzelrekord des Startschwimmers (leadOffSplit()). Neue Rekorde daraus sind
+ * immer PENDING (PENDING_SPLIT), je Kategorie und Wettkampf nur aus der schnellsten Zwischenzeit, tragen
+ * from_split = true und setzen kein Rekord-Flag am Ergebnis.
  *
  * Außer Konkurrenz (Ergebnisstatus EXH, Einzel + Staffel): alle Rekordtypen werden geprüft, neue Rekorde aber
  * als PENDING angelegt — der Verband (Admin) bestätigt sie (SwimRecord::approve()).
@@ -154,13 +156,20 @@ readonly class RecordCheckerService
         // Zwischenzeiten erst nach allen Endzeiten — Maßstab für eine 50-m-Zwischenzeit ist dann schon ein neuer
         // 50-m-Rekord aus diesem Wettkampf. Schnellste zuerst: je Kategorie entsteht nur aus der schnellsten
         // Zwischenzeit des Wettkampfs ein Rekord (fasterSplitRecordInMeet()).
+        // Dazu die erste Teilstrecke der Freistilstaffeln als Einzelzeit des Startschwimmers (leadOffSplit()).
         $splits = $results
             ->flatMap(fn (Result $result) => $this->recordSplits($result, $meet)
                 ->map(fn (ResultSplit $split): array => [$result, $split]))
-            ->sortBy(fn (array $candidate): string => sprintf('%010d-%010d', $candidate[1]->split_time, $candidate[1]->id));
+            ->merge($relayResults
+                ->map(fn (RelayResult $relayResult): array => [$relayResult, $this->leadOffSplit($relayResult, $meet)])
+                ->filter(fn (array $candidate): bool => $candidate[1] !== null))
+            ->sortBy(fn (array $candidate): string => sprintf('%010d-%d-%010d', $candidate[1]->split_time,
+                $candidate[0] instanceof RelayResult ? 1 : 0, $candidate[1]->id));
 
         foreach ($splits as [$result, $split]) {
-            $outcome = $this->checkSplit($result, $split, $meet);
+            $outcome = $result instanceof RelayResult
+                ? $this->checkLeadOff($result, $split, $meet)
+                : $this->checkSplit($result, $split, $meet);
             $newRecords = array_merge($newRecords, $outcome['new']);
             $pendingRecords = array_merge($pendingRecords, $outcome['pending']);
         }
@@ -389,6 +398,87 @@ readonly class RecordCheckerService
     }
 
     /**
+     * Rekordfähige erste Teilstrecke einer Staffel als Einzelzeit des Startschwimmers (docs/specs/split-records.md):
+     * nur Freistilstaffeln, Teilstrecke eine Freistil-Standardstrecke, Zeitnahme AUTOMATIC, Staffelverein kein Verband,
+     * Startschwimmer zugeordnet und Nation AUT. Zählt nur die volle erste Teilstrecke, keine Zwischenzeit darin.
+     */
+    public function leadOffSplit(RelayResult $relayResult, Meet $meet): ?RelayResultSplit
+    {
+        $event = $relayResult->swimEvent;
+
+        if ($event === null || ! $relayResult->swim_time || $relayResult->club_id === null
+            || $event->strokeType?->lenex_code !== 'FREE'
+            || ! in_array($event->distance, self::SPLIT_RECORD_DISTANCES['FREE'], true)
+            || ($event->timing ?? $meet->timing) !== 'AUTOMATIC'
+            || $relayResult->club?->type === Club::TYPE_VERBAND
+            || $this->leadOff($relayResult)?->athlete?->nation?->code !== 'AUT') {
+            return null;
+        }
+
+        return $relayResult->splits->firstWhere('distance', $event->distance);
+    }
+
+    /**
+     * Prüft die erste Teilstrecke einer Freistilstaffel als Einzelrekord des Startschwimmers: Sportklasse, Geschlecht
+     * und Jugend aus dem Startschwimmer, Verein und Landesverband aus der Staffel. Gehörte er am Starttag nach einem
+     * Beleg zu einem anderen Verein, entsteht kein Rekord. Neue Rekorde immer ausstehend (PENDING_SPLIT).
+     *
+     * @return array{new: array, pending: array}
+     *
+     * @throws Throwable
+     */
+    public function checkLeadOff(RelayResult $relayResult, RelayResultSplit $split, Meet $meet): array
+    {
+        $new = [];
+        $pending = [];
+        $event = $relayResult->swimEvent;
+        $member = $this->leadOff($relayResult);
+        $athlete = $member?->athlete;
+        if ($athlete === null) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        $evidence = $this->clubEvidence(collect([$member]), $meet);
+        if ($this->memberBelongsToClub($athlete->id, $athlete->club_id, $relayResult->club_id, $evidence) === false) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        $sportClass = $this->relayValidator->extractMemberClasses(collect([$member]), $event)[0] ?? null;
+        if ($sportClass === null) {
+            return ['new' => $new, 'pending' => $pending];
+        }
+
+        $birthDate = $athlete->birth_date;
+        $isJunior = $birthDate !== null && (int) $meet->start_date->format('Y') - (int) $birthDate->format('Y') <= 18;
+        $regionalBase = $relayResult->club?->regional_record_type;
+        $types = ['AUT' => true, 'AUT.JR' => $isJunior];
+        if ($regionalBase) {
+            $types[$regionalBase] = true;
+            $types[$regionalBase.'.JR'] = $isJunior;
+        }
+
+        foreach (array_keys(array_filter($types)) as $type) {
+            [, $newRecord] = $this->checkRecordType(
+                $type, $event->stroke_type_id, $sportClass, $athlete->gender === 'F' ? 'F' : 'M',
+                $meet->course, $split->distance, 1, $relayResult, $athlete->nation?->id,
+                'PENDING', $athlete->id, $split
+            );
+
+            if ($newRecord) {
+                $this->collect($new, $pending, $newRecord, $type, true, $athlete->display_name, self::PENDING_SPLIT);
+            }
+        }
+
+        return ['new' => $new, 'pending' => $pending];
+    }
+
+    /** Startschwimmer (Position 1) einer Staffel. */
+    private function leadOff(RelayResult $relayResult): ?RelayResultMember
+    {
+        return $relayResult->members->firstWhere('position', 1);
+    }
+
+    /**
      * Ein Einzelergebnis kann einen Rekord aufstellen: Bewerb, Zeit und Sportklasse vorhanden, Nation AUT (eine
      * unbekannte oder andere Nationalität ist kein Rekord).
      */
@@ -450,13 +540,16 @@ readonly class RecordCheckerService
     }
 
     /**
-     * Lesbare Herkunft eines Rekords aus einer Zwischenzeit, z. B. "Zwischenzeit aus 100 m Freistil".
+     * Lesbare Herkunft eines Rekords aus einer Zwischenzeit, z. B. "Zwischenzeit aus 100 m Freistil" bzw.
+     * "Startschwimmer 4×50 m Freistil".
      */
     private function splitComment(Result|RelayResult $result): string
     {
         $event = $result->swimEvent;
 
-        return 'Zwischenzeit aus '.$event->distance.' m '.$event->strokeType?->name_de;
+        return $result instanceof RelayResult
+            ? 'Startschwimmer '.$event->relay_count.'×'.$event->distance.' m '.$event->strokeType?->name_de
+            : 'Zwischenzeit aus '.$event->distance.' m '.$event->strokeType?->name_de;
     }
 
     /**
