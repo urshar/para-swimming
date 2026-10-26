@@ -45,6 +45,10 @@
                              size="sm" class="text-blue-500!">
                     Vereine korrigieren
                 </flux:button>
+                <flux:button href="{{ route('meets.scoring-group-restrictions', $meet) }}" variant="filled" icon="funnel"
+                             size="sm" class="text-blue-500!">
+                    Wertungsgruppen einschränken
+                </flux:button>
                 {{-- Eigener Tab, damit die Sammelansicht erhalten bleibt; übernimmt einen gesetzten Disziplin-Filter. --}}
                 <flux:button href="{{ route('meets.results-overview.pdf', array_filter(['meet' => $meet, 'event_id' => $filterConfig['event_id']])) }}"
                              target="_blank" variant="filled" icon="document-text" size="sm" class="text-blue-500!">
@@ -151,6 +155,9 @@
                     <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{{ $scoring['label'] }}</h3>
                     @if($scoring['group']?->title)
                         <flux:badge size="sm" color="amber">{{ $scoring['group']->title === 'OSTM' ? 'ÖSTM' : 'ÖM' }}</flux:badge>
+                    @endif
+                    @if($scoring['group']?->restrictionLabel())
+                        <flux:badge size="sm" color="zinc">{{ $scoring['group']->restrictionLabel() }}</flux:badge>
                     @endif
                     {{-- Mit Wertungsgruppen wird nach Punkten gewertet: Ergebnisse ohne Punkte bekommen keinen Platz. --}}
                     @if($scoring['missingPoints'] > 0)

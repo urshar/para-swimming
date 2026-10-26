@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Club;
 use App\Models\Meet;
 use App\Models\ScoringGroup;
 use App\Models\StrokeType;
 use App\Models\SwimEvent;
+use App\Rules\CodeList;
 use App\Services\ScoringGroupService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +32,9 @@ class SwimEventController extends Controller
         // vergebenen — bleibt im Formular änderbar.
         $nextEventNumber = ($meet->swimEvents()->max('event_number') ?? 0) + 1;
 
-        return view('swim-events.form', compact('meet', 'strokeTypes', 'nextEventNumber'));
+        $levelOptions = self::levelOptions([]);
+
+        return view('swim-events.form', compact('meet', 'strokeTypes', 'nextEventNumber', 'levelOptions'));
     }
 
     public function store(Request $request, Meet $meet): RedirectResponse
@@ -58,6 +62,7 @@ class SwimEventController extends Controller
             'meet' => $event->meet,
             'event' => $event,
             'strokeTypes' => $strokeTypes,
+            'levelOptions' => self::levelOptions($event->scoringGroups()->pluck('levels')->all()),
         ]);
     }
 
@@ -113,7 +118,10 @@ class SwimEventController extends Controller
         foreach ($targets as $target) {
             $target->scoringGroups()->delete();
             foreach ($event->scoringGroups as $group) {
-                $target->scoringGroups()->create($group->only(['name', 'gender', 'sport_classes', 'age_min', 'age_max', 'title', 'sort_order']));
+                $target->scoringGroups()->create($group->only([
+                    'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
+                    'title', 'sort_order',
+                ]));
             }
             $target->syncSportClassesFromGroups();
             $this->scoring->syncPlaces($target);
@@ -158,6 +166,10 @@ class SwimEventController extends Controller
             'scoring_groups.*.sport_classes' => 'nullable|string|max:100',
             'scoring_groups.*.age_min' => 'nullable|integer|min:0|max:99',
             'scoring_groups.*.age_max' => 'nullable|integer|min:0|max:99',
+            'scoring_groups.*.regional_associations' => ['nullable', 'string', 'max:100', new CodeList(array_keys(Club::REGIONAL_ASSOCIATIONS))],
+            'scoring_groups.*.regional_mode' => 'nullable|required_with:scoring_groups.*.regional_associations|in:'
+                .implode(',', array_keys(ScoringGroup::REGION_MODES)),
+            'scoring_groups.*.levels' => 'nullable|string|max:100',
             'scoring_groups.*.title' => 'nullable|in:'.implode(',', array_keys(ScoringGroup::TITLES)),
             'scoring_groups.*.lenex_agegroup_id' => 'nullable|string|max:50',
         ])['scoring_groups'] ?? []);
@@ -173,12 +185,18 @@ class SwimEventController extends Controller
         $event->scoringGroups()->delete();
         foreach ($rows as $index => $row) {
             $classes = ScoringGroup::parseClassNumbers($row['sport_classes'] ?? '');
+            $associations = ScoringGroup::parseCodes($row['regional_associations'] ?? '');
+            // Eine Staffel hat kein Level; die Einschränkung bliebe sonst ohne Ergebnisse.
+            $levels = $event->relay_count > 1 ? [] : ScoringGroup::parseLevels($row['levels'] ?? '');
             $event->scoringGroups()->create([
                 'name' => $row['name'],
                 'gender' => $row['gender'],
                 'sport_classes' => $classes !== [] ? implode(',', $classes) : null,
                 'age_min' => $row['age_min'] ?? null,
                 'age_max' => $row['age_max'] ?? null,
+                'regional_associations' => $associations !== [] ? implode(',', $associations) : null,
+                'regional_mode' => $associations !== [] ? $row['regional_mode'] : null,
+                'levels' => $levels !== [] ? implode(',', $levels) : null,
                 'title' => $row['title'] ?? null,
                 'sort_order' => $index + 1,
                 'lenex_agegroup_id' => $row['lenex_agegroup_id'] ?? null,
@@ -187,6 +205,17 @@ class SwimEventController extends Controller
 
         $event->syncSportClassesFromGroups();
         $this->scoring->syncPlaces($event);
+    }
+
+    /**
+     * Level-Auswahl des Formulars: vergebene Level plus die der Gruppen und eines abgeschickten Formulars.
+     *
+     * @param  list<?string>  $groupLevels  levels-Spalten der Gruppen
+     * @return list<string>
+     */
+    private static function levelOptions(array $groupLevels): array
+    {
+        return ScoringGroup::levelOptions([...$groupLevels, ...collect(old('scoring_groups', []))->pluck('levels')->all()]);
     }
 
     /** Klassenkategorie der Lage: SB (Brust), SM (Lagen), sonst S. */

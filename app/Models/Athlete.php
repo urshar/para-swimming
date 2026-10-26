@@ -132,6 +132,24 @@ class Athlete extends Model
     }
 
     /**
+     * Alle vergebenen Level (aktuelles Level und Level-Historie), z. B. ["A", "B", "T"] — die Werte sind nicht fest,
+     * sondern kommen aus den Daten. Auswahl für die Wertungsgruppen.
+     *
+     * @return list<string>
+     */
+    public static function knownLevels(): array
+    {
+        return self::query()->whereNotNull('level')->distinct()->pluck('level')
+            ->merge(AthleteLevelHistory::query()->distinct()->pluck('level'))
+            ->map(fn (string $level): string => trim($level))
+            ->filter(fn (string $level): bool => $level !== '')
+            ->unique()
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    /**
      * Level-History (neueste zuerst).
      */
     public function levelHistory(): HasMany
@@ -223,6 +241,6 @@ class Athlete extends Model
      */
     public function clubHistory(): HasMany
     {
-        return $this->hasMany(AthleteClubHistory::class)->orderBy('joined_at');
+        return $this->hasMany(AthleteClubHistory::class)->oldest('joined_at');
     }
 }

@@ -3,6 +3,8 @@
  *
  * Zeilen hinzufügen und entfernen; jede Zeile wird als scoring_groups[i][feld] abgeschickt. Die LENEX-ID einer
  * importierten Gruppe läuft als verstecktes Feld mit, damit ein erneuter Import die Gruppe wiedererkennt.
+ * Landesverbände und Level sind Listen (Flux-Checkbox-Gruppen), abgeschickt kommagetrennt über versteckte Felder;
+ * Geschlecht und Titel sind Flux-Selects (Titel "ohne" = Sentinel NONE, abgeschickt als leerer Wert).
  *
  * Registrierung in resources/js/app.js:
  *   import scoringGroupsEditor from './scoring-groups-editor'
@@ -19,7 +21,10 @@ export default function scoringGroupsEditor(config) {
                 sport_classes: '',
                 age_min: '',
                 age_max: '',
-                title: '',
+                regional_associations: [],
+                regional_mode: 'only',
+                levels: [],
+                title: 'NONE',
                 lenex_agegroup_id: '',
             });
         },

@@ -122,12 +122,12 @@ it('prüft Geschlecht, Klassen und Alter einer Wertungsgruppe', function () {
     $group = new ScoringGroup(['gender' => 'F', 'sport_classes' => '1,2,3,4,5,6,7,8', 'age_max' => 18]);
     $open = new ScoringGroup(['gender' => 'A', 'sport_classes' => null]);
 
-    expect($group->matches('F', 4, 17))->toBeTrue()
-        ->and($group->matches('M', 4, 17))->toBeFalse()
-        ->and($group->matches('F', 9, 17))->toBeFalse()
-        ->and($group->matches('F', 4, 19))->toBeFalse()
-        ->and($group->matches('F', 4, null))->toBeFalse()
-        ->and($open->matches('M', null, null))->toBeTrue()
+    expect($group->matches('F', 4, 17, null, null))->toBeTrue()
+        ->and($group->matches('M', 4, 17, null, null))->toBeFalse()
+        ->and($group->matches('F', 9, 17, null, null))->toBeFalse()
+        ->and($group->matches('F', 4, 19, null, null))->toBeFalse()
+        ->and($group->matches('F', 4, null, null, null))->toBeFalse()
+        ->and($open->matches('M', null, null, null, null))->toBeTrue()
         ->and(ScoringGroup::parseClassNumbers('S1 S2, SB4;10'))->toBe([1, 2, 4, 10]);
 });
 
