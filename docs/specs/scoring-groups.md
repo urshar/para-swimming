@@ -19,6 +19,11 @@ leer = alle Klassen; die Kategorie S/SB/SM ergibt sich aus der Lage, bei Staffel
 `age_min`/`age_max` (optional, Jahrgangsalter), `title` (`OSTM` = Österr. Staatsmeisterschaft, `OM` = Österr.
 Meisterschaft, leer = ohne Titel), `sort_order`, `lenex_agegroup_id`.
 
+Dazu die Einschränkung nach **Landesverband** des Ergebnisvereins (`regional_associations` + `regional_mode`, "nur
+diese" / "alle außer diesen", z. B. LM-Wertung nur WBSV, Gäste ohne WBSV) und **Athleten-Level** (`levels`) — eigene
+Spec: [scoring-group-restrictions.md](scoring-group-restrictions.md) (Zuordnung, Pflege im Bewerbsformular und auf
+der Seite "Wertungsgruppen einschränken", LENEX).
+
 `swim_events.sport_classes` (Grundlage der Meldeberechtigung) wird beim Speichern der Gruppen auf die Vereinigung
 ihrer Klassen gesetzt (`SwimEvent::syncSportClassesFromGroups()`); umfasst eine Gruppe alle Klassen, bleibt es leer.
 

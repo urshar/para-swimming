@@ -192,7 +192,9 @@ Platzierungen stehen in LENEX nicht am Result, sondern in
 Klassenwertung), **gewinnt die erste gefundene Platzierung** (die spezifischere AGEGROUP kommt zuerst).
 
 Die AGEGROUPs selbst werden als Wertungsgruppen des Bewerbs übernommen (`importScoringGroups`), der Export schreibt
-sie zurück, beim Ergebnisexport mit RANKINGS — siehe [scoring-groups.md](scoring-groups.md).
+sie zurück, beim Ergebnisexport mit RANKINGS — siehe [scoring-groups.md](scoring-groups.md). Landesverband (aus dem
+Gruppennamen, "LM Wien …" / "Gäste …") und Level (`levels`, `levelmin`/`levelmax`) siehe
+[scoring-group-restrictions.md](scoring-group-restrictions.md).
 
 ### Einzelergebnisse: Abgleich mit vorhandenen Ergebnissen
 

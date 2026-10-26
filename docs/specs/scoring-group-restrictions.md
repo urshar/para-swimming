@@ -97,4 +97,15 @@ die Plätze kommen weiter aus der Datei.
 
 ## Tests
 
-`tests/Feature/ScoringGroupRestrictionsTest.php` (Gruppe `scoring-group-restrictions-p1` usw.).
+- `tests/Feature/ScoringGroupRestrictionsTest.php` — Zuordnung und Plätze (Gruppe `scoring-group-restrictions-p1`).
+- `tests/Feature/ScoringGroupRestrictionsMaintenanceTest.php` — Bewerbsformular, Übernehmen, Sammelseite, Anzeige
+  (`scoring-group-restrictions-p2`).
+- `tests/Feature/ScoringGroupRestrictionsLenexTest.php` — Namenserkennung, Import, Export (`scoring-group-restrictions-p3`).
+
+## Hinweis zum Import
+
+Die Plätze kommen beim LENEX-Import weiterhin aus den RANKINGS der Datei (siehe
+[scoring-groups.md](scoring-groups.md)); stimmen diese nicht mit der neuen Einschränkung überein (etwa wenn die Datei
+auch Gäste in der LM-Wertung führt), rechnet "ÖBSV-Punkte berechnen" oder die Sammelaktion
+"Wertungsgruppen einschränken" die gespeicherten Plätze neu. Sammelansicht, PDF und öffentliche Seite zeigen die
+Wertung ohnehin berechnet.

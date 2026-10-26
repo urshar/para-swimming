@@ -49,6 +49,22 @@ class ScoringGroup extends Model
         self::REGION_EXCEPT => 'alle außer diesen',
     ];
 
+    /**
+     * Schreibweisen der Bundesländer in Gruppennamen je Verbandscode (zusätzlich zum Code selbst), für
+     * associationFromName(); ein abschließender Punkt ("Wr.", "Stmk.") ist immer erlaubt.
+     */
+    private const array ASSOCIATION_NAME_TOKENS = [
+        'BBSV' => ['Burgenland', 'Burgenländische', 'Bgld'],
+        'KBSV' => ['Kärnten', 'Kärntner', 'Ktn'],
+        'NOEVSV' => ['Niederösterreich', 'Niederösterreichische', 'NÖ', 'NOE'],
+        'OOEBSV' => ['Oberösterreich', 'Oberösterreichische', 'OÖ', 'OOE'],
+        'SBSV' => ['Salzburg', 'Salzburger', 'Sbg'],
+        'STBSV' => ['Steiermark', 'Steirische', 'Stmk'],
+        'TBSV' => ['Tirol', 'Tiroler'],
+        'VBSV' => ['Vorarlberg', 'Vorarlberger', 'Vbg'],
+        'WBSV' => ['Wien', 'Wiener', 'Wr'],
+    ];
+
     protected $fillable = [
         'swim_event_id',
         'name',
@@ -223,6 +239,39 @@ class ScoringGroup extends Model
             ->sort(SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
             ->all();
+    }
+
+    /**
+     * Landesverband einer Landesmeisterschafts-Gruppe aus ihrem Namen (LENEX kennt dafür kein Attribut): "LM Wien SB 01
+     * - 09", "LM NÖ Jugend", "Landesmeisterschaft Tirol", "Wr. LM", "Wiener Landesmeisterschaft", "LM WBSV" →
+     * Verbandscode; sonst null.
+     */
+    public static function associationFromName(string $name): ?string
+    {
+        // Bundesland-Schreibweise (klein) → Verbandscode; längere zuerst, damit "Wiener" nicht als "Wien" endet.
+        $tokens = [];
+        foreach (self::ASSOCIATION_NAME_TOKENS as $code => $names) {
+            foreach ([$code, ...$names] as $token) {
+                $tokens[mb_strtolower($token)] = $code;
+            }
+        }
+        uksort($tokens, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+        $state = '('.implode('|', array_map(fn (string $t): string => preg_quote($t, '/'), array_keys($tokens))).')\.?';
+        $lm = '(?:LM|Landesmeisterschaft(?:en)?)';
+        $end = '(?=[\s\-:,]|$)';
+
+        if (preg_match('/^'.$lm.'\s+'.$state.$end.'/iu', trim($name), $m) === 1
+            || preg_match('/^'.$state.'\s+'.$lm.$end.'/iu', trim($name), $m) === 1) {
+            return $tokens[mb_strtolower($m[1])];
+        }
+
+        return null;
+    }
+
+    /** Gäste-Gruppe einer Landesmeisterschaft ("Gäste SB 01 - 15", "Gastschwimmer"). */
+    public static function isGuestName(string $name): bool
+    {
+        return preg_match('/^(Gäste|Gast)/iu', trim($name)) === 1;
     }
 
     /**

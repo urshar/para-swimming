@@ -142,8 +142,10 @@ Import gesetzt; leer bei App-Meldungen), `name` (frei vergebbar, nullable; Anzei
 `(relay_entry_id, athlete_id)`.
 
 **ScoringGroup** (Wertungsgruppe, LENEX AGEGROUP) — `swim_event_id`, `name`, `gender` (M/F/X/A), `sport_classes`
-(Nummern, kommagetrennt, leer = alle), `age_min`/`age_max`, `title` (OSTM/OM), `sort_order`, `lenex_agegroup_id`.
-Zuordnung der Ergebnisse wird berechnet; Details: [specs/scoring-groups.md](specs/scoring-groups.md).
+(Nummern, kommagetrennt, leer = alle), `age_min`/`age_max`, `regional_associations` (Verbandscodes, kommagetrennt)
+mit `regional_mode` (`only`/`except`), `levels` (Athleten-Level, kommagetrennt), `title` (OSTM/OM), `sort_order`,
+`lenex_agegroup_id`. Zuordnung der Ergebnisse wird berechnet; Details: [specs/scoring-groups.md](specs/scoring-groups.md)
+und [specs/scoring-group-restrictions.md](specs/scoring-group-restrictions.md).
 
 **RelayResult** (Staffelergebnis) — `meet_id`, `swim_event_id`, `club_id`, `relay_number` (LENEX Mannschaftsnummer),
 `name`, `gender` (Wertung der Mannschaft: M/F/X, nicht das Bewerbsgeschlecht), `relay_class` (S14, S20, S34, S49 ...),
