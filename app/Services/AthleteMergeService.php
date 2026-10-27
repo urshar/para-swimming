@@ -25,8 +25,10 @@ use Throwable;
  * - Sportklassen: Für jede Kategorie mit abweichenden Werten muss gewählt werden. Ausnahme-Codes werden vereinigt.
  * - Histories (Verein, Level, Kader, Klassifikation): alles übernehmen, exakte Duplikate entfallen. Mehrere offene
  *   Vereinseinträge werden geschlossen, bis auf den jüngsten.
- * - Cup-Wertungen und Qualifikationen: umhängen, kollidierende Zeilen des aufgelösten Athleten entfallen (sie werden
- *   ohnehin neu berechnet).
+ * - Cup-Wertungen und Qualifikationen: umhängen, kollidierende Zeilen des aufgelösten Athleten entfallen. Auf Wunsch
+ *   ($recalculate) werden die betroffenen Cups und Richtzeitenlisten in derselben Transaktion neu berechnet
+ *   (AthleteMergeRecalculationService). Umgehängte Ergebnisse und Kaderzugehörigkeiten bekommen ein neues updated_at,
+ *   damit CupStalenessService die Wertungen sonst als veraltet meldet.
  * - Rekorde: nur umhängen, die Kette hängt nicht am Athleten.
  */
 final readonly class AthleteMergeService
@@ -69,6 +71,10 @@ final readonly class AthleteMergeService
     /** Spalten, in denen sich zwei Sportklassen derselben Kategorie unterscheiden können. */
     private const array SPORT_CLASS_COLUMNS = ['sport_class', 'class_number', 'classification_scope',
         'classification_status', 'frd_year'];
+
+    public function __construct(
+        private AthleteMergeRecalculationService $recalculationService,
+    ) {}
 
     /**
      * Gegenüberstellung beider Athleten für die Vorschau.
@@ -113,11 +119,20 @@ final readonly class AthleteMergeService
      *                                               Feld, gilt der Vorschlag aus analyze()
      * @param  array<string, string>  $sportClassChoices  Kategorie → 'keep' / 'drop', Pflicht für jede abweichende
      *                                                    Kategorie
-     * @return array<string, int> übernommene Datensätze je Tabelle (Stand vor dem Zusammenführen)
+     * @param  bool  $recalculate  betroffene Cups und Richtzeitenlisten neu berechnen
+     * @return array{
+     *     moved: array<string, int>,
+     *     recalculation: ?array{
+     *         cups: list<array{id: int, name: string, stages: list<string>}>,
+     *         qualifying_time_lists: list<array{id: int, year: int, qualified: int}>,
+     *         errors: list<string>,
+     *     },
+     * } übernommene Datensätze je Tabelle (Stand vor dem Zusammenführen) und Bericht der Neuberechnung
      *
      * @throws Throwable
      */
-    public function merge(Athlete $keep, Athlete $drop, array $fieldChoices, array $sportClassChoices): array
+    public function merge(Athlete $keep, Athlete $drop, array $fieldChoices, array $sportClassChoices,
+        bool $recalculate): array
     {
         $analysis = $this->analyze($keep, $drop);
 
@@ -135,7 +150,11 @@ final readonly class AthleteMergeService
 
         $moved = array_filter(array_map(fn (array $counts) => $counts['drop'], $analysis['counts']));
 
-        DB::transaction(function () use ($keep, $drop, $attributes, $sportClassChoices) {
+        $recalculation = DB::transaction(function () use ($keep, $drop, $attributes, $sportClassChoices, $recalculate,
+            $analysis) {
+            $now = now();
+            $movedKaderIds = DB::table('athlete_kader_memberships')->where('athlete_id', $drop->id)->pluck('id');
+
             $this->mergeSportClasses($keep, $drop, $sportClassChoices);
             $this->moveUnlessPresent('athlete_exceptions', $keep, $drop,
                 fn (object $row) => $this->columnsKey($row, ['exception_code_id', 'category']));
@@ -156,8 +175,12 @@ final readonly class AthleteMergeService
             $this->moveUnlessPresent('qualifications', $keep, $drop,
                 fn (object $row) => $this->columnsKey($row, ['qualifying_time_list_id', 'qualifying_time_id']));
 
-            foreach (['results', 'relay_result_members', 'entries', 'relay_entry_members', 'swim_records',
-                'relay_team_members', 'athlete_performance_notes', 'import_review_items'] as $table) {
+            DB::table('athlete_kader_memberships')->whereIn('id', $movedKaderIds)->where('athlete_id', $keep->id)
+                ->update(['updated_at' => $now]);
+
+            DB::table('results')->where('athlete_id', $drop->id)->update(['athlete_id' => $keep->id, 'updated_at' => $now]);
+            foreach (['relay_result_members', 'entries', 'relay_entry_members', 'swim_records', 'relay_team_members',
+                'athlete_performance_notes', 'import_review_items'] as $table) {
                 DB::table($table)->where('athlete_id', $drop->id)->update(['athlete_id' => $keep->id]);
             }
             $this->rewriteReviewDetails($keep, $drop);
@@ -179,6 +202,10 @@ final readonly class AthleteMergeService
             }
 
             $drop->forceDelete();
+
+            return $recalculate
+                ? $this->recalculationService->recalculate($analysis['cup_ids'], $analysis['qualifying_time_list_ids'])
+                : null;
         });
 
         Log::info('Athleten zusammengeführt', [
@@ -186,9 +213,10 @@ final readonly class AthleteMergeService
             'keep' => ['id' => $keep->id, 'name' => $keep->display_name],
             'drop' => ['id' => $drop->id, 'name' => $drop->display_name],
             'moved' => $moved,
+            'recalculation' => $recalculation,
         ]);
 
-        return $moved;
+        return ['moved' => $moved, 'recalculation' => $recalculation];
     }
 
     private function assertDistinct(Athlete $keep, Athlete $drop): void

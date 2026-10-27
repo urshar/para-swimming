@@ -154,7 +154,7 @@ it('übernimmt die gewählten Stammdaten, sonst den Vorschlag, und verbindet die
     $keep = athlete_am1('Djuza', 'Slavica', ['notes' => 'Aus dem Team Manager', 'birth_date' => '1990-01-01']);
     $drop = athlete_am1('Slavica', 'Djuza', ['license' => 'O-2030', 'notes' => 'Aus dem LENEX-Import']);
 
-    service_am1()->merge($keep, $drop, ['birth_date' => 'drop'], []);
+    service_am1()->merge($keep, $drop, ['birth_date' => 'drop'], [], false);
     $keep->refresh();
 
     expect($keep->display_name)->toBe('Djuza, Slavica')
@@ -168,7 +168,7 @@ it('lehnt eine ungültige Auswahl für ein Stammdatenfeld ab', /** @throws Throw
     $keep = athlete_am1('Djuza', 'Slavica', []);
     $drop = athlete_am1('Slavica', 'Djuza', ['license' => 'O-2030']);
 
-    service_am1()->merge($keep, $drop, ['license' => 'both'], []);
+    service_am1()->merge($keep, $drop, ['license' => 'both'], [], false);
 })->throws(InvalidArgumentException::class);
 
 // ── Ergebnisse, Meldungen, Staffeln, Rekorde ─────────────────────────────────
@@ -182,7 +182,7 @@ it('hängt Ergebnisse und Meldungen um und löscht den aufgelösten Athleten end
     $entry = Entry::create(['meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $drop->id,
         'club_id' => club_am1('Heimverein')->id]);
 
-    $moved = service_am1()->merge($keep, $drop, [], []);
+    $moved = service_am1()->merge($keep, $drop, [], [], false)['moved'];
 
     expect($moved)->toBe(['results' => 1, 'entries' => 1])
         ->and($result->fresh()->athlete_id)->toBe($keep->id)
@@ -206,7 +206,7 @@ it('blockiert bei Ergebnis oder Meldung beider Athleten im selben Bewerb', funct
         'Beide haben ein Ergebnis in "Staatsmeisterschaften", Bewerb 1.',
         'Beide haben eine Meldung in "Staatsmeisterschaften", Bewerb 1.',
     ])
-        ->and(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], []))->toThrow(RuntimeException::class)
+        ->and(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], [], false))->toThrow(RuntimeException::class)
         ->and(Result::where('athlete_id', $drop->id)->count())->toBe(1)
         ->and(Athlete::find($drop->id))->not->toBeNull();
 });
@@ -224,7 +224,7 @@ it('hängt Staffelergebnisse, Staffelmeldungen und Rekord-Staffelteams um', /** 
     $teamMember = RelayTeamMember::create(['swim_record_id' => $record->id, 'position' => 2, 'first_name' => 'Djuza',
         'last_name' => 'Slavica', 'athlete_id' => $drop->id]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect($resultMember->fresh()->athlete_id)->toBe($keep->id)
         ->and($entryMember->fresh()->athlete_id)->toBe($keep->id)
@@ -260,7 +260,7 @@ it('hängt Rekorde um und meldet doppelte Rekorde als Hinweis', /** @throws Thro
     $other = record_am1($drop, 3200);
 
     $hints = service_am1()->analyze($keep, $drop)['hints'];
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect($hints)->toBe(["Doppelter Rekord nach dem Zusammenführen: #$twin->id und #$duplicate->id (AUT, 50 m, S9, SCM)."])
         ->and(SwimRecord::where('athlete_id', $keep->id)->pluck('id')->sort()->values()->all())
@@ -284,7 +284,7 @@ it('hängt Leistungsnotizen und Prüflisten-Einträge samt Athleten-IDs im JSON 
     $relayItem = ImportReviewItem::create(['type' => ImportReviewItem::TYPE_LIST_MISMATCH, 'athlete_id' => $other->id,
         'status' => ImportReviewItem::STATUS_OPEN, 'details' => $relayDetails]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
     $item->refresh();
 
     expect($note->fresh()->athlete_id)->toBe($keep->id)
@@ -306,9 +306,9 @@ it('übernimmt fehlende Sportklassen, verwirft gleiche und verlangt für abweich
     sportClass_am1($drop, 'SM', '9');
 
     expect(service_am1()->analyze($keep, $drop)['sport_classes'])->toBe(['S' => ['keep' => 'S9 (INTL)', 'drop' => 'S8 (INTL)']])
-        ->and(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], []))->toThrow(InvalidArgumentException::class);
+        ->and(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], [], false))->toThrow(InvalidArgumentException::class);
 
-    service_am1()->merge($keep, $drop, [], ['S' => 'drop']);
+    service_am1()->merge($keep, $drop, [], ['S' => 'drop'], false);
 
     expect(AthleteSportClass::where('athlete_id', $keep->id)->orderBy('category')->pluck('sport_class')->all())
         ->toBe(['S8', 'SB7', 'SM9'])
@@ -320,7 +320,7 @@ it('behält bei Auswahl "keep" die Sportklasse des behaltenen Athleten', /** @th
     sportClass_am1($keep, 'S', '9');
     sportClass_am1($drop, 'S', '8');
 
-    service_am1()->merge($keep, $drop, [], ['S' => 'keep']);
+    service_am1()->merge($keep, $drop, [], ['S' => 'keep'], false);
 
     expect(AthleteSportClass::pluck('sport_class')->all())->toBe(['S9']);
 });
@@ -334,7 +334,7 @@ it('vereinigt die Ausnahme-Codes beider Athleten', /** @throws Throwable */ func
     $drop->exceptions()->attach($br3->id, ['category' => 'SM']);
     $drop->exceptions()->attach($h->id, ['category' => null]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(DB::table('athlete_exceptions')
         ->join('exception_codes', 'exception_codes.id', '=', 'athlete_exceptions.exception_code_id')
@@ -356,7 +356,7 @@ it('übernimmt Klassifikationen samt Ausnahmen und verwirft exakte Duplikate', /
     $withException->exceptions()->attach($code->id, ['category' => 'SB']);
     $older = AthleteClassification::create(['athlete_id' => $drop->id, 'classified_at' => '2019-05-01', 'result_s' => 'S8']);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(AthleteClassification::find($duplicate->id))->toBeNull()
         ->and($withException->fresh()->athlete_id)->toBe($keep->id)
@@ -378,7 +378,7 @@ it('führt die Vereins-History zusammen, schließt ältere offene Einträge und 
         'is_active' => true]);
 
     $hints = service_am1()->analyze($keep, $drop)['hints'];
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
     $keepOpen->refresh();
     $dropOpen->refresh();
 
@@ -395,7 +395,7 @@ it('übernimmt ohne Vereins-History den Verein des aufgelösten Athleten, wenn d
     $keep = athlete_am1('Muhrhofer', 'Katrin', []);
     $drop = athlete_am1('Muhrhofer', 'Katrin', ['club_id' => club_am1('Wr. Gehörlosen SC')->id]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect($keep->fresh()->club_id)->toBe(club_am1('Wr. Gehörlosen SC')->id);
 });
@@ -407,7 +407,7 @@ it('führt die Level-History zusammen und setzt das jüngste Level', /** @throws
     AthleteLevelHistory::create(['athlete_id' => $drop->id, 'level' => 'B', 'changed_at' => '2020-01-01']);
     AthleteLevelHistory::create(['athlete_id' => $drop->id, 'level' => 'A', 'previous_level' => 'B', 'changed_at' => '2024-01-01']);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(AthleteLevelHistory::where('athlete_id', $keep->id)->count())->toBe(2)
         ->and($keep->fresh()->level)->toBe('A');
@@ -422,7 +422,7 @@ it('führt Kaderzugehörigkeiten zusammen und verwirft exakte Duplikate', /** @t
     AthleteKaderMembership::create(['athlete_id' => $drop->id, ...$period, 'valid_from' => '2026-01-01',
         'valid_until' => '2026-12-31']);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(AthleteKaderMembership::where('athlete_id', $keep->id)->count())->toBe(2)
         ->and(AthleteKaderMembership::count())->toBe(2);
@@ -456,7 +456,7 @@ it('hängt Cup-Wertungen um und verwirft kollidierende Zeilen des aufgelösten A
 
     expect(service_am1()->analyze($keep, $drop)['cup_ids'])->toBe([$cup->id]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(CupTopGroupClassification::where('athlete_id', $keep->id)->count())->toBe(1)
         ->and(CupOverallResult::where('athlete_id', $keep->id)->count())->toBe(1)
@@ -485,7 +485,7 @@ it('hängt Qualifikationen um und verwirft kollidierende des aufgelösten Athlet
 
     expect(service_am1()->analyze($keep, $drop)['qualifying_time_list_ids'])->toBe([$list->id]);
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     expect(Qualification::where('athlete_id', $keep->id)->count())->toBe(2)
         ->and($moved->fresh()->athlete_id)->toBe($keep->id)
@@ -502,7 +502,7 @@ it('rollt bei einem Fehler alles zurück', function () {
         throw new RuntimeException('Testfehler');
     });
 
-    expect(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], []))->toThrow(RuntimeException::class, 'Testfehler')
+    expect(/** @throws Throwable */ fn () => service_am1()->merge($keep, $drop, [], [], false))->toThrow(RuntimeException::class, 'Testfehler')
         ->and($result->fresh()->athlete_id)->toBe($drop->id)
         ->and(AthleteSportClass::where('athlete_id', $drop->id)->count())->toBe(1)
         ->and(Athlete::find($drop->id))->not->toBeNull();
@@ -513,7 +513,7 @@ it('protokolliert das Zusammenführen im Log', /** @throws Throwable */ function
     result_am1(event_am1(meet_am1('Staatsmeisterschaften'), 1, 1), $drop);
     $log = Log::spy();
 
-    service_am1()->merge($keep, $drop, [], []);
+    service_am1()->merge($keep, $drop, [], [], false);
 
     $log->shouldHaveReceived('info')->once()->withArgs(fn (string $message, array $context) => $message === 'Athleten zusammengeführt'
         && $context['keep']['id'] === $keep->id
