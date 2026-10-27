@@ -1,8 +1,8 @@
 # Spec: LENEX 2.0 (sem2004) importieren
 
-**Status:** Phasen 1–4 umgesetzt und abgenommen (Branch `feature/lenex-2-import`, 25.10.2026); die IDM ist auf dev
-als Wettkampf 26 neu eingelesen, offen nur Prüfung und Rekord-Check durch Erik. Offener Punkt
-in [../open-points.md](../open-points.md).
+**Status:** Erledigt. Phasen 1–4 umgesetzt und abgenommen (`feature/lenex-2-import`, PR #70, 25.10.2026); die IDM
+ist auf dev als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine doppelten), Rekord-Check ohne Befund (Erik). Weitere
+LENEX-2.0-Dateien mit neuen Abweichungen werden als eigene Phase nachgezogen.
 
 **Anlass:** `IDM_Berlin_2018.lxf` (32. Internationale Deutsche Meisterschaften, Berlin 2018, Wettkampf 25 auf dev,
 mit Nationenfilter AUT eingelesen) — und es kommen weitere LENEX-2.0-Dateien (Erik).
@@ -80,7 +80,7 @@ Eine eigene LENEX-2.0-Dokumentation gibt es nicht; Grundlage sind die 3.0-Dokume
 
 ## Plan (phasenweise, eigener Branch von `main`)
 
-### Phase 1 — Testdatei und Erkennung (umgesetzt, wartet auf Abnahme)
+### Phase 1 — Testdatei und Erkennung (umgesetzt und abgenommen)
 
 Umgesetzt: `tests/Fixtures/lenex/sem2004-results.lef` und `msecm-results.lef` (anonymisierte Auszüge, ISO-8859-1),
 `LenexParserService::fileFormat()` / `fileFormatFromFile()` (Version, Erzeuger, Kurzname, `places_in_results`), Feld
@@ -93,7 +93,7 @@ Umgesetzt: `tests/Fixtures/lenex/sem2004-results.lef` und `msecm-results.lef` (a
   der Datei (Antwort 1), damit auch andere 2.0-Programme (z. B. WEK) abgedeckt sind.
 - Tests: Datei wird erkannt, Typ `results`.
 
-### Phase 2 — Klassen aus Gruppennamen (umgesetzt, wartet auf Abnahme)
+### Phase 2 — Klassen aus Gruppennamen (umgesetzt und abgenommen)
 
 Umgesetzt: Präfix "Startklasse"/"Klasse" in `agegroupHandicap()`; `openAgegroup()` (offene Gruppe nach der mit Erik
 abgestimmten Regel: ohne Klasse, `agemax="-1"`, niedrigstes `agemin`, bei Gleichstand die erste; nach einer Klasse
@@ -113,7 +113,7 @@ ankreuzen.
 - Altersgruppen ("Jugend …", "Jugendwertung", "Masters …") und "Startklasse AB" werden nicht als Wertungsgruppe
   übernommen (Antworten 3 und 5).
 
-### Phase 3 — mehrere RESULTs je Start (umgesetzt, wartet auf Abnahme)
+### Phase 3 — mehrere RESULTs je Start (umgesetzt und abgenommen)
 
 Umgesetzt: `buildLegacyPlaceIndex()` / `legacyPlacedResult()` (Platz nach Antwort 4, unter der Ersatz-ID im
 `rankingIndex`), `legacyResultId()` (`a{athleteid}-e{eventid}`, Staffel `r{code bzw. Namens-Hash}-{number}-e{eventid}`),
@@ -121,9 +121,9 @@ Umgesetzt: `buildLegacyPlaceIndex()` / `legacyPlacedResult()` (Platz nach Antwor
 ergibt keinen Platz. Tests in `tests/Feature/LenexLegacyResultsTest.php` (`--group=lenex-2-p3`). Ergebnisse eines
 früheren Imports ohne ID werden beim erneuten Import über Athlet + Bewerb gefunden und bekommen die Ersatz-ID.
 
-Offen zur Entscheidung: Mit "Plätze aus der Datei" (`keep_file_places`) zeigt die Sammelansicht den gewählten Platz
-(Startklasse) in allen Gruppen des Ergebnisses, also auch in der "Offenen Wertung". Je Gruppe eigene Plätze bräuchten
-eine eigene Speicherung (Platz je Ergebnis und Wertungsgruppe).
+Entschieden (Erik, 25.10.2026, siehe Phase 4): Mit "Plätze aus der Datei" (`keep_file_places`) zeigt die
+Sammelansicht den gewählten Platz (Startklasse) in allen Gruppen des Ergebnisses, also auch in der "Offenen Wertung" —
+so lassen. Je Gruppe eigene Plätze bräuchten eine eigene Speicherung (Platz je Ergebnis und Wertungsgruppe).
 
 Für Phase 4 gefunden: `LenexResolverService::resolveClub()` bildet den Cache-Schlüssel aus `clubid`, sonst
 `"code:".$code` — bei Vereinen ohne `clubid` und ohne `code` (alle sem2004-Vereine) ist er für alle gleich
@@ -143,7 +143,7 @@ Schlüssel führt.
 - Tests: ein Ergebnis je Start, richtiger Platz, erneuter Import der Datei legt nichts doppelt an (ohne `resultid`,
   ohne Lauf/Bahn).
 
-### Phase 4 — Staffeln, Vereine, Rückmeldung (umgesetzt, wartet auf Abnahme)
+### Phase 4 — Staffeln, Vereine, Rückmeldung (umgesetzt und abgenommen)
 
 Umgesetzt: Cache-Schlüssel `name:{nation_id}:{name}` für Vereine ohne `clubid`/`code`
 (`LenexResolverService::resolveClub()`); mit Nationenfilter kommt ein unbekannter Verein der Nation mit gewerteten

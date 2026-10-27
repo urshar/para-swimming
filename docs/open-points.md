@@ -164,16 +164,24 @@ Punkt als Nächstes drankommt, entscheidet Erik:
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
-**Laufende Datenpflege und Import-Themen (Stand 25.10.2026)** — je unten ausführlich beschrieben:
+**Laufende Datenpflege und Import-Themen (Stand 27.10.2026)** — je unten ausführlich beschrieben:
 
-1. "LENEX 2.0 (sem2004) importieren" — erledigt (25.10.2026); weitere 2.0-Dateien bei Bedarf als eigene Phase
-2. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
-3. "Rekorde aus Zwischenzeiten: Nacharbeiten auf dev" — Datenpflege Erik, vor dem Export nach prod
-4. "WPS-Punktetabelle 2017 einspielen" — Datenpflege Erik
-5. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+1. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
+2. "Rekorde aus Zwischenzeiten: Nacharbeiten auf dev" — Datenpflege Erik, vor dem Export nach prod
+3. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
 
-"Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung" sind erledigt
-(`feature/split-records`, [specs/split-records.md](specs/split-records.md)).
+**UI-Kleinigkeiten (Erik, 27.10.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
+
+1. "Filter: Suchfeld verliert beim Tippen den Fokus"
+2. "Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde"
+3. "Vereine überall mit Kurznamen anzeigen"
+
+**Erledigt:** "Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung"
+(`feature/split-records`, PR #71, [specs/split-records.md](specs/split-records.md)). "LENEX 2.0 (sem2004)
+importieren" (`feature/lenex-2-import`, PR #70, [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md)): Phasen 1–4
+umgesetzt und abgenommen, die IDM auf dev als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine doppelten),
+Rekord-Check ohne Befund; weitere LENEX-2.0-Dateien mit neuen Abweichungen als eigene Phase. "WPS-Punktetabelle 2017
+einspielen" (Erik, 27.10.2026).
 
 **Gruppe 3 — blockiert, keine Umsetzung möglich bis dahin, in dieser Reihenfolge im Blick behalten:**
 
@@ -182,26 +190,6 @@ Erik klären, erst danach Branch anlegen/implementieren.
 2. "Mannschaftsgebühr (LENEX `TEAM`) berechnen" unten — erst, wenn es Veranstaltungen mit Mannschaften gibt
 3. **"Impressum & Datenschutzerklärung — echter Inhalt statt Platzhalter" unten — ganz zuletzt**, da der Inhalt vom
    Vorstand noch offen ist
-
-## LENEX 2.0 (sem2004) importieren
-
-**Seit:** 25.10.2026, Import `IDM_Berlin_2018.lxf` (32. Internationale Deutsche Meisterschaften, Wettkampf 25 auf dev).
-Erik: Es kommen noch mehrere solcher LENEX-2.0-Dateien.
-
-**Ausgangslage:** Die Datei ist gültiges LENEX 2.0 aus "sem2004" (Titanium Media), weicht aber in mehreren Punkten von
-den Splash-Dateien ab, für die der Import gebaut ist. Sichtbare Folgen auf dev: Jeder österreichische Schwimmer steht
-in jeder "Startklasse"-Wertungsgruppe (die Klasse steht nur im Gruppennamen und wird nicht erkannt), und der Platz ist
-der aus der "Offenen Wertung" statt aus der eigenen Klasse (je Start ein RESULT pro Wertungsgruppe, der letzte
-gewinnt). Die Ergebnisse selbst sind nicht verdoppelt.
-
-**Stand:** Import umgesetzt (Branch `feature/lenex-2-import`, Phasen 1–4 in
-[specs/lenex-2.0-import.md](specs/lenex-2.0-import.md), Eigenheiten in
-[specs/lenex-import-export.md](specs/lenex-import-export.md) "LENEX 2.0"): Klassen aus "Startklasse S4", nur
-Klassengruppen und offene Gruppe, ein Ergebnis je Start mit dem Platz der Startklasse, Ersatz-ID, Vereine ohne Code,
-"NPC Austria" über die Klärungsseite. Getestet mit sem2004 (IDM Berlin 2018) und MSECM (Wiener Lagen Cup 2019).
-
-**Erledigt (25.10.2026, Erik):** Wettkampf 25 gelöscht, die IDM als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine
-doppelten), Rekord-Check ohne Befund. Weitere LENEX-2.0-Dateien mit neuen Abweichungen als eigene Phase nachziehen.
 
 ## Historischer Import 2012–2017: Restarbeiten
 
@@ -239,15 +227,6 @@ doppelten), Rekord-Check ohne Befund. Weitere LENEX-2.0-Dateien mit neuen Abweic
 **Wer macht:** Erik (Datenpflege). Vor dem Export nach prod erledigen (siehe "Historischer Import 2012–2017:
 Restarbeiten").
 
-## WPS-Punktetabelle 2017 einspielen
-
-**Seit:** `feature/wps-txt-import` (PR #68, gemergt).
-
-**Offen:** `docs/snippets/WPS_2017.txt` über "WPS Punkte → Importieren" einspielen, inkl. Gültigkeitszeitraum, danach
-die WPS-Punkte neu berechnen. Auf dev sind derzeit 2 WPS-Versionen importiert, die Tabelle 2026 noch nicht.
-
-**Wer macht:** Erik.
-
 ## Alte Uploads des Rekord-Imports
 
 **Seit:** `feature/wps-txt-import` (Aufräumen der Uploads eingebaut).
@@ -256,6 +235,57 @@ die WPS-Punkte neu berechnen. Auf dev sind derzeit 2 WPS-Versionen importiert, d
 gezippte `test-import.lef` vom 30.08.). Neue Importe räumen ihre Datei selbst auf.
 
 **Wer entscheidet:** Erik — Löschen nur auf seine ausdrückliche Anweisung.
+
+## Filter: Suchfeld verliert beim Tippen den Fokus
+
+**Seit:** 27.10.2026, Rückmeldung Erik.
+
+**Ausgangslage:** Gibt man in einem Filter einen Namen ein, ist der Fokus danach nicht mehr im Eingabefeld. Ursache:
+Die Auto-Submit-Filter (`resources/js/index-filters.js`, Muster seit `feature/index-filter-autosubmit`) schicken das
+Formular nach `x-model.debounce` (500 ms) per `$el.submit()` ab, die Seite lädt neu, und das Suchfeld ist nicht mehr
+fokussiert. Wer langsam tippt oder nach der Pause weitertippt, verliert außerdem die Eingaben, die während des Ladens
+getippt wurden.
+
+**Betroffen:** alle Listen mit `indexFilters` und Suchfeld (Athleten, Vereine, Klassifizierer, Ergebnisse,
+Veranstaltungen, Ergebnis-Sammelansicht u. a.), ähnlich gebaute Filter (`entriesCockpitFilters`, Meldungen,
+Staffelmeldungen) prüfen.
+
+**Wer entscheidet:** Erik — welches Verhalten gewünscht ist.
+
+**Zum Schließen nötig:** Eine Lösung wählen und einheitlich umsetzen, zum Beispiel: (a) nach dem Neuladen Fokus und
+Cursor wieder ins zuletzt bearbeitete Suchfeld setzen (kleinster Eingriff, in `indexFilters` zentral), (b) Textfelder
+erst bei Enter oder beim Verlassen des Felds absenden, Selects weiter sofort, oder (c) die Liste ohne Neuladen
+nachladen (größerer Umbau). Live mit Tastatur prüfen.
+
+## Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde
+
+**Seit:** 27.10.2026, Rückmeldung Erik.
+
+**Ausgangslage:** Im Sportklassen-Filter der Rekordliste stehen bei Einzelrekorden auch S20/SB20/SM20,
+S34/SB34/SM34 und S49/SB49/SM49 — das sind Staffelklassen. Ursache: `RecordController::buildSportClassOptions()` nimmt
+für Einzel alle Klassennummern aus `BaseTimeSportClass` (die Basiswerte enthalten auch die Staffelwerte) plus S1–S15
+und S21.
+
+**Zum Schließen nötig:** Für Einzel die reinen Staffelklassen (20, 34, 49 aus `RelayClassValidator`) ausschließen —
+14, 15 und 21 sind auch Einzelklassen und bleiben. Test für beide Filterlisten (Einzel ohne, Staffel mit 20/34/49).
+
+## Vereine überall mit Kurznamen anzeigen
+
+**Seit:** 27.10.2026, Wunsch Erik.
+
+**Ausgangslage:** Vereine sollen in der Anzeige immer mit dem Kurznamen erscheinen, wenn es einen gibt.
+`Club::display_name` liefert genau das (`short_name ?? name`) und wird an vielen Stellen schon verwendet, aber
+rund 29 Stellen in 18 Views geben `->name` aus (z. B. `records/index`, `records/show`, `clubs/show`,
+`results/form`, `relay-results/form`, `entries/form`, `meets/results-overview`, `meets/result-clubs`,
+`qualifying-time-lists/qualifications`, `pdf/qualifications`, `statistics/partials/sections`).
+
+**Wer entscheidet:** Erik — wo der volle Name bewusst bleiben soll. Vorschlag: Vereinsformular und Vereins-Detailseite
+(Überschrift) mit vollem Namen, als `title`-Tooltip überall dort, wo der Kurzname steht; Auswahllisten mit Kurzname,
+aber Suche auch über den vollen Namen. Öffentlicher Bereich, PDFs und Gastvereine (`foreign_starts.club_name`, kein
+Kurzname) mitprüfen.
+
+**Zum Schließen nötig:** Entscheidung, dann alle Ausgaben auf `display_name` umstellen (Suche nach `club->name`,
+`club?->name`, `$club->name` in Views, PDFs und JS-Daten), Test für Stichproben.
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 
