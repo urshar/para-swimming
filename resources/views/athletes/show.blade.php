@@ -38,6 +38,10 @@
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            <flux:button href="{{ route('athletes.merge.create', $athlete) }}" variant="filled"
+                         icon="arrows-pointing-in" size="sm" class="text-red-500!">
+                Zusammenführen
+            </flux:button>
             @endif
         </div>
     </div>
