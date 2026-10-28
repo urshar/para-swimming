@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AgeGroupController;
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\AthleteMergeController;
 use App\Http\Controllers\BaseTimeCategoryController;
 use App\Http\Controllers\BaseTimeExportController;
 use App\Http\Controllers\BaseTimeImportController;
@@ -152,6 +153,14 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('athletes/{athlete}/transfer-club',
             [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
+
+        // Athleten zusammenführen (Dubletten): zweiten Athleten wählen → Vorschau → zusammenführen.
+        Route::get('athletes/{athlete}/merge', [AthleteMergeController::class, 'create'])
+            ->name('athletes.merge.create');
+        Route::get('athletes/{keep}/merge/{drop}', [AthleteMergeController::class, 'preview'])
+            ->name('athletes.merge.preview');
+        Route::post('athletes/{keep}/merge/{drop}', [AthleteMergeController::class, 'store'])
+            ->name('athletes.merge.store');
 
         Route::post('athletes/{athlete}/classifications',
             [AthleteController::class, 'storeClassification'])->name('athletes.classifications.store');

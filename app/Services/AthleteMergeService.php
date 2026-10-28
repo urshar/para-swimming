@@ -19,7 +19,9 @@ use Throwable;
  * aufgelöst und danach endgültig gelöscht. Alles, was am aufgelösten Athleten hängt, wandert zum behaltenen.
  *
  * - Stammdaten: Feld für Feld gewählt ('keep' / 'drop', Notizen auch 'both'). Vorschlag ist der Wert des behaltenen
- *   Athleten, bei leerem Wert der des anderen. club_id und level folgen aus Vereins- bzw. Level-History.
+ *   Athleten, bei leerem Wert der des anderen. level folgt aus der Level-History. Der Verein (club_id) folgt aus der
+ *   Vereins-History, sofern einer der beiden einen offenen Vereinseintrag hat; sonst wird er wie ein Stammdatenfeld
+ *   gewählt (die meisten Athleten haben keine Vereins-History).
  * - Blockierend: beide im selben Bewerb (Ergebnis oder Meldung) oder in derselben Staffel (Ergebnis, Meldung,
  *   Rekord-Staffelteam) — das muss vorher von Hand bereinigt werden.
  * - Sportklassen: Für jede Kategorie mit abweichenden Werten muss gewählt werden. Ausnahme-Codes werden vereinigt.
@@ -61,9 +63,10 @@ final readonly class AthleteMergeService
         'qualifications' => 'Qualifikationen',
     ];
 
-    /** Stammdaten, die Feld für Feld gewählt werden (ohne club_id und level, die aus der History folgen). */
+    /** Stammdaten, die Feld für Feld gewählt werden (ohne level, das aus der History folgt; club_id siehe oben). */
     public const array FIELDS = [
-        'first_name', 'last_name', 'name_prefix', 'birth_date', 'gender', 'nation_id', 'license', 'license_ipc', 'swrid',
+        'first_name', 'last_name', 'name_prefix', 'birth_date', 'gender', 'nation_id', 'club_id', 'license',
+        'license_ipc', 'swrid',
         'status', 'disability_group', 'disability_subgroup', 'is_active', 'notes', 'email', 'phone', 'address_street',
         'address_city', 'address_zip', 'address_country', 'last_medical_check_at', 'next_medical_check_at',
     ];
@@ -81,6 +84,7 @@ final readonly class AthleteMergeService
      *
      * @return array{
      *     fields: array<string, array{keep: mixed, drop: mixed, suggestion: string}>,
+     *     club_from_history: bool,
      *     counts: array<string, array{keep: int, drop: int}>,
      *     blocking: list<string>,
      *     sport_classes: array<string, array{keep: string, drop: string}>,
@@ -93,9 +97,11 @@ final readonly class AthleteMergeService
     {
         $this->assertDistinct($keep, $drop);
         $ids = [$keep->id, $drop->id];
+        $clubFromHistory = DB::table('athlete_club_history')->whereIn('athlete_id', $ids)->whereNull('left_at')->exists();
 
         return [
-            'fields' => $this->fieldDifferences($keep, $drop),
+            'fields' => $this->fieldDifferences($keep, $drop, $clubFromHistory),
+            'club_from_history' => $clubFromHistory,
             'counts' => collect(array_keys(self::TABLES))->mapWithKeys(fn (string $table) => [$table => [
                 'keep' => $this->count($table, $keep->id),
                 'drop' => $this->count($table, $drop->id),
@@ -191,7 +197,9 @@ final readonly class AthleteMergeService
 
             $keep->fill([
                 ...$attributes,
-                'club_id' => $clubId ?? $keep->club_id ?? $drop->club_id,
+                'club_id' => $clubId ?? (array_key_exists('club_id', $attributes)
+                    ? $attributes['club_id']
+                    : $keep->club_id ?? $drop->club_id),
                 'level' => $level ?? $keep->level ?? $drop->level,
             ])->save();
 
@@ -236,10 +244,14 @@ final readonly class AthleteMergeService
     /**
      * @return array<string, array{keep: mixed, drop: mixed, suggestion: string}>
      */
-    private function fieldDifferences(Athlete $keep, Athlete $drop): array
+    private function fieldDifferences(Athlete $keep, Athlete $drop, bool $clubFromHistory): array
     {
         $fields = [];
         foreach (self::FIELDS as $field) {
+            if ($field === 'club_id' && $clubFromHistory) {
+                continue;
+            }
+
             $keepValue = $this->fieldValue($keep, $field);
             $dropValue = $this->fieldValue($drop, $field);
             if ($keepValue === $dropValue) {

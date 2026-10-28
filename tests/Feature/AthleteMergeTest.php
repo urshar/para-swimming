@@ -400,6 +400,36 @@ it('übernimmt ohne Vereins-History den Verein des aufgelösten Athleten, wenn d
     expect($keep->fresh()->club_id)->toBe(club_am1('Wr. Gehörlosen SC')->id);
 });
 
+it('bietet den Verein zur Auswahl an, wenn keiner der beiden einen offenen Vereinseintrag hat', /** @throws Throwable */ function () {
+    $ikades = club_am1('IKADES');
+    $down = club_am1('AG Down Syndrom');
+    $keep = athlete_am1('Kopfer', 'Nina', ['club_id' => $ikades->id]);
+    $drop = athlete_am1('Kopfer', 'Nina', ['club_id' => $down->id]);
+
+    $analysis = service_am1()->analyze($keep, $drop);
+    service_am1()->merge($keep, $drop, ['club_id' => 'drop'], [], false);
+
+    expect($analysis['club_from_history'])->toBeFalse()
+        ->and($analysis['fields']['club_id'])->toBe(['keep' => $ikades->id, 'drop' => $down->id, 'suggestion' => 'keep'])
+        ->and($keep->fresh()->club_id)->toBe($down->id);
+});
+
+it('lässt den Verein aus der Vereins-History folgen, sobald einer einen offenen Eintrag hat', /** @throws Throwable */ function () {
+    $ikades = club_am1('IKADES');
+    $down = club_am1('AG Down Syndrom');
+    $keep = athlete_am1('Kopfer', 'Nina', ['club_id' => $ikades->id]);
+    $drop = athlete_am1('Kopfer', 'Nina', ['club_id' => $down->id]);
+    AthleteClubHistory::create(['athlete_id' => $drop->id, 'club_id' => $down->id, 'joined_at' => '2024-01-01',
+        'is_active' => true]);
+
+    $analysis = service_am1()->analyze($keep, $drop);
+    service_am1()->merge($keep, $drop, [], [], false);
+
+    expect($analysis['club_from_history'])->toBeTrue()
+        ->and($analysis['fields'])->not->toHaveKey('club_id')
+        ->and($keep->fresh()->club_id)->toBe($down->id);
+});
+
 it('führt die Level-History zusammen und setzt das jüngste Level', /** @throws Throwable */ function () {
     [$keep, $drop] = pair_am1();
     $keep->update(['level' => 'B']);
