@@ -9,8 +9,8 @@
     "dependencies": {
         "@tailwindcss/vite": "^4.3.3",
         "alpinejs": "^3.17.5",
-        "autoprefixer": "^10.6.1",
-        "axios": "^1.20.0",
+        "autoprefixer": "^10.6.2",
+        "axios": "^1.21.0",
         "concurrently": "^10.0.6",
         "flag-icons": "^7.6.0",
         "imask": "^7.6.1",
@@ -21,7 +21,7 @@
         "vite": "^8.3.5"
     },
     "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.65.0",
+        "@rollup/rollup-linux-x64-gnu": "4.65.1",
         "@tailwindcss/oxide-linux-x64-gnu": "^4.3.3",
         "lightningcss-linux-x64-gnu": "^1.33.0"
     },
