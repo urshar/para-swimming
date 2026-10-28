@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Enums\Module;
 use App\Models\AthletePerformanceNote;
 use App\Models\Meet;
+use App\Models\User;
 use App\Policies\AthletePerformanceNotePolicy;
 use App\Policies\EntryPolicy;
 use App\Services\AccessTeamManagerSource;
@@ -33,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         Gate::policy(Meet::class, EntryPolicy::class);
         Gate::policy(AthletePerformanceNote::class, AthletePerformanceNotePolicy::class);
+
+        // Rechte je Modul (Spec club-permissions §4.1), in Blade z. B. @can('module.write', Module::Athletes).
+        // Admins laufen über User::readScope()/writeScope(), bewusst kein globales Gate::before.
+        Gate::define('module.read', fn (User $user, Module $module) => $user->canRead($module));
+        Gate::define('module.write', fn (User $user, Module $module) => $user->canWrite($module));
     }
 
     /**
