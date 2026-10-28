@@ -155,22 +155,26 @@ erhalten die Norm je startberechtigter Klasse (S3 für S1-3 → S1, S2, S3), Sta
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
-1. "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" unten
-2. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-3. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
+1. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
+2. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
 
 **Erledigt:** `feature/athlete-merge` ("Athleten zusammenführen (Dubletten)" → Zusammenführen mit Vorschau,
 Neuberechnung von Cup und Qualifikationen, Seite mit Dublettenvorschlägen; dokumentiert in `specs/athlete-merge.md`).
+"Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" → Übernahme aus dem Splash Team Manager
+(`feature/team-manager-import`, `feature/team-data-seeder`, PR #55, #57, #59, #60; dokumentiert in
+`specs/team-manager-import.md`). Der dort gebaute Umzug nach prod passt nicht mehr zum heutigen Stand von dev — daraus
+ist der Punkt "Umzug dev → prod mit Wettkämpfen und Ergebnissen" unten entstanden.
 
 Vor Start jedes Punkts aus Gruppe 2 zuerst die im jeweiligen Eintrag unter "Wer entscheidet" genannten Fragen mit
 Erik klären, erst danach Branch anlegen/implementieren.
 
-**Laufende Datenpflege und Import-Themen (Stand 27.10.2026)** — je unten ausführlich beschrieben:
+**Laufende Datenpflege und Import-Themen (Stand 28.10.2026)** — je unten ausführlich beschrieben:
 
 1. "Historischer Import 2012–2017: Restarbeiten" — Datenpflege Erik, teils Code
 2. "Rekorde aus Zwischenzeiten: Nacharbeiten auf dev" — Datenpflege Erik, vor dem Export nach prod
-3. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
+3. "Umzug dev → prod mit Wettkämpfen und Ergebnissen" — erst Entscheidung Erik, dann Code; **vor** dem Go-live
+4. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
 
 **UI-Kleinigkeiten (Erik, 27.10.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
@@ -205,10 +209,48 @@ einspielen" (Erik, 27.10.2026).
 - **Dubletten zusammenführen** — Datenpflege Erik über Athleten → Dubletten (`specs/athlete-merge.md`). Der früher
   genannte "Athlet 733" ist auf der heutigen dev-DB vermutlich #717 Muhrhofer Katrin (Dublette von #576).
 - **Rekorde aus Zwischenzeiten nacharbeiten** — siehe eigenen Punkt unten.
-- **Danach Export nach prod** (`php artisan team-data:export`, auf prod `TeamDataSeeder`, siehe "Athleten-Import aus
-  MSAccess-Datei", Phase 3).
+- **Danach Umzug nach prod** — siehe "Umzug dev → prod mit Wettkämpfen und Ergebnissen" unten. Der bisher hier
+  genannte Weg (`team-data:export` / `TeamDataSeeder`) bricht beim heutigen Stand ab.
 
 **Wer entscheidet / macht:** Erik (Datenpflege, Zeitpunkt des Umzugs).
+
+## Umzug dev → prod mit Wettkämpfen und Ergebnissen
+
+**Seit:** 28.10.2026 (beim Schließen des Punkts "Athleten-Import aus MSAccess-Datei" aufgefallen).
+
+**Ausgangslage:** Für den Umzug nach prod gibt es `php artisan team-data:export` und `TeamDataSeeder`
+(`specs/team-manager-import.md`, Phase 3). Beide sind für einen Stand **ohne Wettkämpfe** gebaut: übertragen werden
+Vereine, Athleten (samt Klassen, Histories, Ausnahmen), Klassifizierer, Klassifizierungen und die Rekordliste. Seit dem
+historischen Import liegen auf dev aber Wettkämpfe und Ergebnisse, die mit nach prod sollen. Stand dev 28.10.2026
+(lesend geprüft): 59 Wettkämpfe, 6969 Ergebnisse, 292 Staffelergebnisse; 3030 von 3662 Rekorden stammen aus
+Wettkampfergebnissen, 487 Klassen-Hinweise hängen an Wettkämpfen.
+
+**Folge:** Der Export bricht ab (er verweigert, solange Rekorde an Ergebnissen oder Klassen-Hinweise an Wettkämpfen
+hängen), und Wettkämpfe, Ergebnisse und Meldungen überträgt er ohnehin nicht. Die alte Anleitung "Testwettkämpfe vorher
+löschen" würde heute den ganzen historischen Import löschen — **nicht befolgen**.
+
+**Was fehlt:** Ein Weg, den gesamten fachlichen Stand von dev nach prod zu bringen: Stammdaten, Wettkämpfe mit Bewerben,
+Wertungsgruppen, Ergebnissen (Einzel und Staffel, Zwischenzeiten), Gaststarts und Meldungen, Rekorde samt Verknüpfung
+zu den Ergebnissen, Klassen-Hinweise, Cup-Wertungen und Qualifikationen, Dublettenmarkierungen
+(`athlete_duplicate_dismissals`), ggf. Prüflisten und hochgeladene Dateien (Dokumente).
+
+**Mögliche Wege:**
+
+- **Kompletter Datenbank-Dump** von dev nach prod (mysqldump), danach auf prod bereinigen: Test-Benutzer, Testwettkämpfe,
+  Konfiguration. Am wenigsten Code, übernimmt aber alles, auch Testdaten.
+- **Export/Seeder erweitern** um Wettkämpfe und alles, was daran hängt (IDs erhalten, wie bisher). Kontrollierter,
+  aber deutlich mehr Code und Tests.
+- **Auf prod neu importieren:** Team-Manager-Daten wie geplant, danach die LENEX-Dateien 2012–2017 erneut einlesen und
+  die Rekordprüfung wiederholen. Doppelte Arbeit, und alle Entscheidungen aus den Klärungsseiten fielen noch einmal an.
+
+**Offene Fragen (Erik):** Welcher Weg? Ist prod noch leer (keine Vereine, Athleten, Wettkämpfe)? Welche Daten von dev
+sollen ausdrücklich **nicht** mit (Test-Benutzer, Testwettkämpfe, alte Uploads)? Sollen hochgeladene Dateien
+(`storage/app`) mit?
+
+**Wer entscheidet:** Erik.
+
+**Zum Schließen nötig:** Entscheidung über den Weg; je nach Weg Kommando bzw. Anleitung, Probelauf in eine leere
+Datenbank und Abgleich der Zahlen (Wettkämpfe, Ergebnisse, Rekorde, Athleten) zwischen dev und dem Probelauf.
 
 ## Rekorde aus Zwischenzeiten: Nacharbeiten auf dev
 
@@ -462,45 +504,6 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `APP_LOCALE=en`/`APP_FALLBACK_LOCALE=en` (`config/app.php` fällt sonst auf `env('APP_LOCALE', 'en')` zurück), obwohl
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
-
-## Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern
-
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
-
-**Was fehlt:** Import von Athletendaten aus einer **MSAccess-Datei** (`.mdb`/`.accdb`), die Erik bereitstellt. Dabei
-sind voraussichtlich **Erweiterungen am Athleten-Datenmodell** nötig (zusätzliche Felder, die die Access-Datei führt
-und die es bei uns noch nicht gibt).
-
-**Warum zurückgestellt / was gebraucht wird:** Ohne die Datei ist weder das Quellschema (Tabellen/Spalten) noch der
-Umfang der nötigen Modell-Erweiterungen bekannt. `.mdb`/`.accdb` ist zudem kein triviales Format in PHP (kein
-natives Reading) — Weg zu klären: Export der Access-Datei nach CSV/XLSX durch Erik und Import darüber, oder ein
-Konverter. Offene Fragen: Welche Felder kommen dazu (Mapping Access→`athletes`)? Wie werden Dubletten/Bestand
-behandelt (Update bestehender vs. nur neue anlegen — analog Rekord-Import-Matching)? Einmal-Migration oder
-wiederkehrender Import?
-
-**Wer entscheidet / liefert:** Erik — die Beispiel-Access-Datei und die Liste der zusätzlich benötigten
-Athleten-Felder.
-
-**Zum Schließen nötig:** Nach Erhalt der Datei: Quellschema sichten, Athleten-Migration (en) für neue Felder,
-Import-Weg festlegen (CSV/XLSX-Zwischenschritt vs. direkter Reader), Import-Service mit Matching/Update-Logik,
-Vorschau/Bestätigung analog Rekord-Import.
-
-**Stand 09.10.2026 (`feature/team-manager-import`):** Datei ist die `Team.mdb` des Splash Team Managers, einmaliger
-Umzug (Erik). Phase 1: Behinderungsgruppe + PI-Untergruppe, medizinische Kontrolle, Klassifizierung ohne Datum.
-Phase 2: Admin-Seite "Team Manager übernehmen" (Athletenliste) mit Vorschau; liest die `.mdb` direkt über PDO_ODBC
-(nur Windows mit Access-Treiber → läuft auf dev), Klassifizierer-Namen ohne Treffer müssen in der Vorschau zugeordnet
-oder übergangen werden. Feld-Mapping und Entscheidungen in `app/Services/TeamManagerImportService.php`.
-Nicht übernommen: englische Namen (Verein und Athlet), Geburtsort, Fax, Funktionen, Mitgliedsbeitrag, WWW,
-E-Mail alternativ, Lizenz "gültig bis", Bundesland der Adresse.
-
-**Phase 3 (11.10.2026, `feature/team-data-seeder`):** Umzug dev → prod. Auf dev `php artisan team-data:export`
-(Vereine, Athleten samt Sportklassen/Level-/Vereinshistorie/Ausnahmen, Klassifizierer, Klassifizierungshistorie,
-Rekorde samt Splits und Staffelmitgliedern) schreibt JSON nach `database/seeders/data/team/` (von Git ausgeschlossen —
-Personen- und Gesundheitsdaten, von Hand sicher übertragen und danach löschen). Der Export verweigert, solange Rekorde
-oder Klassen-Hinweise an Wettkämpfen hängen (Testwettkämpfe vorher löschen). Auf prod nach den übrigen Seedern
-`php artisan db:seed --class=TeamDataSeeder`: nur in eine DB ohne Vereine/Athleten, IDs bleiben erhalten, Nationen,
-Ausnahme-Codes und Lagen werden über den Code umgeschlüsselt, Klassifizierer über die ID abgeglichen
-(`App\Services\TeamDataTransferService`). Prüflisten-Einträge kommen nicht mit (Erik).
 
 ## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
 
