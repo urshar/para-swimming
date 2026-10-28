@@ -90,6 +90,14 @@ class LenexParserService
     private array $unscoredEventNumbers = [];
 
     /**
+     * Bewerbsnummern, die in der Datei mehrfach vorkommen (number → true), z. B. Vorlauf und Finale als eigene EVENTs
+     * mit gleicher Nummer. Für sie gehört die Runde zum Abgleich mit vorhandenen Bewerben (importEvent()).
+     *
+     * @var array<int, true>
+     */
+    private array $sharedEventNumbers = [];
+
+    /**
      * Nationenfilter (z. B. "AUT"): Nur Schwimmer dieser Nation werden importiert, siehe import().
      */
     private ?string $onlyNation = null;
@@ -210,6 +218,7 @@ class LenexParserService
         $format = self::fileFormat($xml);
         $this->placesInResults = $format['places_in_results'];
         $this->buildHeatIndex($xml->MEETS->MEET[0]);
+        $this->sharedEventNumbers = $this->collectSharedEventNumbers($xml->MEETS->MEET[0]);
 
         // Nationenfilter nur bei Melde-/Ergebnisdateien — eine Strukturdatei hat keine Schwimmer.
         if ($onlyNation !== null && $type !== 'structure') {
@@ -754,6 +763,21 @@ class LenexParserService
     }
 
     /**
+     * Bewerbsnummern, die in der Datei mehr als einmal vorkommen (siehe sharedEventNumbers).
+     *
+     * @return array<int, true>
+     */
+    private function collectSharedEventNumbers(SimpleXMLElement $meetXml): array
+    {
+        $counts = [];
+        foreach ($meetXml->xpath('SESSIONS/SESSION/EVENTS/EVENT/@number') ?: [] as $number) {
+            $counts[(int) $number] = ($counts[(int) $number] ?? 0) + 1;
+        }
+
+        return array_fill_keys(array_keys(array_filter($counts, fn (int $count) => $count > 1)), true);
+    }
+
+    /**
      * Laufnummer zu ENTRY/RESULT heatid. Ohne passendes HEAT-Element (Datei ohne HEATS) bleibt der Rohwert, wie ihn
      * manche Programme als Laufnummer schreiben.
      */
@@ -1164,14 +1188,18 @@ class LenexParserService
 
         $lenexEventId = (string) ($eventXml['eventid'] ?? '');
         $eventNumber = (int) ($eventXml['number'] ?? 0);
+        $round = $this->mapRound((string) ($eventXml['round'] ?? 'TIM'));
+
+        // Abgleich über die Bewerbsnummer; teilen sich Vorlauf und Finale die Nummer, zusätzlich über die Runde —
+        // sonst überschreibt das Finale den Vorlauf und beide eventids landen im selben Bewerb.
+        $eventKey = ['meet_id' => $meet->id, 'event_number' => $eventNumber]
+            + (isset($this->sharedEventNumbers[$eventNumber]) ? ['round' => $round] : []);
 
         // Sport-Klassen: aus AGEGROUPS extrahieren (Struktur-Import).
         // Wenn keine AGEGROUPs vorhanden (Entries-Export), bestehenden DB-Wert beibehalten.
         $sportClassesFromXml = $this->extractSportClasses($eventXml);
         if ($sportClassesFromXml === null) {
-            $existing = SwimEvent::where('meet_id', $meet->id)
-                ->where('event_number', $eventNumber)
-                ->value('sport_classes');
+            $existing = SwimEvent::where($eventKey)->value('sport_classes');
             $sportClasses = $existing;
         } else {
             $sportClasses = $sportClassesFromXml;
@@ -1181,15 +1209,12 @@ class LenexParserService
         $feeCents = isset($eventXml->FEE) ? $this->feeCents($eventXml->FEE) : null;
 
         $swimEvent = SwimEvent::updateOrCreate(
-            [
-                'meet_id' => $meet->id,
-                'event_number' => $eventNumber,
-            ],
+            $eventKey,
             ($feeCents !== null ? ['fee_cents' => $feeCents] : []) + [
                 'stroke_type_id' => $strokeType->id,
                 'session_number' => $sessionNumber,
                 'gender' => $this->mapGender((string) ($eventXml['gender'] ?? 'A')),
-                'round' => $this->mapRound((string) ($eventXml['round'] ?? 'TIM')),
+                'round' => $round,
                 'distance' => (int) ($swimStyleXml['distance'] ?? 0),
                 'relay_count' => (int) ($swimStyleXml['relaycount'] ?? 1),
                 'technique' => $this->mapTechnique((string) ($swimStyleXml['technique'] ?? '')),
@@ -1213,8 +1238,11 @@ class LenexParserService
         if ($lenexEventId) {
             $resolver->addToEventCache($lenexEventId, $swimEvent->id);
         }
-        // Fallback-Key per event_number (z.B. "num:4")
-        $resolver->addToEventCache('num:'.$eventNumber, $swimEvent->id);
+        // Fallback-Key per event_number (z.B. "num:4") — bei gleicher Nummer gewinnt der erste Bewerb (der Vorlauf),
+        // für ihn sind Meldungen gedacht.
+        if ($resolver->getEventIdFromCache('num:'.$eventNumber) === null) {
+            $resolver->addToEventCache('num:'.$eventNumber, $swimEvent->id);
+        }
 
         $this->stats['events']++;
     }

@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StrokeType extends Model
 {
+    /**
+     * Abweichende Schreibweisen in LENEX-Dateien fremder Erzeuger → LENEX-Code (z. B. "BUTTERFLY" statt "FLY" in
+     * automatisch konvertierten Ergebnisdateien).
+     */
+    private const LENEX_CODE_ALIASES = [
+        'BUTTERFLY' => 'FLY',
+    ];
+
     protected $fillable = [
         'code',
         'lenex_code',
@@ -55,6 +63,6 @@ class StrokeType extends Model
 
     public static function findByLenexCode(string $lenexCode): ?self
     {
-        return self::where('lenex_code', $lenexCode)->first();
+        return self::where('lenex_code', self::LENEX_CODE_ALIASES[$lenexCode] ?? $lenexCode)->first();
     }
 }
