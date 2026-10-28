@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AgeGroupController;
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\AthleteDuplicateController;
 use App\Http\Controllers\AthleteMergeController;
 use App\Http\Controllers\BaseTimeCategoryController;
 use App\Http\Controllers\BaseTimeExportController;
@@ -153,6 +154,15 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('athletes/{athlete}/transfer-club',
             [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');
+
+        // Dublettenvorschläge und "kein Duplikat"; vor den {athlete}-Routen, sonst bindet Laravel "duplicates".
+        Route::get('athletes/duplicates', [AthleteDuplicateController::class, 'index'])
+            ->middleware('remember.list:athletes.duplicates')
+            ->name('athletes.duplicates.index');
+        Route::post('athletes/duplicates/dismissals', [AthleteDuplicateController::class, 'dismiss'])
+            ->name('athletes.duplicates.dismiss');
+        Route::delete('athletes/duplicates/dismissals/{dismissal}', [AthleteDuplicateController::class, 'restore'])
+            ->name('athletes.duplicates.restore');
 
         // Athleten zusammenführen (Dubletten): zweiten Athleten wählen → Vorschau → zusammenführen.
         Route::get('athletes/{athlete}/merge', [AthleteMergeController::class, 'create'])

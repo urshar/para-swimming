@@ -8,6 +8,9 @@
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
         @if(auth()->user()?->is_admin)
         <div class="flex items-center gap-2">
+            <flux:button href="{{ route('athletes.duplicates.index') }}" variant="filled" icon="document-duplicate">
+                Dubletten
+            </flux:button>
             <flux:button href="{{ route('team-manager-import') }}" variant="filled" icon="arrow-up-tray">
                 Team Manager übernehmen
             </flux:button>

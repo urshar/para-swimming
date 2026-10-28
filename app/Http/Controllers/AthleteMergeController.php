@@ -8,6 +8,7 @@ use App\Models\Cup;
 use App\Models\Nation;
 use App\Models\QualifyingTimeList;
 use App\Services\AthleteMergeService;
+use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -51,6 +52,9 @@ class AthleteMergeController extends Controller
 
     private const array DATE_FIELDS = ['birth_date', 'last_medical_check_at', 'next_medical_check_at'];
 
+    /** Wert von "from", wenn die Vorschau von der Dublettenliste aus geöffnet wurde. */
+    private const string FROM_DUPLICATES = 'duplicates';
+
     public function __construct(
         private readonly AthleteMergeService $mergeService,
     ) {}
@@ -72,9 +76,12 @@ class AthleteMergeController extends Controller
     /**
      * GET /athletes/{keep}/merge/{drop} — Vorschau.
      */
-    public function preview(Athlete $keep, Athlete $drop): View
+    public function preview(Request $request, Athlete $keep, Athlete $drop): View
     {
         abort_if($keep->is($drop), 404);
+
+        // Von der Dublettenliste aus führen Zurück, Abbrechen und die Weiterleitung danach wieder dorthin.
+        $fromDuplicates = $request->query('from') === self::FROM_DUPLICATES;
 
         $analysis = $this->mergeService->analyze($keep, $drop);
 
@@ -98,6 +105,8 @@ class AthleteMergeController extends Controller
         return view('athletes.merge.preview', [
             'keep' => $keep,
             'drop' => $drop,
+            'fromDuplicates' => $fromDuplicates,
+            'backUrl' => $fromDuplicates ? ListUrl::to('athletes.duplicates') : route('athletes.show', $keep),
             'fields' => $fields,
             // Folgt der Verein aus der Vereins-History, ist er kein Auswahlfeld und zählt nicht als übereinstimmend.
             'identicalFieldCount' => count(AthleteMergeService::FIELDS) - count($fields)
@@ -131,7 +140,9 @@ class AthleteMergeController extends Controller
         ]);
 
         $analysis = $this->mergeService->analyze($keep, $drop);
-        $previewUrl = route('athletes.merge.preview', [$keep, $drop]);
+        $fromDuplicates = $request->input('from') === self::FROM_DUPLICATES;
+        $previewUrl = route('athletes.merge.preview',
+            $fromDuplicates ? [$keep, $drop, 'from' => self::FROM_DUPLICATES] : [$keep, $drop]);
 
         if ($analysis['blocking'] !== []) {
             return redirect()->to($previewUrl)
@@ -156,7 +167,8 @@ class AthleteMergeController extends Controller
             return redirect()->to($previewUrl)->withInput()->withErrors(['fields' => $e->getMessage()]);
         }
 
-        $redirect = redirect()->route('athletes.show', $keep)
+        $redirect = redirect()
+            ->to($fromDuplicates ? ListUrl::to('athletes.duplicates') : route('athletes.show', $keep))
             ->with('success', $this->successMessage($keepName, $dropName, $result));
 
         $errors = $result['recalculation']['errors'] ?? [];

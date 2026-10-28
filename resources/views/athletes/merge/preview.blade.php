@@ -14,7 +14,7 @@
     <div class="max-w-5xl">
         <div class="mb-6">
             <div class="flex items-center gap-2">
-                <flux:button href="{{ route('athletes.show', $keep) }}" variant="primary" icon="arrow-left"
+                <flux:button href="{{ $backUrl }}" variant="primary" icon="arrow-left"
                              size="sm" title="Zurück" aria-label="Zurück"/>
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten zusammenführen</h1>
             </div>
@@ -36,7 +36,8 @@
             </div>
         </div>
         <div class="flex justify-end mb-6">
-            <flux:button href="{{ route('athletes.merge.preview', [$drop, $keep]) }}" variant="filled"
+            <flux:button href="{{ route('athletes.merge.preview', $fromDuplicates ? [$drop, $keep, 'from' => 'duplicates'] : [$drop, $keep]) }}"
+                         variant="filled"
                          icon="arrows-right-left" size="sm">
                 Andersherum: {{ $dropName }} behalten
             </flux:button>
@@ -70,6 +71,9 @@
         <form method="POST" action="{{ route('athletes.merge.store', [$keep, $drop]) }}"
               data-confirm="{{ $confirmMessage }}" onsubmit="return confirm(this.dataset.confirm)">
             @csrf
+            @if($fromDuplicates)
+                <input type="hidden" name="from" value="duplicates">
+            @endif
 
             {{-- Stammdaten --}}
             <section class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
@@ -219,7 +223,7 @@
                 <flux:button type="submit" variant="danger" icon="arrows-pointing-in" :disabled="$isBlocked">
                     Zusammenführen
                 </flux:button>
-                <flux:button href="{{ route('athletes.show', $keep) }}" variant="ghost">Abbrechen</flux:button>
+                <flux:button href="{{ $backUrl }}" variant="ghost">Abbrechen</flux:button>
             </div>
         </form>
     </div>
