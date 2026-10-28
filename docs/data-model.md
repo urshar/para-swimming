@@ -82,6 +82,15 @@ nicht immer ein Datum haben).
 **ExceptionCode** / **athlete_exceptions** / **athlete_classification_exceptions**
 — Ausnahmecodes (z. B. Hörbehinderung) und deren Zuordnung zu Athleten bzw. Klassifizierungen.
 
+**AthleteDuplicateDismissal** (`athlete_duplicate_dismissals`) — Dublettenvorschlag, den ein Admin als "kein
+Duplikat" markiert hat: `athlete_id` (immer die kleinere ID), `other_athlete_id`, `dismissed_by`. Unique je Paar,
+cascade beim Löschen eines der beiden Athleten.
+
+Athleten mit Daten lassen sich nicht löschen, wohl aber **zusammenführen** (Dubletten): Alles mit `athlete_id` — 18
+Tabellen, Liste in `AthleteMergeService::TABLES` — wandert zum behaltenen Athleten, der andere wird endgültig gelöscht.
+Wer eine neue Tabelle mit `athlete_id` anlegt, muss sie dort ergänzen (sonst verweigert das Zusammenführen das Löschen).
+Details in `specs/athlete-merge.md`.
+
 ## Wettkampf
 
 **Meet** — `name`, `city`, `nation_id`, `course`, `start_date`, `end_date`,
