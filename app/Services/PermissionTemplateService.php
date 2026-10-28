@@ -70,6 +70,38 @@ final readonly class PermissionTemplateService
     }
 
     /**
+     * Gespeicherte Matrix des Benutzers über alle Module (fehlende Zeile = kein Zugriff), roh ohne Admin-Regel.
+     *
+     * @return array<string, array{read: AccessScope, write: AccessScope}>
+     */
+    public function matrixFor(User $user): array
+    {
+        $matrix = $this->blankMatrix();
+
+        foreach ($user->modulePermissions as $permission) {
+            $matrix[$permission->module->value] = [
+                'read' => $permission->read_scope,
+                'write' => $permission->write_scope,
+            ];
+        }
+
+        return $matrix;
+    }
+
+    /** Weicht die gespeicherte Matrix von der gemerkten Vorlage ab? Ohne Vorlage (oder Admin) nie. */
+    public function isCustomized(User $user): bool
+    {
+        if ($user->is_admin || $user->role_template === null) {
+            return false;
+        }
+
+        $expected = array_merge($this->blankMatrix(), $user->role_template->permissions());
+
+        // Lose Gleichheit: gleiche Schlüssel/Werte unabhängig von der Reihenfolge, Enum-Fälle sind Singletons.
+        return $expected != $this->matrixFor($user);
+    }
+
+    /**
      * @param  array<string, array{read: AccessScope, write: AccessScope}>  $matrix
      *
      * @throws ValidationException
@@ -104,6 +136,18 @@ final readonly class PermissionTemplateService
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /** @return array<string, array{read: AccessScope, write: AccessScope}> */
+    private function blankMatrix(): array
+    {
+        $matrix = [];
+
+        foreach (Module::cases() as $module) {
+            $matrix[$module->value] = ['read' => AccessScope::None, 'write' => AccessScope::None];
+        }
+
+        return $matrix;
     }
 
     /** @param  array<string, array{read: AccessScope, write: AccessScope}>  $matrix */

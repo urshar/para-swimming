@@ -75,7 +75,8 @@ describe('UserManager Anzeige', function () {
         Livewire::actingAs($admin)
             ->test(UserManager::class)
             ->assertSee('Max Muster')
-            ->assertSee('Testverein Wien');
+            // Liste und Vereinsauswahl zeigen den Kurznamen, sofern vorhanden.
+            ->assertSee($club->short_name ?: 'Testverein Wien');
     });
 
     it('filtert User per Suchfeld', function () {

@@ -257,7 +257,7 @@ Jede Phase: Plan → Freigabe → Umsetzung → Tests grün + `composer lint:che
 10. **Zwei-Faktor-Pflicht** für Benutzer mit Schreibrechten.
 11. **Doku**, Open Point schließen.
 
-Phasen 1–3 sind Voraussetzung, 4 vor 5–8. Phase 1 freigegeben (Erik, 28.10.2026).
+Phasen 1–3 sind Voraussetzung, 4 vor 5–8. Phase 1 und 2 freigegeben (Erik, 28.10.2026).
 
 ### Phase 1 im Detail (freigegeben)
 
@@ -276,3 +276,36 @@ Phasen 1–3 sind Voraussetzung, 4 vor 5–8. Phase 1 freigegeben (Erik, 28.10.2
   Verein = kein Zugriff; Vorlage anwenden/neu anwenden überschreibt die Matrix; ungültige Kombinationen werden
   abgelehnt; Middleware 403/200.
 - Keine Route und keine View wird in Phase 1 umgestellt — bestehende Tests bleiben unverändert grün.
+
+### Phase 2 im Detail (freigegeben)
+
+Ausbau des bestehenden Livewire-`Admin\UserManager` (`/admin/users`). Weiterhin nur für Admins; die Rechte wirken
+erst ab Phase 3.
+
+- **Liste:** neue Spalten "Vorlage" (Badge; "angepasst", wenn die Matrix von der gemerkten Vorlage abweicht) und
+  "2FA" (aktiv/aus nach `two_factor_confirmed_at`). Filter nach Vorlage.
+- **Anlegen/Bearbeiten (bestehendes Modal):** Pflichtfeld "Vorlage" (Vorbelegung: "Verein" bei gewähltem Verein,
+  sonst "Ohne Rechte"; bei Admin ausgeblendet). Beim Anlegen wird die Vorlage angewendet. Beim Bearbeiten ersetzt
+  eine **geänderte** Vorlage die Matrix (mit Rückfrage, falls die Matrix angepasst war); unveränderte Vorlage lässt
+  die Matrix stehen.
+- **Rechte-Matrix (eigener Flyout "Rechte", Button je Zeile):** 17 Module × Lesen/Schreiben, je Zelle Auswahl nur
+  der im Modul erlaubten Bereiche, Hinweistext aus `Module::writeHint()`. Speichern über
+  `PermissionTemplateService::setPermissions()`, Fehler je Modulzeile (`permissions.<modul>`). Buttons "Vorlage neu
+  anwenden" (nur dieser Benutzer) und "Abbrechen". Für Admins nicht verfügbar ("Admin hat alle Rechte").
+- **Verein entfernt, aber "eigener Verein" in der Matrix:** Speichern erlaubt, die Matrix zeigt dann einen Hinweis
+  "wirkt nicht ohne Verein" (entspricht der Regel aus Phase 1).
+- **"Vorlage neu anwenden" für alle:** Button im Seitenkopf → Auswahl der Vorlage, Rückfrage mit Anzahl der
+  betroffenen Benutzer (davon "angepasst"), dann `reapplyTemplate()`.
+- **2FA zurücksetzen:** Aktion je Benutzer mit aktiver 2FA (Rückfrage), leert `two_factor_secret`,
+  `two_factor_recovery_codes`, `two_factor_confirmed_at`. Nicht für den eigenen Account (der geht über die
+  Sicherheitseinstellungen).
+- **Selbstschutz:** eigenen Admin-Haken nicht entfernbar (wie schon "eigenen Account nicht löschen").
+- **Absicherung der Livewire-Aktionen:** Jede Aktion des `UserManager` prüft selbst `is_admin` (Livewire-Requests
+  laufen nicht über die Route-Middleware der Seite).
+- **Bestandsbenutzer:** Artisan-Befehl `permissions:assign-template {vorlage}` setzt die Vorlage bei allen
+  Nicht-Admins **ohne** gemerkte Vorlage (`--only-with-club` für die Vorlage "Verein"), mit Trockenlauf
+  `--dry-run`. Erik führt ihn auf Dev/Prod selbst aus, vor Phase 3.
+- **Hilfsmethode** `PermissionTemplateService::isCustomized(User): bool` (Matrix ≠ Vorlage) für Badge und Rückfragen.
+- Tests (Gruppe `club-permissions-p2`): Anlegen mit Vorlage; Vorlagenwechsel ersetzt Matrix, gleiche Vorlage
+  nicht; Matrix speichern inkl. Fehlerfälle; neu anwenden einzeln/alle; 2FA-Reset; Selbstschutz; Nicht-Admin
+  bekommt bei jeder Aktion 403; Artisan-Befehl inkl. `--dry-run`. Bestehende `UserManagementTest` bleibt grün.
