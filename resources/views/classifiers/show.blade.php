@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -26,7 +26,7 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Classifiers))
             <flux:button href="{{ route('classifiers.edit', $classifier) }}" variant="filled" icon="pencil"
                          size="sm" class="text-amber-500!">
                 Bearbeiten

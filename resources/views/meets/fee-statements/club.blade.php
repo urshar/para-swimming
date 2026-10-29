@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @php
     use App\Support\AthleteFees;
     use App\Support\FeeLine;
@@ -11,7 +13,7 @@
 @section('content')
     @php
         // Admin kommt aus der Übersicht aller Vereine, der Verein aus seiner Meldungsliste ("Listen"-Dropdown).
-        $backUrl = auth()->user()->is_admin ? route('meets.fees.index', $meet) : route('club-entries.index', $meet);
+        $backUrl = auth()->user()->canReadAll(Module::Entries) ? route('meets.fees.index', $meet) : route('club-entries.index', $meet);
     @endphp
 
     <div class="max-w-3xl">
@@ -22,7 +24,7 @@
                                  title="Zurück" aria-label="Zurück"/>
                     <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meldegeld – {{ $club->display_name }}</h1>
                 </div>
-                @unless(auth()->user()->is_admin)
+                @unless(auth()->user()->canReadAll(Module::Entries))
                     <flux:button href="{{ route('meets.entry-lists.meldegeld.pdf', $meet) }}" target="_blank"
                                  variant="filled" size="sm" icon="document-text" class="text-blue-500!">
                         PDF

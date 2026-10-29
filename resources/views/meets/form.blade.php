@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -40,7 +40,7 @@
 
             {{-- Nicht-Admins sehen nur die Grunddaten (keine Vereinsverwaltungs-/WPS-Felder) — dafür
                  lohnen sich Tabs nicht, ein einzelner Reiter wäre nur Ballast. --}}
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Meets))
                 <flux:tab.group>
                     <flux:tabs class="mb-4">
                         <flux:tab name="grunddaten">Grunddaten</flux:tab>

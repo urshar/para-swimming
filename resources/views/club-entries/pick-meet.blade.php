@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', $mode === 'relay' ? 'Staffelmeldungen – Wettkampf wählen' : 'Einzelmeldungen – Wettkampf wählen')
@@ -15,7 +17,7 @@
         </div>
 
         @auth
-            @if(auth()->user()->is_admin && $clubs)
+            @if(auth()->user()->canWriteAll(Module::Entries) && $clubs)
                 {{-- Admin: Vereins-Auswahl. Flux-Select ist ein Custom Element, dessen change-Event
                      nicht zuverlässig bubbelt (siehe CLAUDE.md) — daher Navigation über x-model +
                      $watch statt onchange. --}}
@@ -51,7 +53,7 @@
         @else
             @php
                 $clubId = request()->integer('club_id');
-                $isAdmin = auth()->user()->is_admin;
+                $isAdmin = auth()->user()->canWriteAll(Module::Entries);
             @endphp
 
             <div class="space-y-3">

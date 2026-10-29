@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Klassifizierer')
@@ -6,7 +8,7 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Klassifizierer</h1>
-        @if(auth()->user()?->is_admin)
+        @if(auth()->user()?->canWrite(Module::Classifiers))
         <flux:button href="{{ route('classifiers.create') }}" variant="primary" icon="plus">
             Neuer Klassifizierer
         </flux:button>
@@ -111,7 +113,7 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('classifiers.show', $classifier) }}" size="sm" variant="ghost" icon="eye"/>
-                            @if(auth()->user()?->is_admin)
+                            @if(auth()->user()?->canWrite(Module::Classifiers))
                             <flux:button href="{{ route('classifiers.edit', $classifier) }}" size="sm" variant="ghost" icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('classifiers.destroy', $classifier) }}"
                                   x-data="{ del() { if(confirm('Klassifizierer wirklich löschen?')) this.$el.submit() } }"

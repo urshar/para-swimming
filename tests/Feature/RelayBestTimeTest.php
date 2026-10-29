@@ -9,7 +9,6 @@ use App\Models\Result;
 use App\Models\User;
 use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Throwable;
 
 uses(RefreshDatabase::class)->group('relay-entry-time-suggestion');
 
@@ -64,7 +63,7 @@ function resultRbt(Athlete $athlete, Club $club, int $distance, int $strokeTypeI
 }
 
 describe('relay-best-time Endpoint', function () {
-    it('summiert Freistil-Bestzeiten (Jahres + absolut) je Kurs', function () {
+    it('summiert Freistil-Bestzeiten (Jahres + absolut) je Kurs', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5(); // start_date 2025-06-15 → Jahresfenster 2024-01-01 .. 2025-06-14
         $meet->update(['is_open' => true]);
@@ -105,7 +104,7 @@ describe('relay-best-time Endpoint', function () {
             ]);
     });
 
-    it('liefert je Kurs eine per-Schwimmer-Aufschlüsselung (legs) für die gemischte Summe', function () {
+    it('liefert je Kurs eine per-Schwimmer-Aufschlüsselung (legs) für die gemischte Summe', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -138,7 +137,7 @@ describe('relay-best-time Endpoint', function () {
             ->and($legs[1]['year']['raw'])->toBe(3100);
     });
 
-    it('weist eine Teilsumme mit fehlenden Zeiten aus', function () {
+    it('weist eine Teilsumme mit fehlenden Zeiten aus', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -172,7 +171,7 @@ describe('relay-best-time Endpoint', function () {
             ]);
     });
 
-    it('ordnet bei Lagenstaffeln den Stil der Startposition zu', function () {
+    it('ordnet bei Lagenstaffeln den Stil der Startposition zu', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -217,7 +216,7 @@ describe('relay-best-time Endpoint', function () {
             ]);
     });
 
-    it('nutzt bei Lagen-Staffeln (jeder alle Stile) die Einzel-Lagenzeit', function () {
+    it('nutzt bei Lagen-Staffeln (jeder alle Stile) die Einzel-Lagenzeit', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -254,7 +253,7 @@ describe('relay-best-time Endpoint', function () {
 });
 
 describe('relay-athletes: Filter-Daten', function () {
-    it('liefert nur aktive Athleten und je Athlet Geschlecht + Sportklassen', function () {
+    it('liefert nur aktive Athleten und je Athlet Geschlecht + Sportklassen', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -277,7 +276,7 @@ describe('relay-athletes: Filter-Daten', function () {
 });
 
 describe('Staffel-Formulare: Vorschlags-Panel', function () {
-    it('verdrahtet Panel + Endpoint im create-relay-Formular', function () {
+    it('verdrahtet Panel + Endpoint im create-relay-Formular', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -305,7 +304,7 @@ describe('Staffel-Formulare: Vorschlags-Panel', function () {
             ->toContain('filteredAvailableAthletes(');
     });
 
-    it('verdrahtet Panel + Endpoint im edit-relay-Formular', function () {
+    it('verdrahtet Panel + Endpoint im edit-relay-Formular', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);

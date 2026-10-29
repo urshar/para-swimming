@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Meisterschaften')
@@ -6,7 +8,7 @@
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meisterschaften</h1>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Championships))
                 <flux:button href="{{ route('championships.create') }}" variant="primary" icon="plus">
                     Neue Meisterschaft
                 </flux:button>
@@ -58,7 +60,7 @@
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('championships.show', $championship) }}"
                                                  variant="ghost" size="sm" icon="eye"/>
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->canWrite(Module::Championships))
                                         <flux:button href="{{ route('championships.edit', $championship) }}"
                                                      variant="ghost" size="sm" icon="pencil"
                                                      class="text-amber-500!"/>

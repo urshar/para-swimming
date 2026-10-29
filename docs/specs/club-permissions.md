@@ -310,7 +310,7 @@ erst ab Phase 3.
   nicht; Matrix speichern inkl. Fehlerfälle; neu anwenden einzeln/alle; 2FA-Reset; Selbstschutz; Nicht-Admin
   bekommt bei jeder Aktion 403; Artisan-Befehl inkl. `--dry-run`. Bestehende `UserManagementTest` bleibt grün.
 
-### Phase 3 im Detail (3a freigegeben)
+### Phase 3 im Detail (3a und 3b abgenommen)
 
 Ziel: Alle Prüfungen laufen über die Rechte je Modul statt über `is_admin`. Mit der Vorlage "Verein" verhält sich
 alles wie heute, **außer** dass Athleten nur noch im eigenen Verein sichtbar sind (F5). Admins unverändert.

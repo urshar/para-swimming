@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -20,7 +20,7 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Clubs))
             <flux:button href="{{ route('clubs.edit', $club) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
@@ -46,7 +46,7 @@
 
     <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Athleten</h2>
-        @if(auth()->user()?->is_admin)
+        @if(auth()->user()?->canWriteAll(Module::Athletes))
         <flux:button href="{{ route('athletes.create') }}?club_id={{ $club->id }}" variant="ghost" icon="plus"
                      size="sm">
             Athlet anlegen

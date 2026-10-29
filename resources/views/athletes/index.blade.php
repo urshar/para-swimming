@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Athleten')
@@ -6,7 +8,7 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
-        @if(auth()->user()?->is_admin)
+        @if(auth()->user()?->canWriteAll(Module::Athletes))
         <div class="flex items-center gap-2">
             <flux:button href="{{ route('athletes.duplicates.index') }}" variant="filled" icon="document-duplicate">
                 Dubletten
@@ -156,7 +158,7 @@
                                 title="WPS-Analyse"/>
                             <flux:button href="{{ route('athletes.show', $athlete) }}" size="sm" variant="ghost"
                                          icon="eye"/>
-                            @if(auth()->user()?->is_admin)
+                            @if(auth()->user()?->canWriteAll(Module::Athletes))
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"

@@ -1,9 +1,11 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Meldungen – ' . $meet->name)
 
 @section('content')
-    @php $clubParam = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParam = auth()->user()->canWriteAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-5xl">
 
         {{-- Header --}}
@@ -22,7 +24,7 @@
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 {{-- Teilnehmerliste des eigenen Vereins (PDF/Excel). Nur für Vereinsnutzer;
                      Admins nutzen die meet-weiten Listen auf "Alle Meldungen". --}}
-                @unless(auth()->user()->is_admin)
+                @unless(auth()->user()->canWriteAll(Module::Entries))
                     <flux:dropdown>
                         <flux:button variant="filled" size="sm" icon="document-arrow-down"
                                      icon:trailing="chevron-down" class="text-blue-500!">Listen</flux:button>

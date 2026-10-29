@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Gesamtwertung — '.$cup->name)
@@ -26,7 +28,7 @@
                              icon="printer" size="sm" class="text-purple-500!" target="_blank">
                     PDF / Drucken
                 </flux:button>
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Cup))
                     <form method="POST" action="{{ route('cups.overall-ranking.calculate', $cup) }}"
                           x-data="{ submit() { if (confirm('Gesamtwertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
                           @submit.prevent="submit()">

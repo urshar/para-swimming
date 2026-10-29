@@ -1,11 +1,11 @@
-@php use App\Support\TimeParser; @endphp
+@php use App\Enums\Module;use App\Support\TimeParser; @endphp
 
 @extends('layouts.app')
 
 @section('title', 'Staffelmeldung bearbeiten – ' . $meet->name)
 
 @section('content')
-    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParams = auth()->user()->canWriteAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-3xl">
 
         {{-- Header --}}
@@ -62,7 +62,7 @@
                 @if(request('return_to'))
                     <input type="hidden" name="return_to" value="{{ request('return_to') }}">
                 @endif
-                @if(auth()->user()->is_admin && request('club_id'))
+                @if(auth()->user()->canWriteAll(Module::Entries) && request('club_id'))
                     <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
                 @endif
 

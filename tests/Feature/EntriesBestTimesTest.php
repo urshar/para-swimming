@@ -7,7 +7,6 @@ use App\Models\Result;
 use App\Models\User;
 use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Throwable;
 
 uses(RefreshDatabase::class)->group('entries-best-times');
 
@@ -62,7 +61,7 @@ function resultAt_ebt($event, $athlete, $club, string $date, string $course, int
 }
 
 describe('club-entries.best-times Endpoint', function () {
-    it('liefert Jahres- UND absolute Bestzeit je Kurs', function () {
+    it('liefert Jahres- UND absolute Bestzeit je Kurs', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5(); // start_date 2025-06-15 → Jahresfenster 2024-01-01 .. 2025-06-14
         $meet->update(['is_open' => true]);
@@ -90,7 +89,7 @@ describe('club-entries.best-times Endpoint', function () {
 });
 
 describe('club-entries/create Bestzeiten-Panel', function () {
-    it('rendert das Panel mit Jahres- und absoluter Bestzeit und Klick-Übernahme', function () {
+    it('rendert das Panel mit Jahres- und absoluter Bestzeit und Klick-Übernahme', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);
@@ -191,7 +190,7 @@ describe('entries/form Bestzeiten-Panel (Admin)', function () {
 });
 
 describe('club-entries/edit Bestzeiten-Panel (server-seitig)', function () {
-    it('rendert Jahres- + absolute Bestzeit mit Zeit + Datum und klickbarer Übernahme', function () {
+    it('rendert Jahres- + absolute Bestzeit mit Zeit + Datum und klickbarer Übernahme', /** @throws Throwable */ function () {
         $club = makeClub_p5();
         $meet = makeMeet_p5();
         $meet->update(['is_open' => true]);

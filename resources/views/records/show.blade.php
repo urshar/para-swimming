@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @php
     use App\Models\SwimRecord;
     use App\Support\ListUrl;
@@ -29,7 +31,7 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Records))
             <flux:button href="{{ route('records.edit', $record) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
@@ -248,7 +250,7 @@
                         <flux:table.cell>
                             @if(!$histRecord->is_current)
                                 <div class="flex items-center gap-1 justify-end">
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->canWrite(Module::Records))
                                     <form method="POST" action="{{ route('records.restore', $histRecord) }}"
                                           x-data="{ submit() { if (confirm('Diesen Rekord als aktuellen Rekord wiederherstellen?')) this.$el.submit() } }"
                                           @submit.prevent="submit()">
@@ -257,7 +259,7 @@
                                                      class="text-emerald-500" title="Wiederherstellen"/>
                                     </form>
                                     @endif
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->canWrite(Module::Records))
                                     <form method="POST" action="{{ route('records.destroy', $histRecord) }}"
                                           x-data="{ submit() { if (confirm('Historischen Rekord löschen?')) this.$el.submit() } }"
                                           @submit.prevent="submit()">

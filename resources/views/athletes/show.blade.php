@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -33,7 +33,7 @@
                          variant="filled" icon="chart-bar" size="sm" class="text-blue-500!">
                 WPS-Analyse
             </flux:button>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
@@ -182,7 +182,7 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Vereins-History</h2>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button size="sm" variant="ghost" icon="arrows-right-left"
                          x-on:click="openTransfer = !openTransfer">
                 Ummeldung
@@ -273,7 +273,7 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button size="sm" variant="ghost" icon="plus"
                          x-on:click="openClassification = !openClassification">
                 Neue Klassifikation
@@ -502,7 +502,7 @@
                                         <p class="text-xs text-zinc-400 mt-1">{{ $cl->notes }}</p>
                                     @endif
                                 </div>
-                                @if(auth()->user()?->is_admin)
+                                @if(auth()->user()?->canWriteAll(Module::Athletes))
                                     <div class="flex items-center gap-1 shrink-0">
                                         <flux:button size="sm" variant="ghost" icon="pencil" class="text-amber-500!"
                                                      title="Bearbeiten" aria-label="Klassifikation bearbeiten"
@@ -825,7 +825,7 @@
                                 <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
                             @endif
                         </div>
-                        @if(auth()->user()?->is_admin)
+                        @if(auth()->user()?->canWriteAll(Module::Athletes))
                             <form method="POST"
                                   action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
                                   onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">

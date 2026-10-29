@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', "Basiswerte – $version->label")
@@ -16,7 +18,7 @@
             </p>
 
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::BaseTimes))
                 <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
                              variant="filled" icon="arrow-up-tray" size="sm" class="text-blue-500!">
                     Importieren

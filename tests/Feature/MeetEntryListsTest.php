@@ -12,7 +12,6 @@ use App\Services\MeetEntryListService;
 use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Throwable;
 
 uses(RefreshDatabase::class)->group('entry-lists');
 
@@ -280,7 +279,7 @@ it('lässt Admins alle vier Listen herunterladen', function () {
         ->assertOk()->assertHeader('content-type', 'application/pdf');
 });
 
-it('macht die Sportpasskontrolle admin-only', function () {
+it('macht die Sportpasskontrolle admin-only', /** @throws Throwable */ function () {
     $s = mel_scenario();
     $clubUser = mel_clubUser($s['clubA']);
 
@@ -288,7 +287,7 @@ it('macht die Sportpasskontrolle admin-only', function () {
     $this->actingAs($clubUser)->get(route('meets.entry-lists.sportpass.xlsx', $s['meet']))->assertForbidden();
 });
 
-it('erlaubt Vereinen ihre eigene Teilnehmerliste', function () {
+it('erlaubt Vereinen ihre eigene Teilnehmerliste', /** @throws Throwable */ function () {
     $s = mel_scenario();
     $clubUser = mel_clubUser($s['clubA']);
 

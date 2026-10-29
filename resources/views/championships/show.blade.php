@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', $championship->display_name)
@@ -22,7 +24,7 @@
                 @endif
             </p>
 
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Championships))
                 <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                     <flux:button href="{{ route('championships.import', $championship) }}" variant="filled"
                                  icon="arrow-up-tray" size="sm" class="text-blue-500!">
@@ -74,7 +76,7 @@
                 class="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-line">{{ $championship->notes }}</div>
         @endif
 
-        @if(auth()->user()?->is_admin && $copySources->isNotEmpty())
+        @if(auth()->user()?->canWrite(Module::Championships) && $copySources->isNotEmpty())
             <div
                 class="mb-6 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
                 <h2 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
