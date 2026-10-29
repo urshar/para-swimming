@@ -1,27 +1,38 @@
 <?php
 
+use App\Enums\RoleTemplate;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\RelayEntry;
 use App\Models\Result;
 use App\Models\User;
+use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Throwable;
 
 uses(RefreshDatabase::class)->group('relay-entry-time-suggestion');
 
 // Nutzt die globalen _p5-Helper (tests/helpers_p5.php): makeClub_p5, makeMeet_p5,
 // makeAthlete_p5, makeEvent_p5, makeStrokeType_p5, makeNation_p5.
 
+/**
+ * @throws Throwable
+ */
 function clubUser_rbt(int $clubId): User
 {
-    return User::forceCreate([
+    $user = User::forceCreate([
         'name' => 'Club RBT',
         'email' => 'club_rbt@example.test',
         'password' => bcrypt('secret'),
         'is_admin' => false,
         'club_id' => $clubId,
     ]);
+
+    // Rechte wie ein Vereinsbenutzer (Spec club-permissions Phase 3).
+    app(PermissionTemplateService::class)->applyTemplate($user, RoleTemplate::Club);
+
+    return $user;
 }
 
 /**

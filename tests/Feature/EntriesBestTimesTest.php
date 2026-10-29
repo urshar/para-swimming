@@ -1,24 +1,35 @@
 <?php
 
+use App\Enums\RoleTemplate;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Models\User;
+use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Throwable;
 
 uses(RefreshDatabase::class)->group('entries-best-times');
 
 // Nutzt die globalen _p5-Helper (tests/helpers_p5.php).
 
+/**
+ * @throws Throwable
+ */
 function clubUser_ebt(int $clubId): User
 {
-    return User::forceCreate([
+    $user = User::forceCreate([
         'name' => 'Club EBT',
         'email' => 'club_ebt@example.test',
         'password' => bcrypt('secret'),
         'is_admin' => false,
         'club_id' => $clubId,
     ]);
+
+    // Rechte wie ein Vereinsbenutzer (Spec club-permissions Phase 3).
+    app(PermissionTemplateService::class)->applyTemplate($user, RoleTemplate::Club);
+
+    return $user;
 }
 
 /**

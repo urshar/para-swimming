@@ -24,6 +24,7 @@ enum Module: string
     case Championships = 'championships';
     case Cup = 'cup';
     case CupSettings = 'cup_settings';
+    case MasterData = 'master_data';
     case Wps = 'wps';
     case BaseTimes = 'base_times';
     case Statistics = 'statistics';
@@ -45,6 +46,7 @@ enum Module: string
             self::Championships => 'Meisterschaften',
             self::Cup => 'Cup-Wertung',
             self::CupSettings => 'Cup-Stammdaten',
+            self::MasterData => 'Stammdaten',
             self::Wps => 'WPS-Auswertungen',
             self::BaseTimes => 'Basiswerte',
             self::Statistics => 'Statistik',
@@ -58,8 +60,17 @@ enum Module: string
         return match ($this) {
             self::Meets => 'inkl. Berechnungen (Punkte, Cup-Tageswertung, Rekordprüfung)',
             self::Lenex => 'lesen = Export, schreiben = Import',
+            self::MasterData => 'Kadertypen, Altersklassen, Sportklassengruppen',
             default => null,
         };
+    }
+
+    /** Erlaubte Kombination? Beide Bereiche zulässig und Schreiben nicht weiter als Lesen. */
+    public function allows(AccessScope $read, AccessScope $write): bool
+    {
+        return in_array($read, $this->allowedReadScopes(), true)
+            && in_array($write, $this->allowedWriteScopes(), true)
+            && $read->covers($write);
     }
 
     /**
@@ -77,7 +88,7 @@ enum Module: string
     }
 
     /**
-     * Erlaubte Schreibbereiche. Statistik ist rein lesend.
+     * Erlaubte Schreibbereiche. Statistik ist reinlesend.
      *
      * @return list<AccessScope>
      */
@@ -90,13 +101,5 @@ enum Module: string
             self::Statistics => [AccessScope::None],
             default => [AccessScope::None, AccessScope::All],
         };
-    }
-
-    /** Erlaubte Kombination? Beide Bereiche zulässig und Schreiben nicht weiter als Lesen. */
-    public function allows(AccessScope $read, AccessScope $write): bool
-    {
-        return in_array($read, $this->allowedReadScopes(), true)
-            && in_array($write, $this->allowedWriteScopes(), true)
-            && $read->covers($write);
     }
 }

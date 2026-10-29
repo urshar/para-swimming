@@ -108,7 +108,7 @@ Es gibt **kein** Rollen- oder Rechtepaket, keine Gates außer den Policies unten
 - Jeder andere Benutzer hat **je Modul zwei Einstellungen**, jeweils "kein / eigener Verein / alle":
 
   | Einstellung | Bedeutung                                                                            |
-    |-------------|--------------------------------------------------------------------------------------|
+      |-------------|--------------------------------------------------------------------------------------|
   | Lesen       | Modul sichtbar (Menü, Listen, Detailseiten, Exporte); bei "eigener Verein" gefiltert |
   | Schreiben   | anlegen/ändern; bei "eigener Verein" nur Datensätze mit `club_id` = eigener Verein   |
 
@@ -309,3 +309,74 @@ erst ab Phase 3.
 - Tests (Gruppe `club-permissions-p2`): Anlegen mit Vorlage; Vorlagenwechsel ersetzt Matrix, gleiche Vorlage
   nicht; Matrix speichern inkl. Fehlerfälle; neu anwenden einzeln/alle; 2FA-Reset; Selbstschutz; Nicht-Admin
   bekommt bei jeder Aktion 403; Artisan-Befehl inkl. `--dry-run`. Bestehende `UserManagementTest` bleibt grün.
+
+### Phase 3 im Detail (3a freigegeben)
+
+Ziel: Alle Prüfungen laufen über die Rechte je Modul statt über `is_admin`. Mit der Vorlage "Verein" verhält sich
+alles wie heute, **außer** dass Athleten nur noch im eigenen Verein sichtbar sind (F5). Admins unverändert.
+Schreiben "eigener Verein" bei Athleten, Verein und Trainern wirkt erst ab Phase 5/7/8 — bis dahin verlangen diese
+Schreib-Routen den Bereich "alle".
+
+**Umfang** (Bestand: 9 Admin-Gruppen in `routes/web.php`, 69 `is_admin`-Stellen in 28 PHP-Dateien, 83 in 29
+Views, 4 Livewire-Komponenten mit Schreibaktionen) — deshalb in drei Teilschritten, jeder mit grünen Tests und
+eigenem Sign-off:
+
+**3a — Routen und Audit**
+
+- Middleware um optionalen Bereich erweitert: `module:entries,read,all` verlangt den Bereich "alle" (für
+  verbandsweite Ansichten wie das Melde-Cockpit).
+- Zuordnung der Routen (`admin` bleibt nur für Benutzer, Dokumente und den Team-Manager-Import):
+
+  | Modul                                                                                                            | lesen                                                                             | schreiben                                                                                                                                        |
+    |------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+  | Wettkämpfe                                                                                                       | meets index/show, Teilnehmer                                                      | Wettkampf, Abschnitte, Disziplinen, Wertungsgruppen, Gebühren, Meldeschluss wiedereröffnen, Punkte/WPS/Cup-Tageswertung berechnen, Rekordprüfung |
+  | Meldungen                                                                                                        | Meldegeld, Teilnehmer-/Meldelisten; Cockpit, Gesamtübersicht, Sportpass mit `all` | club-entries (Policy wie heute); Admin-Meldeformular mit `all`                                                                                   |
+  | Ergebnisse                                                                                                       | Ergebnisliste, Sammelansicht, PDF mit `all` (eigene ab Phase 9)                   | Ergebnisse, Staffelergebnisse, Ergebnis-Vereine mit `all`                                                                                        |
+  | Athleten                                                                                                         | index/show (gefiltert, s. 3c)                                                     | Anlegen/Bearbeiten, Ummelden, Klassifizierung, Level, Kader, Dubletten, Zusammenführen mit `all`                                                 |
+  | Vereine                                                                                                          | index/show                                                                        | Pflege mit `all`                                                                                                                                 |
+  | Nationen, Klassifizierer, Richtzeiten (inkl. ausgeschlossene Bewerbe), Meisterschaften, Rekorde, Basiswerte, WPS | Ansichten, PDFs, Exporte                                                          | Pflege, Importe, Berechnungen                                                                                                                    |
+  | Cup-Wertung                                                                                                      | Gesamt-, Vereins-, Tageswertung                                                   | Top-Gruppe einstufen, Gesamtwertung berechnen                                                                                                    |
+  | Cup-Stammdaten                                                                                                   | —                                                                                 | Cups anlegen/bearbeiten                                                                                                                          |
+  | Stammdaten                                                                                                       | —                                                                                 | Kadertypen, Altersklassen, Sportklassengruppen                                                                                                   |
+  | Statistik                                                                                                        | Statistik, Jahresvergleich, Bericht, WPS-Athletenauswahl                          | —                                                                                                                                                |
+  | LENEX                                                                                                            | Export (auch der POST-Download)                                                   | Import                                                                                                                                           |
+
+- `AccessControlTest` neu: (1) jede Route hinter dem Login hat `module:` oder `admin`, außer einer kleinen
+  Allowlist (Dashboard, Konto/Sicherheit, Logout, `club-entries.pick-meet`); (2) jede schreibende Route hat
+  `module:…,write` oder `admin`, außer den Export-Downloads (`module:…,read`); (3) jedes in `module:` genannte Modul
+  existiert. Dazu: Benutzer mit Vorlage "Verein" erreicht genau das, was ein Vereinsnutzer heute erreicht (bestehende
+  Positiv-/Negativlisten), Benutzer "Ohne Rechte" nur Dashboard und Konto.
+- **Testbestand:** 58 Testdateien legen Nicht-Admins an, die bisher ohne Rechte-Zeilen durchkamen. Die
+  `UserFactory` bekommt `afterCreating` → Vorlage "Verein" für Nicht-Admins mit Verein; Helper mit `User::create()`
+  bekommen die Vorlage ausdrücklich. Keine Änderung an Testerwartungen außer dem neuen Athleten-Filter.
+
+- **Vorgezogen aus 3b (Erik, 29.10.2026):** Navigation im Layout nach Modulrechten; `/dashboard` leitet nach dem
+  Login auf den ersten freigegebenen Bereich weiter (`User::homeRoute()`), ohne freigegebenen Bereich ein Hinweis
+  statt einer 403-Seite.
+
+**3b — Views (Schaltflächen)**
+
+- `layouts/app.blade.php`: jede Gruppe/jeder Punkt mit `@can('module.read', …)` bzw. `module.write` statt
+  `is_admin`; Gruppen ohne sichtbaren Punkt verschwinden.
+- Schreib-Schaltflächen in den 29 Views (Bearbeiten, Anlegen, Import, Berechnen …) über `@can('module.write', …)`.
+  Wo die Schaltfläche heute für Admins "alle Vereine" bedeutet, `readScope(...) === All`.
+- Test: Navigation für "Verein", "Trainer" und "Ohne Rechte" (sichtbare/unsichtbare Punkte).
+
+**3c — Controller, Policies, Livewire, Athleten-Filter**
+
+- `Athlete::scopeVisibleTo(User)` (alle / eigener Verein / nichts) für Athletenliste und -suche; Detailseite eines
+  fremden Athleten → 403. Vereinsseite eines fremden Vereins zeigt keine Athletenliste.
+- Die 69 PHP-Stellen: "Admin sieht alle Vereine" → `readScope(Modul) === All`; "Admin darf schreiben" →
+  `canWrite(Modul)`. `EntryPolicy`: Admin-Ausnahmen (Meldeschluss) → Meldungen schreiben "alle".
+- Livewire-Schreibaktionen prüfen selbst: `BaseTimeTable::recalculate` (Basiswerte schreiben),
+  `ChampionshipStandardTable` (Meisterschaften schreiben), WPS-Notizen (Policy bleibt, s. offene Frage).
+- Tests: fremder Athlet 403/unsichtbar; Vorlage "Trainer" kann melden, aber keine Athleten sehen außer über das
+  Melden; je Livewire-Aktion 403 ohne Schreibrecht.
+
+**Entscheidungen Phase 3 (Erik, 28.10.2026)**
+
+- P3-1: Ja, 3a/3b/3c werden einzeln abgenommen.
+- P3-2: Ja, die WPS-Athletenanalyse folgt der Athleten-Sichtbarkeit (nur eigene Athleten).
+- P3-3: Ja, neues Modul "Stammdaten" (`master_data`) für Kadertypen, Altersklassen, Sportklassengruppen; in keiner
+  Vorlage (bisher nur Admin).
+- P3-4: Ja, die Melde-Athletenauswahl hängt am Melderecht, nicht am Athletenmodul.

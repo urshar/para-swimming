@@ -81,6 +81,40 @@ class User extends Authenticatable
         return $this->writeScope($module) !== AccessScope::None;
     }
 
+    /** Lesen im Bereich "alle" (verbandsweite Ansichten, z. B. das Melde-Cockpit). */
+    public function canReadAll(Module $module): bool
+    {
+        return $this->readScope($module) === AccessScope::All;
+    }
+
+    /** Schreiben im Bereich "alle" (z. B. Melden für jeden Verein). */
+    public function canWriteAll(Module $module): bool
+    {
+        return $this->writeScope($module) === AccessScope::All;
+    }
+
+    /**
+     * Erster Bereich, den der Benutzer öffnen darf, als Routenname — Ziel nach dem Login (/dashboard). Null, wenn
+     * dem Benutzer noch kein Bereich freigegeben ist.
+     */
+    public function homeRoute(): ?string
+    {
+        $candidates = [
+            'meets.index' => $this->canRead(Module::Meets),
+            'club-entries.pick-meet' => $this->canWrite(Module::Entries),
+            'athletes.index' => $this->canRead(Module::Athletes),
+            'clubs.index' => $this->canRead(Module::Clubs),
+            'records.index' => $this->canRead(Module::Records),
+            'championships.index' => $this->canRead(Module::Championships),
+            'wps.rankings' => $this->canRead(Module::Wps),
+            'cups.overall-ranking.index' => $this->canRead(Module::Cup),
+            'qualifying-time-lists.index' => $this->canRead(Module::QualifyingTimes),
+            'statistics.index' => $this->canRead(Module::Statistics),
+        ];
+
+        return array_key_first(array_filter($candidates));
+    }
+
     /**
      * Get the attributes that should be cast.
      *
