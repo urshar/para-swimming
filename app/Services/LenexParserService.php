@@ -90,6 +90,14 @@ class LenexParserService
     private array $unscoredEventNumbers = [];
 
     /**
+     * Bewerbsnummern, die in der Datei mehrfach vorkommen (number → true), z. B. Vorlauf und Finale als eigene EVENTs
+     * mit gleicher Nummer. Für sie gehört die Runde zum Abgleich mit vorhandenen Bewerben (importEvent()).
+     *
+     * @var array<int, true>
+     */
+    private array $sharedEventNumbers = [];
+
+    /**
      * Nationenfilter (z. B. "AUT"): Nur Schwimmer dieser Nation werden importiert, siehe import().
      */
     private ?string $onlyNation = null;
@@ -210,6 +218,7 @@ class LenexParserService
         $format = self::fileFormat($xml);
         $this->placesInResults = $format['places_in_results'];
         $this->buildHeatIndex($xml->MEETS->MEET[0]);
+        $this->sharedEventNumbers = $this->collectSharedEventNumbers($xml->MEETS->MEET[0]);
 
         // Nationenfilter nur bei Melde-/Ergebnisdateien — eine Strukturdatei hat keine Schwimmer.
         if ($onlyNation !== null && $type !== 'structure') {
@@ -754,6 +763,21 @@ class LenexParserService
     }
 
     /**
+     * Bewerbsnummern, die in der Datei mehr als einmal vorkommen (siehe sharedEventNumbers).
+     *
+     * @return array<int, true>
+     */
+    private function collectSharedEventNumbers(SimpleXMLElement $meetXml): array
+    {
+        $counts = [];
+        foreach ($meetXml->xpath('SESSIONS/SESSION/EVENTS/EVENT/@number') ?: [] as $number) {
+            $counts[(int) $number] = ($counts[(int) $number] ?? 0) + 1;
+        }
+
+        return array_fill_keys(array_keys(array_filter($counts, fn (int $count) => $count > 1)), true);
+    }
+
+    /**
      * Laufnummer zu ENTRY/RESULT heatid. Ohne passendes HEAT-Element (Datei ohne HEATS) bleibt der Rohwert, wie ihn
      * manche Programme als Laufnummer schreiben.
      */
@@ -1164,14 +1188,18 @@ class LenexParserService
 
         $lenexEventId = (string) ($eventXml['eventid'] ?? '');
         $eventNumber = (int) ($eventXml['number'] ?? 0);
+        $round = $this->mapRound((string) ($eventXml['round'] ?? 'TIM'));
+
+        // Abgleich über die Bewerbsnummer; teilen sich Vorlauf und Finale die Nummer, zusätzlich über die Runde —
+        // sonst überschreibt das Finale den Vorlauf und beide eventids landen im selben Bewerb.
+        $eventKey = ['meet_id' => $meet->id, 'event_number' => $eventNumber]
+            + (isset($this->sharedEventNumbers[$eventNumber]) ? ['round' => $round] : []);
 
         // Sport-Klassen: aus AGEGROUPS extrahieren (Struktur-Import).
         // Wenn keine AGEGROUPs vorhanden (Entries-Export), bestehenden DB-Wert beibehalten.
         $sportClassesFromXml = $this->extractSportClasses($eventXml);
         if ($sportClassesFromXml === null) {
-            $existing = SwimEvent::where('meet_id', $meet->id)
-                ->where('event_number', $eventNumber)
-                ->value('sport_classes');
+            $existing = SwimEvent::where($eventKey)->value('sport_classes');
             $sportClasses = $existing;
         } else {
             $sportClasses = $sportClassesFromXml;
@@ -1181,15 +1209,12 @@ class LenexParserService
         $feeCents = isset($eventXml->FEE) ? $this->feeCents($eventXml->FEE) : null;
 
         $swimEvent = SwimEvent::updateOrCreate(
-            [
-                'meet_id' => $meet->id,
-                'event_number' => $eventNumber,
-            ],
+            $eventKey,
             ($feeCents !== null ? ['fee_cents' => $feeCents] : []) + [
                 'stroke_type_id' => $strokeType->id,
                 'session_number' => $sessionNumber,
                 'gender' => $this->mapGender((string) ($eventXml['gender'] ?? 'A')),
-                'round' => $this->mapRound((string) ($eventXml['round'] ?? 'TIM')),
+                'round' => $round,
                 'distance' => (int) ($swimStyleXml['distance'] ?? 0),
                 'relay_count' => (int) ($swimStyleXml['relaycount'] ?? 1),
                 'technique' => $this->mapTechnique((string) ($swimStyleXml['technique'] ?? '')),
@@ -1213,8 +1238,11 @@ class LenexParserService
         if ($lenexEventId) {
             $resolver->addToEventCache($lenexEventId, $swimEvent->id);
         }
-        // Fallback-Key per event_number (z.B. "num:4")
-        $resolver->addToEventCache('num:'.$eventNumber, $swimEvent->id);
+        // Fallback-Key per event_number (z.B. "num:4") — bei gleicher Nummer gewinnt der erste Bewerb (der Vorlauf),
+        // für ihn sind Meldungen gedacht.
+        if ($resolver->getEventIdFromCache('num:'.$eventNumber) === null) {
+            $resolver->addToEventCache('num:'.$eventNumber, $swimEvent->id);
+        }
 
         $this->stats['events']++;
     }
@@ -1576,8 +1604,7 @@ class LenexParserService
                     'first_name' => $firstName ?: null,
                     'birth_date' => $birthDate,
                     'gender' => in_array($gender, ['M', 'F'], true) ? $gender : null,
-                    'sport_class' => $this->deriveSportClass($header['swimEventId'], $athleteXml->HANDICAP ?? null)
-                        ?: ((string) ($resultXml['handicap'] ?? '') ?: null),
+                    'sport_class' => $this->startSportClass($header['swimEventId'], $athleteXml->HANDICAP ?? null, $resultXml),
                     'swim_time' => $header['swimTime'],
                     'status' => $header['status'],
                     'place' => $header['lenexResultId'] !== null ? ($this->rankingIndex[$header['lenexResultId']] ?? null) : null,
@@ -1824,8 +1851,8 @@ class LenexParserService
         // sport_class: Splash speichert kein handicap-Attribut im RESULT.
         // Ableitung aus ATHLETE.HANDICAP + Stroke des Events:
         //   FREE/BACK/FLY → S (free-Attribut), BREAST → SB (breast), MEDLEY → SM (medley)
-        $sportClass = $this->deriveSportClass($swimEventId, $handicapXml)
-            ?: ((string) ($resultXml['handicap'] ?? '') ?: null); // Fallback standard LENEX
+        // Fallback: RESULT handicap (startSportClass()).
+        $sportClass = $this->startSportClass($swimEventId, $handicapXml, $resultXml);
         // Athletenauswahl (fremde Veranstaltung, oft ohne Klassenangabe): wie bei der manuellen Erfassung die Klasse
         // des Athleten zur Lage des Bewerbs.
         if ($sportClass === null && $this->onlyAthletes !== null) {
@@ -2111,18 +2138,10 @@ class LenexParserService
             return null;
         }
 
-        // Stroke des Events aus DB holen (ist bereits importiert)
-        $strokeCode = SwimEvent::where('id', $swimEventId)
-            ->with('strokeType')
-            ->first()
-            ?->strokeType
-            ?->lenex_code;
-
-        if (! $strokeCode) {
+        $strokeUpper = $this->eventStrokeCode($swimEventId);
+        if ($strokeUpper === null) {
             return null;
         }
-
-        $strokeUpper = strtoupper($strokeCode);
 
         $classNumber = match (true) {
             $strokeUpper === 'BREAST' => trim((string) ($handicapXml['breast'] ?? '')),
@@ -2134,13 +2153,55 @@ class LenexParserService
             return null;
         }
 
-        $prefix = match (true) {
+        return self::strokeClassPrefix($strokeUpper).$classNumber;
+    }
+
+    /**
+     * Sport-Klasse eines Einzelstarts: aus ATHLETE.HANDICAP (deriveSportClass()), sonst aus RESULT handicap. Dort steht
+     * meist nur die Klassennummer ("14", z. B. in automatisch konvertierten Ergebnisdateien ohne HANDICAP-Element) —
+     * sie bekommt wie beim HANDICAP-Element das Präfix zur Lage des Bewerbs ("SB3" bei Brust). Ein Wert mit Präfix
+     * bleibt unverändert.
+     */
+    private function startSportClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $resultXml): ?string
+    {
+        $derived = $this->deriveSportClass($swimEventId, $handicapXml);
+        if ($derived !== null) {
+            return $derived;
+        }
+
+        $handicap = strtoupper(trim((string) ($resultXml['handicap'] ?? '')));
+        if ($handicap === '' || $handicap === '0') {
+            return null;
+        }
+        if (! ctype_digit($handicap)) {
+            return $handicap;
+        }
+
+        $strokeUpper = $this->eventStrokeCode($swimEventId);
+
+        return $strokeUpper !== null ? self::strokeClassPrefix($strokeUpper).$handicap : null;
+    }
+
+    /** LENEX-Lage des Bewerbs in Großbuchstaben (Bewerb ist bereits importiert), null ohne Lage. */
+    private function eventStrokeCode(int $swimEventId): ?string
+    {
+        $strokeCode = SwimEvent::where('id', $swimEventId)
+            ->with('strokeType')
+            ->first()
+            ?->strokeType
+            ?->lenex_code;
+
+        return $strokeCode ? strtoupper($strokeCode) : null;
+    }
+
+    /** Klassen-Präfix zur Lage: Brust → SB, Lagen → SM, sonst S. */
+    private static function strokeClassPrefix(string $strokeUpper): string
+    {
+        return match (true) {
             $strokeUpper === 'BREAST' => 'SB',
             in_array($strokeUpper, ['MEDLEY', 'IMRELAY']) => 'SM',
             default => 'S',
         };
-
-        return $prefix.$classNumber;
     }
 
     /**
