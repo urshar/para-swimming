@@ -1604,8 +1604,7 @@ class LenexParserService
                     'first_name' => $firstName ?: null,
                     'birth_date' => $birthDate,
                     'gender' => in_array($gender, ['M', 'F'], true) ? $gender : null,
-                    'sport_class' => $this->deriveSportClass($header['swimEventId'], $athleteXml->HANDICAP ?? null)
-                        ?: ((string) ($resultXml['handicap'] ?? '') ?: null),
+                    'sport_class' => $this->startSportClass($header['swimEventId'], $athleteXml->HANDICAP ?? null, $resultXml),
                     'swim_time' => $header['swimTime'],
                     'status' => $header['status'],
                     'place' => $header['lenexResultId'] !== null ? ($this->rankingIndex[$header['lenexResultId']] ?? null) : null,
@@ -1852,8 +1851,8 @@ class LenexParserService
         // sport_class: Splash speichert kein handicap-Attribut im RESULT.
         // Ableitung aus ATHLETE.HANDICAP + Stroke des Events:
         //   FREE/BACK/FLY → S (free-Attribut), BREAST → SB (breast), MEDLEY → SM (medley)
-        $sportClass = $this->deriveSportClass($swimEventId, $handicapXml)
-            ?: ((string) ($resultXml['handicap'] ?? '') ?: null); // Fallback standard LENEX
+        // Fallback: RESULT handicap (startSportClass()).
+        $sportClass = $this->startSportClass($swimEventId, $handicapXml, $resultXml);
         // Athletenauswahl (fremde Veranstaltung, oft ohne Klassenangabe): wie bei der manuellen Erfassung die Klasse
         // des Athleten zur Lage des Bewerbs.
         if ($sportClass === null && $this->onlyAthletes !== null) {
@@ -2139,18 +2138,10 @@ class LenexParserService
             return null;
         }
 
-        // Stroke des Events aus DB holen (ist bereits importiert)
-        $strokeCode = SwimEvent::where('id', $swimEventId)
-            ->with('strokeType')
-            ->first()
-            ?->strokeType
-            ?->lenex_code;
-
-        if (! $strokeCode) {
+        $strokeUpper = $this->eventStrokeCode($swimEventId);
+        if ($strokeUpper === null) {
             return null;
         }
-
-        $strokeUpper = strtoupper($strokeCode);
 
         $classNumber = match (true) {
             $strokeUpper === 'BREAST' => trim((string) ($handicapXml['breast'] ?? '')),
@@ -2162,13 +2153,55 @@ class LenexParserService
             return null;
         }
 
-        $prefix = match (true) {
+        return self::strokeClassPrefix($strokeUpper).$classNumber;
+    }
+
+    /**
+     * Sport-Klasse eines Einzelstarts: aus ATHLETE.HANDICAP (deriveSportClass()), sonst aus RESULT handicap. Dort steht
+     * meist nur die Klassennummer ("14", z. B. in automatisch konvertierten Ergebnisdateien ohne HANDICAP-Element) —
+     * sie bekommt wie beim HANDICAP-Element das Präfix zur Lage des Bewerbs ("SB3" bei Brust). Ein Wert mit Präfix
+     * bleibt unverändert.
+     */
+    private function startSportClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $resultXml): ?string
+    {
+        $derived = $this->deriveSportClass($swimEventId, $handicapXml);
+        if ($derived !== null) {
+            return $derived;
+        }
+
+        $handicap = strtoupper(trim((string) ($resultXml['handicap'] ?? '')));
+        if ($handicap === '' || $handicap === '0') {
+            return null;
+        }
+        if (! ctype_digit($handicap)) {
+            return $handicap;
+        }
+
+        $strokeUpper = $this->eventStrokeCode($swimEventId);
+
+        return $strokeUpper !== null ? self::strokeClassPrefix($strokeUpper).$handicap : null;
+    }
+
+    /** LENEX-Lage des Bewerbs in Großbuchstaben (Bewerb ist bereits importiert), null ohne Lage. */
+    private function eventStrokeCode(int $swimEventId): ?string
+    {
+        $strokeCode = SwimEvent::where('id', $swimEventId)
+            ->with('strokeType')
+            ->first()
+            ?->strokeType
+            ?->lenex_code;
+
+        return $strokeCode ? strtoupper($strokeCode) : null;
+    }
+
+    /** Klassen-Präfix zur Lage: Brust → SB, Lagen → SM, sonst S. */
+    private static function strokeClassPrefix(string $strokeUpper): string
+    {
+        return match (true) {
             $strokeUpper === 'BREAST' => 'SB',
             in_array($strokeUpper, ['MEDLEY', 'IMRELAY']) => 'SM',
             default => 'S',
         };
-
-        return $prefix.$classNumber;
     }
 
     /**
