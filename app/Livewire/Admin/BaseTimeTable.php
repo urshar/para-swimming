@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Enums\Module;
 use App\Models\BaseTime;
 use App\Models\BaseTimeCategory;
 use App\Models\BaseTimeDiscipline;
@@ -20,6 +21,10 @@ use Livewire\Component;
  * Zeigt die Basiswerte einer Kategorie/Version als Excel-artige Tabelle
  * (Bewerbe = Zeilen, Sportklassen = Spalten). Nur MANUAL-Zellen sind editierbar.
  * Die "Neu berechnen"-Aktion stößt die Live-Neuberechnung (BaseTimeCalculationService) manuell an.
+ *
+ * Lesen genügt für die Ansicht; Zellen speichern und neu berechnen verlangen Basiswerte schreiben (Spec
+ * club-permissions P3c-1). Livewire-Aktionen laufen nicht über die Route-Middleware der Seite, deshalb prüft die
+ * Komponente selbst.
  */
 class BaseTimeTable extends Component
 {
@@ -49,12 +54,16 @@ class BaseTimeTable extends Component
             return;
         }
 
+        $this->requireWrite();
+
         [, $disciplineId, $sportClassId] = explode('.', $name);
         $this->saveCell((int) $disciplineId, (int) $sportClassId);
     }
 
     public function recalculate(BaseTimeCalculationService $service): void
     {
+        $this->requireWrite();
+
         $summary = $service->recalculateCategory($this->version, $this->category);
 
         $updated = collect($summary)->sum('updated');
@@ -81,6 +90,7 @@ class BaseTimeTable extends Component
             'relayDisciplines' => $relayDisciplines,
             'individualSportClasses' => $this->sportClassesFor($individualDisciplines, $sportClasses),
             'relaySportClasses' => $this->sportClassesFor($relayDisciplines, $sportClasses),
+            'canEdit' => auth()->user()?->canWrite(Module::BaseTimes) === true,
         ]);
     }
 
@@ -161,6 +171,11 @@ class BaseTimeTable extends Component
     }
 
     // ── Speichern ─────────────────────────────────────────────────────────────
+
+    private function requireWrite(): void
+    {
+        abort_unless(auth()->user()?->canWrite(Module::BaseTimes) === true, 403);
+    }
 
     private function saveCell(int $disciplineId, int $sportClassId): void
     {

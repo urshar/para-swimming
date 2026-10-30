@@ -42,10 +42,10 @@
                         <div class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
                             Athlet
                         </div>
-                        <a href="{{ route('athletes.show', $result->athlete) }}"
+                        <x-athlete-link :athlete="$result->athlete"
                            class="text-lg font-semibold text-zinc-900 dark:text-white hover:text-blue-600">
                             {{ $result->athlete?->full_name }}
-                        </a>
+                        </x-athlete-link>
                         <div class="text-sm text-zinc-500 mt-0.5">{{ $result->athlete?->nation?->code }}</div>
                     </div>
                     <div>

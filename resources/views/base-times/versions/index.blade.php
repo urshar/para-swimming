@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Basiswert-Versionen')
@@ -6,6 +8,8 @@
     <div class="max-w-4xl">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Basiswert-Versionen</h1>
+            @php($canEdit = auth()->user()?->canWrite(Module::BaseTimes))
+            @if($canEdit)
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 <flux:button href="{{ route('base-times.import') }}" variant="filled" icon="arrow-up-tray"
                              size="sm" class="text-blue-500!">
@@ -16,6 +20,7 @@
                     Neue Version
                 </flux:button>
             </div>
+            @endif
         </div>
 
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
@@ -41,15 +46,18 @@
                             <flux:table.cell>{{ $version->base_times_count }}</flux:table.cell>
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
+                                    @if($canEdit)
                                     <flux:button href="{{ route('base-times.import', ['version' => $version->id]) }}"
                                                  variant="ghost" size="sm" icon="arrow-up-tray" class="text-blue-500!"
                                                  title="In diese Version importieren (ersetzt vorhandene Basiswerte betroffener Kategorien)"/>
+                                    @endif
                                     <flux:button href="{{ route('base-times.export', $version) }}"
                                                  variant="ghost" size="sm" icon="arrow-down-tray" class="text-emerald-500!"
                                                  title="Als Excel exportieren (gesamte Version)"/>
                                     <flux:button href="{{ route('base-times.export.text', $version) }}"
                                                  variant="ghost" size="sm" icon="document-text" class="text-emerald-500!"
                                                  title="Als MeetManager-Text exportieren (gesamte Version)"/>
+                                    @if($canEdit)
                                     <flux:button href="{{ route('base-times.versions.edit', $version) }}"
                                                  variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                     <form method="POST" action="{{ route('base-times.versions.destroy', $version) }}"
@@ -58,6 +66,7 @@
                                         @method('DELETE')
                                         <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"/>
                                     </form>
+                                    @endif
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>

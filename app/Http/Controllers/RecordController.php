@@ -130,7 +130,7 @@ class RecordController extends Controller
         $query = SwimRecord::query()
             ->select('swim_records.*')
             ->join('stroke_types', 'stroke_types.id', '=', 'swim_records.stroke_type_id')
-            ->with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam', 'meetNation'])
+            ->with(['strokeType', 'athlete.nation', 'athlete.club', 'nation', 'club', 'relayTeam.athlete', 'meetNation'])
             ->whereIn('swim_records.record_type', $recordTypes)
             ->when($relayFilter === 'single', fn ($q) => $q->where('swim_records.relay_count', 1))
             ->when($relayFilter === 'relay', fn ($q) => $q->where('swim_records.relay_count', '>', 1))
@@ -227,7 +227,7 @@ class RecordController extends Controller
     public function show(SwimRecord $record): View
     {
         $record->load([
-            'strokeType', 'athlete.nation', 'athlete.club', 'nation', 'meetNation', 'club', 'relayTeam', 'result',
+            'strokeType', 'athlete.nation', 'athlete.club', 'nation', 'meetNation', 'club', 'relayTeam.athlete', 'result',
             'splits',
         ]);
 

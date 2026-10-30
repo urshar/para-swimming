@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Cup;
 use App\Models\CupOverallResult;
 use App\Services\CupStalenessService;
@@ -89,7 +90,7 @@ class CupOverallRankingController extends Controller
      */
     public function calculate(Cup $cup): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::Cup), 403, 'Kein Schreibrecht für Cup-Wertung.');
 
         $this->overallRankingService->calculateForCup($cup);
 

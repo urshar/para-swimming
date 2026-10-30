@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\AccessScope;
+use App\Enums\Module;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -63,6 +66,21 @@ class Athlete extends Model
         'next_medical_check_at' => 'date',
         'is_active' => 'boolean',
     ];
+
+    // ── Sichtbarkeit ──────────────────────────────────────────────────────────
+
+    /**
+     * Athleten, die der Benutzer sehen darf (Spec club-permissions §4.8): Lesen "alle" → alle, "eigener Verein" →
+     * nur die des eigenen Vereins, sonst keine. Gegenstück für einen einzelnen Athleten: AthletePolicy::view().
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return match ($user->readScope(Module::Athletes)) {
+            AccessScope::All => $query,
+            AccessScope::Own => $query->where('club_id', $user->club_id),
+            AccessScope::None => $query->whereRaw('1 = 0'),
+        };
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 

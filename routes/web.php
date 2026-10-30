@@ -89,17 +89,18 @@ Route::middleware(['auth'])->group(function () {
 
     // ── BaseTimes tools ──────────────────────────────────────────────────
     Route::prefix('base-times')->name('base-times.')->group(function () {
-        // Import und Versionsverwaltung = schreiben; die Ansichten und Exporte darunter sind lesend.
+        // Import und Versionspflege = schreiben; Versionsliste, Ansichten und Exporte darunter sind lesend.
         Route::middleware('module:base_times,write')->group(function () {
             Route::get('import', [BaseTimeImportController::class, 'showForm'])->name('import');
             Route::post('import/preview', [BaseTimeImportController::class, 'preview'])->name('import.preview');
             Route::post('import/run', [BaseTimeImportController::class, 'run'])->name('import.run');
 
             Route::resource('versions', BaseTimeVersionController::class)
-                ->except(['show'])->names('versions');
+                ->except(['index', 'show'])->names('versions');
         });
 
         Route::middleware('module:base_times,read')->group(function () {
+            Route::get('versions', [BaseTimeVersionController::class, 'index'])->name('versions.index');
             Route::get('{version}/categories', [BaseTimeCategoryController::class, 'index'])->name('categories.index');
             Route::get('{version}/categories/{category}',
                 [BaseTimeCategoryController::class, 'show'])->name('categories.show');

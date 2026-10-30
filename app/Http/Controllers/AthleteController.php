@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\AthleteClassification;
 use App\Models\AthleteClubHistory;
@@ -18,6 +19,7 @@ use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
@@ -27,6 +29,7 @@ class AthleteController extends Controller
     public function index(Request $request): View
     {
         $query = Athlete::with(['club', 'nation', 'sportClasses'])
+            ->visibleTo($request->user())
             ->orderBy('last_name')
             ->orderBy('first_name');
 
@@ -71,7 +74,10 @@ class AthleteController extends Controller
 
         $athletes = $query->paginate(25)->withQueryString();
         $nations = Nation::active()->orderBy('code')->get();
-        $clubs = Club::orderBy('name')->get();
+        // Bei "eigener Verein" ergibt der Vereinsfilter nur für den eigenen Verein Treffer.
+        $clubs = Club::orderBy('name')
+            ->when(! $request->user()->canReadAll(Module::Athletes), fn ($q) => $q->whereKey($request->user()->club_id))
+            ->get();
 
         return view('athletes.index', compact('athletes', 'nations', 'clubs'));
     }
@@ -130,6 +136,8 @@ class AthleteController extends Controller
 
     public function show(Athlete $athlete): View
     {
+        Gate::authorize('view', $athlete);
+
         $athlete->load([
             'club.nation',
             'nation',
@@ -359,14 +367,14 @@ class AthleteController extends Controller
     /**
      * POST /athletes/{athlete}/kader-memberships
      *
-     * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur für
-     * Admins — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
+     * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur mit Athleten
+     * schreiben "alle" — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
      *
      * @used-by web.php (Route::post athletes.kader-memberships.store)
      */
     public function storeKaderMembership(Request $request, Athlete $athlete): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
 
         $validated = $request->validate([
             'kader_type_id' => 'required|exists:kader_types,id',
@@ -389,7 +397,7 @@ class AthleteController extends Controller
      */
     public function destroyKaderMembership(Athlete $athlete, AthleteKaderMembership $kaderMembership): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
 
         abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
 

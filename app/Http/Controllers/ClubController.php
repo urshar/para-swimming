@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Club;
 use App\Models\Nation;
 use App\Support\ListUrl;
@@ -67,11 +68,17 @@ class ClubController extends Controller
         $club->load('nation');
         $club->loadCount(['athletes', 'entries', 'results']);
 
-        $athletes = $club->athletes()
-            ->with('sportClasses')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->paginate(20);
+        // Athletenliste nur, wenn der Benutzer die Athleten dieses Vereins sehen darf (Spec club-permissions §4.8);
+        // bei "eigener Verein" also nur auf der eigenen Vereinsseite. Die Zahlen oben bleiben für alle sichtbar.
+        $user = auth()->user();
+        $athletes = $user->canReadAll(Module::Athletes)
+            || ($user->canRead(Module::Athletes) && $user->club_id === $club->id)
+            ? $club->athletes()
+                ->with('sportClasses')
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->paginate(20)
+            : null;
 
         return view('clubs.show', compact('club', 'athletes'));
     }

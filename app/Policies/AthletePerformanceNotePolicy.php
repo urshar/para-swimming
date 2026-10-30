@@ -2,17 +2,21 @@
 
 namespace App\Policies;
 
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\AthletePerformanceNote;
 use App\Models\User;
 
 /**
- * Berechtigungen für Leistungsnotizen (Spec "WPS Rankings" §7.5).
+ * Berechtigungen für Leistungsnotizen (Spec "WPS Rankings" §7.5, Spec club-permissions P3c-3).
  *
  * Notizen sind **nicht** verbandsweit sichtbar, anders als die Ranglisten selbst: Krankheit
- * und Verletzung sind Gesundheitsangaben. Sichtbar für die Verbandsverwaltung und den
+ * und Verletzung sind Gesundheitsangaben. Sichtbar für die Verbandsverwaltung (Admin) und den
  * eigenen Verein — das ist die vorsichtigere Voreinstellung, und sie lässt sich später
- * lockern; das Gegenteil ginge nicht.
+ * lockern; das Gegenteil ginge nicht. Bewusst öffnet auch Athleten lesen "alle" die Notizen
+ * fremder Vereine nicht: Sie sollen nicht mit jeder verbandsweiten Leseberechtigung mitwandern.
+ * Für den eigenen Verein braucht es Athleten lesen (ansehen) bzw. Athleten schreiben (anlegen,
+ * ändern, löschen).
  */
 class AthletePerformanceNotePolicy
 {
@@ -20,13 +24,14 @@ class AthletePerformanceNotePolicy
     public function viewForAthlete(User $user, Athlete $athlete): bool
     {
         return $user->is_admin
-            || ($user->club_id !== null && $user->club_id === $athlete->club_id);
+            || ($this->ownClub($user, $athlete->club_id) && $user->canRead(Module::Athletes));
     }
 
     /** Darf der Nutzer eine Notiz zu diesem Athleten anlegen? */
     public function createForAthlete(User $user, Athlete $athlete): bool
     {
-        return $this->viewForAthlete($user, $athlete);
+        return $user->is_admin
+            || ($this->ownClub($user, $athlete->club_id) && $user->canWrite(Module::Athletes));
     }
 
     /**
@@ -39,11 +44,16 @@ class AthletePerformanceNotePolicy
     public function update(User $user, AthletePerformanceNote $note): bool
     {
         return $user->is_admin
-            || ($user->club_id !== null && $user->club_id === $note->athlete?->getAttribute('club_id'));
+            || ($this->ownClub($user, $note->athlete?->getAttribute('club_id')) && $user->canWrite(Module::Athletes));
     }
 
     public function delete(User $user, AthletePerformanceNote $note): bool
     {
         return $this->update($user, $note);
+    }
+
+    private function ownClub(User $user, mixed $clubId): bool
+    {
+        return $user->club_id !== null && $user->club_id === $clubId;
     }
 }

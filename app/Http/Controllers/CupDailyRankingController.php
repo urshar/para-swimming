@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\CupDailyResult;
 use App\Models\Meet;
 use App\Models\SportClassGroup;
@@ -82,7 +83,7 @@ class CupDailyRankingController extends Controller
      */
     public function calculate(Meet $meet): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::Meets), 403, 'Kein Schreibrecht für Wettkämpfe.');
 
         try {
             $this->dailyRankingService->calculateForMeet($meet);

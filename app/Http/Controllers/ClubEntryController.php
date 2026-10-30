@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Entry;
@@ -258,7 +259,7 @@ class ClubEntryController extends Controller
     {
         $this->authorize('manageEntries', $meet);
 
-        // Admin ohne gewählten Verein: direkt die Vereinsauswahl zeigen, die dann
+        // Melden für alle Vereine ohne gewählten Verein: direkt die Vereinsauswahl zeigen, die dann
         // wieder hierher (ins Anlege-Formular) führt — statt über die Staffelliste
         // und einen zweiten "+ neue Staffelmeldung"-Klick.
         if ($chooser = $this->clubChooserView($meet, 'club-entries.relay.create')) {
@@ -594,9 +595,9 @@ class ClubEntryController extends Controller
 
         $user = auth()->user();
         $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
-        $clubs = $user->is_admin ? Club::orderBy('name')->get() : null;
+        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderBy('name')->get() : null;
 
-        if (! $user->is_admin && $openMeets->count() === 1) {
+        if (! $user->canWriteAll(Module::Entries) && $openMeets->count() === 1) {
             return redirect()->route('club-entries.index', $openMeets->first());
         }
 
@@ -617,9 +618,9 @@ class ClubEntryController extends Controller
 
         $user = auth()->user();
         $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
-        $clubs = $user->is_admin ? Club::orderBy('name')->get() : null;
+        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderBy('name')->get() : null;
 
-        if (! $user->is_admin && $openMeets->count() === 1) {
+        if (! $user->canWriteAll(Module::Entries) && $openMeets->count() === 1) {
             return redirect()->route('club-entries.relay.index', $openMeets->first());
         }
 
@@ -638,26 +639,27 @@ class ClubEntryController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->is_admin && ! $user->club_id) {
+        if (! $user->canWriteAll(Module::Entries) && ! $user->club_id) {
             abort(403, 'Kein Verein zugeordnet.');
         }
 
-        // Meet muss für Club-Meldungen offen sein (außer für Admins)
-        if (! $user->is_admin && ! $meet->is_open) {
+        // Meet muss für Club-Meldungen offen sein (außer mit Meldungen schreiben "alle")
+        if (! $user->canWriteAll(Module::Entries) && ! $meet->is_open) {
             abort(403, 'Dieser Wettkampf ist nicht für Vereinsmeldungen geöffnet.');
         }
     }
 
     /**
-     * Für Admins, die über die Wettkampf-Detailseite direkt auf "Meldungen" kommen (ohne
-     * vorher wie auf pick-meet.blade.php einen Verein gewählt zu haben), fehlte bislang jede
-     * Möglichkeit, einen Verein auszuwählen — userClub() bricht in dem Fall nur mit 400 ab.
-     * Zeigt statt des Fehlers eine einfache Vereinsauswahl für dieses Meet; gibt null zurück,
-     * wenn kein Auswahlschritt nötig ist (Club-User, oder Admin mit bereits gesetztem club_id).
+     * Für Benutzer mit Meldungen schreiben "alle", die über die Wettkampf-Detailseite direkt auf
+     * "Meldungen" kommen (ohne vorher wie auf pick-meet.blade.php einen Verein gewählt zu haben),
+     * fehlte bislang jede Möglichkeit, einen Verein auszuwählen — userClub() bricht in dem Fall
+     * nur mit 400 ab. Zeigt statt des Fehlers eine einfache Vereinsauswahl für dieses Meet; gibt
+     * null zurück, wenn kein Auswahlschritt nötig ist (Club-User, oder Melden für alle Vereine
+     * mit bereits gesetztem club_id).
      */
     private function clubChooserView(Meet $meet, string $routeName): ?View
     {
-        if (! auth()->user()->is_admin || request()->filled('club_id')) {
+        if (! auth()->user()->canWriteAll(Module::Entries) || request()->filled('club_id')) {
             return null;
         }
 
@@ -670,13 +672,13 @@ class ClubEntryController extends Controller
 
     /**
      * Gibt den Club des eingeloggten Users zurück.
-     * Wirft 403, wenn kein Club zugeordnet (und kein Admin).
+     * Wirft 403, wenn kein Club zugeordnet (und kein Melden für alle Vereine).
      */
     private function userClub(): Club
     {
         $user = auth()->user();
 
-        if ($user->is_admin) {
+        if ($user->canWriteAll(Module::Entries)) {
             $clubId = request()->integer('club_id');
             if (! $clubId) {
                 abort(400, 'Bitte einen Verein auswählen.');
@@ -730,12 +732,12 @@ class ClubEntryController extends Controller
     // ── Edit Relay ────────────────────────────────────────────────────────────────
 
     /**
-     * Gibt club_id als Query-Parameter-Array zurück (nur für Admins relevant).
+     * Gibt club_id als Query-Parameter-Array zurück (nur beim Melden für alle Vereine relevant).
      * Wird an alle Links/Redirects angehängt damit der Kontext erhalten bleibt.
      */
     private function clubParam(): array
     {
-        if (auth()->user()->is_admin && request()->has('club_id')) {
+        if (auth()->user()->canWriteAll(Module::Entries) && request()->has('club_id')) {
             return ['club_id' => request()->integer('club_id')];
         }
 
@@ -889,7 +891,7 @@ class ClubEntryController extends Controller
     private function authorizeClubAccess(): void
     {
         $user = auth()->user();
-        if (! $user->is_admin && ! $user->club_id) {
+        if (! $user->canWriteAll(Module::Entries) && ! $user->club_id) {
             abort(403, 'Kein Verein zugeordnet.');
         }
     }

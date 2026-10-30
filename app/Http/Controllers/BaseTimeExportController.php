@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\BaseTimeCategory;
 use App\Models\BaseTimeVersion;
 use App\Services\BaseTimeExportService;
@@ -18,7 +19,7 @@ class BaseTimeExportController extends Controller
     /** World-Aquatics-Excel-Export (.xlsx), gesamte Version — aus der Kategorien-Übersicht. */
     public function export(BaseTimeVersion $version): BinaryFileResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
 
         $path = $this->exportService->export($version);
 
@@ -30,7 +31,7 @@ class BaseTimeExportController extends Controller
     /** MeetManager/Hy-Tek-"Points"-Text-Export (.txt), gesamte Version — aus der Kategorien-Übersicht. */
     public function exportText(BaseTimeVersion $version): BinaryFileResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
 
         $path = $this->textExportService->export($version);
 
@@ -42,7 +43,7 @@ class BaseTimeExportController extends Controller
     /** Excel-Export nur der angezeigten Kategorie — aus der Kategorie-Detailansicht. */
     public function categoryExport(BaseTimeVersion $version, BaseTimeCategory $category): BinaryFileResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
 
         $path = $this->exportService->export($version, $category);
 
@@ -54,7 +55,7 @@ class BaseTimeExportController extends Controller
     /** Text-Export nur der angezeigten Kategorie — aus der Kategorie-Detailansicht. */
     public function categoryExportText(BaseTimeVersion $version, BaseTimeCategory $category): BinaryFileResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
 
         $path = $this->textExportService->export($version, $category);
 

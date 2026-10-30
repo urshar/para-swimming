@@ -177,10 +177,10 @@
                                     <flux:table.row>
                                         <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
                                         <flux:table.cell>
-                                            <a href="{{ route('athletes.show', $row->athlete) }}"
+                                            <x-athlete-link :athlete="$row->athlete"
                                                class="hover:underline">
                                                 {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
-                                            </a>
+                                            </x-athlete-link>
                                         </flux:table.cell>
                                         <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
                                         @foreach($row->rounds as $round)

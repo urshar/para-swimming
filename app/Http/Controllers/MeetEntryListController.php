@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Meet;
 use App\Services\MeetEntryListExportService;
 use App\Services\MeetEntryListService;
@@ -115,8 +116,8 @@ class MeetEntryListController extends Controller
     }
 
     /**
-     * Vereins-Scope für die Teilnehmerliste: Admin sieht alle Vereine (null),
-     * ein Vereinsnutzer nur den eigenen. Ein Nicht-Admin ohne Verein bekommt 0
+     * Vereins-Scope für die Teilnehmerliste: Meldungen lesen "alle" sieht alle Vereine (null),
+     * sonst nur den eigenen. Ein Benutzer ohne Verein bekommt 0
      * (matcht keinen Verein → leere Liste), damit hier nie versehentlich alle
      * Vereine ausgegeben werden.
      */
@@ -124,7 +125,7 @@ class MeetEntryListController extends Controller
     {
         $user = $request->user();
 
-        if ($user->is_admin) {
+        if ($user->canReadAll(Module::Entries)) {
             return null;
         }
 

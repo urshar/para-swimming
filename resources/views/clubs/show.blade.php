@@ -54,6 +54,11 @@
         @endif
     </div>
 
+    @if($athletes === null)
+        <flux:callout icon="eye-slash" color="zinc">
+            <flux:callout.text>Die Athleten dieses Vereins sind für Sie nicht sichtbar.</flux:callout.text>
+        </flux:callout>
+    @else
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
         <flux:table.columns>
@@ -98,5 +103,6 @@
     </div>
 
     <div class="mt-4">{{ $athletes->links() }}</div>
+    @endif
 
 @endsection

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\BaseTimeSportClass;
 use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
@@ -51,14 +52,14 @@ class QualifyingTimeListController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('qualifying-time-lists.form', ['list' => null]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateList($request);
 
@@ -428,9 +429,9 @@ class QualifyingTimeListController extends Controller
         ]);
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::QualifyingTimes), 403, 'Kein Schreibrecht für Richtzeiten.');
     }
 
     /**
@@ -468,7 +469,7 @@ class QualifyingTimeListController extends Controller
      */
     private function authorizeEditableList(QualifyingTimeList $list): void
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         abort_unless(
             $list->isLatest(),

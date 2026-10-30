@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Championship;
 use App\Services\PdfExportService;
 use App\Services\QualificationSelectionService;
@@ -18,7 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Qualifikantenliste mehr Namen kommen als Startplätze vorhanden sind. Die Auswahl selbst
  * trifft ein Mensch; die Rangliste liefert nur die Reihenfolge.
  *
- * Lesend, deshalb ohne RequireAdmin; Vereinsnutzer sehen nur die Athleten ihres Vereins.
+ * Lesend (module:championships,read); bei "eigener Verein" nur die Athleten des eigenen Vereins.
  */
 class ChampionshipSelectionController extends Controller
 {
@@ -89,7 +90,7 @@ class ChampionshipSelectionController extends Controller
     {
         $nutzer = auth()->user();
 
-        return $nutzer?->is_admin === true ? null : $nutzer?->club_id;
+        return $nutzer?->canReadAll(Module::Championships) === true ? null : $nutzer?->club_id;
     }
 
     private function filename(Championship $championship): string

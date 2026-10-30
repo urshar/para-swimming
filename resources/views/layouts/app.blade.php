@@ -407,18 +407,20 @@
             </flux:navlist.group>
         @endif
 
-        {{-- Die Versionsliste ist zugleich die Pflege (Import, Versionen) — deshalb schreiben. --}}
-        @can('module.write', Module::BaseTimes)
+        {{-- Lesen öffnet Versionen, Kategorien und Exporte; Import nur mit Schreibrecht (Spec club-permissions P3c-1). --}}
+        @can('module.read', Module::BaseTimes)
             <flux:navlist.group heading="Basiswerte" expandable
                                 :expanded="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*') || request()->routeIs('base-times.import*')">
                 <flux:navlist.item icon="calculator" href="{{ route('base-times.versions.index') }}"
                                    :current="request()->routeIs('base-times.versions.*') || request()->routeIs('base-times.categories.*')">
                     Basiswerte
                 </flux:navlist.item>
+                @can('module.write', Module::BaseTimes)
                 <flux:navlist.item icon="arrow-up-tray" href="{{ route('base-times.import') }}"
                                    :current="request()->routeIs('base-times.import*')">
                     Basiswerte importieren
                 </flux:navlist.item>
+                @endcan
             </flux:navlist.group>
         @endcan
 

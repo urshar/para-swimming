@@ -4,7 +4,8 @@
      base-time-table.blade.php, damit dieselbe Tabelle sowohl direkt (wenige Sportklassen) als auch
      je Tab-Panel (viele Sportklassen, siehe dort) gerendert werden kann, ohne Markup zu duplizieren.
      $chunkIndex macht wire:key je Zeile über alle Panels hinweg eindeutig (dieselbe Discipline-ID
-     kommt sonst in mehreren Panels vor — Livewire-Morph würde die Keys sonst verwechseln). --}}
+     kommt sonst in mehreren Panels vor — Livewire-Morph würde die Keys sonst verwechseln).
+     $canEdit kommt aus render() der Komponente (nur mit Basiswerte schreiben editierbar). --}}
 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-x-auto">
     <table class="text-sm border-collapse">
         <thead>
@@ -40,6 +41,11 @@
                                   title="Automatisch berechnet — nicht editierbar">
                                     {{ $cells[$discipline->id][$sportClass->id] ?? '' }}
                                 </span>
+                        @elseif(! $canEdit)
+                            {{-- Nur Leserecht (Spec club-permissions P3c-1): Wert ohne Eingabefeld --}}
+                            <span class="font-mono text-xs text-zinc-900 dark:text-zinc-100">
+                                {{ $cells[$discipline->id][$sportClass->id] ?? '' }}
+                            </span>
                         @else
                             <flux:input
                                 wire:key="input-{{ $discipline->id }}-{{ $sportClass->id }}"

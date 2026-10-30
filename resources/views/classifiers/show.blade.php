@@ -127,10 +127,10 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         @if($cl->athlete)
-                            <a href="{{ route('athletes.show', $cl->athlete) }}"
+                            <x-athlete-link :athlete="$cl->athlete"
                                class="font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 transition-colors">
                                 {{ $cl->athlete->display_name }}
-                            </a>
+                            </x-athlete-link>
                         @else
                             <span class="text-zinc-400">–</span>
                         @endif

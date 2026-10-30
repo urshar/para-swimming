@@ -310,7 +310,7 @@ erst ab Phase 3.
   nicht; Matrix speichern inkl. Fehlerfälle; neu anwenden einzeln/alle; 2FA-Reset; Selbstschutz; Nicht-Admin
   bekommt bei jeder Aktion 403; Artisan-Befehl inkl. `--dry-run`. Bestehende `UserManagementTest` bleibt grün.
 
-### Phase 3 im Detail (3a und 3b abgenommen)
+### Phase 3 im Detail (3a, 3b und 3c abgenommen)
 
 Ziel: Alle Prüfungen laufen über die Rechte je Modul statt über `is_admin`. Mit der Vorlage "Verein" verhält sich
 alles wie heute, **außer** dass Athleten nur noch im eigenen Verein sichtbar sind (F5). Admins unverändert.
@@ -380,3 +380,14 @@ eigenem Sign-off:
 - P3-3: Ja, neues Modul "Stammdaten" (`master_data`) für Kadertypen, Altersklassen, Sportklassengruppen; in keiner
   Vorlage (bisher nur Admin).
 - P3-4: Ja, die Melde-Athletenauswahl hängt am Melderecht, nicht am Athletenmodul.
+
+**Entscheidungen 3c (Erik, 29.10.2026)**
+
+- P3c-1: Basiswerte lesen öffnet Kategorie-Detail und Exporte, der Menüpunkt erscheint ab Lesen. Die Tabelle ist
+  für reine Leser schreibgeschützt; Zellen speichern und neu berechnen verlangen Basiswerte schreiben. Folge: Die
+  Vorlage "Verein" sieht die Basiswerte neu.
+- P3c-2: Links auf nicht sichtbare Athleten (Rekorde, Ergebnisse, Cup, Teilnehmer, Klassifizierer …) zeigen nur den
+  Namen, ohne Link (`@can('view', $athlete)`).
+- P3c-3: Leistungsnotizen (Gesundheitsdaten) vereinsübergreifend nur Admin; für den eigenen Verein zusätzlich
+  Athleten lesen (ansehen) bzw. Athleten schreiben (anlegen/ändern). Der Bereich "alle" öffnet die Notizen
+  ausdrücklich nicht.

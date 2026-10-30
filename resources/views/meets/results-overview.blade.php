@@ -198,10 +198,10 @@
                                         {{ $row['place'] ?: '–' }}
                                     </flux:table.cell>
                                     <flux:table.cell class="font-medium text-zinc-900 dark:text-white truncate">
-                                        <a href="{{ route('athletes.show', $result->athlete) }}"
+                                        <x-athlete-link :athlete="$result->athlete"
                                            class="hover:text-blue-600 dark:hover:text-blue-400">
                                             {{ $result->athlete?->display_name }}
-                                        </a>
+                                        </x-athlete-link>
                                     </flux:table.cell>
                                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 truncate"
                                                      title="{{ $result->club?->name }}">

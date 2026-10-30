@@ -259,10 +259,10 @@
                                         <div class="text-xs">
                                             <span class="text-zinc-400 font-mono w-4 inline-block">{{ $member->position }}.</span>
                                             @if($member->athlete_id)
-                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                <x-athlete-link :athlete="$member->athlete"
                                                    class="hover:text-blue-600 transition-colors">
                                                     {{ $member->display_name }}
-                                                </a>
+                                                </x-athlete-link>
                                             @else
                                                 {{ $member->display_name }}
                                             @endif
@@ -279,10 +279,10 @@
                             @if($record->athlete->nation)
                                 <x-flag code="{{ $record->athlete->nation->code }}" class="me-1 inline-block h-3 w-4 align-[-1px]"/>
                             @endif
-                            <a href="{{ route('athletes.show', $record->athlete) }}"
+                            <x-athlete-link :athlete="$record->athlete"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->display_name }}
-                            </a>
+                            </x-athlete-link>
                             <span class="text-zinc-400">({{ $record->athlete->birth_date?->format('Y') ?? '–' }})</span>
                         @else
                             <span class="text-zinc-400">–</span>

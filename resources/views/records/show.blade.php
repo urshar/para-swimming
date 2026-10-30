@@ -83,10 +83,10 @@
                                             <flux:badge size="sm" color="zinc"
                                                         class="font-mono w-6 text-center">{{ $member->position }}</flux:badge>
                                             @if($member->athlete_id)
-                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                <x-athlete-link :athlete="$member->athlete"
                                                    class="hover:text-blue-600 transition-colors">
                                                     {{ $member->display_name }}
-                                                </a>
+                                                </x-athlete-link>
                                             @else
                                                 <span>{{ $member->display_name }}</span>
                                             @endif
@@ -101,10 +101,10 @@
                                 <span class="text-zinc-400 italic">Kein Team erfasst</span>
                             @endif
                         @elseif($record->athlete)
-                            <a href="{{ route('athletes.show', $record->athlete) }}"
+                            <x-athlete-link :athlete="$record->athlete"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->full_name }}
-                            </a>
+                            </x-athlete-link>
                             <span class="text-zinc-400 text-xs ml-1">({{ $record->athlete->nation?->code }})</span>
                         @else
                             <span class="text-zinc-400">–</span>

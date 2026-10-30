@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\AgeGroup;
 use App\Models\BaseTimeVersion;
 use App\Models\Cup;
@@ -30,7 +31,7 @@ class CupController extends Controller
 
     public function index(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $cups = Cup::withCount('meets')
             ->orderByDesc('year')
@@ -45,7 +46,7 @@ class CupController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $baseTimeVersions = BaseTimeVersion::orderByDesc('valid_from')->get();
         $sportClassGroups = SportClassGroup::active()->orderBy('sort_order')->get();
@@ -66,7 +67,7 @@ class CupController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateCup($request);
 
@@ -82,7 +83,7 @@ class CupController extends Controller
 
     public function edit(Cup $cup): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $cup->load(['groupSettings', 'ageGroupSettings']);
 
@@ -117,7 +118,7 @@ class CupController extends Controller
 
     public function update(Request $request, Cup $cup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateCup($request, $cup->id);
 
@@ -133,7 +134,7 @@ class CupController extends Controller
 
     public function destroy(Cup $cup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $name = $cup->name;
         $cup->delete();
@@ -154,7 +155,8 @@ class CupController extends Controller
      */
     public function classifyTopGroup(Cup $cup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        // Einstufen gehört zur Cup-Wertung, nicht zu den Cup-Stammdaten (Route: module:cup,write).
+        abort_unless(auth()->user()?->canWrite(Module::Cup), 403, 'Kein Schreibrecht für Cup-Wertung.');
 
         $this->topGroupClassificationService->calculateForCup($cup);
 
@@ -229,8 +231,8 @@ class CupController extends Controller
         }
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::CupSettings), 403, 'Kein Schreibrecht für Cup-Stammdaten.');
     }
 }

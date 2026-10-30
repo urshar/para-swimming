@@ -5,7 +5,7 @@
 <div>
     <div class="flex items-center justify-between mb-4">
         <div class="flex gap-2 text-xs">
-            <flux:badge color="zinc">schwarz = manuell (editierbar)</flux:badge>
+            <flux:badge color="zinc">schwarz = manuell{{ $canEdit ? ' (editierbar)' : '' }}</flux:badge>
             <flux:badge color="orange">orange = automatisch berechnet</flux:badge>
         </div>
         <div class="flex items-center gap-2">
@@ -18,11 +18,13 @@
                          icon="arrow-down-tray" size="sm" class="text-emerald-500!">
                 MeetManager-Text
             </flux:button>
+            @if($canEdit)
             <flux:button wire:click="recalculate" variant="primary" icon="arrow-path" size="sm"
                          wire:loading.attr="disabled">
                 <span wire:loading.remove wire:target="recalculate">Neu berechnen</span>
                 <span wire:loading wire:target="recalculate">Berechne…</span>
             </flux:button>
+            @endif
         </div>
     </div>
 
