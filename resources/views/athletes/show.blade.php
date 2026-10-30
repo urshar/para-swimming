@@ -1,4 +1,4 @@
-@php use App\Enums\Module;use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -26,6 +26,21 @@
             · {{ $athlete->nation?->code }}
         </p>
 
+        {{-- Offene Anträge zu diesem Athleten (Spec club-permissions §4.5); Vereine sehen nur die eigenen. --}}
+        @foreach($openRequests as $openRequest)
+            <flux:callout icon="clock" color="amber" class="mt-4">
+                <flux:callout.text>
+                    Offener Antrag: {{ $openRequest->type_label }} vom {{ $openRequest->created_at?->format('d.m.Y') }}
+                    ({{ $openRequest->club?->display_name }}).
+                    @if(auth()->user()->is_admin)
+                        <a href="{{ route('admin.change-requests.show', $openRequest) }}" class="underline">Antrag ansehen</a>
+                    @else
+                        <a href="{{ route('change-requests.index') }}" class="underline">Meine Anträge</a>
+                    @endif
+                </flux:callout.text>
+            </flux:callout>
+        @endforeach
+
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
             {{-- ?from=athlete: der Rückweg-Button auf der WPS-Analyse führt dann hierher zurück
                  statt zur Athletenauswahl unter Statistik (Design-Feedback Erik, 15.09.2026). --}}
@@ -37,6 +52,12 @@
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
+            </flux:button>
+            @endcan
+            @can('requestName', [ChangeRequest::class, $athlete])
+            <flux:button href="{{ route('change-requests.name.create', $athlete) }}" variant="filled" icon="identification"
+                         size="sm">
+                Namensänderung beantragen
             </flux:button>
             @endcan
             @if(auth()->user()?->canWriteAll(Module::Athletes))

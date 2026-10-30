@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Athlete;
 use App\Models\AuditLog;
+use App\Models\ChangeRequest;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
@@ -71,13 +72,25 @@ final class AuditHistory
         'members' => 'Mitglieder',
         'merged_athlete' => 'Zusammengeführt mit',
         'joined_at' => 'Vereinseintritt',
+        'from_club_id' => 'Bisheriger Verein',
+        'values' => 'Gewünschte Werte',
+        'reason' => 'Begründung',
+        'response' => 'Antwort',
+    ];
+
+    /** Schlüssel in ChangeRequest::$values → Bezeichnung. */
+    private const array VALUE_LABELS = [
+        'first_name' => 'Vorname',
+        'last_name' => 'Nachname',
+        'name_prefix' => 'Namenspräfix',
+        'joined_at' => 'Eintritt',
     ];
 
     private const array BOOLEANS = ['is_active', 'is_late_entry', 'is_exhibition'];
 
     private const array DATES = ['birth_date', 'last_medical_check_at', 'next_medical_check_at', 'joined_at'];
 
-    private const array REFERENCES = ['club_id', 'nation_id', 'meet_id', 'swim_event_id', 'athlete_id'];
+    private const array REFERENCES = ['club_id', 'from_club_id', 'nation_id', 'meet_id', 'swim_event_id', 'athlete_id'];
 
     private const array EVENTS = [
         'created' => 'angelegt',
@@ -93,6 +106,7 @@ final class AuditHistory
         Club::class => 'Verein',
         Entry::class => 'Meldung',
         RelayEntry::class => 'Staffelmeldung',
+        ChangeRequest::class => 'Antrag',
     ];
 
     /**
@@ -139,9 +153,9 @@ final class AuditHistory
     {
         $contexts = [];
 
-        foreach ([Entry::class, RelayEntry::class] as $class) {
+        foreach ([Entry::class => Entry::query(), RelayEntry::class => RelayEntry::query()] as $class => $query) {
             $ids = $logs->where('auditable_type', $class)->pluck('auditable_id')->unique();
-            $rows = $ids->isEmpty() ? collect() : $class::whereIn('id', $ids)->get(['id', 'meet_id', 'swim_event_id'])->keyBy('id');
+            $rows = $ids->isEmpty() ? collect() : $query->whereIn('id', $ids)->get(['id', 'meet_id', 'swim_event_id'])->keyBy('id');
 
             foreach ($logs->where('auditable_type', $class) as $log) {
                 $row = $rows->get($log->auditable_id);
@@ -192,10 +206,12 @@ final class AuditHistory
         }
 
         $load = fn (string $field, Closure $query): array => $ids[$field] === [] ? [] : $query(array_keys($ids[$field]));
+        $clubs = fn (array $keys) => Club::withTrashed()->whereIn('id', $keys)->get()
+            ->mapWithKeys(fn (Club $club) => [$club->id => $club->display_name])->all();
 
         return [
-            'club_id' => $load('club_id', fn (array $keys) => Club::withTrashed()->whereIn('id', $keys)->get()
-                ->mapWithKeys(fn (Club $club) => [$club->id => $club->display_name])->all()),
+            'club_id' => $load('club_id', $clubs),
+            'from_club_id' => $load('from_club_id', $clubs),
             'athlete_id' => $load('athlete_id', fn (array $keys) => Athlete::withTrashed()->whereIn('id', $keys)->get()
                 ->mapWithKeys(fn (Athlete $athlete) => [$athlete->id => $athlete->last_name.' '.$athlete->first_name])->all()),
             'nation_id' => $load('nation_id', fn (array $keys) => Nation::whereIn('id', $keys)->pluck('name_de', 'id')->all()),
@@ -244,6 +260,21 @@ final class AuditHistory
         }
         if ($field === 'entry_time' && is_numeric($value)) {
             return TimeParser::display((int) $value);
+        }
+        if ($field === 'type' && isset(ChangeRequest::TYPE_LABELS[$value])) {
+            return ChangeRequest::TYPE_LABELS[$value];
+        }
+        if ($field === 'status' && isset(ChangeRequest::STATUS_LABELS[$value])) {
+            return ChangeRequest::STATUS_LABELS[$value];
+        }
+        if ($field === 'values') {
+            $decoded = is_string($value) ? json_decode($value, true) : $value;
+            if (is_array($decoded)) {
+                return collect($decoded)->filter(fn ($v) => $v !== null && $v !== '')
+                    ->map(fn ($v, $key) => (self::VALUE_LABELS[$key] ?? $key).': '
+                        .($key === 'joined_at' ? self::value('joined_at', $v, $names) : $v))
+                    ->implode(', ');
+            }
         }
         if ($field === 'gender') {
             return match ($value) {

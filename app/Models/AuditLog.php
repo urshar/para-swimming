@@ -63,12 +63,13 @@ class AuditLog extends Model
         return $this->morphTo();
     }
 
-    /** Verlauf eines Athleten: der Athlet selbst und seine Einzelmeldungen (P4-2). */
+    /** Verlauf eines Athleten: der Athlet selbst, seine Einzelmeldungen (P4-2) und Anträge zu ihm (Phase 6). */
     public function scopeForAthlete(Builder $query, Athlete $athlete): Builder
     {
         return $query->where(fn (Builder $q) => $q
             ->where(fn (Builder $w) => $w->where('auditable_type', Athlete::class)->where('auditable_id', $athlete->id))
-            ->orWhere(fn (Builder $w) => $w->where('auditable_type', Entry::class)->where('athlete_id', $athlete->id)));
+            ->orWhere(fn (Builder $w) => $w->whereIn('auditable_type', [Entry::class, ChangeRequest::class])
+                ->where('athlete_id', $athlete->id)));
     }
 
     /** Verlauf eines Vereins: der Verein selbst und seine Staffelmeldungen (P4-2). */

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ChangeRequestController as AdminChangeRequestController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AgeGroupController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\ChampionshipQualificationController;
 use App\Http\Controllers\ChampionshipSelectionController;
 use App\Http\Controllers\ChampionshipStandardImportController;
+use App\Http\Controllers\ChangeRequestController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
@@ -71,6 +73,15 @@ Route::get('/dashboard', DashboardController::class)->name('dashboard');
 // ── Admin-Bereich (RequireAdmin Middleware) ────────────────────────────────────
 Route::middleware(['auth', RequireAdmin::class])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
+
+    // Anträge der Vereine entscheiden (Spec club-permissions §4.5, Phase 6).
+    Route::get('/change-requests', [AdminChangeRequestController::class, 'index'])->name('change-requests.index');
+    Route::get('/change-requests/{changeRequest}', [AdminChangeRequestController::class, 'show'])
+        ->name('change-requests.show');
+    Route::post('/change-requests/{changeRequest}/approve', [AdminChangeRequestController::class, 'approve'])
+        ->name('change-requests.approve');
+    Route::post('/change-requests/{changeRequest}/reject', [AdminChangeRequestController::class, 'reject'])
+        ->name('change-requests.reject');
 
     // Regelmente & Formulare (documentable = null, Spec public-frontend §6)
     Route::resource('documents', DocumentController::class)->except(['show']);
@@ -161,6 +172,22 @@ Route::middleware(['auth'])->group(function () {
 
     Route::resource('athletes', AthleteController::class)->only(['create', 'store', 'edit', 'update'])
         ->middleware('module:athletes,write');
+
+    // Anträge der Vereine (Spec §4.5, Phase 6); wer sie stellen darf, regelt ChangeRequestPolicy. Entschieden wird im
+    // Admin-Bereich (admin.change-requests.*).
+    Route::middleware('module:athletes,write')->group(function () {
+        Route::get('change-requests', [ChangeRequestController::class, 'index'])->name('change-requests.index');
+        Route::get('change-requests/transfer/create', [ChangeRequestController::class, 'createTransfer'])
+            ->name('change-requests.transfer.create');
+        Route::post('change-requests/transfer', [ChangeRequestController::class, 'storeTransfer'])
+            ->name('change-requests.transfer.store');
+        Route::post('change-requests/{changeRequest}/withdraw', [ChangeRequestController::class, 'withdraw'])
+            ->name('change-requests.withdraw');
+        Route::get('athletes/{athlete}/name-change', [ChangeRequestController::class, 'createName'])
+            ->name('change-requests.name.create');
+        Route::post('athletes/{athlete}/name-change', [ChangeRequestController::class, 'storeName'])
+            ->name('change-requests.name.store');
+    });
 
     Route::middleware('module:athletes,write,all')->group(function () {
         Route::resource('athletes', AthleteController::class)->only(['destroy']);

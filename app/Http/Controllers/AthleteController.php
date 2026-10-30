@@ -9,6 +9,7 @@ use App\Models\AthleteClubHistory;
 use App\Models\AthleteKaderMembership;
 use App\Models\AthleteLevelHistory;
 use App\Models\AuditLog;
+use App\Models\ChangeRequest;
 use App\Models\Classifier;
 use App\Models\Club;
 use App\Models\ExceptionCode;
@@ -201,9 +202,16 @@ class AthleteController extends Controller
             ? AuditHistory::build(AuditLog::forAthlete($athlete), request()->query('verlauf') === 'alle')
             : null;
 
+        // Offene Anträge als Hinweis (Spec §4.5): Admins sehen alle, Vereine nur die eigenen.
+        $user = auth()->user();
+        $openRequests = ChangeRequest::open()->with('club')->where('athlete_id', $athlete->id)
+            ->when(! $user->is_admin, fn ($query) => $query->where('club_id', $user->club_id ?? 0))
+            ->get();
+
         return view('athletes.show', compact(
             'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history'
+            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history',
+            'openRequests'
         ));
     }
 

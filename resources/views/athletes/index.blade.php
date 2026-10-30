@@ -1,4 +1,4 @@
-@php use App\Enums\Module; use App\Models\Athlete; @endphp
+@php use App\Enums\Module; use App\Models\Athlete; use App\Models\ChangeRequest; @endphp
 
 @extends('layouts.app')
 
@@ -17,6 +17,11 @@
                 Team Manager übernehmen
             </flux:button>
             @endif
+            @can('create', ChangeRequest::class)
+            <flux:button href="{{ route('change-requests.transfer.create') }}" variant="filled" icon="arrows-right-left">
+                Ummeldung beantragen
+            </flux:button>
+            @endcan
             @can('create', Athlete::class)
             <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
                 Neuer Athlet

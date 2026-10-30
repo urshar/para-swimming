@@ -1,4 +1,4 @@
-@php use App\Enums\Module;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
+@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
     
     <!DOCTYPE html>
 {{-- Dark/Light wird komplett über Flux' eigenes $flux.appearance-System gesteuert (Alpine-Magic aus dem
@@ -254,11 +254,17 @@
 
         @if($showMasterDataGroup)
             <flux:navlist.group heading="Stammdaten" expandable
-                                :expanded="request()->routeIs('athletes.*') || request()->routeIs('clubs.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
+                                :expanded="request()->routeIs('athletes.*') || request()->routeIs('change-requests.*') || request()->routeIs('clubs.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
                 @can('module.read', Module::Athletes)
                     <flux:navlist.item icon="user-group" href="{{ route('athletes.index') }}"
                                        :current="request()->routeIs('athletes.*')">
                         Athleten
+                    </flux:navlist.item>
+                @endcan
+                @can('create', ChangeRequest::class)
+                    <flux:navlist.item icon="inbox-arrow-down" href="{{ route('change-requests.index') }}"
+                                       :current="request()->routeIs('change-requests.*')">
+                        Meine Anträge
                     </flux:navlist.item>
                 @endcan
                 @can('module.read', Module::Clubs)
@@ -438,10 +444,21 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
-            <flux:navlist.group heading="Verwaltung" expandable :expanded="request()->routeIs('admin.users.*')">
+            <flux:navlist.group heading="Verwaltung" expandable
+                                :expanded="request()->routeIs('admin.users.*') || request()->routeIs('admin.change-requests.*')">
                 <flux:navlist.item icon="users" href="{{ route('admin.users.index') }}"
                                    :current="request()->routeIs('admin.users.*')">
                     Benutzerverwaltung
+                </flux:navlist.item>
+                {{-- Anträge der Vereine mit Zähler offener Anträge (Spec club-permissions §4.5, N4). --}}
+                @php
+                    $openChangeRequestCount = ChangeRequest::open()->count();
+                @endphp
+                <flux:navlist.item icon="inbox-arrow-down" href="{{ route('admin.change-requests.index') }}"
+                                   :current="request()->routeIs('admin.change-requests.*')"
+                                   :badge="$openChangeRequestCount > 0 ? $openChangeRequestCount : null"
+                                   badge:color="red" badge:variant="solid">
+                    Anträge
                 </flux:navlist.item>
             </flux:navlist.group>
         @endif

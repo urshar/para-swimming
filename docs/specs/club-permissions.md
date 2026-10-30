@@ -435,3 +435,26 @@ eigenem Sign-off:
   (ohne Verein und weitere Daten, F5), mit Hinweis auf die Ummeldung; nur für Vereinsnutzer.
 - P5-2: Die Klassifikation neuer Athleten trägt der Verband nach; Detailseite und Liste zeigen bis dahin "Noch
   nicht klassifiziert". Keine vorläufige Sportklasse, keine Benachrichtigung in Phase 5.
+
+### Phase 6 im Detail (abgenommen)
+
+- Tabelle `change_requests` (Art `athlete_name`/`athlete_transfer`, Athlet, antragstellender Verein, bisheriger
+  Verein als Kopie, gewünschte Werte als JSON, Begründung, Status offen/freigegeben/abgelehnt/zurückgezogen, gestellt
+  von/am mit Namenskopie, entschieden von/am, Antwort); Trait `Auditable`. Ein offener Antrag je Art und Athlet
+  (Prüfung in der Anwendung).
+- Namensänderung: "Namensänderung beantragen" auf der Detailseite für Schreiber "eigener Verein" bei eigenen
+  Athleten. Ummeldung: "Ummeldung beantragen" in der Athletenliste, Suche über Vorname, Nachname (normalisiert) und
+  Geburtsdatum (exakt).
+- Admin-Eingang "Anträge" unter Verwaltung (`admin`), Menüzähler offener Anträge; Freigabe übernimmt den Namen bzw.
+  läuft über `AthleteClubTransferService`. Verein: "Meine Anträge" mit Status, Antwort und Zurückziehen; offener
+  Antrag als Hinweis am Athleten.
+- E-Mails per Notification (Mail, Queue): neuer Antrag an alle Admins, Entscheidung an den Antragsteller.
+
+**Entscheidungen Phase 6 (Erik, 30.10.2026)**
+
+- P6-1: Bei Freigabe einer Ummeldung bekommen die Benutzer des bisherigen Vereins mit "Athleten schreiben" eine
+  kurze E-Mail; am Antrag selbst wird der abgebende Verein nicht beteiligt.
+- P6-2: Kein oder mehrere Treffer bei der Ummeldungssuche → dieselbe neutrale Meldung; bei genau einem Treffer wird
+  der Antrag gestellt, ohne Daten des Athleten preiszugeben.
+- P6-3: Begründung des Vereins Pflicht; Antwort des Admins beim Ablehnen Pflicht, beim Freigeben optional.
+- P6-4: Der Verein gibt ein gewünschtes Eintrittsdatum an, der Admin kann es bei der Freigabe ändern.
