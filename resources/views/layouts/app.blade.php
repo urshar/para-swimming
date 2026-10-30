@@ -1,4 +1,4 @@
-@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
+@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Models\Club;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
     
     <!DOCTYPE html>
 {{-- Dark/Light wird komplett über Flux' eigenes $flux.appearance-System gesteuert (Alpine-Magic aus dem
@@ -150,6 +150,11 @@
         $showMasterDataGroup = $navUser->canRead(Module::Athletes) || $navUser->canRead(Module::Clubs)
             || $navUser->canRead(Module::Nations) || $navUser->canRead(Module::Classifiers);
         $showLenexGroup = $navUser->canRead(Module::Lenex) || $navUser->canWrite(Module::Lenex);
+        // "Mein Verein" (Spec club-permissions P7-5): eigene Vereinsseite und deren Bearbeiten markieren diesen
+        // Punkt statt "Vereine".
+        $routeClub = request()->route('club');
+        $onOwnClub = $navUser->club_id !== null && request()->routeIs('clubs.show', 'clubs.edit')
+            && (int) ($routeClub instanceof Club ? $routeClub->id : $routeClub) === $navUser->club_id;
     @endphp
 
     <flux:navlist>
@@ -267,9 +272,15 @@
                         Meine Anträge
                     </flux:navlist.item>
                 @endcan
+                @if($navUser->club_id !== null && $navUser->canRead(Module::Clubs))
+                    <flux:navlist.item icon="home-modern" href="{{ route('clubs.show', $navUser->club_id) }}"
+                                       :current="$onOwnClub">
+                        Mein Verein
+                    </flux:navlist.item>
+                @endif
                 @can('module.read', Module::Clubs)
                     <flux:navlist.item icon="building-office" href="{{ route('clubs.index') }}"
-                                       :current="request()->routeIs('clubs.*')">
+                                       :current="request()->routeIs('clubs.*') && ! $onOwnClub">
                         Vereine
                     </flux:navlist.item>
                 @endcan
@@ -306,7 +317,7 @@
                                        :current="request()->routeIs('records.import-review.*')"
                                        :badge="$openReviewCount > 0 ? $openReviewCount : null"
                                        badge:color="red" badge:variant="solid"
-                                       class="[&_[data-content]]:min-w-0 [&_[data-content]]:truncate">
+                                       class="**:data-content:min-w-0 **:data-content:truncate">
                         Import Prüfliste
                     </flux:navlist.item>
                 @endcan

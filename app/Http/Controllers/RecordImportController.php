@@ -145,6 +145,6 @@ class RecordImportController extends Controller
 
         return redirect()
             ->route('records.index')
-            ->with('success', $msg.'.');
+            ->with('success', $msg.'.'.Club::withoutCodeNote($result['clubs_without_code'] ?? []));
     }
 }

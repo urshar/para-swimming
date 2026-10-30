@@ -449,6 +449,7 @@ class LenexImportController extends Controller
                 }
             }
 
+            $clubsWithoutCode = $this->resolver->getClubsWithoutCode();
             $result = $this->importWithAssignments($importData, $clubMap, []);
             $unresolvedAthletes = $this->resolver->getUnresolvedAthletes();
 
@@ -456,7 +457,7 @@ class LenexImportController extends Controller
                 Session::forget($sessionKey);
                 Storage::disk('local')->delete($importData['path']);
 
-                return $this->redirectAfterImport($result);
+                return $this->redirectAfterImport($result + ['clubs_without_code' => $clubsWithoutCode]);
             }
 
             $newSessionKey = uniqid('lenex_import_', true);
@@ -467,6 +468,7 @@ class LenexImportController extends Controller
                 'club_map' => $clubMap,
                 'unresolved_clubs' => [],
                 'unresolved_athletes' => $unresolvedAthletes,
+                'clubs_without_code' => $clubsWithoutCode,
             ]);
             Session::forget($sessionKey);
 
@@ -512,7 +514,7 @@ class LenexImportController extends Controller
             Session::forget($sessionKey);
             Storage::disk('local')->delete($importData['path']);
 
-            return $this->redirectAfterImport($result);
+            return $this->redirectAfterImport($result + ['clubs_without_code' => $importData['clubs_without_code'] ?? []]);
 
         } catch (Exception $e) {
             report($e);
@@ -608,7 +610,8 @@ class LenexImportController extends Controller
             .(! empty($stats['foreign_starts']) ? ' '.$stats['foreign_starts'].' Start(s) von '.$stats['foreign_clubs']
                 .' ausländischen Gastverein(en) nur für Statistik und Ergebnisliste gespeichert.' : '')
             .(! empty($stats['results_merged']) ? ' '.$stats['results_merged']
-                .' weitere Platzierung(en) in anderen Wertungsgruppen zusammengefasst (je Start ein Ergebnis, Platz aus der Startklasse bzw. der offenen Wertung).' : '');
+                .' weitere Platzierung(en) in anderen Wertungsgruppen zusammengefasst (je Start ein Ergebnis, Platz aus der Startklasse bzw. der offenen Wertung).' : '')
+            .Club::withoutCodeNote($result['clubs_without_code'] ?? []);
 
         return redirect()->route('meets.index')->with('success', $message);
     }

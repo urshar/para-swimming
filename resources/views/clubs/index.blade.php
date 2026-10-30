@@ -110,9 +110,11 @@
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
                             <flux:button href="{{ route('clubs.show', $club) }}" size="sm" variant="ghost" icon="eye"/>
-                            @if(auth()->user()?->canWriteAll(Module::Clubs))
+                            @can('update', $club)
                             <flux:button href="{{ route('clubs.edit', $club) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
+                            @endcan
+                            @if(auth()->user()?->canWriteAll(Module::Clubs))
                             <form method="POST" action="{{ route('clubs.destroy', $club) }}"
                                   x-data="{ submit() { if (confirm('Verein löschen?')) this.$el.submit() } }"
                                   @submit.prevent="submit()">

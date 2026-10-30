@@ -76,6 +76,8 @@ final class AuditHistory
         'values' => 'Gewünschte Werte',
         'reason' => 'Begründung',
         'response' => 'Antwort',
+        'contact_name' => 'Kontaktperson',
+        'contact_email' => 'Kontakt-E-Mail',
     ];
 
     /** Schlüssel in ChangeRequest::$values → Bezeichnung. */

@@ -161,14 +161,16 @@ Route::middleware(['auth'])->group(function () {
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
     // Rechte je Modul (Spec club-permissions §4.1). Athleten anlegen und bearbeiten geht auch mit "eigener Verein"
-    // (Phase 5, Feldregeln in AthleteFieldRules, Datensatz-Prüfung in AthletePolicy); alles Übrige verlangt "alle".
-    // Vereinsdaten folgen in Phase 7.
+    // (Phase 5, Feldregeln in AthleteFieldRules, Datensatz-Prüfung in AthletePolicy), ebenso Vereine bearbeiten
+    // (Phase 7, ClubFieldRules/ClubPolicy); alles Übrige verlangt "alle".
     // Schreib-Routen VOR den lesenden Ressourcen: sonst bindet Laravel "create" als {athlete}/{club} (404).
 
     Route::resource('nations', NationController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
         ->middleware('module:nations,write');
-    Route::resource('clubs', ClubController::class)->except(['index', 'show'])
+    Route::resource('clubs', ClubController::class)->only(['create', 'store', 'destroy'])
         ->middleware('module:clubs,write,all');
+    Route::resource('clubs', ClubController::class)->only(['edit', 'update'])
+        ->middleware('module:clubs,write');
 
     Route::resource('athletes', AthleteController::class)->only(['create', 'store', 'edit', 'update'])
         ->middleware('module:athletes,write');

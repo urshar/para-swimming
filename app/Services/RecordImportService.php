@@ -115,7 +115,8 @@ class RecordImportService
         $preview = $this->preview($filePath, $before);
 
         // Clubs anlegen die als 'new' markiert wurden
-        $clubIdMap = $this->resolveClubs($preview['unknown_clubs'], $approvedClubs, $newClubData);
+        $clubsWithoutCode = [];
+        $clubIdMap = $this->resolveClubs($preview['unknown_clubs'], $approvedClubs, $newClubData, $clubsWithoutCode);
 
         // Athleten anlegen die als 'new' markiert wurden
         $athleteIdMap = $this->resolveAthletes($preview['unknown_athletes'], $approvedAthletes, $newAthleteData,
@@ -358,6 +359,7 @@ class RecordImportService
             'regional_auto' => $regionalImported,
             'club_updated' => $clubUpdated,
             'review_open' => $reviewOpen,
+            'clubs_without_code' => $clubsWithoutCode,
         ];
     }
 
@@ -920,8 +922,10 @@ class RecordImportService
     /**
      * Löst unbekannte Clubs auf: legt neue an oder mapped auf bestehende IDs.
      * Gibt ['club_key' ⇒ club_id|null] zurück.
+     *
+     * @param  list<string>  $clubsWithoutCode  Namen neuer Vereine, deren Code schon vergeben war (P7-3)
      */
-    private function resolveClubs(array $unknownClubs, array $approvedClubs, array $newClubData): array
+    private function resolveClubs(array $unknownClubs, array $approvedClubs, array $newClubData, array &$clubsWithoutCode): array
     {
         $clubIdMap = [];
         foreach ($unknownClubs as $club) {
@@ -936,10 +940,17 @@ class RecordImportService
 
             if ($decision === 'new') {
                 $data = $newClubData[$key] ?? $club;
+                $nationId = $this->getNationId($data['nation'] ?? 'AUT');
+                // Code schon vergeben (auch an einen gelöschten Verein) → ohne Code anlegen (Spec club-permissions P7-3).
+                $code = Club::normalizeCode($data['code'] ?? null);
+                if ($code !== null && $nationId !== null && Club::holderOfCode($code, $nationId, null)) {
+                    $clubsWithoutCode[] = $data['name'];
+                    $code = null;
+                }
                 $newClub = Club::create([
                     'name' => $data['name'],
-                    'code' => $data['code'] ?? null,
-                    'nation_id' => $this->getNationId($data['nation'] ?? 'AUT'),
+                    'code' => $code,
+                    'nation_id' => $nationId,
                     'type' => 'CLUB',
                 ]);
                 $clubIdMap[$key] = $newClub->id;

@@ -69,8 +69,9 @@ it('blendet Pflege-Schaltflächen ohne Schreibrecht aus, auch bei Lesen "alle"',
         ->assertDontSee(route('records.create'));
 });
 
-it('verlangt für die Vereinspflege bis Phase 7 den Bereich "alle"', /** @throws Throwable */ function () {
+it('zeigt "Bearbeiten" bei "eigener Verein" nur auf der eigenen Vereinsseite', /** @throws Throwable */ function () {
     $club = makeClub_p5();
+    $foreignClub = makeClub_p5();
     $user = User::factory()->create(['club_id' => $club->id]);
     $own = AccessScope::Own;
     app(PermissionTemplateService::class)->setPermissions($user, [
@@ -80,7 +81,10 @@ it('verlangt für die Vereinspflege bis Phase 7 den Bereich "alle"', /** @throws
 
     test()->actingAs($user->fresh())->get(route('clubs.show', $club))
         ->assertOk()
-        ->assertDontSee(route('clubs.edit', $club));
+        ->assertSee(route('clubs.edit', $club));
+    test()->actingAs($user->fresh())->get(route('clubs.show', $foreignClub))
+        ->assertOk()
+        ->assertDontSee(route('clubs.edit', $foreignClub));
 });
 
 it('verlinkt die Vereinsmeldungen für jeden, der melden darf, sonst nicht', /** @throws Throwable */ function () {

@@ -184,7 +184,8 @@ it('verweigert Vereinsnutzern Pflege, Importe und Berechnungen', function () {
         ['get', route('lenex.import')],
         ['post', route('lenex.import.store')],
         ['post', route('clubs.store')],
-        ['put', route('clubs.update', $club)],
+        // Den eigenen Verein bearbeiten darf die Vorlage "Verein" seit Phase 7 (ClubPermissionsClubsTest).
+        ['put', route('clubs.update', makeClub_p5())],
         ['delete', route('clubs.destroy', $club)],
         ['post', route('nations.store')],
         // Eigene Athleten anlegen/bearbeiten darf die Vorlage "Verein" seit Phase 5 (ClubPermissionsAthletesTest).
@@ -243,9 +244,10 @@ it('blendet Schreib-Schaltflächen und Import-Menüpunkte für Vereinsnutzer aus
         ->assertDontSee(route('records.import'))
         ->assertSee(route('lenex.export'));
 
-    test()->actingAs($user)->get(route('clubs.show', $club))
+    $foreignClub = makeClub_p5();
+    test()->actingAs($user)->get(route('clubs.show', $foreignClub))
         ->assertOk()
-        ->assertDontSee(route('clubs.edit', $club));
+        ->assertDontSee(route('clubs.edit', $foreignClub));
 });
 
 // ── Admins ────────────────────────────────────────────────────────────────────

@@ -20,14 +20,37 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->canWriteAll(Module::Clubs))
+            @can('update', $club)
             <flux:button href="{{ route('clubs.edit', $club) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
-            @endif
+            @endcan
         </div>
     </div>
+
+    {{-- Kontaktdaten nur für Admins und den eigenen Verein (Spec club-permissions P7-4). --}}
+    @can('viewContact', $club)
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Kontakt</h2>
+            <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+                <dt class="text-zinc-500 dark:text-zinc-400">Kontaktperson</dt>
+                <dd>{{ $club->contact_name ?: '–' }}</dd>
+                <dt class="text-zinc-500 dark:text-zinc-400">E-Mail</dt>
+                <dd>
+                    @if($club->contact_email)
+                        <a href="mailto:{{ $club->contact_email }}" class="text-blue-600 dark:text-blue-400 hover:underline">{{ $club->contact_email }}</a>
+                    @else
+                        –
+                    @endif
+                </dd>
+                <dt class="text-zinc-500 dark:text-zinc-400">Adresse</dt>
+                <dd>
+                    {{ collect([$club->address_street, trim($club->address_zip.' '.$club->address_city), $club->address_country])->filter()->implode(', ') ?: '–' }}
+                </dd>
+            </dl>
+        </div>
+    @endcan
 
     <div class="grid grid-cols-3 gap-4 mb-6">
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 text-center">

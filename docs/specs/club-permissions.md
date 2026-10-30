@@ -458,3 +458,23 @@ eigenem Sign-off:
   der Antrag gestellt, ohne Daten des Athleten preiszugeben.
 - P6-3: Begründung des Vereins Pflicht; Antwort des Admins beim Ablehnen Pflicht, beim Freigeben optional.
 - P6-4: Der Verein gibt ein gewünschtes Eintrittsdatum an, der Admin kann es bei der Freigabe ändern.
+
+### Phase 7 im Detail (abgenommen)
+
+- Neue Spalten in `clubs` (alle nullable): `contact_name`, `contact_email`, `address_street`, `address_zip`,
+  `address_city`, `address_country` (ISO alpha-3 wie bei Athleten). Unique-Index `(nation_id, code)`; Vereine ohne
+  Code bleiben mehrfach möglich. Dev vor der Migration geprüft (30.10.2026): 58 Vereine, keine doppelten Codes.
+- `clubs.edit`/`update` unter `module:clubs,write`, `ClubPolicy::update` (alle bzw. eigener Verein); Anlegen und
+  Löschen bleiben `write,all`. `App\Support\ClubFieldRules`: bei "eigener Verein" sind Nation, Typ und
+  Landesverband gesperrt ("nur Verband"), Name, Kurzname, Code und Kontaktfelder frei.
+- Code eindeutig je Nation: Validierung in beiden Formularen, Meldung nennt den Verein mit dem Code.
+- Kontaktblock auf der Vereinsseite; Menüpunkt "Mein Verein" für Benutzer mit Verein.
+
+**Entscheidungen Phase 7 (Erik, 30.10.2026)**
+
+- P7-1: Der Code wird getrimmt und in Großbuchstaben gespeichert (gleiches Verhalten auf MySQL und SQLite).
+- P7-2: Gelöschte Vereine zählen für die Eindeutigkeit mit (Index und Validierung).
+- P7-3: Ist beim Import (LENEX, Rekorde) der Code eines neu anzulegenden Vereins schon vergeben, wird der Verein
+  ohne Code angelegt und das in der Import-Rückmeldung genannt, statt den Import abzubrechen.
+- P7-4: Kontaktdaten sehen nur Admins und der eigene Verein.
+- P7-5: Neuer Menüpunkt "Mein Verein".
