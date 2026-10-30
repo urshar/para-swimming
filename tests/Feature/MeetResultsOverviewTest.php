@@ -153,11 +153,12 @@ it('ignoriert einen Disziplin-Filter einer anderen Veranstaltung', function () {
         ->assertSee($athlete->last_name);
 });
 
-it('ist nur für Admins erreichbar', function () {
+it('lässt Vereinsnutzer nur lesen, nicht löschen', function () {
     [$meet, $club, , $event] = setup_mro();
     $clubUser = User::factory()->create(['is_admin' => false, 'club_id' => $club->id]);
 
-    $this->actingAs($clubUser)->get(route('meets.results-overview', $meet))->assertForbidden();
+    // Lesen "eigener Verein" seit Phase 9 (gefiltert, ClubPermissionsResultsTest); Löschen bleibt gesperrt.
+    $this->actingAs($clubUser)->get(route('meets.results-overview', $meet))->assertOk();
     $this->delete(route('meets.results-overview.destroy-event', ['meet' => $meet, 'swimEvent' => $event]))
         ->assertForbidden();
 });

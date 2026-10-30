@@ -131,9 +131,13 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ── Club-Einzelmeldungen ──────────────────────────────────────────────────
-    // Melden = Meldungen schreiben; ob die Meldung zum eigenen Verein gehört, regelt die EntryPolicy.
+    // Melden = Meldungen schreiben; ob die Meldung zum eigenen Verein gehört, regelt die EntryPolicy. Die Übersicht
+    // der eigenen Meldungen reicht Lesen (P9-5), auch für geschlossene Wettkämpfe.
+    Route::get('meets/{meet}/club-entries', [ClubEntryController::class, 'index'])
+        ->name('club-entries.index')->middleware('module:entries,read');
+    Route::get('meets/{meet}/relay-entries', [ClubEntryController::class, 'indexRelay'])
+        ->name('club-entries.relay.index')->middleware('module:entries,read');
     Route::prefix('meets/{meet}/club-entries')->name('club-entries.')->middleware('module:entries,write')->group(function () {
-        Route::get('/', [ClubEntryController::class, 'index'])->name('index');
         Route::get('/create', [ClubEntryController::class, 'create'])->name('create');
         Route::post('/', [ClubEntryController::class, 'store'])->name('store');
         Route::get('/{entry}/edit', [ClubEntryController::class, 'edit'])->name('edit');
@@ -151,7 +155,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/relay-athletes', [ClubEntryController::class, 'eligibleRelayAthletes'])->name('relay-athletes');
         Route::get('/relay-best-time', [ClubEntryController::class, 'relayBestTime'])->name('relay-best-time');
 
-        Route::get('/', [ClubEntryController::class, 'indexRelay'])->name('index');
         Route::get('/create', [ClubEntryController::class, 'createRelay'])->name('create');
         Route::post('/', [ClubEntryController::class, 'storeRelay'])->name('store');
         Route::get('/{relayEntry}/edit', [ClubEntryController::class, 'editRelay'])->name('edit');
@@ -583,8 +586,9 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ── Ergebnisse ────────────────────────────────────────────────────────────
-    // Verwaltung (die öffentliche Ergebnisseite liegt in routes/public.php). Lesen "eigener Verein" kommt mit
-    // Phase 9; bis dahin verlangen die Ansichten "alle".
+    // Verwaltung (die öffentliche Ergebnisseite liegt in routes/public.php). Lesen "eigener Verein" zeigt nur
+    // Ergebnisse eigener Athleten bzw. Staffeln (Result/RelayResult::visibleTo, ResultPolicy); Schreiben verlangt
+    // weiterhin "alle" (Module::allowedWriteScopes).
     Route::middleware('module:results,write')->group(function () {
         // Staffelergebnisse manuell erfassen (Liste: Ergebnis-Sammelansicht)
         Route::resource('meets.relay-results', RelayResultController::class)
@@ -607,7 +611,7 @@ Route::middleware(['auth'])->group(function () {
             ->parameters(['results' => 'result']);
     });
 
-    Route::middleware('module:results,read,all')->group(function () {
+    Route::middleware('module:results,read')->group(function () {
         Route::resource('results', ResultController::class)->only(['index'])
             ->middlewareFor('index', 'remember.list:results');
 

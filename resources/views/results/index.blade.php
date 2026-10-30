@@ -1,3 +1,7 @@
+@php
+    use App\Enums\Module;
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Ergebnisse')
@@ -184,8 +188,10 @@
                         <flux:table.cell class="text-right">
                             <flux:button href="{{ route('results.show', $result) }}" size="xs" variant="ghost"
                                          icon="eye"/>
-                            <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
-                                         icon="pencil" class="text-amber-500!"/>
+                            @can('module.write', Module::Results)
+                                <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
+                                             icon="pencil" class="text-amber-500!"/>
+                            @endcan
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

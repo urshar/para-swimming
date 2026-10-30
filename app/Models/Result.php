@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\AccessScope;
+use App\Enums\Module;
 use App\Support\TimeParser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -62,6 +65,30 @@ class Result extends Model
         'wps_calculated_at' => 'datetime',
         'wps_estimated_lcm_time' => 'integer',
     ];
+
+    // ── Sichtbarkeit ──────────────────────────────────────────────────────────
+
+    /**
+     * Ergebnisse, die der Benutzer sehen darf (Spec club-permissions F5, P9-1): Lesen "alle" → alle, "eigener Verein"
+     * → nur die von Athleten, die aktuell zum eigenen Verein gehören, sonst keine. Gegenstück: isVisibleTo().
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return match ($user->readScope(Module::Results)) {
+            AccessScope::All => $query,
+            AccessScope::Own => $query->whereHas('athlete', fn (Builder $q) => $q->where('club_id', $user->club_id)),
+            AccessScope::None => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return match ($user->readScope(Module::Results)) {
+            AccessScope::All => true,
+            AccessScope::Own => $this->athlete !== null && $this->athlete->club_id === $user->club_id,
+            AccessScope::None => false,
+        };
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 

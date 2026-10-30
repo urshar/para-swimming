@@ -5,7 +5,7 @@
 @section('title', 'Meldungen – ' . $meet->name)
 
 @section('content')
-    @php $clubParam = auth()->user()->canWriteAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParam = auth()->user()->canReadAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-5xl">
 
         {{-- Header --}}

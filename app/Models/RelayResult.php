@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\AccessScope;
+use App\Enums\Module;
 use App\Support\TimeParser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -65,6 +68,30 @@ class RelayResult extends Model
         'is_regional_record' => 'boolean',
         'is_regional_junior_record' => 'boolean',
     ];
+
+    // ── Sichtbarkeit ──────────────────────────────────────────────────────────
+
+    /**
+     * Staffelergebnisse, die der Benutzer sehen darf (Spec club-permissions P9-2): Lesen "alle" → alle, "eigener
+     * Verein" → nur Staffeln des eigenen Vereins, sonst keine. Gegenstück: isVisibleTo().
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return match ($user->readScope(Module::Results)) {
+            AccessScope::All => $query,
+            AccessScope::Own => $query->where('club_id', $user->club_id),
+            AccessScope::None => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return match ($user->readScope(Module::Results)) {
+            AccessScope::All => true,
+            AccessScope::Own => $this->club_id === $user->club_id,
+            AccessScope::None => false,
+        };
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 

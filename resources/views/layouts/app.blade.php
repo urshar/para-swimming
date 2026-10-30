@@ -144,7 +144,7 @@
     @php
         $navUser = auth()->user();
         $showMeetsGroup = $navUser->canRead(Module::Meets) || $navUser->canReadAll(Module::Entries)
-            || $navUser->canReadAll(Module::Results);
+            || $navUser->canRead(Module::Results);
         $showCupGroup = $navUser->canRead(Module::Cup) || $navUser->canWrite(Module::CupSettings)
             || $navUser->canWrite(Module::MasterData);
         $showMasterDataGroup = $navUser->canRead(Module::Athletes) || $navUser->canRead(Module::Clubs)
@@ -177,7 +177,8 @@
                         Meldungen
                     </flux:navlist.item>
                 @endif
-                @if($navUser->canReadAll(Module::Results))
+                @if($navUser->canRead(Module::Results))
+                    {{-- Bei "eigener Verein" nur Ergebnisse eigener Athleten (P9-1). --}}
                     <flux:navlist.item icon="chart-bar" href="{{ route('results.index') }}"
                                        :current="request()->routeIs('results.*')">
                         Ergebnisse

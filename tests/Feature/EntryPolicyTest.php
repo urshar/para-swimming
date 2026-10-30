@@ -31,6 +31,8 @@ function makeMeet(array $attrs = []): Meet
         'course' => 'LCM',
         'city' => 'Wien',
         'nation_id' => makeNation()->id,
+        // Für Vereinsmeldungen freigegeben; ohne Freigabe dürfen Vereine nicht melden (P9-5).
+        'is_open' => true,
     ], $attrs));
 }
 
@@ -100,6 +102,15 @@ describe('Vereins-User ohne Meldeschluss', function () {
         $meet = makeMeet(['entries_deadline' => null]);
 
         expect(Gate::forUser($user)->allows('manageEntries', $meet))->toBeTrue();
+    });
+
+    it('Vereins-User darf bei nicht freigegebenem Wettkampf nicht melden', function () {
+        $club = makeClub_p2();
+        $user = makeClubUser_p2($club);
+        $meet = makeMeet(['entries_deadline' => null, 'is_open' => false]);
+
+        expect(Gate::forUser($user)->allows('manageEntries', $meet))->toBeFalse()
+            ->and(Gate::forUser(makeAdmin_p2())->allows('manageEntries', $meet))->toBeTrue();
     });
 
 });

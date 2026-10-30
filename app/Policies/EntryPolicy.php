@@ -17,8 +17,9 @@ use App\Models\User;
  *
  * Regeln (Spec club-permissions §4.1):
  *  - Meldungen schreiben "alle"            → immer erlaubt (auch nach Meldeschluss)
- *  - Meldungen schreiben "eigener Verein" → nur, wenn kein Meldeschluss, Meldeschluss noch nicht
- *                                          abgelaufen oder wiedereröffnet (Meet::acceptsClubEntries)
+ *  - Meldungen schreiben "eigener Verein" → nur bei freigegebenem Wettkampf (is_open) und wenn kein
+ *                                          Meldeschluss, Meldeschluss noch nicht abgelaufen oder
+ *                                          wiedereröffnet (Meet::acceptsClubEntries)
  *  - sonst                                 → nie erlaubt
  */
 class EntryPolicy
@@ -52,8 +53,10 @@ class EntryPolicy
             return false;
         }
 
-        // Kein Meldeschluss, Meldeschluss noch nicht erreicht oder vom Admin wiedereröffnet → erlaubt
-        return $meet->acceptsClubEntries();
+        // Wettkampf für Vereinsmeldungen freigegeben und kein Meldeschluss, Meldeschluss noch nicht erreicht oder vom
+        // Admin wiedereröffnet → erlaubt. Die Freigabe prüfte bisher nur die Übersicht; seit sie mit Leserecht auch
+        // geschlossene Wettkämpfe zeigt (P9-5), gehört sie hierher.
+        return $meet->is_open && $meet->acceptsClubEntries();
     }
 
     public function updateEntry(User $user, Meet $meet): bool

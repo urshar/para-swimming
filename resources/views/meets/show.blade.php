@@ -27,8 +27,9 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            {{-- Vereinsmeldungen — wer melden darf; mit Bereich "alle" auch nach Meldeschluss --}}
-            @if(auth()->user()?->canWriteAll(Module::Entries) || (auth()->user()?->canWrite(Module::Entries) && $meet->is_open))
+            {{-- Vereinsmeldungen — wer Meldungen lesen darf, auch bei geschlossenem Wettkampf (P9-5); die Schaltflächen
+                 zum Melden regelt die Übersicht selbst --}}
+            @if(auth()->user()?->canReadAll(Module::Entries) || (auth()->user()?->canRead(Module::Entries) && auth()->user()->club_id))
                 <flux:button href="{{ route('club-entries.index', $meet) }}" variant="filled"
                              icon="pencil-square" size="sm" class="text-blue-500!">
                     Meldungen
@@ -43,8 +44,8 @@
                 </flux:button>
             @endif
 
-            {{-- Sammelansicht aller Ergebnisse (Erfassen, Bearbeiten, Löschen) — Ergebnisse lesen "alle" --}}
-            @if(auth()->user()?->canReadAll(Module::Results))
+            {{-- Sammelansicht der Ergebnisse — bei "eigener Verein" nur eigene Athleten und Staffeln (P9-3) --}}
+            @if(auth()->user()?->canRead(Module::Results))
                 <flux:button href="{{ route('meets.results-overview', $meet) }}" variant="filled"
                              icon="list-bullet" size="sm" class="text-blue-500!">
                     Ergebnisse
@@ -144,13 +145,13 @@
 
     {{--
         Stats: jede Kachel führt zu den Daten dahinter (Disziplinen per Anker auf dieser Seite). Meldungen: Admin die
-        meet-weite Übersicht, Vereine die eigenen Meldungen; Ergebnisse nur Admin (Sammelansicht ist Admin-Bereich).
+        meet-weite Übersicht, Vereine die eigenen Meldungen; Ergebnisse die Sammelansicht (bei "eigener Verein" gefiltert).
         Alle Zielseiten führen mit "Zurück" wieder hierher.
     --}}
     @php
         $statUser = auth()->user();
         $entriesOverview = (bool) $statUser?->canReadAll(Module::Entries);
-        $ownEntries = (bool) $statUser?->canWrite(Module::Entries);
+        $ownEntries = $statUser?->canRead(Module::Entries) && $statUser->club_id;
         $statTiles = [
             ['Disziplinen', $meet->swim_events_count, '#disziplinen'],
             ['Einzelmeldungen', $meet->entries_count, $entriesOverview ? route('meets.entries-overview', $meet)
@@ -158,7 +159,7 @@
             ['Staffelmeldungen', $meet->relay_entries_count, $entriesOverview
                 ? route('meets.entries-overview', $meet).'#staffelmeldungen'
                 : ($ownEntries ? route('club-entries.relay.index', $meet) : null)],
-            ['Ergebnisse', $meet->results_count, $statUser?->canReadAll(Module::Results)
+            ['Ergebnisse', $meet->results_count, $statUser?->canRead(Module::Results)
                 ? route('meets.results-overview', $meet) : null],
             ['Teilnehmer', $participantsCount, route('meets.participants', $meet)],
             ['Clubs', $participatingClubsCount, route('meets.participants', [$meet, 'ansicht' => 'vereine'])],

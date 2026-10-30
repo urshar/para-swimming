@@ -1,3 +1,7 @@
+@php
+    use App\Enums\Module;
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Ergebnisse – ' . $meet->name)
@@ -14,6 +18,9 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
+                {{-- Berechnungen gehören zu "Wettkämpfe schreiben", Erfassen und Vereine korrigieren zu "Ergebnisse
+                     schreiben"; das PDF reicht Lesen (bei "eigener Verein" gefiltert). --}}
+                @can('module.write', Module::Meets)
                 {{-- Wertungsgruppen werten nach Punkten: ÖBSV-Punkte (World-Aquatics-Formel) für alle Ergebnisse neu berechnen. --}}
                 <form method="POST" action="{{ route('meets.recalculate-points', $meet) }}"
                       x-data="{ submit() { if (confirm('ÖBSV-Punkte für alle Ergebnisse dieser Veranstaltung neu berechnen?')) this.$el.submit() } }"
@@ -41,28 +48,35 @@
                         </flux:button>
                     </form>
                 @endif
-                <flux:button href="{{ route('meets.result-clubs', $meet) }}" variant="filled" icon="building-office"
-                             size="sm" class="text-blue-500!">
-                    Vereine korrigieren
-                </flux:button>
-                <flux:button href="{{ route('meets.scoring-group-restrictions', $meet) }}" variant="filled" icon="funnel"
-                             size="sm" class="text-blue-500!">
-                    Wertungsgruppen einschränken
-                </flux:button>
+                @endcan
+                @can('module.write', Module::Results)
+                    <flux:button href="{{ route('meets.result-clubs', $meet) }}" variant="filled" icon="building-office"
+                                 size="sm" class="text-blue-500!">
+                        Vereine korrigieren
+                    </flux:button>
+                @endcan
+                @can('module.write', Module::Meets)
+                    <flux:button href="{{ route('meets.scoring-group-restrictions', $meet) }}" variant="filled" icon="funnel"
+                                 size="sm" class="text-blue-500!">
+                        Wertungsgruppen einschränken
+                    </flux:button>
+                @endcan
                 {{-- Eigener Tab, damit die Sammelansicht erhalten bleibt; übernimmt einen gesetzten Disziplin-Filter. --}}
                 <flux:button href="{{ route('meets.results-overview.pdf', array_filter(['meet' => $meet, 'event_id' => $filterConfig['event_id']])) }}"
                              target="_blank" variant="filled" icon="document-text" size="sm" class="text-blue-500!">
                     Ergebnisliste (PDF)
                 </flux:button>
-                @if($hasRelayEvents)
-                    <flux:button href="{{ route('meets.relay-results.create', $meet) }}" variant="filled" icon="plus" size="sm"
-                                 class="text-blue-500!">
-                        Staffelergebnis erfassen
+                @can('module.write', Module::Results)
+                    @if($hasRelayEvents)
+                        <flux:button href="{{ route('meets.relay-results.create', $meet) }}" variant="filled" icon="plus" size="sm"
+                                     class="text-blue-500!">
+                            Staffelergebnis erfassen
+                        </flux:button>
+                    @endif
+                    <flux:button href="{{ route('meets.results.create', $meet) }}" variant="primary" icon="plus" size="sm">
+                        Ergebnis erfassen
                     </flux:button>
-                @endif
-                <flux:button href="{{ route('meets.results.create', $meet) }}" variant="primary" icon="plus" size="sm">
-                    Ergebnis erfassen
-                </flux:button>
+                @endcan
             </div>
         </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -94,12 +108,15 @@
                     </flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:select variant="listbox" searchable name="club_id" x-model="club_id"
-                         placeholder="Alle Vereine" clearable class="flex-1 min-w-48">
-                @foreach($clubs as $club)
-                    <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            {{-- Bei "eigener Verein" gibt es nur den eigenen Verein, die Auswahl entfällt (P9-3). --}}
+            @if($clubs->isNotEmpty())
+                <flux:select variant="listbox" searchable name="club_id" x-model="club_id"
+                             placeholder="Alle Vereine" clearable class="flex-1 min-w-48">
+                    @foreach($clubs as $club)
+                        <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            @endif
             <flux:input name="search" x-model.debounce.500ms="search" placeholder="Athlet suchen…"
                         class="flex-1 min-w-48"/>
             @if($isFiltered)
@@ -129,6 +146,7 @@
                     </h2>
                     <x-gender-icon :gender="$event->gender"/>
                     <span class="ml-auto text-xs text-zinc-400">{{ $block['count'] }} {{ $block['count'] === 1 ? 'Ergebnis' : 'Ergebnisse' }}</span>
+                    @can('module.write', Module::Results)
                     <flux:button href="{{ route($isRelayEvent ? 'meets.relay-results.create' : 'meets.results.create', ['meet' => $meet, 'swim_event_id' => $event->id]) }}"
                                  size="xs" variant="ghost" icon="plus" class="text-blue-500!"
                                  title="Ergebnis in dieser Disziplin erfassen"
@@ -149,6 +167,7 @@
                                      title="Alle Ergebnisse dieser Disziplin löschen"
                                      aria-label="Alle Ergebnisse dieser Disziplin löschen"/>
                     </form>
+                    @endcan
                 </div>
                 @foreach($block['groups'] as $scoring)
                 <div class="px-4 pt-3 flex items-center gap-2">
@@ -271,16 +290,18 @@
                                     <flux:table.cell class="text-right whitespace-nowrap">
                                         <flux:button href="{{ route('results.show', $result) }}" size="xs" variant="ghost"
                                                      icon="eye" title="Ansehen" aria-label="Ansehen"/>
-                                        <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
-                                                     icon="pencil" class="text-amber-500!"
-                                                     title="Bearbeiten" aria-label="Bearbeiten"/>
-                                        <form method="POST" action="{{ route('results.destroy', $result) }}" class="inline"
-                                              x-data="{ submit() { if (confirm('Ergebnis löschen?')) this.$el.submit() } }"
-                                              @submit.prevent="submit()">
-                                            @csrf @method('DELETE')
-                                            <flux:button type="submit" size="xs" variant="ghost" icon="trash"
-                                                         class="text-red-500!" title="Löschen" aria-label="Löschen"/>
-                                        </form>
+                                        @can('module.write', Module::Results)
+                                            <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
+                                                         icon="pencil" class="text-amber-500!"
+                                                         title="Bearbeiten" aria-label="Bearbeiten"/>
+                                            <form method="POST" action="{{ route('results.destroy', $result) }}" class="inline"
+                                                  x-data="{ submit() { if (confirm('Ergebnis löschen?')) this.$el.submit() } }"
+                                                  @submit.prevent="submit()">
+                                                @csrf @method('DELETE')
+                                                <flux:button type="submit" size="xs" variant="ghost" icon="trash"
+                                                             class="text-red-500!" title="Löschen" aria-label="Löschen"/>
+                                            </form>
+                                        @endcan
                                     </flux:table.cell>
                                 </flux:table.row>
                             @endforeach
@@ -308,11 +329,11 @@
             <p class="text-sm text-zinc-400 dark:text-zinc-500">
                 {{ $isFiltered ? 'Keine Ergebnisse für diese Filter.' : 'Noch keine Ergebnisse erfasst.' }}
             </p>
-            @unless($isFiltered)
+            @if(! $isFiltered && auth()->user()->canWrite(Module::Results))
                 <flux:button href="{{ route('meets.results.create', $meet) }}" variant="ghost" icon="plus" class="mt-3">
                     Erstes Ergebnis erfassen
                 </flux:button>
-            @endunless
+            @endif
         </div>
     @endunless
 

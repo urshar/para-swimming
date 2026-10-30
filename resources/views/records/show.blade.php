@@ -191,7 +191,8 @@
                 </p>
             @endif
 
-            @if($record->result)
+            {{-- Nur wenn der Benutzer das Ergebnis sehen darf (bei "eigener Verein" nur eigene Athleten, P9-1). --}}
+            @if($record->result && auth()->user()->can('view', $record->result))
                 <div class="mt-3 text-sm">
                     <div class="text-zinc-500 dark:text-zinc-400 mb-1">Ergebnis-Referenz</div>
                     <a href="{{ route('results.show', $record->result) }}" class="text-blue-600 hover:underline">

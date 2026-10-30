@@ -9,6 +9,7 @@ use App\Models\ChangeRequest;
 use App\Models\Club;
 use App\Models\Coach;
 use App\Models\Meet;
+use App\Models\Result;
 use App\Models\User;
 use App\Policies\AthletePerformanceNotePolicy;
 use App\Policies\AthletePolicy;
@@ -16,6 +17,7 @@ use App\Policies\ChangeRequestPolicy;
 use App\Policies\ClubPolicy;
 use App\Policies\CoachPolicy;
 use App\Policies\EntryPolicy;
+use App\Policies\ResultPolicy;
 use App\Services\AccessTeamManagerSource;
 use App\Services\TeamManagerSource;
 use App\Support\AuditContext;
@@ -51,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ChangeRequest::class, ChangeRequestPolicy::class);
         Gate::policy(Club::class, ClubPolicy::class);
         Gate::policy(Coach::class, CoachPolicy::class);
+        Gate::policy(Result::class, ResultPolicy::class);
 
         // Rechte je Modul (Spec club-permissions §4.1), in Blade z. B. @can('module.write', Module::Athletes).
         // Admins laufen über User::readScope()/writeScope(), bewusst kein globales Gate::before.

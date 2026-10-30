@@ -44,13 +44,10 @@ class ClubEntryController extends Controller
      */
     public function index(Meet $meet): View
     {
-        $this->authorizeMeet($meet);
-
-        if ($chooser = $this->clubChooserView($meet, 'club-entries.index')) {
-            return $chooser;
+        $club = $this->listClub($meet, 'club-entries.index');
+        if ($club instanceof View) {
+            return $club;
         }
-
-        $club = $this->userClub();
 
         $entries = Entry::query()
             ->with(['athlete', 'swimEvent.strokeType'])
@@ -61,7 +58,7 @@ class ClubEntryController extends Controller
             ->orderBy('athlete_id')
             ->get();
 
-        $canManage = $this->canManage($meet);
+        $canManage = $this->canManageList($meet, $club);
 
         return view('club-entries.index', compact('meet', 'club', 'entries', 'canManage'));
     }
@@ -230,13 +227,10 @@ class ClubEntryController extends Controller
      */
     public function indexRelay(Meet $meet): View
     {
-        $this->authorizeMeet($meet);
-
-        if ($chooser = $this->clubChooserView($meet, 'club-entries.relay.index')) {
-            return $chooser;
+        $club = $this->listClub($meet, 'club-entries.relay.index');
+        if ($club instanceof View) {
+            return $club;
         }
-
-        $club = $this->userClub();
 
         $relayEntries = RelayEntry::query()
             ->with(['swimEvent.strokeType', 'members.athlete.sportClasses'])
@@ -249,7 +243,7 @@ class ClubEntryController extends Controller
         $relayEntries->each(fn (RelayEntry $r) => $r->setRelation('club', $club));
         $relayNames = RelayNames::for($relayEntries);
 
-        $canManage = $this->canManage($meet);
+        $canManage = $this->canManageList($meet, $club);
 
         return view('club-entries.index-relay', compact('meet', 'club', 'relayEntries', 'relayNames', 'canManage'));
     }
@@ -637,21 +631,36 @@ class ClubEntryController extends Controller
     }
 
     /**
-     * Sicherstellen, dass der User (via Policy) auf den Meet zugreifen darf.
-     * index() nutzt dies ohne Exception — nur für Lesezugriff.
+     * Verein für die Meldungsübersicht (Lesen, P9-5 — auch bei geschlossenen Wettkämpfen): Mit Meldungen lesen
+     * "alle" der gewählte Verein (ohne Auswahl die Vereinsauswahl als View), sonst der eigene.
      */
-    private function authorizeMeet(Meet $meet): void
+    private function listClub(Meet $meet, string $routeName): Club|View
     {
         $user = auth()->user();
 
-        if (! $user->canWriteAll(Module::Entries) && ! $user->club_id) {
-            abort(403, 'Kein Verein zugeordnet.');
+        if ($user->canReadAll(Module::Entries)) {
+            $clubId = request()->integer('club_id');
+
+            return $clubId
+                ? Club::findOrFail($clubId)
+                : view('club-entries.choose-club', [
+                    'meet' => $meet,
+                    'clubs' => Club::orderBy('name')->get(),
+                    'routeName' => $routeName,
+                ]);
         }
 
-        // Meet muss für Club-Meldungen offen sein (außer mit Meldungen schreiben "alle")
-        if (! $user->canWriteAll(Module::Entries) && ! $meet->is_open) {
-            abort(403, 'Dieser Wettkampf ist nicht für Vereinsmeldungen geöffnet.');
-        }
+        abort_unless($user->club_id, 403, 'Kein Verein zugeordnet.');
+
+        return $user->club;
+    }
+
+    /** Schaltflächen der Übersicht: Melderecht für den Wettkampf und für genau diesen Verein. */
+    private function canManageList(Meet $meet, Club $club): bool
+    {
+        $user = auth()->user();
+
+        return $this->canManage($meet) && ($user->canWriteAll(Module::Entries) || $user->club_id === $club->id);
     }
 
     /**

@@ -500,3 +500,26 @@ eigenem Sign-off:
   bleibt).
 - P8-4: Verknüpfung nur in der Benutzerverwaltung (Admin), mit Vorschlag der Vorlage "Trainer".
 - P8-5: Eigene Trainerliste im Menü und Abschnitt auf der Vereinsseite.
+
+### Phase 9 im Detail (abgenommen)
+
+- Ergebnisse lesen "eigener Verein" (F5): `Result::scopeVisibleTo(User)` und `RelayResult::scopeVisibleTo(User)`,
+  `ResultPolicy::view` (fremdes Ergebnis → 403). `results.index`, `results.show`, `meets.results-overview` und das
+  PDF unter `module:results,read` statt `read,all`.
+- Ergebnisliste gefiltert, Wettkampf-Auswahl nur mit sichtbaren Ergebnissen; "Punkte neu berechnen" nur mit
+  Wettkämpfe schreiben. Sammelansicht und PDF zeigen nur eigene Zeilen mit den Plätzen im ganzen Feld, ohne
+  Gaststarts und Vereinsauswahl; PDF mit dem Verein im Titel.
+- Schreib-Schaltflächen der Ergebnis-Views über `@can('module.write', Module::Results)`; Menü, Schaltfläche und
+  Kachel auf `meets/show` über `canRead`; Ergebnis-Links auf der Rekordseite nur bei `@can('view', $result)`.
+- Eigene Meldungen lesen: `club-entries.index` und `club-entries.relay.index` unter `module:entries,read`, auch für
+  geschlossene und vergangene Wettkämpfe; Schaltflächen weiter über `$canManage`. `pick-meet` bleibt beim
+  Schreibrecht.
+
+**Entscheidungen Phase 9 (Erik, 30.10.2026)**
+
+- P9-1: "Eigene Athleten" = Athleten, die aktuell zum eigenen Verein gehören (wie die Athleten-Sichtbarkeit).
+- P9-2: Staffelergebnisse über den Verein der Staffel.
+- P9-3: Die Sammelansicht zeigt die echten Plätze im ganzen Feld; Gaststarts sind ausgeblendet.
+- P9-4: Das PDF gibt es auch bei "eigener Verein", gefiltert und mit dem Vereinsnamen im Titel.
+- P9-5: Eigene Meldungen sind mit Leserecht sichtbar, auch bei geschlossenen oder vergangenen Wettkämpfen;
+  Schreiben bleibt unverändert.

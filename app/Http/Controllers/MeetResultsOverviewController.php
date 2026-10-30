@@ -2,18 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\ForeignStart;
 use App\Models\Meet;
 use App\Models\PointSystem;
 use App\Models\RelayResult;
 use App\Models\Result;
 use App\Models\SwimEvent;
+use App\Models\User;
 use App\Services\MeetResultListService;
 use App\Services\PdfExportService;
 use App\Support\ListUrl;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -27,7 +30,9 @@ use Symfony\Component\HttpFoundation\Response;
  * sich als Rücksprungziel des Bereichs "results" (remember.list:results, wie die globale
  * Ergebnisliste), damit man nach Speichern/Löschen mit denselben Filtern hierher zurückkommt. Zusätzlich
  * löscht destroyEvent() alle Ergebnisse einer Disziplin auf einmal (z. B. nach einem
- * fehlerhaften LENEX-Import). Nur Admin (Route-Middleware RequireAdmin).
+ * fehlerhaften LENEX-Import). Ansicht und PDF mit Ergebnisse lesen; bei "eigener Verein" nur Zeilen eigener
+ * Athleten bzw. Staffeln, mit den Plätzen im ganzen Feld und ohne Gaststarts (Spec club-permissions P9-3/P9-4).
+ * Löschen verlangt Ergebnisse schreiben (Route-Middleware).
  */
 class MeetResultsOverviewController extends Controller
 {
@@ -45,7 +50,10 @@ class MeetResultsOverviewController extends Controller
             $eventFilter = null;
         }
 
-        $clubs = $meet->clubsByIds($meet->resultClubIds());
+        $user = $request->user();
+        $all = $user->canReadAll(Module::Results);
+
+        $clubs = $all ? $meet->clubsByIds($meet->resultClubIds()) : collect();
         $clubFilter = $request->integer('club_id') ?: null;
         if ($clubFilter !== null && ! $clubs->contains('id', $clubFilter)) {
             $clubFilter = null;
@@ -62,7 +70,8 @@ class MeetResultsOverviewController extends Controller
             foreach ($block['groups'] as $group) {
                 $rows = array_values(array_filter(
                     $group['rows'],
-                    fn (array $row): bool => self::rowMatches($row['result'], $clubFilter, $search),
+                    fn (array $row): bool => $row['result']->isVisibleTo($user)
+                        && self::rowMatches($row['result'], $clubFilter, $search),
                 ));
                 if ($rows !== []) {
                     $groups[] = ['group' => $group['group'], 'label' => $group['label'], 'missingPoints' => $group['missingPoints'], 'rows' => $rows];
@@ -71,9 +80,9 @@ class MeetResultsOverviewController extends Controller
                     }
                 }
             }
-            // Gäste haben keinen Verein in der Vereinsauswahl: Mit Vereinsfilter fallen sie weg, die Suche findet sie
-            // über Name und Verein.
-            $guests = $clubFilter !== null ? collect() : $block['guests']->filter(
+            // Gäste haben keinen Verein in der Vereinsauswahl: Mit Vereinsfilter (und bei "eigener Verein") fallen sie
+            // weg, die Suche findet sie über Name und Verein.
+            $guests = $clubFilter !== null || ! $all ? collect() : $block['guests']->filter(
                 fn (ForeignStart $guest): bool => $search === ''
                     || str_contains(mb_strtolower($guest->display_name.' '.$guest->club_name), $search),
             )->values();
@@ -120,7 +129,9 @@ class MeetResultsOverviewController extends Controller
                 'search' => trim((string) $request->query('search', '')),
             ],
             'isFiltered' => $eventFilter !== null || $clubFilter !== null || $search !== '',
-            'total' => $meet->results()->count() + $meet->relayResults()->count() + $meet->foreignStarts()->count(),
+            'total' => $all
+                ? $meet->results()->count() + $meet->relayResults()->count() + $meet->foreignStarts()->count()
+                : $meet->results()->visibleTo($user)->count() + $meet->relayResults()->visibleTo($user)->count(),
         ]);
     }
 
@@ -137,9 +148,17 @@ class MeetResultsOverviewController extends Controller
 
         $slug = str($meet->name)->slug()->limit(40, '')->value() ?: 'wettkampf';
 
+        $user = $request->user();
+        $events = $lists->byEvent($meet, $eventId);
+        $club = null;
+        if (! $user->canReadAll(Module::Results)) {
+            $events = self::visibleBlocks($events, $user);
+            $club = $user->club;
+        }
+
         return $pdf->stream(
             'pdf.result-list',
-            ['meet' => $meet, 'events' => $lists->byEvent($meet, $eventId), 'pointColumns' => self::pointColumns($meet)],
+            ['meet' => $meet, 'events' => $events, 'pointColumns' => self::pointColumns($meet), 'club' => $club],
             "ergebnisliste-$slug.pdf",
         );
     }
@@ -175,6 +194,34 @@ class MeetResultsOverviewController extends Controller
         return $remembered === $overview || str_starts_with($remembered, $overview.'?')
             ? $remembered
             : $overview;
+    }
+
+    /**
+     * Ergebnisblöcke auf die für den Benutzer sichtbaren Zeilen eingeschränkt (P9-4): Plätze bleiben die im ganzen
+     * Feld, Gaststarts entfallen, Blöcke und Gruppen ohne sichtbare Zeile ebenso.
+     *
+     * @param  Collection<int, array<string, mixed>>  $blocks
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function visibleBlocks(Collection $blocks, User $user): Collection
+    {
+        return $blocks
+            ->map(function (array $block) use ($user): array {
+                $groups = [];
+                foreach ($block['groups'] as $group) {
+                    $group['rows'] = array_values(array_filter(
+                        $group['rows'],
+                        fn (array $row): bool => $row['result']->isVisibleTo($user),
+                    ));
+                    if ($group['rows'] !== []) {
+                        $groups[] = $group;
+                    }
+                }
+
+                return [...$block, 'groups' => $groups, 'guests' => collect()];
+            })
+            ->filter(fn (array $block): bool => $block['groups'] !== [])
+            ->values();
     }
 
     /** Ob eine Ergebniszeile zu Vereinsfilter und Athletensuche passt (Staffel: Verein der Staffel, Suche über die Schwimmer). */

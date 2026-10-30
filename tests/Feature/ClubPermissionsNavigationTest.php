@@ -39,7 +39,7 @@ it('zeigt Benutzern ohne freigegebenen Bereich einen Hinweis statt einer 403-Sei
 // ── Navigation ────────────────────────────────────────────────────────────────
 
 // Seit 3c (P3c-1) neu: Basiswerte lesen öffnet das Menü "Basiswerte", der Import bleibt Schreibrecht.
-it('zeigt der Vorlage "Verein" dieselben Menüpunkte wie bisher einem Vereinsbenutzer, dazu die Basiswerte', function () {
+it('zeigt der Vorlage "Verein" dieselben Menüpunkte wie bisher einem Vereinsbenutzer, dazu Basiswerte und Ergebnisse', function () {
     test()->actingAs(userWithTemplate_cp3(RoleTemplate::Club))
         ->get(route('meets.index'))
         ->assertOk()
@@ -49,9 +49,10 @@ it('zeigt der Vorlage "Verein" dieselben Menüpunkte wie bisher einem Vereinsben
         ->assertSee(route('lenex.export'))
         ->assertSee(route('wps.rankings'))
         ->assertSee(route('base-times.versions.index'))
+        // Ergebnisse lesen "eigener Verein" seit Phase 9 (P9-1).
+        ->assertSee(route('results.index'))
         ->assertDontSee(route('base-times.import'))
         ->assertDontSee(route('entries.index'))
-        ->assertDontSee(route('results.index'))
         ->assertDontSee(route('lenex.import'))
         ->assertDontSee(route('records.import'))
         ->assertDontSee(route('statistics.index'))

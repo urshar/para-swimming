@@ -1,3 +1,6 @@
+@php
+    use App\Enums\Module;
+@endphp
 {{--
     Staffelergebnisse eines Staffelbewerbs in der Ergebnis-Sammelansicht (meets/results-overview).
     Erwartet: $rows (je Zeile place und result = RelayResult mit club und members.athlete), $pointColumns.
@@ -80,15 +83,17 @@
                         {{ $relayResult->lenex_result_id ? 'LENEX' : 'manuell' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-right whitespace-nowrap">
-                        <flux:button href="{{ route('relay-results.edit', $relayResult) }}" size="xs" variant="ghost"
-                                     icon="pencil" class="text-amber-500!" title="Bearbeiten" aria-label="Bearbeiten"/>
-                        <form method="POST" action="{{ route('relay-results.destroy', $relayResult) }}" class="inline"
-                              x-data="{ submit() { if (confirm('Staffelergebnis löschen?')) this.$el.submit() } }"
-                              @submit.prevent="submit()">
-                            @csrf @method('DELETE')
-                            <flux:button type="submit" size="xs" variant="ghost" icon="trash"
-                                         class="text-red-500!" title="Löschen" aria-label="Löschen"/>
-                        </form>
+                        @can('module.write', Module::Results)
+                            <flux:button href="{{ route('relay-results.edit', $relayResult) }}" size="xs" variant="ghost"
+                                         icon="pencil" class="text-amber-500!" title="Bearbeiten" aria-label="Bearbeiten"/>
+                            <form method="POST" action="{{ route('relay-results.destroy', $relayResult) }}" class="inline"
+                                  x-data="{ submit() { if (confirm('Staffelergebnis löschen?')) this.$el.submit() } }"
+                                  @submit.prevent="submit()">
+                                @csrf @method('DELETE')
+                                <flux:button type="submit" size="xs" variant="ghost" icon="trash"
+                                             class="text-red-500!" title="Löschen" aria-label="Löschen"/>
+                            </form>
+                        @endcan
                     </flux:table.cell>
                 </flux:table.row>
             @endforeach
