@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AccessScope;
 use App\Enums\Module;
+use App\Models\Concerns\Auditable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Athlete extends Model
 {
-    use SoftDeletes;
+    use Auditable, SoftDeletes;
 
     /** Behinderungsgruppen (Kürzel wie im Splash Team Manager und in der Statistik). */
     const array DISABILITY_GROUPS = [
@@ -80,6 +81,14 @@ class Athlete extends Model
             AccessScope::Own => $query->where('club_id', $user->club_id),
             AccessScope::None => $query->whereRaw('1 = 0'),
         };
+    }
+
+    // ── Änderungsprotokoll ────────────────────────────────────────────────────
+
+    /** Der Athlet selbst ist der Bezug für seinen Verlauf (Trait Auditable). */
+    public function auditAthleteId(): ?int
+    {
+        return $this->id;
     }
 
     // ── Relationen ────────────────────────────────────────────────────────────

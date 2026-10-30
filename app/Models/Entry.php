@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Entry extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'meet_id',
         'swim_event_id',

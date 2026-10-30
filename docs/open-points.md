@@ -536,3 +536,14 @@ Verein beschränkt wieder geöffnet werden.
 **Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
 Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in
 `UserManagementTest`/`WpsQualification*`).
+
+## Änderungsprotokoll für Benutzer und Rechte
+
+**Seit:** `feature/club-permissions`, Phase 4 (30.10.2026), Entscheidung P4-3.
+
+**Was fehlt:** Das Änderungsprotokoll (`audit_logs`) erfasst Athleten, Vereine, Meldungen und Staffelmeldungen,
+aber keine Änderungen an Benutzern, Vorlagen und der Rechte-Matrix (`user_module_permissions`). Wer wem wann welche
+Rechte gegeben hat, ist damit nicht nachvollziehbar.
+
+**Zum Schließen nötig:** Trait `Auditable` an `User` (ohne Passwort-, Token- und 2FA-Felder) und ein Eintrag je
+Matrix-Änderung über `AuditLogger`; Anzeige in der Benutzerverwaltung.

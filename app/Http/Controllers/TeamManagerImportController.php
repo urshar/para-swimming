@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Classifier;
 use App\Services\TeamManagerImportService;
 use App\Services\TeamManagerSource;
+use App\Support\AuditContext;
 use App\Support\TeamManagerImportPreview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +38,7 @@ class TeamManagerImportController extends Controller
     public function __construct(
         private readonly TeamManagerSource $source,
         private readonly TeamManagerImportService $importService,
+        private readonly AuditContext $audit,
     ) {}
 
     public function showForm(): View
@@ -58,7 +61,7 @@ class TeamManagerImportController extends Controller
             'local'
         );
 
-        Session::put(self::SESSION_KEY, ['path' => $path]);
+        Session::put(self::SESSION_KEY, ['path' => $path, 'name' => $file->getClientOriginalName()]);
 
         return redirect()->route('team-manager-import.preview');
     }
@@ -117,7 +120,9 @@ class TeamManagerImportController extends Controller
         }
 
         try {
-            $counts = $this->importService->import($preview, $assignments);
+            $name = Session::get(self::SESSION_KEY)['name'] ?? 'Team-Manager';
+            $counts = $this->audit->during(AuditLog::SOURCE_IMPORT, 'Team-Manager: '.$name,
+                fn () => $this->importService->import($preview, $assignments));
         } catch (Throwable $e) {
             return redirect()
                 ->route('team-manager-import.preview')

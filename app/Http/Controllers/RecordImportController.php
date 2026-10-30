@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Athlete;
+use App\Models\AuditLog;
 use App\Models\Club;
 use App\Services\RecordImportService;
+use App\Support\AuditContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
@@ -23,7 +25,8 @@ use Throwable;
 class RecordImportController extends Controller
 {
     public function __construct(
-        private readonly RecordImportService $importService
+        private readonly RecordImportService $importService,
+        private readonly AuditContext $audit,
     ) {}
 
     public function showForm(): View
@@ -109,16 +112,17 @@ class RecordImportController extends Controller
         $approvedRegional = $request->input('regional', []);
 
         try {
-            $result = $this->importService->import(
+            $name = Session::get('record_import_name', basename($path));
+            $result = $this->audit->during(AuditLog::SOURCE_IMPORT, 'Rekorde: '.$name, fn () => $this->importService->import(
                 Storage::disk('local')->path($path),
                 $approvedClubs,
                 $approvedAthletes,
                 $newClubData,
                 $newAthleteData,
                 $approvedRegional,
-                Session::get('record_import_name', basename($path)),
+                $name,
                 Session::get('record_import_before'),
-            );
+            ));
         } catch (Throwable $e) {
             return redirect()->route('records.import')
                 ->withErrors(['lenex_file' => 'Import fehlgeschlagen: '.$e->getMessage()]);

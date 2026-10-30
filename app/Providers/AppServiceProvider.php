@@ -12,6 +12,7 @@ use App\Policies\AthletePolicy;
 use App\Policies\EntryPolicy;
 use App\Services\AccessTeamManagerSource;
 use App\Services\TeamManagerSource;
+use App\Support\AuditContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(TeamManagerSource::class, AccessTeamManagerSource::class);
+
+        // Quelle und Stummschaltung des Änderungsprotokolls gelten je Request bzw. Befehl.
+        $this->app->scoped(AuditContext::class);
     }
 
     /**

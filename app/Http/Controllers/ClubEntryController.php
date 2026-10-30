@@ -10,6 +10,7 @@ use App\Models\Meet;
 use App\Models\RelayEntry;
 use App\Models\RelayEntryMember;
 use App\Models\SwimEvent;
+use App\Services\AuditLogger;
 use App\Services\ClubEntryService;
 use App\Services\RelayClassValidator;
 use App\Support\RelayNames;
@@ -33,6 +34,7 @@ class ClubEntryController extends Controller
     public function __construct(
         private readonly ClubEntryService $entryService,
         private readonly RelayClassValidator $relayValidator,
+        private readonly AuditLogger $audit,
     ) {}
 
     // ── Index ─────────────────────────────────────────────────────────────────
@@ -343,6 +345,7 @@ class ClubEntryController extends Controller
                 'sport_class' => $sportClass,
             ]);
         }
+        $this->audit->relayMembersChanged($relayEntry, '');
 
         return redirect()
             ->to($this->relayReturnUrl($meet))
@@ -441,6 +444,7 @@ class ClubEntryController extends Controller
 
         // Members komplett neu schreiben — nur, wenn Athleten angegeben wurden
         if (! empty($athleteIds)) {
+            $membersBefore = $this->audit->relayMemberNames($relayEntry);
             $relayEntry->members()->delete();
             foreach (array_values($athleteIds) as $pos => $athleteId) {
                 $sportClass = $this->resolveSportClass($athleteId, $event);
@@ -451,6 +455,7 @@ class ClubEntryController extends Controller
                     'sport_class' => $sportClass,
                 ]);
             }
+            $this->audit->relayMembersChanged($relayEntry, $membersBefore);
         }
 
         return redirect()

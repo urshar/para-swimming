@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Athlete;
+use App\Models\AuditLog;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Models\Nation;
@@ -11,7 +12,9 @@ use App\Services\ImportSuggestionService;
 use App\Services\LenexAthleteSelectionService;
 use App\Services\LenexParserService;
 use App\Services\LenexResolverService;
+use App\Support\AuditContext;
 use Carbon\Carbon;
+use Closure;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -26,11 +29,15 @@ class LenexImportController extends Controller
     /** Importumfang "Nur ausgewählte Athleten" in "Wettkampf zuordnen" (Sentinel, siehe CLAUDE.md). */
     public const string SCOPE_SELECTED = 'SELECTED';
 
+    /** Session: gespeicherter Pfad → ursprünglicher Dateiname, für das Änderungsprotokoll. */
+    private const string FILE_NAMES = 'lenex_import_file_names';
+
     public function __construct(
         private readonly LenexParserService $parser,
         private readonly LenexResolverService $resolver,
         private readonly ImportSuggestionService $suggestions,
         private readonly LenexAthleteSelectionService $selection,
+        private readonly AuditContext $audit,
     ) {}
 
     public function showForm(): View
@@ -305,6 +312,8 @@ class LenexImportController extends Controller
 
         $path = $request->file('lenex_file')->store('lenex-imports', 'local');
         $fullPath = Storage::disk('local')->path($path);
+        Session::put(self::FILE_NAMES, [$path => $request->file('lenex_file')->getClientOriginalName()]
+            + Session::get(self::FILE_NAMES, []));
 
         try {
             // Typ erkennen ohne zu importieren
@@ -314,7 +323,7 @@ class LenexImportController extends Controller
 
             // Bei structure: direkt importieren — keine Meet-Auswahl nötig
             if ($type === 'structure') {
-                $result = $this->parser->import($fullPath, $this->resolver);
+                $result = $this->asImport($path, fn () => $this->parser->import($fullPath, $this->resolver));
                 Storage::disk('local')->delete($path);
 
                 return $this->redirectAfterImport($result);
@@ -633,10 +642,11 @@ class LenexImportController extends Controller
         array $filter,
         ?string $meetNation
     ): RedirectResponse {
-        $result = $this->parser->import(Storage::disk('local')->path($path), $this->resolver, $meetId, $filter + [
-            'unscored_events' => $unscoredEventNumbers,
-            'meet_nation' => $meetNation,
-        ]);
+        $result = $this->asImport($path, fn () => $this->parser->import(Storage::disk('local')->path($path),
+            $this->resolver, $meetId, $filter + [
+                'unscored_events' => $unscoredEventNumbers,
+                'meet_nation' => $meetNation,
+            ]));
 
         if (! $this->resolver->hasUnresolved()) {
             Storage::disk('local')->delete($path);
@@ -694,12 +704,27 @@ class LenexImportController extends Controller
             $this->resolver->assignAthlete((string) $lenexId, $athleteId);
         }
 
-        return $this->parser->import(
+        return $this->asImport($importData['path'], fn () => $this->parser->import(
             Storage::disk('local')->path($importData['path']),
             $this->resolver,
             $importData['force_meet_id'] ?? null,
             $importData['filter'] ?? []
-        );
+        ));
+    }
+
+    /**
+     * Import-Lauf mit Quelle "Import" und dem ursprünglichen Dateinamen im Änderungsprotokoll (P4-1).
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    private function asImport(string $path, Closure $callback): mixed
+    {
+        $name = Session::get(self::FILE_NAMES, [])[$path] ?? basename($path);
+
+        return $this->audit->during(AuditLog::SOURCE_IMPORT, 'LENEX: '.$name, $callback);
     }
 
     /** "Name (Code)" für Auswahllisten — eindeutiger als der Kurzname (display_name). */

@@ -391,3 +391,26 @@ eigenem Sign-off:
 - P3c-3: Leistungsnotizen (Gesundheitsdaten) vereinsübergreifend nur Admin; für den eigenen Verein zusätzlich
   Athleten lesen (ansehen) bzw. Athleten schreiben (anlegen/ändern). Der Bereich "alle" öffnet die Notizen
   ausdrücklich nicht.
+
+### Phase 4 im Detail (abgenommen)
+
+- Tabelle `audit_logs` (nur schreiben): `user_id` (nullable, `nullOnDelete`) + `user_name` als Kopie, Modell + ID,
+  Aktion (`created`, `updated`, `deleted`, `restored`, `merged`, `transferred`), `changes` als JSON
+  `{feld: [alt, neu]}`, Quelle (`web`, `import`, `console`) + Angabe (z. B. Dateiname), `athlete_id`/`club_id` zum
+  Filtern (eine Meldung erscheint am Athleten, eine Staffelmeldung am Verein), Zeitpunkt.
+- Trait `Auditable` an Athlet, Verein, Meldung, Staffelmeldung: nur echte Änderungen, Zeitstempel ausgeschlossen,
+  beim Löschen die alten Werte. Trainer und Anträge bekommen den Trait in ihren Phasen.
+- Service `AuditLogger` für Einträge ohne Model-Event: Staffelmitglieder (ein Eintrag "Mitglieder" alt → neu an der
+  Staffelmeldung), Zusammenführen (`merged` am behaltenen Athleten), Vereinswechsel (`transferred`), Quelle "Import"
+  für die Laufzeit eines Imports.
+- Anzeige "Verlauf" auf den Detailseiten von Athlet und Verein, nur Admin; deutsche Feldnamen, Fremdschlüssel als
+  Name.
+
+**Entscheidungen Phase 4 (Erik, 30.10.2026)**
+
+- P4-1: Importe (LENEX, Team-Manager) werden protokolliert, mit Quelle "Import", Dateiname und importierendem
+  Benutzer; Konsolenbefehle ohne Benutzer erscheinen als "System".
+- P4-2: Meldungen erscheinen im Verlauf des Athleten (Einzel) bzw. des Vereins (Staffel); keine eigene Seite je
+  Wettkampf.
+- P4-3: Änderungen an Benutzern und Rechten werden nicht in Phase 4 protokolliert (Punkt in `open-points.md`).
+- P4-4: Aufbewahrung unbegrenzt; Leistungsnotizen werden nicht protokolliert.

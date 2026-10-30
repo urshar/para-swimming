@@ -8,6 +8,7 @@ use App\Models\AthleteClassification;
 use App\Models\AthleteClubHistory;
 use App\Models\AthleteKaderMembership;
 use App\Models\AthleteLevelHistory;
+use App\Models\AuditLog;
 use App\Models\Classifier;
 use App\Models\Club;
 use App\Models\ExceptionCode;
@@ -15,6 +16,7 @@ use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
 use App\Services\AthleteClubTransferService;
+use App\Support\AuditHistory;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -165,9 +167,14 @@ class AthleteController extends Controller
         $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
         $kaderTypes = KaderType::active()->orderBy('sort_order')->get();
 
+        // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
+        $history = auth()->user()->is_admin
+            ? AuditHistory::build(AuditLog::forAthlete($athlete), request()->query('verlauf') === 'alle')
+            : null;
+
         return view('athletes.show', compact(
             'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes'
+            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history'
         ));
     }
 

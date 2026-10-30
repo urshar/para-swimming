@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Module;
+use App\Models\AuditLog;
 use App\Models\Club;
 use App\Models\Nation;
+use App\Support\AuditHistory;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,7 +82,12 @@ class ClubController extends Controller
                 ->paginate(20)
             : null;
 
-        return view('clubs.show', compact('club', 'athletes'));
+        // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
+        $history = $user->is_admin
+            ? AuditHistory::build(AuditLog::forClub($club), request()->query('verlauf') === 'alle')
+            : null;
+
+        return view('clubs.show', compact('club', 'athletes', 'history'));
     }
 
     public function edit(Club $club): View

@@ -911,4 +911,10 @@
 
     <div class="mt-4">{{ $results->links() }}</div>
 
+    @if($history !== null)
+        <div class="mt-6">
+            @include('partials.audit-history', ['history' => $history])
+        </div>
+    @endif
+
 @endsection

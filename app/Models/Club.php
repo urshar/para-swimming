@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Club extends Model
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     // ── regionale Verbandscodes (Österreich) ──────────────────────────────────
 
@@ -56,6 +57,14 @@ class Club extends Model
         'regional_association',
         'swrid',
     ];
+
+    // ── Änderungsprotokoll ────────────────────────────────────────────────────
+
+    /** Der Verein selbst ist der Bezug für seinen Verlauf (Trait Auditable). */
+    public function auditClubId(): ?int
+    {
+        return $this->id;
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 
