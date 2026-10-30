@@ -149,8 +149,9 @@ Route::middleware(['auth'])->group(function () {
         [ClubEntryController::class, 'pickMeetRelay'])->name('club-entries.relay.pick-meet')->middleware('module:entries,write');
 
     // ── Stammdaten ────────────────────────────────────────────────────────────
-    // Rechte je Modul (Spec club-permissions §4.1). Schreiben verlangt bis zu den Phasen 5/7 den Bereich "alle";
-    // die Pflege eigener Athleten und Vereinsdaten kommt dort, auf den eigenen Verein beschränkt.
+    // Rechte je Modul (Spec club-permissions §4.1). Athleten anlegen und bearbeiten geht auch mit "eigener Verein"
+    // (Phase 5, Feldregeln in AthleteFieldRules, Datensatz-Prüfung in AthletePolicy); alles Übrige verlangt "alle".
+    // Vereinsdaten folgen in Phase 7.
     // Schreib-Routen VOR den lesenden Ressourcen: sonst bindet Laravel "create" als {athlete}/{club} (404).
 
     Route::resource('nations', NationController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
@@ -158,8 +159,11 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('clubs', ClubController::class)->except(['index', 'show'])
         ->middleware('module:clubs,write,all');
 
+    Route::resource('athletes', AthleteController::class)->only(['create', 'store', 'edit', 'update'])
+        ->middleware('module:athletes,write');
+
     Route::middleware('module:athletes,write,all')->group(function () {
-        Route::resource('athletes', AthleteController::class)->except(['index', 'show']);
+        Route::resource('athletes', AthleteController::class)->only(['destroy']);
 
         Route::post('athletes/{athlete}/transfer-club',
             [AthleteController::class, 'transferClub'])->name('athletes.transfer-club');

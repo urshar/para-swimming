@@ -33,11 +33,13 @@
                          variant="filled" icon="chart-bar" size="sm" class="text-blue-500!">
                 WPS-Analyse
             </flux:button>
-            @if(auth()->user()?->canWriteAll(Module::Athletes))
+            @can('update', $athlete)
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            @endcan
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button href="{{ route('athletes.merge.create', $athlete) }}" variant="filled"
                          icon="arrows-pointing-in" size="sm" class="text-red-500!">
                 Zusammenführen
@@ -160,7 +162,7 @@
                     </div>
                 </div>
             @empty
-                <p class="text-sm text-zinc-400">Keine Klassen zugeordnet.</p>
+                <p class="text-sm text-zinc-400">Noch nicht klassifiziert — die Klassifikation trägt der Verband ein.</p>
             @endforelse
 
             @if($athlete->exceptions->isNotEmpty())

@@ -16,6 +16,8 @@ use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
 use App\Services\AthleteClubTransferService;
+use App\Services\ImportSuggestionService;
+use App\Support\AthleteFieldRules;
 use App\Support\AuditHistory;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
@@ -87,9 +89,26 @@ class AthleteController extends Controller
     /**
      * @throws Throwable
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ImportSuggestionService $suggestions): RedirectResponse
     {
-        $data = $this->validateAthlete($request);
+        Gate::authorize('create', Athlete::class);
+        $rules = AthleteFieldRules::for($request->user());
+        $data = $this->validateAthlete($request, $rules->locked(true));
+
+        if ($rules->restricted()) {
+            $data['club_id'] = $request->user()->club_id;
+
+            // Dublettenwarnung (N3, P5-1): nur der Hinweis, keine Daten des fremden Athleten (F5).
+            $similar = $suggestions->suggestAthletes($data['last_name'], $data['first_name'],
+                (string) ($data['birth_date'] ?? ''), $data['gender']);
+            if ($similar->isNotEmpty() && ! $request->boolean('confirm_duplicate')) {
+                return back()->withInput()->withErrors([
+                    'duplicate' => 'Es gibt bereits einen Athleten mit gleichem Namen, Geschlecht und Jahrgang. Ist es '
+                        .'dieselbe Person, ist eine Ummeldung zum eigenen Verein der richtige Weg — bitte an den Verband '
+                        .'wenden. Ist es eine andere Person, kann der Athlet trotzdem angelegt werden.',
+                ]);
+            }
+        }
 
         $athlete = DB::transaction(function () use ($data, $request) {
             $athlete = Athlete::create($data);
@@ -120,6 +139,13 @@ class AthleteController extends Controller
             return $athlete;
         });
 
+        // Klassifikationen sind Verbandssache (Spec §4.4, P5-2): Vereine landen ohne Eintragen-Panel auf der Detailseite.
+        if ($rules->restricted()) {
+            return redirect()
+                ->route('athletes.show', $athlete)
+                ->with('success', 'Athlet angelegt. Die Klassifikation trägt der Verband ein.');
+        }
+
         // Sportklassen/Exceptions werden nicht mehr über dieses Formular gepflegt, sondern
         // ausschließlich über die Klassifikations-History — siehe athletes.show. Direkt dorthin
         // weiterleiten und das Eintragen-Panel automatisch öffnen.
@@ -128,12 +154,15 @@ class AthleteController extends Controller
             ->with('success', 'Athlet erfolgreich angelegt. Jetzt die erste Klassifikation eintragen.');
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        Gate::authorize('create', Athlete::class);
         $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
+        $locked = AthleteFieldRules::for($request->user())->locked(true);
+        $ownClub = $request->user()->club;
 
-        return view('athletes.form', compact('nations', 'clubs'));
+        return view('athletes.form', compact('nations', 'clubs', 'locked', 'ownClub'));
     }
 
     public function show(Athlete $athlete): View
@@ -180,12 +209,15 @@ class AthleteController extends Controller
 
     // ── Vereinswechsel (Ummeldung) ────────────────────────────────────────────
 
-    public function edit(Athlete $athlete): View
+    public function edit(Request $request, Athlete $athlete): View
     {
+        Gate::authorize('update', $athlete);
         $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
+        $locked = AthleteFieldRules::for($request->user())->locked(false);
+        $ownClub = $request->user()->club;
 
-        return view('athletes.form', compact('athlete', 'nations', 'clubs'));
+        return view('athletes.form', compact('athlete', 'nations', 'clubs', 'locked', 'ownClub'));
     }
 
     // ── Klassifikation ────────────────────────────────────────────────────────
@@ -232,7 +264,8 @@ class AthleteController extends Controller
      */
     public function update(Request $request, Athlete $athlete): RedirectResponse
     {
-        $data = $this->validateAthlete($request);
+        Gate::authorize('update', $athlete);
+        $data = $this->validateAthlete($request, AthleteFieldRules::for($request->user())->locked(false));
 
         DB::transaction(function () use ($athlete, $data) {
             $oldLevel = $athlete->level;
@@ -420,10 +453,15 @@ class AthleteController extends Controller
      * ausschließlich über die Klassifikations-History (validateClassification() weiter unten) —
      * siehe athletes.show. Das hält die Stammdaten und die Klassifikations-Historie konsistent,
      * statt zwei parallele, sich gegenseitig überschreibende Wege zu pflegen.
+     *
+     * Gesperrte Felder (AthleteFieldRules) fallen aus den Regeln und damit aus den Daten: Sie werden ignoriert, nicht
+     * abgelehnt.
+     *
+     * @param  array<string, string>  $locked
      */
-    private function validateAthlete(Request $request): array
+    private function validateAthlete(Request $request, array $locked): array
     {
-        return $request->validate([
+        return $request->validate(array_diff_key([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'name_prefix' => 'nullable|string|max:50',
@@ -447,7 +485,7 @@ class AthleteController extends Controller
             'level' => 'nullable|string|max:50',
             'last_medical_check_at' => 'nullable|date',
             'next_medical_check_at' => 'nullable|date',
-        ]);
+        ], $locked));
     }
 
     /**

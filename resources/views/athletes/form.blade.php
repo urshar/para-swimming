@@ -25,6 +25,20 @@
                 @method('PUT')
             @endif
 
+            {{-- Dublettenwarnung beim Anlegen durch einen Verein (Spec club-permissions P5-1): bewusst ohne Daten
+                 des gefundenen Athleten. "Trotzdem anlegen" schickt dasselbe Formular mit Bestätigung ab. --}}
+            @error('duplicate')
+                <flux:callout icon="exclamation-triangle" color="amber" class="mb-4">
+                    <flux:callout.heading>Möglicherweise schon vorhanden</flux:callout.heading>
+                    <flux:callout.text>{{ $message }}</flux:callout.text>
+                    <x-slot name="actions">
+                        <flux:button type="submit" name="confirm_duplicate" value="1" size="sm">
+                            Trotzdem anlegen
+                        </flux:button>
+                    </x-slot>
+                </flux:callout>
+            @enderror
+
             {{-- Tabs statt gestapelter/nebeneinander liegender Karten: jede Karte bekommt die volle
                  Formularbreite (ein direktes Nebeneinander drängte Kontakt&Adresse/Notizen zu schmal
                  zusammen — Rückmeldung), und der Wechsel zwischen den Karten spart weiterhin die
@@ -67,19 +81,22 @@
                     <flux:field>
                         <flux:label>Namenspräfix</flux:label>
                         <flux:input name="name_prefix" value="{{ old('name_prefix', $athlete->name_prefix ?? '') }}"
-                                    placeholder="van den…"/>
+                                    :readonly="isset($locked['name_prefix'])" placeholder="van den…"/>
+                        <x-locked-field-hint field="name_prefix" :locked="$locked"/>
                         <flux:error name="name_prefix"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Vorname<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="first_name" value="{{ old('first_name', $athlete->first_name ?? '') }}"
-                                    required/>
+                                    :readonly="isset($locked['first_name'])" required/>
+                        <x-locked-field-hint field="first_name" :locked="$locked"/>
                         <flux:error name="first_name"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Nachname<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="last_name" value="{{ old('last_name', $athlete->last_name ?? '') }}"
-                                    required/>
+                                    :readonly="isset($locked['last_name'])" required/>
+                        <x-locked-field-hint field="last_name" :locked="$locked"/>
                         <flux:error name="last_name"/>
                     </flux:field>
                 </div>
@@ -117,11 +134,18 @@
                 <div class="grid {{ isset($athlete) ? 'grid-cols-2' : 'grid-cols-3' }} gap-4">
                     <flux:field>
                         <flux:label>Verein</flux:label>
-                        <flux:select variant="listbox" searchable name="club_id" placeholder="Kein Verein" clearable>
-                            @foreach($clubs as $club)
-                                <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $athlete->club_id ?? '') == $club->id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
-                            @endforeach
-                        </flux:select>
+                        @isset($locked['club_id'])
+                            {{-- Kein name: Der Server setzt bzw. behält den Verein selbst (AthleteFieldRules). --}}
+                            <flux:input value="{{ isset($athlete) ? $athlete->club?->display_name : $ownClub?->display_name }}"
+                                        readonly/>
+                            <x-locked-field-hint field="club_id" :locked="$locked"/>
+                        @else
+                            <flux:select variant="listbox" searchable name="club_id" placeholder="Kein Verein" clearable>
+                                @foreach($clubs as $club)
+                                    <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $athlete->club_id ?? '') == $club->id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @endisset
                         <flux:error name="club_id"/>
                     </flux:field>
                     @if(!isset($athlete))
@@ -153,7 +177,8 @@
                     <flux:field>
                         <flux:label>SDMS ID (IPC/WPS)</flux:label>
                         <flux:input name="license_ipc" value="{{ old('license_ipc', $athlete->license_ipc ?? '') }}"
-                                    placeholder="World Para Swimming ID"/>
+                                    :readonly="isset($locked['license_ipc'])" placeholder="World Para Swimming ID"/>
+                        <x-locked-field-hint field="license_ipc" :locked="$locked"/>
                         <flux:error name="license_ipc"/>
                     </flux:field>
                 </div>
@@ -187,7 +212,8 @@
                     <flux:field>
                         <flux:label>ÖBSV Level</flux:label>
                         <flux:input name="level" value="{{ old('level', $athlete->level ?? '') }}"
-                                    placeholder="z. B. A, B, T"/>
+                                    :readonly="isset($locked['level'])" placeholder="z. B. A, B, T"/>
+                        <x-locked-field-hint field="level" :locked="$locked"/>
                         <flux:error name="level"/>
                     </flux:field>
                     <flux:field>

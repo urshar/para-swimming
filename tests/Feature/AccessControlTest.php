@@ -187,8 +187,9 @@ it('verweigert Vereinsnutzern Pflege, Importe und Berechnungen', function () {
         ['put', route('clubs.update', $club)],
         ['delete', route('clubs.destroy', $club)],
         ['post', route('nations.store')],
-        ['get', route('athletes.create')],
-        ['put', route('athletes.update', $athlete)],
+        // Eigene Athleten anlegen/bearbeiten darf die Vorlage "Verein" seit Phase 5 (ClubPermissionsAthletesTest).
+        ['put', route('athletes.update', makeAthlete_p5(makeClub_p5()))],
+        ['delete', route('athletes.destroy', $athlete)],
         ['post', route('athletes.transfer-club', $athlete)],
         ['get', route('records.import')],
         ['post', route('records.import.run')],

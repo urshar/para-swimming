@@ -414,3 +414,24 @@ eigenem Sign-off:
   Wettkampf.
 - P4-3: Änderungen an Benutzern und Rechten werden nicht in Phase 4 protokolliert (Punkt in `open-points.md`).
 - P4-4: Aufbewahrung unbegrenzt; Leistungsnotizen werden nicht protokolliert.
+
+### Phase 5 im Detail (abgenommen)
+
+- Routen: nur `athletes.create/store/edit/update` unter `module:athletes,write` (auch "eigener Verein"); Löschen,
+  Vereinswechsel, Zusammenführen, Dubletten, Klassifikationen, Level, Kader, Team-Manager-Import bleiben
+  `write,all`.
+- `AthletePolicy::create()/update()`: Schreiben "alle" → jeder Athlet, "eigener Verein" → nur mit eigener `club_id`.
+- `AthleteFieldRules`: Bei "eigener Verein" werden gesperrte Felder ignoriert, nicht abgelehnt — beim Anlegen
+  Verein fest der eigene, SDMS ID und Level gesperrt; beim Bearbeiten zusätzlich Vor-/Nachname, Namenspräfix und
+  Verein. Das Formular zeigt sie schreibgeschützt mit "Änderung per Antrag" bzw. "nur Verband".
+- Dublettenwarnung beim Anlegen (N3) über `ImportSuggestionService::suggestAthletes()`, bestätigbar mit "Trotzdem
+  anlegen".
+- Schaltflächen: "Neuer Athlet" ab `canWrite(Athletes)`, "Bearbeiten" über `@can('update', $athlete)`; der Rest
+  bleibt bei `canWriteAll`.
+
+**Entscheidungen Phase 5 (Erik, 30.10.2026)**
+
+- P5-1: Die Dublettenwarnung nennt nur, dass es einen Athleten mit gleichem Namen, Geschlecht und Jahrgang gibt
+  (ohne Verein und weitere Daten, F5), mit Hinweis auf die Ummeldung; nur für Vereinsnutzer.
+- P5-2: Die Klassifikation neuer Athleten trägt der Verband nach; Detailseite und Liste zeigen bis dahin "Noch
+  nicht klassifiziert". Keine vorläufige Sportklasse, keine Benachrichtigung in Phase 5.

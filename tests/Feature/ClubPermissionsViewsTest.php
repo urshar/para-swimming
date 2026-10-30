@@ -69,7 +69,7 @@ it('blendet Pflege-Schaltflächen ohne Schreibrecht aus, auch bei Lesen "alle"',
         ->assertDontSee(route('records.create'));
 });
 
-it('verlangt für Vereins- und Athletenpflege bis Phase 5/7 den Bereich "alle"', /** @throws Throwable */ function () {
+it('verlangt für die Vereinspflege bis Phase 7 den Bereich "alle"', /** @throws Throwable */ function () {
     $club = makeClub_p5();
     $user = User::factory()->create(['club_id' => $club->id]);
     $own = AccessScope::Own;
@@ -80,8 +80,7 @@ it('verlangt für Vereins- und Athletenpflege bis Phase 5/7 den Bereich "alle"',
 
     test()->actingAs($user->fresh())->get(route('clubs.show', $club))
         ->assertOk()
-        ->assertDontSee(route('clubs.edit', $club))
-        ->assertDontSee(route('athletes.create'));
+        ->assertDontSee(route('clubs.edit', $club));
 });
 
 it('verlinkt die Vereinsmeldungen für jeden, der melden darf, sonst nicht', /** @throws Throwable */ function () {
