@@ -72,11 +72,12 @@ class AuditLog extends Model
                 ->where('athlete_id', $athlete->id)));
     }
 
-    /** Verlauf eines Vereins: der Verein selbst und seine Staffelmeldungen (P4-2). */
+    /** Verlauf eines Vereins: der Verein selbst, seine Staffelmeldungen (P4-2) und seine Trainer (Phase 8). */
     public function scopeForClub(Builder $query, Club $club): Builder
     {
         return $query->where(fn (Builder $q) => $q
             ->where(fn (Builder $w) => $w->where('auditable_type', Club::class)->where('auditable_id', $club->id))
-            ->orWhere(fn (Builder $w) => $w->where('auditable_type', RelayEntry::class)->where('club_id', $club->id)));
+            ->orWhere(fn (Builder $w) => $w->whereIn('auditable_type', [RelayEntry::class, Coach::class, CoachQualification::class])
+                ->where('club_id', $club->id)));
     }
 }

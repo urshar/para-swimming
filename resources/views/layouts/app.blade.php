@@ -148,7 +148,8 @@
         $showCupGroup = $navUser->canRead(Module::Cup) || $navUser->canWrite(Module::CupSettings)
             || $navUser->canWrite(Module::MasterData);
         $showMasterDataGroup = $navUser->canRead(Module::Athletes) || $navUser->canRead(Module::Clubs)
-            || $navUser->canRead(Module::Nations) || $navUser->canRead(Module::Classifiers);
+            || $navUser->canRead(Module::Coaches) || $navUser->canRead(Module::Nations)
+            || $navUser->canRead(Module::Classifiers);
         $showLenexGroup = $navUser->canRead(Module::Lenex) || $navUser->canWrite(Module::Lenex);
         // "Mein Verein" (Spec club-permissions P7-5): eigene Vereinsseite und deren Bearbeiten markieren diesen
         // Punkt statt "Vereine".
@@ -259,7 +260,7 @@
 
         @if($showMasterDataGroup)
             <flux:navlist.group heading="Stammdaten" expandable
-                                :expanded="request()->routeIs('athletes.*') || request()->routeIs('change-requests.*') || request()->routeIs('clubs.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
+                                :expanded="request()->routeIs('athletes.*') || request()->routeIs('change-requests.*') || request()->routeIs('clubs.*') || request()->routeIs('coaches.*') || request()->routeIs('nations.*') || request()->routeIs('classifiers.*')">
                 @can('module.read', Module::Athletes)
                     <flux:navlist.item icon="user-group" href="{{ route('athletes.index') }}"
                                        :current="request()->routeIs('athletes.*')">
@@ -282,6 +283,12 @@
                     <flux:navlist.item icon="building-office" href="{{ route('clubs.index') }}"
                                        :current="request()->routeIs('clubs.*') && ! $onOwnClub">
                         Vereine
+                    </flux:navlist.item>
+                @endcan
+                @can('module.read', Module::Coaches)
+                    <flux:navlist.item icon="academic-cap" href="{{ route('coaches.index') }}"
+                                       :current="request()->routeIs('coaches.*')">
+                        Trainer
                     </flux:navlist.item>
                 @endcan
                 @can('module.read', Module::Nations)

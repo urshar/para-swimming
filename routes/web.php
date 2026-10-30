@@ -19,6 +19,8 @@ use App\Http\Controllers\ChangeRequestController;
 use App\Http\Controllers\ClassifierController;
 use App\Http\Controllers\ClubController;
 use App\Http\Controllers\ClubEntryController;
+use App\Http\Controllers\CoachController;
+use App\Http\Controllers\CoachQualificationController;
 use App\Http\Controllers\CupClubRankingController;
 use App\Http\Controllers\CupController;
 use App\Http\Controllers\CupDailyRankingController;
@@ -175,6 +177,17 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('athletes', AthleteController::class)->only(['create', 'store', 'edit', 'update'])
         ->middleware('module:athletes,write');
 
+    // Trainer (Spec §4.6, Phase 8); Datensatz-Prüfung in CoachPolicy.
+    Route::resource('coaches', CoachController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('module:coaches,write');
+    Route::middleware('module:coaches,write')->group(function () {
+        Route::post('coaches/{coach}/qualifications', [CoachQualificationController::class, 'store'])
+            ->name('coaches.qualifications.store');
+        Route::delete('coaches/{coach}/qualifications/{qualification}', [CoachQualificationController::class, 'destroy'])
+            ->scopeBindings()
+            ->name('coaches.qualifications.destroy');
+    });
+
     // Anträge der Vereine (Spec §4.5, Phase 6); wer sie stellen darf, regelt ChangeRequestPolicy. Entschieden wird im
     // Admin-Bereich (admin.change-requests.*).
     Route::middleware('module:athletes,write')->group(function () {
@@ -272,6 +285,9 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('athletes', AthleteController::class)->only(['index', 'show'])
         ->middleware('module:athletes,read')
         ->middlewareFor('index', 'remember.list:athletes');
+    Route::resource('coaches', CoachController::class)->only(['index', 'show'])
+        ->middleware('module:coaches,read')
+        ->middlewareFor('index', 'remember.list:coaches');
 
     Route::middleware('module:cup,read')->group(function () {
         Route::get('cup-wertung',

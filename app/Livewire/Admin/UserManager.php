@@ -6,10 +6,12 @@ use App\Enums\AccessScope;
 use App\Enums\Module;
 use App\Enums\RoleTemplate;
 use App\Models\Club;
+use App\Models\Coach;
 use App\Models\User;
 use App\Services\PermissionTemplateService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -60,6 +62,9 @@ class UserManager extends Component
 
     public ?int $club_id = null;
 
+    /** Verknüpfter Trainer (Spec club-permissions N7, P8-4); nur Trainer des gewählten Vereins. */
+    public ?int $coach_id = null;
+
     public string $role_template = '';
 
     /** Vorlage beim Anlegen von Hand gewählt? Dann folgt sie nicht mehr dem Verein. */
@@ -90,7 +95,7 @@ class UserManager extends Component
     #[Computed]
     public function users(): LengthAwarePaginator
     {
-        return User::with(['club', 'modulePermissions'])
+        return User::with(['club', 'coach', 'modulePermissions'])
             ->when($this->search, function ($q) {
                 $q->where(function ($inner) {
                     $inner->where('name', 'like', '%'.$this->search.'%')
@@ -114,13 +119,30 @@ class UserManager extends Component
             ->all();
     }
 
+    /** @return SupportCollection<int, Club> */
     #[Computed]
-    public function clubs(): Collection
+    public function clubs(): SupportCollection
     {
         // Sortiert nach der angezeigten Bezeichnung (Kurzname, sonst Name).
         return Club::get(['id', 'name', 'short_name'])
             ->sortBy(fn (Club $club) => mb_strtolower($club->short_name ?: $club->name))
             ->values();
+    }
+
+    /** Aktive Trainer des gewählten Vereins, die noch frei oder mit diesem Benutzer verknüpft sind. */
+    #[Computed]
+    public function coaches(): Collection
+    {
+        if ($this->club_id === null) {
+            return new Collection;
+        }
+
+        return Coach::where('club_id', $this->club_id)
+            ->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $this->coach_id))
+            ->whereDoesntHave('user', fn ($q) => $q->whereKeyNot($this->editingUserId ?? 0))
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
     }
 
     /** Ersetzt das Speichern die angepasste Matrix des bearbeiteten Benutzers? Dann fragt der Button nach. */
@@ -181,6 +203,17 @@ class UserManager extends Component
 
     public function updatedClubId(): void
     {
+        // Ein Trainer gehört zu genau einem Verein; ein Vereinswechsel löst die Verknüpfung.
+        $this->coach_id = null;
+
+        if (! $this->isEditing && ! $this->templateTouched) {
+            $this->role_template = $this->defaultTemplate()->value;
+        }
+    }
+
+    /** Mit einem Trainer verknüpft schlägt das Anlegen die Vorlage "Trainer" vor (P8-4). */
+    public function updatedCoachId(): void
+    {
         if (! $this->isEditing && ! $this->templateTouched) {
             $this->role_template = $this->defaultTemplate()->value;
         }
@@ -211,6 +244,7 @@ class UserManager extends Component
         $this->email = $user->email;
         $this->is_admin = (bool) $user->is_admin;
         $this->club_id = $user->club_id;
+        $this->coach_id = $user->coach_id;
         $this->role_template = $user->role_template?->value ?? $this->defaultTemplate()->value;
         $this->showModal = true;
     }
@@ -387,6 +421,7 @@ class UserManager extends Component
         $this->password = '';
         $this->is_admin = false;
         $this->club_id = null;
+        $this->coach_id = null;
         $this->role_template = RoleTemplate::Empty->value;
         $this->templateTouched = false;
         $this->resetValidation();
@@ -394,7 +429,11 @@ class UserManager extends Component
 
     private function defaultTemplate(): RoleTemplate
     {
-        return $this->club_id === null ? RoleTemplate::Empty : RoleTemplate::Club;
+        return match (true) {
+            $this->club_id === null => RoleTemplate::Empty,
+            $this->coach_id !== null => RoleTemplate::Coach,
+            default => RoleTemplate::Club,
+        };
     }
 
     private function loadMatrix(User $user): void
@@ -421,6 +460,12 @@ class UserManager extends Component
             'password' => [$passwordRequired ? 'required' : 'nullable', Password::defaults()],
             'is_admin' => ['boolean'],
             'club_id' => ['nullable', 'exists:clubs,id'],
+            // Trainer des gewählten Vereins, höchstens ein Benutzer je Trainer (P8-4).
+            'coach_id' => [
+                'nullable',
+                Rule::exists('coaches', 'id')->where('club_id', $this->club_id ?? 0),
+                Rule::unique('users', 'coach_id')->ignore($this->editingUserId),
+            ],
             'role_template' => $this->is_admin ? ['nullable'] : ['required', Rule::enum(RoleTemplate::class)],
         ];
     }
@@ -446,6 +491,7 @@ class UserManager extends Component
             'email' => $data['email'],
             'is_admin' => $data['is_admin'],
             'club_id' => $data['is_admin'] ? null : $data['club_id'],
+            'coach_id' => $data['is_admin'] ? null : $data['coach_id'],
         ];
 
         if (! empty($data['password'])) {
@@ -480,6 +526,7 @@ class UserManager extends Component
         // Admin hat keinen Verein und keine Vorlage
         if ($data['is_admin']) {
             $data['club_id'] = null;
+            $data['coach_id'] = null;
         }
 
         $user = User::create([
@@ -488,6 +535,7 @@ class UserManager extends Component
             'password' => Hash::make($data['password']),
             'is_admin' => $data['is_admin'],
             'club_id' => $data['club_id'],
+            'coach_id' => $data['coach_id'],
         ]);
 
         if (! $data['is_admin']) {

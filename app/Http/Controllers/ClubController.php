@@ -77,12 +77,18 @@ class ClubController extends Controller
                 ->paginate(20)
             : null;
 
+        // Trainer des Vereins nach Modul "Trainer" (Phase 8), wie die Athletenliste oben.
+        $coaches = $user->canReadAll(Module::Coaches)
+            || ($user->canRead(Module::Coaches) && $user->club_id === $club->id)
+            ? $club->coaches()->with('qualifications')->orderBy('last_name')->orderBy('first_name')->get()
+            : null;
+
         // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
         $history = $user->is_admin
             ? AuditHistory::build(AuditLog::forClub($club), request()->query('verlauf') === 'alle')
             : null;
 
-        return view('clubs.show', compact('club', 'athletes', 'history'));
+        return view('clubs.show', compact('club', 'athletes', 'coaches', 'history'));
     }
 
     public function edit(Request $request, Club $club): View

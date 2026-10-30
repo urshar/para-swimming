@@ -123,6 +123,11 @@ class Club extends Model
         return $this->hasMany(Athlete::class);
     }
 
+    public function coaches(): HasMany
+    {
+        return $this->hasMany(Coach::class);
+    }
+
     public function meets(): BelongsToMany
     {
         return $this->belongsToMany(Meet::class, 'meet_club');

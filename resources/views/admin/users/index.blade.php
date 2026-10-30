@@ -86,6 +86,8 @@
                         <flux:table.cell>
                             @if($user->is_admin)
                                 <flux:badge color="amber" size="sm">Admin</flux:badge>
+                            @elseif($user->coach)
+                                <flux:badge color="zinc" size="sm" title="{{ $user->coach->display_name }}">Trainer</flux:badge>
                             @else
                                 <flux:badge color="zinc" size="sm">Verein</flux:badge>
                             @endif
@@ -252,6 +254,24 @@
                             "Eigener Verein" in den Rechten bezieht sich auf diesen Verein.
                         </flux:description>
                     </flux:field>
+
+                    {{-- Trainer-Login (Spec club-permissions N7, P8-4): nur Trainer des gewählten Vereins.
+                         wire:key je Verein, damit die Optionen beim Vereinswechsel neu aufgebaut werden. --}}
+                    @if($club_id !== null)
+                        <flux:field wire:key="coach-select-{{ $club_id }}">
+                            <flux:label>Trainer</flux:label>
+                            <flux:select variant="listbox" searchable wire:model.live="coach_id"
+                                         placeholder="— Kein Trainer —" clearable>
+                                @foreach($this->coaches as $coach)
+                                    <flux:select.option value="{{ $coach->id }}">{{ $coach->display_name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="coach_id"/>
+                            <flux:description>
+                                Verknüpft das Login mit einem Trainer des Vereins; beim Anlegen wird die Vorlage "Trainer" vorgeschlagen.
+                            </flux:description>
+                        </flux:field>
+                    @endif
 
                     <flux:field>
                         <flux:label>Vorlage<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>

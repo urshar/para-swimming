@@ -478,3 +478,25 @@ eigenem Sign-off:
   ohne Code angelegt und das in der Import-Rückmeldung genannt, statt den Import abzubrechen.
 - P7-4: Kontaktdaten sehen nur Admins und der eigene Verein.
 - P7-5: Neuer Menüpunkt "Mein Verein".
+
+### Phase 8 im Detail (abgenommen)
+
+- Tabellen `coaches` (Verein, Vorname, Nachname, E-Mail, Notizen, aktiv) und `coach_qualifications` (Trainer, Art
+  Ausbildung/Fortbildung, Stufe ÜL/IN/TR nur bei Ausbildung, Bezeichnung, Datum, Notiz); `users.coach_id` (nullable,
+  eindeutig). Enum `App\Enums\CoachLevel` (ohne Ausbildung, ÜL, IN, TR). Beide Modelle mit `Auditable`, Verlauf am
+  Verein.
+- Routen unter `module:coaches,read|write`, `CoachPolicy` nach Bereich (eigener Verein bzw. alle). Menüpunkt
+  "Trainer" unter Stammdaten (Liste mit Suche, Verein, Stufe, nur aktive), Abschnitt "Trainer" auf der Vereinsseite,
+  Detailseite mit Aus- und Fortbildungen.
+- Benutzerverwaltung: Feld "Trainer" (aktive Trainer des gewählten Vereins), Vorschlag Vorlage "Trainer";
+  Vereinswechsel löst die Verknüpfung.
+
+**Entscheidungen Phase 8 (Erik, 30.10.2026)**
+
+- P8-1: Der Verein trägt Aus- und Fortbildungen seiner Trainer selbst ein; Kontrolle über das Protokoll, keine
+  Belege.
+- P8-2: Aktuelle Stufe = höchste Ausbildung (Datum Pflicht); Fortbildungen sind Historie ohne Stufe.
+- P8-3: Deaktivieren statt Löschen; Löschen nur ohne verknüpften Benutzer (Historie wird mitgelöscht, Protokoll
+  bleibt).
+- P8-4: Verknüpfung nur in der Benutzerverwaltung (Admin), mit Vorschlag der Vorlage "Trainer".
+- P8-5: Eigene Trainerliste im Menü und Abschnitt auf der Vereinsseite.

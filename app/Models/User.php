@@ -17,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'email', 'password', 'is_admin', 'club_id', 'role_template'])]
+#[Fillable(['name', 'email', 'password', 'is_admin', 'club_id', 'coach_id', 'role_template'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -39,6 +39,12 @@ class User extends Authenticatable
     public function club(): BelongsTo
     {
         return $this->belongsTo(Club::class);
+    }
+
+    /** Verknüpfter Trainer-Datensatz (Spec club-permissions N7). */
+    public function coach(): BelongsTo
+    {
+        return $this->belongsTo(Coach::class);
     }
 
     public function isAdmin(): bool

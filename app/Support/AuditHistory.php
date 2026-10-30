@@ -2,10 +2,13 @@
 
 namespace App\Support;
 
+use App\Enums\CoachLevel;
 use App\Models\Athlete;
 use App\Models\AuditLog;
 use App\Models\ChangeRequest;
 use App\Models\Club;
+use App\Models\Coach;
+use App\Models\CoachQualification;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\Nation;
@@ -78,6 +81,14 @@ final class AuditHistory
         'response' => 'Antwort',
         'contact_name' => 'Kontaktperson',
         'contact_email' => 'Kontakt-E-Mail',
+        'kind' => 'Art',
+        'title' => 'Bezeichnung',
+        'completed_on' => 'Datum',
+    ];
+
+    /** Felder, die je Modell anders heißen als in LABELS ("level" ist beim Athleten das ÖBSV Level). */
+    private const array SUBJECT_LABELS = [
+        CoachQualification::class => ['level' => 'Stufe'],
     ];
 
     /** Schlüssel in ChangeRequest::$values → Bezeichnung. */
@@ -90,7 +101,7 @@ final class AuditHistory
 
     private const array BOOLEANS = ['is_active', 'is_late_entry', 'is_exhibition'];
 
-    private const array DATES = ['birth_date', 'last_medical_check_at', 'next_medical_check_at', 'joined_at'];
+    private const array DATES = ['birth_date', 'last_medical_check_at', 'next_medical_check_at', 'joined_at', 'completed_on'];
 
     private const array REFERENCES = ['club_id', 'from_club_id', 'nation_id', 'meet_id', 'swim_event_id', 'athlete_id'];
 
@@ -109,6 +120,8 @@ final class AuditHistory
         Entry::class => 'Meldung',
         RelayEntry::class => 'Staffelmeldung',
         ChangeRequest::class => 'Antrag',
+        Coach::class => 'Trainer',
+        CoachQualification::class => 'Aus-/Fortbildung',
     ];
 
     /**
@@ -125,18 +138,21 @@ final class AuditHistory
 
         $contexts = self::entryContexts($logs);
         $names = self::referenceNames($logs, $contexts);
+        $coachNames = self::coachNames($logs);
 
         $entries = $logs->map(fn (AuditLog $log): array => [
             'at' => $log->created_at?->format('d.m.Y H:i') ?? '—',
             'user' => $log->user_name ?? 'System',
             'source' => $log->source === AuditLog::SOURCE_IMPORT ? ($log->source_detail ?? 'Import') : null,
             'event' => self::EVENTS[$log->event] ?? $log->event,
-            'subject' => self::subject($log, $contexts, $names),
+            'subject' => self::subject($log, $contexts, $names)
+                .(isset($coachNames[$log->auditable_type.'#'.$log->auditable_id])
+                    ? ': '.$coachNames[$log->auditable_type.'#'.$log->auditable_id] : ''),
             'changes' => collect($log->changes)
                 ->map(fn (array $change, string $field): array => [
-                    'label' => self::LABELS[$field] ?? $field,
-                    'old' => self::value($field, $change[0] ?? null, $names),
-                    'new' => self::value($field, $change[1] ?? null, $names),
+                    'label' => self::SUBJECT_LABELS[$log->auditable_type][$field] ?? self::LABELS[$field] ?? $field,
+                    'old' => self::subjectValue($log, $field, $change[0] ?? null, $names),
+                    'new' => self::subjectValue($log, $field, $change[1] ?? null, $names),
                 ])
                 ->values()
                 ->all(),
@@ -169,6 +185,32 @@ final class AuditHistory
         }
 
         return $contexts;
+    }
+
+    /**
+     * Name des Trainers je Trainer- bzw. Aus-/Fortbildungs-Eintrag, sofern der Datensatz noch existiert.
+     *
+     * @param  Collection<int, AuditLog>  $logs
+     * @return array<string, string> Schlüssel "Klasse#ID"
+     */
+    private static function coachNames(Collection $logs): array
+    {
+        $names = [];
+        $coachIds = $logs->where('auditable_type', Coach::class)->pluck('auditable_id')->unique();
+        $qualificationIds = $logs->where('auditable_type', CoachQualification::class)->pluck('auditable_id')->unique();
+
+        if ($coachIds->isNotEmpty()) {
+            foreach (Coach::query()->whereIn('id', $coachIds)->get() as $coach) {
+                $names[Coach::class.'#'.$coach->id] = $coach->display_name;
+            }
+        }
+        if ($qualificationIds->isNotEmpty()) {
+            foreach (CoachQualification::query()->with('coach')->whereIn('id', $qualificationIds)->get() as $qualification) {
+                $names[CoachQualification::class.'#'.$qualification->id] = $qualification->coach->display_name;
+            }
+        }
+
+        return $names;
     }
 
     private static function changedValue(AuditLog $log, string $field): ?int
@@ -244,6 +286,22 @@ final class AuditHistory
         return $parts === [] ? $label : $label.': '.implode(', ', $parts);
     }
 
+    /**
+     * Wie value(), aber mit Feldern, die je Modell anders formatiert werden: "level" ist bei Aus-/Fortbildungen die
+     * Trainerstufe, beim Athleten das ÖBSV Level (freier Text).
+     *
+     * @param  array<string, array<int, string>>  $names
+     */
+    private static function subjectValue(AuditLog $log, string $field, mixed $value, array $names): string
+    {
+        if ($log->auditable_type === CoachQualification::class && $field === 'level' && is_string($value)
+            && CoachLevel::tryFrom($value) !== null) {
+            return CoachLevel::from($value)->label();
+        }
+
+        return self::value($field, $value, $names);
+    }
+
     /** @param  array<string, array<int, string>>  $names */
     private static function value(string $field, mixed $value, array $names): string
     {
@@ -268,6 +326,9 @@ final class AuditHistory
         }
         if ($field === 'status' && isset(ChangeRequest::STATUS_LABELS[$value])) {
             return ChangeRequest::STATUS_LABELS[$value];
+        }
+        if ($field === 'kind' && isset(CoachQualification::KIND_LABELS[$value])) {
+            return CoachQualification::KIND_LABELS[$value];
         }
         if ($field === 'values') {
             $decoded = is_string($value) ? json_decode($value, true) : $value;
