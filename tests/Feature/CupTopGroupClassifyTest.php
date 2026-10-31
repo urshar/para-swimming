@@ -24,7 +24,18 @@ it('nennt die vorab nachgerechneten Cup-Jahre in der Erfolgsmeldung', function (
 
     $this->actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
         ->post(route('cups.classify-top-group', $cup))
-        ->assertRedirect(route('cups.index'))
+        ->assertRedirect(route('cups.top-group.index', $cup))
         ->assertSessionHas('success',
             'Top-Gruppen-Klassifizierung für "ÖBSV Cup 2026" berechnet. Vorab nachgerechnet: 2024, 2025.');
+});
+
+it('zeigt in der Cup-Konfiguration nur den Status der Top-Gruppe, eingestuft wird auf der Top-Gruppe-Seite', function () {
+    $cup = makeCup_ctgc1(2026);
+
+    $this->actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
+        ->get(route('cups.index'))
+        ->assertOk()
+        ->assertSee('Noch nicht eingestuft')
+        ->assertSee(route('cups.top-group.index', $cup))
+        ->assertDontSee(route('cups.classify-top-group', $cup));
 });
