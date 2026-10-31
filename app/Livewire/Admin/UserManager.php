@@ -288,18 +288,14 @@ class UserManager extends Component
 
     public function resetTwoFactor(int $userId): void
     {
-        // Den eigenen Account setzt man über die Sicherheitseinstellungen zurück.
+        // Den eigenen Account setzt ein anderer Admin zurück, im Notfall "php artisan users:reset-two-factor".
         if ($userId === auth()->id()) {
-            session()->now('error', 'Ihre eigene Zwei-Faktor-Anmeldung ändern Sie in den Sicherheitseinstellungen.');
+            session()->now('error', 'Ihre eigene Zwei-Faktor-Anmeldung setzt ein anderer Administrator zurück.');
 
             return;
         }
 
-        User::findOrFail($userId)->forceFill([
-            'two_factor_secret' => null,
-            'two_factor_recovery_codes' => null,
-            'two_factor_confirmed_at' => null,
-        ])->save();
+        User::findOrFail($userId)->resetTwoFactor();
 
         session()->now('success', 'Zwei-Faktor-Anmeldung zurückgesetzt.');
     }

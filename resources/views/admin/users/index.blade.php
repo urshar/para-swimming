@@ -110,6 +110,9 @@
                         <flux:table.cell>
                             @if($user->two_factor_confirmed_at)
                                 <flux:badge color="green" size="sm">aktiv</flux:badge>
+                            @elseif(config('auth.two_factor_required') && $user->requiresTwoFactor())
+                                {{-- Pflicht wegen Schreibrechten, noch nicht eingerichtet (Spec club-permissions §4.7). --}}
+                                <flux:badge color="red" size="sm">aus (Pflicht)</flux:badge>
                             @else
                                 <flux:badge color="zinc" size="sm">aus</flux:badge>
                             @endif

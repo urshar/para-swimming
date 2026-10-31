@@ -23,6 +23,9 @@ new #[Title('Security settings')] class extends Component {
 
     public bool $requiresConfirmation;
 
+    /** Zwei-Faktor-Pflicht für dieses Konto (Spec club-permissions §4.7): Hinweis, kein Deaktivieren (P10-3). */
+    public bool $twoFactorRequired = false;
+
     /**
      * Mount the component.
      */
@@ -36,6 +39,7 @@ new #[Title('Security settings')] class extends Component {
             }
 
             $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
+            $this->twoFactorRequired = config('auth.two_factor_required') && auth()->user()->requiresTwoFactor();
             $this->requiresConfirmation = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
         }
     }
@@ -79,6 +83,9 @@ new #[Title('Security settings')] class extends Component {
      */
     public function disable(DisableTwoFactorAuthentication $disableTwoFactorAuthentication): void
     {
+        // Bei Pflicht nicht deaktivierbar; der Admin setzt 2FA bei Bedarf zurück (P10-3).
+        abort_if(config('auth.two_factor_required') && auth()->user()->requiresTwoFactor(), 403);
+
         $disableTwoFactorAuthentication(auth()->user());
 
         $this->twoFactorEnabled = false;
@@ -142,19 +149,35 @@ new #[Title('Security settings')] class extends Component {
                                 {{ __('You will be prompted for a secure, random pin during login, which you can retrieve from the TOTP-supported application on your phone.') }}
                             </flux:text>
 
-                            <div class="flex justify-start">
-                                <flux:button
-                                    variant="danger"
-                                    wire:click="disable"
-                                >
-                                    {{ __('Disable 2FA') }}
-                                </flux:button>
-                            </div>
+                            @if ($twoFactorRequired)
+                                <flux:text variant="subtle">
+                                    Die Zwei-Faktor-Anmeldung ist für Ihr Konto Pflicht. Bei einem neuen Handy setzt
+                                    ein Administrator sie zurück, danach richten Sie sie neu ein.
+                                </flux:text>
+                            @else
+                                <div class="flex justify-start">
+                                    <flux:button
+                                        variant="danger"
+                                        wire:click="disable"
+                                    >
+                                        {{ __('Disable 2FA') }}
+                                    </flux:button>
+                                </div>
+                            @endif
 
                             <livewire:pages::settings.two-factor.recovery-codes :$requiresConfirmation />
                         </div>
                     @else
                         <div class="space-y-4">
+                            @if ($twoFactorRequired)
+                                <flux:callout variant="warning" icon="shield-exclamation"
+                                              heading="Zwei-Faktor-Anmeldung ist Pflicht">
+                                    <flux:callout.text>
+                                        Ihr Konto hat Schreibrechte. Bitte richten Sie die Zwei-Faktor-Anmeldung jetzt
+                                        ein; erst danach sind die übrigen Seiten wieder erreichbar.
+                                    </flux:callout.text>
+                                </flux:callout>
+                            @endif
                             <flux:text variant="subtle">
                                 {{ __('When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.') }}
                             </flux:text>

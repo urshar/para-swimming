@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\RememberListUrl;
 use App\Http\Middleware\RequireAdmin;
 use App\Http\Middleware\RequireModuleAccess;
@@ -25,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'module' => RequireModuleAccess::class,
             'remember.list' => RememberListUrl::class,
         ]);
+        // Zwei-Faktor-Pflicht für Benutzer mit Schreibrechten (Spec club-permissions §4.7).
+        $middleware->web(append: [EnsureTwoFactorEnabled::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

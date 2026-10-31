@@ -100,6 +100,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Zwei-Faktor-Pflicht (Spec club-permissions §4.7): Admins und jeder Benutzer mit mindestens einem Schreibrecht;
+     * reine Leser nicht. Ob die Pflicht durchgesetzt wird, steuert config('auth.two_factor_required').
+     */
+    public function requiresTwoFactor(): bool
+    {
+        return $this->is_admin
+            || collect(Module::cases())->contains(fn (Module $module): bool => $this->canWrite($module));
+    }
+
+    /** Zwei-Faktor-Anmeldung zurücksetzen (Handy verloren); bei Pflicht wird sie beim nächsten Seitenaufruf neu eingerichtet. */
+    public function resetTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
+    }
+
+    /**
      * Erster Bereich, den der Benutzer öffnen darf, als Routenname — Ziel nach dem Login (/dashboard). Null, wenn
      * dem Benutzer noch kein Bereich freigegeben ist.
      */

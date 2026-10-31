@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\Module;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Models\Athlete;
 use App\Models\AthletePerformanceNote;
 use App\Models\ChangeRequest;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -47,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        // Livewire-Aktionen laufen über eine eigene Route; so greift die 2FA-Pflicht auch dort (mit der Route der Seite).
+        Livewire::addPersistentMiddleware([EnsureTwoFactorEnabled::class]);
         Gate::policy(Meet::class, EntryPolicy::class);
         Gate::policy(AthletePerformanceNote::class, AthletePerformanceNotePolicy::class);
         Gate::policy(Athlete::class, AthletePolicy::class);

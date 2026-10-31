@@ -523,3 +523,21 @@ eigenem Sign-off:
 - P9-4: Das PDF gibt es auch bei "eigener Verein", gefiltert und mit dem Vereinsnamen im Titel.
 - P9-5: Eigene Meldungen sind mit Leserecht sichtbar, auch bei geschlossenen oder vergangenen Wettkämpfen;
   Schreiben bleibt unverändert.
+
+### Phase 10 im Detail (abgenommen)
+
+- `User::requiresTwoFactor()`: Admins und jeder Benutzer mit mindestens einem Schreibrecht; reine Leser ohne Pflicht.
+- Middleware `EnsureTwoFactorEnabled` an der `web`-Gruppe (und als persistente Livewire-Middleware): angemeldete
+  Benutzer mit Pflicht ohne bestätigte 2FA werden auf die Sicherheitsseite geleitet (JSON → 403). Ausgenommen:
+  Sicherheitsseite, Passwortbestätigung, Fortify-2FA-Routen, Abmelden, Seiten ohne `auth`.
+- Sicherheitsseite: Hinweis auf die Pflicht; Deaktivieren bei Pflicht ausgeblendet und serverseitig abgelehnt.
+- Benutzerverwaltung: 2FA-Spalte "aus (Pflicht)" bei fehlender Pflicht-2FA.
+- Artisan `users:reset-two-factor {email}` für den Notfall (z. B. letzter Admin ohne Handy).
+
+**Entscheidungen Phase 10 (Erik, 31.10.2026)**
+
+- P10-1: Schalter `AUTH_TWO_FACTOR_REQUIRED` (`config/auth.php`), Standard an; für die Einführung abschaltbar.
+- P10-2: In der Testsuite ist der Schalter aus (`phpunit.xml`); die Phase-10-Tests schalten ihn selbst ein.
+- P10-3: Wer 2FA braucht, kann sie nicht deaktivieren; Neueinrichtung über "2FA zurücksetzen" durch den Admin.
+- P10-4: Notfall-Zurücksetzen per Artisan, keine eigene Oberfläche.
+- P10-5: Ein neu vergebenes Schreibrecht wirkt ab der nächsten Seite.
