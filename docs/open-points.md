@@ -155,11 +155,13 @@ erhalten die Norm je startberechtigter Klasse (S3 für S1-3 → S1, S2, S3), Sta
 Kandidaten-Pool (unten je ausführlich beschrieben). Die "nach Aufwand"-Reihenfolge oben gilt nur grob — welcher
 Punkt als Nächstes drankommt, entscheidet Erik:
 
-1. "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)" unten
-2. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
+1. "Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)" unten — Datenbasis wächst mit dem
    Nachimport der alten LENEX-Dateien (Einzel + Staffeln)
 
-**Erledigt:** `feature/athlete-merge` ("Athleten zusammenführen (Dubletten)" → Zusammenführen mit Vorschau,
+**Erledigt:** `feature/club-permissions` ("Vereins-Rollen / Berechtigungen" → Rechte je Modul mit Vorlagen,
+Feldregeln und Anträgen, Änderungsprotokoll, Trainer, Zwei-Faktor-Pflicht; dokumentiert in
+`specs/club-permissions.md` und `access-control.md`; Restpunkte unten unter "Restpunkte Vereins-Berechtigungen").
+`feature/athlete-merge` ("Athleten zusammenführen (Dubletten)" → Zusammenführen mit Vorschau,
 Neuberechnung von Cup und Qualifikationen, Seite mit Dublettenvorschlägen; dokumentiert in `specs/athlete-merge.md`).
 "Athleten-Import aus MSAccess-Datei + Athleten-Datenmodell erweitern" → Übernahme aus dem Splash Team Manager
 (`feature/team-manager-import`, `feature/team-data-seeder`, PR #55, #57, #59, #60; dokumentiert in
@@ -511,37 +513,21 @@ kommt **nicht** von Flux, sondern von Laravels eigener Validierung — `.env` di
 `lang/de/` im Repo existiert. `.env` ist lokal/maschinenspezifisch und nicht Teil des Repos — falls dieses
 Entwicklungssystem wie erwartet auf Deutsch laufen soll, `APP_LOCALE=de` und `APP_FALLBACK_LOCALE=de` lokal setzen.
 
-## Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)
+## Restpunkte Vereins-Berechtigungen
 
-**Seit:** `feature/admin-ui-header-pattern` (20.09.2026), Wunsch Erik.
+**Seit:** `feature/club-permissions`, Phase 11 (31.10.2026), Entscheidung P11-1.
 
-**Was fehlt:** Ein klar definiertes Rollen-/Berechtigungsmodell für **Vereins-User** (Nicht-Admins). Heute
-unterscheidet die App im Wesentlichen `is_admin` vs. Vereins-User mit `club_id`; die genauen Rechte sind über
-einzelne `@if`/Policy-Checks verstreut, nicht als zusammenhängende Rolle definiert.
+**Was fehlt:**
 
-**Entschieden — Vereins-User sollen, dürfen (Erik, 20.09.2026):**
+- **Kacheln auf `meets/show`** zählen auch bei "Ergebnisse — eigener Verein" alle Meldungen und Ergebnisse des
+  Wettkampfs, nicht nur die des eigenen Vereins. Die Zahlen verraten nichts Einzelnes, passen aber nicht zur
+  gefilterten Ergebnisliste dahinter.
+- **Tests:** Kein Request-Test, dass schreibende Livewire-Aktionen ohne eingerichtete 2FA abgewiesen werden (die
+  persistente Middleware ist registriert, aber nur über normale Seitenaufrufe getestet), und keiner für den
+  Ergebnis-Link auf der Rekord-Detailseite (Link nur, wenn das Ergebnis sichtbar ist).
 
-- **Eigene Meldungen erfassen/bearbeiten** (Einzel + Staffel des eigenen Vereins, nur bis Meldeschluss oder im
-  vom Admin geöffneten Nachmelde-Fenster).
-- **Eigene Athleten pflegen** (Athleten des eigenen Vereins anlegen/bearbeiten).
-- **Eigene Ergebnisse einsehen** (Ergebnisse der eigenen Athleten ansehen, nicht bearbeiten).
-- **Vereinsstammdaten bearbeiten** (eigene Vereinsdaten wie Name/Kontakt pflegen).
-
-**Warum zurückgestellt:** Querschnitts-Feature über viele Controller/Policies/Views. Offene Detailfragen: Reicht die
-bestehende `club_id`-Bindung als "Rolle", oder braucht es echte Rollen (mehrere Rollentypen, evtl. mehrere User pro
-Verein mit unterschiedlichen Rechten)? Wie strikt ist "nur eigene" überall durchzusetzen (Policies für `Athlete`,
-`Entry`, `RelayEntry`, `Result`, `Club`)? Sichtbarkeit im Menü je Rolle (viele Admin-Menüpunkte ausblenden).
-
-**Wer entscheidet:** Erik — ob ein echtes Mehr-Rollen-Modell nötig ist oder die vier Fähigkeiten oben als fester
-Vereins-User-Satz reichen; Umgang mit Meldeschluss-Sperre; ob mehrere User je Verein.
-
-**Stand 06.10.2026:** Bis dahin gilt die Matrix in `docs/access-control.md` — Vereinsnutzer lesen, schreiben nur
-eigene Meldungen; Athleten- und Vereinspflege ist vorerst Admin-Sache und soll mit diesem Punkt auf den eigenen
-Verein beschränkt wieder geöffnet werden.
-
-**Zum Schließen nötig:** Rechte-Matrix festschreiben, Policies für die betroffenen Modelle (eigene-Datensätze-Scope),
-Menü-/UI-Sichtbarkeit je Rolle, Tests je Fähigkeit (analog der bestehenden Zugriffskontroll-Tests in
-`UserManagementTest`/`WpsQualification*`).
+**Zum Schließen nötig:** Kacheln über `Result::visibleTo()`/`RelayResult::visibleTo()` bzw. die Meldungen des
+eigenen Vereins zählen, Beschriftung "eigener Verein" ergänzen; die zwei Tests nachziehen.
 
 ## Änderungsprotokoll für Benutzer und Rechte
 

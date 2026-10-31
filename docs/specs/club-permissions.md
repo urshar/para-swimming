@@ -1,6 +1,7 @@
-# Vereins-Rollen und Rechte je Modul (Entwurf)
+# Vereins-Rollen und Rechte je Modul
 
-Stand: 28.10.2026, Branch `feature/club-permissions`. **Entwurf zur Freigabe durch Erik — noch kein Code.**
+Stand: 28.10.2026, Branch `feature/club-permissions`. **Umgesetzt (Phasen 1–11, 31.10.2026).** Was heute gilt,
+beschreibt [../access-control.md](../access-control.md); diese Spec hält Entwurf und Entscheidungen je Phase fest.
 Schließt den Open Point "Vereins-Rollen / Berechtigungen (was Vereins-User sehen und dürfen)".
 
 ## 1. Wunsch (Erik)
@@ -557,3 +558,17 @@ Nachtrag zu Phase 7/8 (Wunsch Erik, 31.10.2026), vor der Doku-Phase.
 - P10b-1: Eine Telefonnummer je Verein und je Trainer.
 - P10b-2: Reiter auf der Vereinsseite statt Schaltflächen zu gefilterten Listen.
 - P10b-3: Kein erzwungenes Format; erlaubt sind Ziffern, Leerzeichen und `+ / - ( )`.
+
+### Phase 11 im Detail (abgenommen)
+
+- `docs/access-control.md` neu: Rechte je Modul, Matrix der Vorlagen, Regeln je Datensatz, Feldregeln und Anträge,
+  Protokoll, Zwei-Faktor-Pflicht, Absicherung neuer Routen und Views.
+- `CLAUDE.md` (Zugriffskontrolle), `docs/architecture.md` und `docs/data-model.md` auf das neue Modell.
+- `docs/open-points.md`: "Vereins-Rollen / Berechtigungen" geschlossen; Restpunkte als eigener Punkt.
+
+**Entscheidungen Phase 11 (Erik, 31.10.2026)**
+
+- P11-1: Kleine Lücken aus Phase 9 und 10 als Open Point "Restpunkte Vereins-Berechtigungen" statt Code.
+- P11-2: Nach der Abnahme PR von `feature/club-permissions` gegen `main`; gemergt wird von Erik.
+- P11-3: Die Einführung auf Prod (2FA-Schalter, `permissions:assign-template`, Migrationen) steht in der
+  PR-Beschreibung, nicht in `access-control.md`.

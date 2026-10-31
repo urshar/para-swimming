@@ -53,8 +53,14 @@ erDiagram
 Classifier, SwimRecord.
 
 **Club** — `name`, `short_name`, `code` (LENEX CLUB.code), `nation_id`,
-`type` (`CLUB`/`VERBAND`), `regional_association` (BBSV, KBSV, NOEVSV, OOEBSV, SBSV, STBSV, TBSV, VBSV, WBSV), `swrid`.
-Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Entry**, **Result**.
+`type` (`CLUB`/`VERBAND`), `regional_association` (BBSV, KBSV, NOEVSV, OOEBSV, SBSV, STBSV, TBSV, VBSV, WBSV), `swrid`;
+Kontaktdaten `contact_name`, `contact_email`, `contact_phone`, `address_street`, `address_zip`, `address_city`,
+`address_country` (ISO alpha-3). `code` eindeutig je Nation (`clubs_nation_code_unique`).
+Soft-deletes. → gehört zu **Nation**; hat viele **Athlete**, **Coach**, **Entry**, **Result**.
+
+**Coach** (Trainer) — `club_id`, `first_name`, `last_name`, `email`, `phone`, `notes`, `is_active`. → gehört zu
+**Club**; hat viele **CoachQualification** (`kind` `education` = Ausbildung mit `level` aus `App\Enums\CoachLevel`
+bzw. `training` = Fortbildung; `title`, `completed_on`, `notes`). Höchstens ein **User** je Trainer (`users.coach_id`).
 
 **Athlete** — `nation_id` (Staatsbürgerschaft), `club_id` (Stammverein, nullable),
 `first_name`, `last_name`, `birth_date`, `gender` (M/F/N), `license`,
@@ -296,5 +302,18 @@ Qualifikation ausgeschlossene Disziplinen (`base_time_discipline_id`). **Qualifi
 
 ## Benutzer & Auth
 
-**User** — Standard-Laravel-User plus `is_admin` und `club_id` (Vereinsbindung). Über `club_id` wird gesteuert, für
-welchen Verein ein Nicht-Admin Meldungen verwalten darf (siehe `EntryPolicy`). Zwei-Faktor-Spalten via Fortify.
+**User** — Standard-Laravel-User plus `is_admin`, `club_id` (eigener Verein für Rechte "eigener Verein"),
+`role_template` (`App\Enums\RoleTemplate`, zuletzt angewendete Vorlage) und `coach_id` (optional, eindeutig).
+Zwei-Faktor-Spalten via Fortify. Regeln: [access-control.md](access-control.md).
+
+**UserModulePermission** (`user_module_permissions`) — `user_id`, `module` (`App\Enums\Module`), `read_scope`,
+`write_scope` (`App\Enums\AccessScope`: `none`/`own`/`all`). Unique `(user_id, module)`; fehlende Zeile = kein Zugriff.
+
+**AuditLog** (`audit_logs`) — `user_id` + `user_name` (bleibt nach Löschen des Benutzers lesbar), `auditable_type`/
+`auditable_id`, `event`, `changes` (JSON alt → neu), `source` + `source_detail` (z. B. Formular oder Import),
+`athlete_id`/`club_id` für den Verlauf am Athleten bzw. Verein, nur `created_at`.
+
+**ChangeRequest** (`change_requests`) — Antrag auf Namensänderung oder Ummeldung: `type` (`athlete_name`/`athlete_transfer`),
+`athlete_id`, `club_id` (antragstellender Verein), `from_club_id`, `values` (JSON), `reason`, `status`
+(`open`/`approved`/`rejected`/`withdrawn`), `requested_by(_name)`,
+`decided_by(_name)`, `decided_at`, `response`.

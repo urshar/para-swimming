@@ -92,8 +92,8 @@ app/
   Services/           Geschäftslogik (Import/Export, Berechnung, Wertung)
   Support/            Zustandslose Helfer (TimeParser, SportClassSorter …)
   Concerns/           Wiederverwendbare Traits
-  Policies/           Autorisierung (EntryPolicy)
-  Http/Middleware/    RequireAdmin
+  Policies/           Autorisierung je Datensatz (Athlet, Verein, Trainer, Meldung, Ergebnis, Antrag)
+  Http/Middleware/    Rechte je Modul (module:), admin, Zwei-Faktor-Pflicht
 database/migrations/  Schema (58 Migrationen)
 resources/views/      Blade-Views je Modul
 routes/               web.php, settings.php, console.php

@@ -9,7 +9,7 @@ bleiben dünn, die fachliche Logik liegt in Services, die Modelle bilden die Dom
 HTTP-Request
    │
    ▼
-Route (routes/web.php)  ──►  Middleware (auth, RequireAdmin)
+Route (routes/web.php)  ──►  Middleware (auth, module:…, admin, 2FA-Pflicht)
    │
    ▼
 Controller / Livewire-Komponente      ← dünn: validiert, delegiert, rendert
@@ -37,8 +37,8 @@ querschnittliche Wiederverwendung in **Traits** (`app/Concerns`).
 | `Services`         | Geschäftslogik: Import/Export, Berechnungen, Wertung, Statistik (~26 Services).                                                                                                                                                |
 | `Support`          | Zustandslose Helfer und Wertobjekte: `TimeParser`, `SportClassSorter`, `SportClassValidator`, `AthleteAge`, `ReportConfiguration`.                                                                                             |
 | `Concerns`         | Traits: `PasswordValidationRules`, `ProfileValidationRules`, `SearchesAthletes`.                                                                                                                                               |
-| `Policies`         | Autorisierung: `EntryPolicy` (wer darf Meldungen verwalten).                                                                                                                                                                   |
-| `Http/Middleware`  | `RequireAdmin`.                                                                                                                                                                                                                |
+| `Policies`         | Autorisierung je Datensatz: `AthletePolicy`, `ClubPolicy`, `CoachPolicy`, `EntryPolicy`, `ResultPolicy`, `ChangeRequestPolicy`, `AthletePerformanceNotePolicy`.                                                                |
+| `Http/Middleware`  | `RequireModuleAccess` (`module:`), `RequireAdmin` (`admin`), `EnsureTwoFactorEnabled`, `RememberListUrl`, `SetLocale`.                                                                                                         |
 | `Providers`        | `AppServiceProvider`, `FortifyServiceProvider`.                                                                                                                                                                                |
 | `Console/Commands` | Artisan-Commands, z. B. `StatisticsReferenceCheckCommand`.                                                                                                                                                                     |
 
@@ -173,18 +173,20 @@ Konventionen zu Blade/Flux/Alpine: siehe [conventions.md](conventions.md).
 
 ## Routing und Autorisierung
 
-- `routes/web.php` – Hauptrouten. `/` und `/dashboard` leiten auf `/meets` um. Authentifizierte Routen liegen in einer
-  `auth`-Gruppe; der Admin-Bereich zusätzlich hinter der `RequireAdmin`-Middleware (`/admin`-Prefix).
+- `routes/web.php` – Hauptrouten. Authentifizierte Routen liegen in einer `auth`-Gruppe; jede trägt zusätzlich
+  `module:<modul>,read|write` oder `admin` (Benutzer, Anträge, Dokumente, Team-Manager-Import), geprüft von
+  `AccessControlTest`.
 - `routes/settings.php` – Einstellungen/Profil (Fortify).
 - `routes/console.php` – Artisan/Scheduler.
-- **Autorisierung** über die `EntryPolicy` (z. B. ob ein Verein für einen Meet noch melden darf – abhängig vom
-  Meldeschluss) und die `RequireAdmin`-Middleware.
+- **Autorisierung** zweistufig: Die Middleware prüft das Recht je Modul (Lesen/Schreiben, kein / eigener Verein /
+  alle), Policies und `visibleTo()`-Scopes prüfen den einzelnen Datensatz. Details: [access-control.md](access-control.md).
 
 ## Authentifizierung
 
-Über **Laravel Fortify** (`FortifyServiceProvider`, `app/Actions/Fortify`). Nutzer haben `is_admin` und eine `club_id`;
-ein großer Teil der Logik hängt an
-`auth()->user()->club_id` (Vereinsbindung von Meldungen).
+Über **Laravel Fortify** (`FortifyServiceProvider`, `app/Actions/Fortify`), ohne Selbstregistrierung. Nutzer haben
+`is_admin`, eine `club_id` (eigener Verein), optional eine `coach_id` und Rechte je Modul (`user_module_permissions`,
+befüllt aus einer `role_template`). Admins und Benutzer mit Schreibrecht müssen 2FA einrichten
+(`EnsureTwoFactorEnabled`, Schalter `AUTH_TWO_FACTOR_REQUIRED`).
 
 ## Tests
 
