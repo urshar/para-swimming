@@ -34,6 +34,9 @@
             border: 1px solid #ddd;
         }
 
+        /* Prozentbreiten für ALLE Spalten (Summe 100 %), damit alle Kategorie-Tabellen gleich
+           ausgerichtet sind statt sich je Tabelle nach dem Inhalt zu richten. Kein
+           "table-layout: fixed": damit ignoriert dompdf die Breiten und teilt alle Spalten gleich auf. */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -46,6 +49,10 @@
             border-bottom: 1px solid #eee;
         }
 
+        td.name, th.name {
+            width: 40%;
+        }
+
         th {
             background-color: #fafafa;
             font-size: 10px;
@@ -54,11 +61,11 @@
         }
 
         td.rank, th.rank {
-            width: 40px;
+            width: 7%;
         }
 
         td.points, th.points {
-            width: 70px;
+            width: 13%;
             text-align: right;
             font-family: Courier, monospace;
         }
@@ -86,8 +93,8 @@
         <thead>
         <tr>
             <th class="rank">Rang</th>
-            <th>Athlet</th>
-            <th>Verein</th>
+            <th class="name">Athlet</th>
+            <th class="name">Verein</th>
             <th class="points">Punkte</th>
         </tr>
         </thead>
@@ -95,8 +102,8 @@
         @foreach($bracket['results'] as $row)
             <tr>
                 <td class="rank">{{ $row->rank }}</td>
-                <td>{{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}</td>
-                <td>{{ $row->club?->display_name }}</td>
+                <td class="name">{{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}</td>
+                <td class="name">{{ $row->club?->display_name }}</td>
                 <td class="points">{{ $row->points }}</td>
             </tr>
         @endforeach

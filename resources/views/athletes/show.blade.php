@@ -77,12 +77,12 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-6 mb-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
         {{-- Stammdaten --}}
-        <div class="col-span-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5">
+        <div class="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Stammdaten</h2>
-            <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
                     <dd class="font-medium mt-0.5 text-slate-700 dark:text-slate-300">
@@ -140,7 +140,7 @@
                     </div>
                 @endif
                 @if($athlete->address_street || $athlete->address_city)
-                    <div class="col-span-2">
+                    <div class="sm:col-span-2">
                         <dt class="text-zinc-500 dark:text-zinc-400">Adresse</dt>
                         <dd class="font-medium mt-0.5">
                             {{ $athlete->address_street }}
@@ -205,9 +205,41 @@
         </div>
     </div>
 
+    {{-- Reiter wie auf der Vereinsseite (Spec club-permissions P10b-2) als Links, damit der Reiter in der URL steht
+         und die Weiterleitung nach dem Speichern (AthleteController, ?reiter=...) dorthin zurückführt. Gerendert
+         wird nur der aktive Reiter; den Cup-Reiter gibt es nur mit Leserecht für die Cup-Wertung. Bei schmaler
+         Breite scrollt die Leiste waagrecht statt umzubrechen (beim Umbruch reicht der Unterstrich des aktiven
+         Reiters in die nächste Zeile); ohne "-mb-px", weil der Scroll-Container den Überstand abschneiden würde. --}}
+    <div class="mb-3 border-b border-zinc-200 dark:border-zinc-700 overflow-x-auto overflow-y-hidden">
+        <flux:navbar class="min-w-max" aria-label="Bereiche des Athleten">
+            <flux:navbar.item :href="route('athletes.show', $athlete)" :current="$tab === 'ergebnisse'">
+                Ergebnisse ({{ $athlete->results_count }})
+            </flux:navbar.item>
+            <flux:navbar.item :href="route('athletes.show', [$athlete, 'reiter' => 'klassifikation'])"
+                              :current="$tab === 'klassifikation'">
+                Klassifikation ({{ $athlete->classifications->count() }})
+            </flux:navbar.item>
+            <flux:navbar.item :href="route('athletes.show', [$athlete, 'reiter' => 'vereine'])"
+                              :current="$tab === 'vereine'">
+                Vereine ({{ $athlete->clubHistory->count() }})
+            </flux:navbar.item>
+            <flux:navbar.item :href="route('athletes.show', [$athlete, 'reiter' => 'level-kader'])"
+                              :current="$tab === 'level-kader'">
+                Level &amp; Kader
+            </flux:navbar.item>
+            @can('module.read', Module::Cup)
+                <flux:navbar.item :href="route('athletes.show', [$athlete, 'reiter' => 'cup'])"
+                                  :current="$tab === 'cup'">
+                    ÖBSV Cup
+                </flux:navbar.item>
+            @endcan
+        </flux:navbar>
+    </div>
+
     {{-- ═══════════════════════════════════════════════════════════════════════
          VEREINS-HISTORY & UMMELDUNG
     ════════════════════════════════════════════════════════════════════════ --}}
+    @if($tab === 'vereine')
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
          x-data="{ openTransfer: false }">
 
@@ -289,6 +321,7 @@
             <p class="text-sm text-zinc-400">Noch keine Vereinshistory vorhanden.</p>
         @endif
     </div>
+    @endif
 
     {{-- ═══════════════════════════════════════════════════════════════════════
          KLASSIFIKATIONS-HISTORY
@@ -299,6 +332,7 @@
          eigene Variable auflösen (statt @js((bool) request(...)) inline) — sonst zerlegt PhpStorms
          Blade-Parser den Ausdruck fehlerhaft ("Method expression is not of Function type"). --}}
     @php $openClassificationDefault = (bool) request('neue_klassifikation'); @endphp
+    @if($tab === 'klassifikation')
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
          x-data="{ openClassification: @js($openClassificationDefault) }">
 
@@ -703,10 +737,12 @@
             <p class="text-sm text-zinc-400">Noch keine Klassifikationen eingetragen.</p>
         @endif
     </div>
+    @endif
 
     {{-- ═══════════════════════════════════════════════════════════════════════
-         LEVEL-HISTORY
+         LEVEL-HISTORY + NATIONALKADER (gemeinsamer Reiter "Level & Kader")
     ════════════════════════════════════════════════════════════════════════ --}}
+    @if($tab === 'level-kader')
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6"
          x-data="{ openLevel: false }">
 
@@ -873,10 +909,12 @@
             <p class="text-sm text-zinc-400">Kein Nationalkader-Eintrag vorhanden.</p>
         @endif
     </div>
+    @endif
 
     {{-- ═══════════════════════════════════════════════════════════════════════
          ÖBSV CUP — TOP-GRUPPE (Spec cup-top-group.md)
     ════════════════════════════════════════════════════════════════════════ --}}
+    @if($tab === 'cup')
     @can('module.read', Module::Cup)
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">ÖBSV Cup — Top-Gruppe</h2>
@@ -927,12 +965,12 @@
             @endif
         </div>
     @endcan
+    @endif
 
     {{-- ═══════════════════════════════════════════════════════════════════════
-         ERGEBNISSE
+         ERGEBNISSE (Standard-Reiter)
     ════════════════════════════════════════════════════════════════════════ --}}
-    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Ergebnisse</h2>
-
+    @if($tab === 'ergebnisse')
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
         <flux:table.columns>
@@ -995,6 +1033,7 @@
     </div>
 
     <div class="mt-4">{{ $results->links() }}</div>
+    @endif
 
     @if($history !== null)
         <div class="mt-6">

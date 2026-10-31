@@ -140,7 +140,7 @@ it('zeigt bei den Exceptions keine Kategorie-Zuteilung mehr', function () {
     $athlete = makeAthlete_aua();
 
     $this->actingAs(makeAdmin_aua())
-        ->get(route('athletes.show', $athlete))
+        ->get(route('athletes.show', [$athlete, 'reiter' => 'klassifikation']))
         ->assertOk()
         ->assertSee('exceptions[0][code_id]', false)
         ->assertDontSee('exceptions[0][category]', false);

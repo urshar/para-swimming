@@ -16,7 +16,6 @@ use App\Models\CupTopGroupClassification;
 use App\Models\ExceptionCode;
 use App\Models\KaderType;
 use App\Models\Nation;
-use App\Models\User;
 use App\Services\AthleteClubTransferService;
 use App\Services\ImportSuggestionService;
 use App\Support\AthleteFieldRules;
@@ -185,39 +184,58 @@ class AthleteController extends Controller
             'levelHistory.user',
             'kaderMemberships.kaderType',
         ]);
+        $athlete->loadCount('results');
+        $user = auth()->user();
 
-        $results = $athlete->results()
-            ->with(['meet', 'swimEvent.strokeType'])
-            ->orderByDesc('created_at')
-            ->paginate(20);
+        // Reiter wie auf der Vereinsseite (Spec club-permissions P10b-2): "Ergebnisse" ist Standard, den Cup-Reiter
+        // gibt es nur mit Leserecht für die Cup-Wertung. ?neue_klassifikation=1 (Weiterleitung nach dem Anlegen, siehe
+        // store()) öffnet den Klassifikations-Reiter. Geladen wird nur, was der aktive Reiter braucht.
+        $tabs = ['ergebnisse', 'klassifikation', 'vereine', 'level-kader'];
+        if ($user->canRead(Module::Cup)) {
+            $tabs[] = 'cup';
+        }
+        $tab = request()->boolean('neue_klassifikation') ? 'klassifikation' : request()->query('reiter');
+        if (! in_array($tab, $tabs, true)) {
+            $tab = 'ergebnisse';
+        }
 
-        $clubs = Club::orderBy('name')->get();
-        $medClassifiers = Classifier::active()->medical()->orderBy('last_name')->get();
-        $techClassifiers = Classifier::active()->technical()->orderBy('last_name')->get();
-        $users = User::orderBy('name')->get();
-        $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
-        $kaderTypes = KaderType::active()->orderBy('sort_order')->get();
+        $results = $tab === 'ergebnisse'
+            ? $athlete->results()
+                ->with(['meet', 'swimEvent.strokeType'])
+                ->orderByDesc('created_at')
+                ->paginate(20)
+                ->withQueryString()
+            : null;
 
-        // Top-Gruppen-Historie je Cup-Jahr, nur mit Leserecht für die Cup-Wertung (Spec cup-top-group.md).
-        $topGroupHistory = auth()->user()->canRead(Module::Cup)
+        $clubs = $tab === 'vereine' ? Club::orderBy('name')->get() : collect();
+        $medClassifiers = $tab === 'klassifikation'
+            ? Classifier::active()->medical()->orderBy('last_name')->get()
+            : collect();
+        $techClassifiers = $tab === 'klassifikation'
+            ? Classifier::active()->technical()->orderBy('last_name')->get()
+            : collect();
+        $exceptionCodes = $tab === 'klassifikation' ? ExceptionCode::active()->orderBy('code')->get() : collect();
+        $kaderTypes = $tab === 'level-kader' ? KaderType::active()->orderBy('sort_order')->get() : collect();
+
+        // Top-Gruppen-Historie je Cup-Jahr (Spec cup-top-group.md); der Reiter existiert nur mit Leserecht Cup.
+        $topGroupHistory = $tab === 'cup'
             ? $athlete->cupTopGroupClassifications()->with(['cup', 'manualSetBy'])->get()
                 ->sortByDesc(fn (CupTopGroupClassification $row) => $row->cup->year)->values()
             : collect();
 
         // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
-        $history = auth()->user()->is_admin
+        $history = $user->is_admin
             ? AuditHistory::build(AuditLog::forAthlete($athlete), request()->query('verlauf') === 'alle')
             : null;
 
         // Offene Anträge als Hinweis (Spec §4.5): Admins sehen alle, Vereine nur die eigenen.
-        $user = auth()->user();
         $openRequests = ChangeRequest::open()->with('club')->where('athlete_id', $athlete->id)
             ->when(! $user->is_admin, fn ($query) => $query->where('club_id', $user->club_id ?? 0))
             ->get();
 
         return view('athletes.show', compact(
-            'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history',
+            'athlete', 'results', 'tab',
+            'clubs', 'medClassifiers', 'techClassifiers', 'exceptionCodes', 'kaderTypes', 'history',
             'openRequests', 'topGroupHistory'
         ));
     }
@@ -268,7 +286,7 @@ class AthleteController extends Controller
         $transfers->transfer($athlete, (int) $validated['club_id'], $validated['joined_at'], $validated['notes'] ?? null);
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'vereine'])
             ->with('success', 'Vereinswechsel erfolgreich eingetragen.');
     }
 
@@ -329,7 +347,7 @@ class AthleteController extends Controller
         });
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'klassifikation'])
             ->with('success', 'Klassifikation eingetragen, Sportklasse und Exceptions aktualisiert.');
     }
 
@@ -363,7 +381,7 @@ class AthleteController extends Controller
         });
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'klassifikation'])
             ->with('success', 'Klassifikation aktualisiert, Sportklasse und Exceptions geprüft.');
     }
 
@@ -379,7 +397,7 @@ class AthleteController extends Controller
         $classification->delete();
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'klassifikation'])
             ->with('success', 'Klassifikation gelöscht.');
     }
 
@@ -415,7 +433,7 @@ class AthleteController extends Controller
         });
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
             ->with('success', 'Level aktualisiert.');
     }
 
@@ -441,7 +459,7 @@ class AthleteController extends Controller
         $athlete->kaderMemberships()->create($validated);
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
             ->with('success', 'Kaderzugehörigkeit eingetragen.');
     }
 
@@ -459,7 +477,7 @@ class AthleteController extends Controller
         $kaderMembership->delete();
 
         return redirect()
-            ->route('athletes.show', $athlete)
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
             ->with('success', 'Kaderzugehörigkeit gelöscht.');
     }
 

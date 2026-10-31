@@ -99,7 +99,7 @@ it('zeigt und bearbeitet eine Klassifizierung ohne Datum', function () {
     ]);
 
     $this->actingAs(admin_tmi1())
-        ->get(route('athletes.show', $athlete))
+        ->get(route('athletes.show', [$athlete, 'reiter' => 'klassifikation']))
         ->assertOk()
         ->assertSee('ohne Datum');
 
@@ -110,7 +110,7 @@ it('zeigt und bearbeitet eine Klassifizierung ohne Datum', function () {
             'classification_scope' => 'NAT',
             'classification_status' => 'CONFIRMED',
         ])
-        ->assertRedirect(route('athletes.show', $athlete));
+        ->assertRedirect(route('athletes.show', ['athlete' => $athlete, 'reiter' => 'klassifikation']));
 
     expect($classification->fresh()->location)->toBe('Wien')
         ->and($classification->fresh()->classified_at)->toBeNull();
