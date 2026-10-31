@@ -33,6 +33,9 @@
                 {{ $meta['city'] ?? '–' }}
                 @if($meta['start_date'] ?? null)
                     · {{ Carbon::parse($meta['start_date'])->format('d.m.Y') }}
+                    @if(($meta['end_date'] ?? null) && $meta['end_date'] !== $meta['start_date'])
+                        – {{ Carbon::parse($meta['end_date'])->format('d.m.Y') }}
+                    @endif
                 @endif
                 · {{ $meet ? 'Import in "' . $meet->name . '"' : 'wird als neuer Wettkampf angelegt' }}
             </p>

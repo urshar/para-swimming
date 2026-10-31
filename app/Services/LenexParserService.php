@@ -345,16 +345,14 @@ class LenexParserService
         $xml = $this->loadXml($filePath);
         $meetXml = $xml->MEETS->MEET[0];
 
-        $startDate = (string) ($meetXml['startdate'] ?? '');
-        if (empty($startDate) && isset($meetXml->SESSIONS->SESSION)) {
-            $startDate = (string) ($meetXml->SESSIONS->SESSION[0]['date'] ?? '');
-        }
+        [$startDate, $endDate] = $this->meetDates($meetXml);
 
         return [
             'name' => (string) ($meetXml['name'] ?? ''),
             'city' => preg_replace('/\s*\/\s*/', '/', (string) ($meetXml['city'] ?? '')),
             'course' => (string) ($meetXml['course'] ?? ''),
-            'start_date' => $startDate ?: null,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
             'nation' => (string) ($meetXml['nation'] ?? ''),
         ];
     }
@@ -597,6 +595,29 @@ class LenexParserService
                 $group->update(['regional_associations' => implode(',', $lmCodes), 'regional_mode' => ScoringGroup::REGION_EXCEPT]);
             }
         }
+    }
+
+    /**
+     * Start- und Enddatum des Meets (Y-m-d oder null). startdate/stopdate fehlen oft — in Ergebnisdateien
+     * internationaler Meisterschaften ebenso wie im Splash Entries-Export —, dann gilt das früheste bzw.
+     * späteste Session-Datum.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function meetDates(SimpleXMLElement $meetXml): array
+    {
+        $sessionDates = [];
+        foreach ($meetXml->SESSIONS->SESSION ?? [] as $session) {
+            $date = (string) ($session['date'] ?? '');
+            if ($date !== '') {
+                $sessionDates[] = $date;
+            }
+        }
+
+        $startDate = (string) ($meetXml['startdate'] ?? '') ?: ($sessionDates === [] ? '' : min($sessionDates));
+        $endDate = (string) ($meetXml['stopdate'] ?? '') ?: ($sessionDates === [] ? '' : max($sessionDates));
+
+        return [$startDate ?: null, $endDate ?: null];
     }
 
     /**
@@ -987,19 +1008,7 @@ class LenexParserService
         $nation = Nation::where('code', $nationCode)->first()
             ?? ($this->meetNationFallback !== null ? Nation::where('code', $this->meetNationFallback)->first() : null);
 
-        // startdate kann fehlen (z.B. Splash Entries-Export) — Fallback auf erstes Session-Datum
-        $startDate = (string) ($meetXml['startdate'] ?? '');
-        if (empty($startDate) && isset($meetXml->SESSIONS->SESSION)) {
-            $startDate = (string) ($meetXml->SESSIONS->SESSION[0]['date'] ?? '');
-        }
-
-        // stopdate kann fehlen — Fallback auf letztes Session-Datum
-        $endDate = (string) ($meetXml['stopdate'] ?? '') ?: null;
-        if (empty($endDate) && isset($meetXml->SESSIONS->SESSION)) {
-            $sessions = $meetXml->SESSIONS->SESSION;
-            $lastDate = (string) ($sessions[count($sessions) - 1]['date'] ?? '');
-            $endDate = $lastDate ?: null;
-        }
+        [$startDate, $endDate] = $this->meetDates($meetXml);
 
         // City normalisieren: Splash schreibt manchmal "Rif / Hallein" und manchmal "Rif/Hallein"
         $city = preg_replace('/\s*\/\s*/', '/', (string) ($meetXml['city'] ?? ''));

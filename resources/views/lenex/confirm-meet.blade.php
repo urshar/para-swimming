@@ -24,6 +24,9 @@
                 {{ $meta['city'] ?? '–' }}
                 @if($meta['start_date'] ?? null)
                     · {{ Carbon::parse($meta['start_date'])->format('d.m.Y') }}
+                    @if(($meta['end_date'] ?? null) && $meta['end_date'] !== $meta['start_date'])
+                        – {{ Carbon::parse($meta['end_date'])->format('d.m.Y') }}
+                    @endif
                 @endif
                 @if($meta['course'] ?? null)
                     · {{ $meta['course'] }}
@@ -55,7 +58,7 @@
                             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
                                 {{ $meet->city ?? '–' }}
                                 @if($meet->start_date)
-                                    · {{ Carbon::parse($meet->start_date)->format('d.m.Y') }}
+                                    · {{ $meet->date_range }}
                                 @endif
                                 @if($meet->course)
                                     · {{ $meet->course }}
