@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RoleTemplate;
 use App\Models\Club;
 use App\Models\Entry;
 use App\Models\Meet;
@@ -8,6 +9,7 @@ use App\Models\RelayEntryMember;
 use App\Models\User;
 use App\Services\MeetEntryListExportService;
 use App\Services\MeetEntryListService;
+use App\Services\PermissionTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -27,16 +29,29 @@ function mel_admin(): User
         ]);
 }
 
+/**
+ * @throws Throwable
+ */
 function mel_clubUser(Club $club): User
 {
-    return User::firstWhere('email', 'mel_club@example.test')
-        ?? User::forceCreate([
-            'name' => 'Club MEL',
-            'email' => 'mel_club@example.test',
-            'password' => bcrypt('secret'),
-            'is_admin' => false,
-            'club_id' => $club->id,
-        ]);
+    $existing = User::firstWhere('email', 'mel_club@example.test');
+
+    if ($existing) {
+        return $existing;
+    }
+
+    $user = User::forceCreate([
+        'name' => 'Club MEL',
+        'email' => 'mel_club@example.test',
+        'password' => bcrypt('secret'),
+        'is_admin' => false,
+        'club_id' => $club->id,
+    ]);
+
+    // Rechte wie ein Vereinsbenutzer (Spec club-permissions Phase 3).
+    app(PermissionTemplateService::class)->applyTemplate($user, RoleTemplate::Club);
+
+    return $user;
 }
 
 function mel_entry(Meet $meet, object $event, Club $club, object $athlete): Entry
@@ -264,7 +279,7 @@ it('lässt Admins alle vier Listen herunterladen', function () {
         ->assertOk()->assertHeader('content-type', 'application/pdf');
 });
 
-it('macht die Sportpasskontrolle admin-only', function () {
+it('macht die Sportpasskontrolle admin-only', /** @throws Throwable */ function () {
     $s = mel_scenario();
     $clubUser = mel_clubUser($s['clubA']);
 
@@ -272,7 +287,7 @@ it('macht die Sportpasskontrolle admin-only', function () {
     $this->actingAs($clubUser)->get(route('meets.entry-lists.sportpass.xlsx', $s['meet']))->assertForbidden();
 });
 
-it('erlaubt Vereinen ihre eigene Teilnehmerliste', function () {
+it('erlaubt Vereinen ihre eigene Teilnehmerliste', /** @throws Throwable */ function () {
     $s = mel_scenario();
     $clubUser = mel_clubUser($s['clubA']);
 

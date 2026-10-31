@@ -63,6 +63,14 @@ class LenexResolverService
     private array $unresolvedAthletes = [];
 
     /**
+     * Neu angelegte Vereine, deren Code in der Nation schon vergeben war und die deshalb ohne Code angelegt wurden
+     * (Spec club-permissions P7-3).
+     *
+     * @var list<string>
+     */
+    private array $clubsWithoutCode = [];
+
+    /**
      * Auf der Klärungsseite gewählte Zuordnungen: LENEX athleteid → bestehender Athlet. Beim ersten Auftreten wie ein
      * automatisch gefundener Athlet behandelt (HANDICAP-Abgleich), danach im athleteCache.
      *
@@ -161,10 +169,17 @@ class LenexResolverService
 
     public function createClub(array $data): Club
     {
+        // Code schon vergeben (auch an einen gelöschten Verein) → ohne Code anlegen statt am Unique-Index scheitern.
+        $code = Club::normalizeCode($data['code'] ?? null);
+        if ($code !== null && Club::holderOfCode($code, (int) $data['nation_id'], null)) {
+            $this->clubsWithoutCode[] = $data['name'];
+            $code = null;
+        }
+
         $club = Club::create([
             'name' => $data['name'],
             'short_name' => $data['short_name'] ?? null,
-            'code' => ($data['code'] ?? '') ?: null,
+            'code' => $code,
             'nation_id' => $data['nation_id'],
             'type' => $data['type'] ?? 'CLUB',
             'regional_association' => ($data['regional_association'] ?? '') ?: null,
@@ -355,6 +370,12 @@ class LenexResolverService
     public function getUnresolvedAthletes(): array
     {
         return $this->unresolvedAthletes;
+    }
+
+    /** @return list<string> */
+    public function getClubsWithoutCode(): array
+    {
+        return $this->clubsWithoutCode;
     }
 
     // ── Cache-Methoden ────────────────────────────────────────────────────────

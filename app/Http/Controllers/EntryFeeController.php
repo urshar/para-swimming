@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Club;
 use App\Models\Meet;
 use App\Services\EntryFeeCalculator;
@@ -13,8 +14,8 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Meldegeld-Abrechnung einer Veranstaltung (Berechnung in EntryFeeCalculator), online und als PDF.
  *
- * Zugriff wie bei den Melde-Listen: Der Admin sieht alle Vereine (Übersicht + Detail je Verein), ein
- * Vereinsnutzer nur die eigene Abrechnung. Ein Nicht-Admin ohne Verein bekommt 403.
+ * Zugriff wie bei den Melde-Listen: Mit Meldungen lesen "alle" sieht man alle Vereine (Übersicht + Detail je
+ * Verein), mit "eigener Verein" nur die eigene Abrechnung. Ohne Verein gibt es dann 403.
  */
 class EntryFeeController extends Controller
 {
@@ -27,7 +28,7 @@ class EntryFeeController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->is_admin) {
+        if (! $user->canReadAll(Module::Entries)) {
             abort_unless($user->club_id, 403);
 
             return $this->clubView($meet, Club::findOrFail($user->club_id));
@@ -45,7 +46,7 @@ class EntryFeeController extends Controller
     public function club(Request $request, Meet $meet, Club $club): View
     {
         $user = $request->user();
-        abort_unless($user->is_admin || $user->club_id === $club->id, 403);
+        abort_unless($user->canReadAll(Module::Entries) || $user->club_id === $club->id, 403);
 
         return $this->clubView($meet, $club);
     }
@@ -53,9 +54,10 @@ class EntryFeeController extends Controller
     public function pdf(Request $request, Meet $meet): Response
     {
         $user = $request->user();
-        abort_unless($user->is_admin || $user->club_id, 403);
+        $all = $user->canReadAll(Module::Entries);
+        abort_unless($all || $user->club_id, 403);
 
-        $statements = $this->calculator->statements($meet, $user->is_admin ? null : $user->club_id);
+        $statements = $this->calculator->statements($meet, $all ? null : $user->club_id);
 
         return $this->pdf->stream(
             'pdf.entry-lists.meldegeld',
@@ -64,8 +66,8 @@ class EntryFeeController extends Controller
                 'statements' => $statements,
                 'totalCents' => EntryFeeCalculator::total($statements),
                 'feeSchedule' => $this->calculator->schedule($meet),
-                // Gesamtübersicht nur für den Admin (alle Vereine).
-                'showOverview' => (bool) $user->is_admin,
+                // Gesamtübersicht nur mit Meldungen lesen "alle" (alle Vereine).
+                'showOverview' => $all,
             ],
             'meldegeld-'.(str($meet->name)->slug()->limit(40, '')->value() ?: 'wettkampf').'.pdf',
         );

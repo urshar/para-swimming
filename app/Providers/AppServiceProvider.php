@@ -2,18 +2,33 @@
 
 namespace App\Providers;
 
+use App\Enums\Module;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Models\Athlete;
 use App\Models\AthletePerformanceNote;
+use App\Models\ChangeRequest;
+use App\Models\Club;
+use App\Models\Coach;
 use App\Models\Meet;
+use App\Models\Result;
+use App\Models\User;
 use App\Policies\AthletePerformanceNotePolicy;
+use App\Policies\AthletePolicy;
+use App\Policies\ChangeRequestPolicy;
+use App\Policies\ClubPolicy;
+use App\Policies\CoachPolicy;
 use App\Policies\EntryPolicy;
+use App\Policies\ResultPolicy;
 use App\Services\AccessTeamManagerSource;
 use App\Services\TeamManagerSource;
+use App\Support\AuditContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(TeamManagerSource::class, AccessTeamManagerSource::class);
+
+        // Quelle und Stummschaltung des Änderungsprotokolls gelten je Request bzw. Befehl.
+        $this->app->scoped(AuditContext::class);
     }
 
     /**
@@ -31,8 +49,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        // Livewire-Aktionen laufen über eine eigene Route; so greift die 2FA-Pflicht auch dort (mit der Route der Seite).
+        Livewire::addPersistentMiddleware([EnsureTwoFactorEnabled::class]);
         Gate::policy(Meet::class, EntryPolicy::class);
         Gate::policy(AthletePerformanceNote::class, AthletePerformanceNotePolicy::class);
+        Gate::policy(Athlete::class, AthletePolicy::class);
+        Gate::policy(ChangeRequest::class, ChangeRequestPolicy::class);
+        Gate::policy(Club::class, ClubPolicy::class);
+        Gate::policy(Coach::class, CoachPolicy::class);
+        Gate::policy(Result::class, ResultPolicy::class);
+
+        // Rechte je Modul (Spec club-permissions §4.1), in Blade z. B. @can('module.write', Module::Athletes).
+        // Admins laufen über User::readScope()/writeScope(), bewusst kein globales Gate::before.
+        Gate::define('module.read', fn (User $user, Module $module) => $user->canRead($module));
+        Gate::define('module.write', fn (User $user, Module $module) => $user->canWrite($module));
     }
 
     /**

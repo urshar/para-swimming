@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,12 +12,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Club extends Model
 {
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     // ── regionale Verbandscodes (Österreich) ──────────────────────────────────
 
     /** Verband statt Verein (Landesverband, ÖBSV); Rekorde dafür zählen nicht für den Stammverein. */
     public const string TYPE_VERBAND = 'VERBAND';
+
+    /**
+     * Validierung einer Telefonnummer (Verein, Trainer): kein erzwungenes Format, nur Ziffern, Leerzeichen und
+     * + / - ( ) (Spec club-permissions P10b-3).
+     */
+    public const array PHONE_RULES = ['nullable', 'string', 'max:30', 'regex:/^[0-9+\/()\- ]+$/'];
 
     const array REGIONAL_ASSOCIATIONS = [
         'BBSV' => 'Burgenländischer Behindertensportverband',
@@ -55,7 +62,61 @@ class Club extends Model
         'type',
         'regional_association',
         'swrid',
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+        'address_street',
+        'address_zip',
+        'address_city',
+        'address_country',
     ];
+
+    // ── Vereinscode (eindeutig je Nation, Spec club-permissions N8, P7-1/P7-2) ──
+
+    /** Getrimmt und in Großbuchstaben, leer → null; so vergleichen MySQL und SQLite gleich. */
+    public static function normalizeCode(?string $code): ?string
+    {
+        $code = mb_strtoupper(trim((string) $code));
+
+        return $code === '' ? null : $code;
+    }
+
+    /** Verein (auch gelöscht), der den Code in der Nation schon trägt. */
+    public static function holderOfCode(?string $code, int $nationId, ?int $ignoreId): ?self
+    {
+        $code = self::normalizeCode($code);
+
+        return $code === null ? null : self::withTrashed()
+            ->where('nation_id', $nationId)
+            ->where('code', $code)
+            ->when($ignoreId !== null, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->first();
+    }
+
+    /**
+     * Satz für die Import-Rückmeldung: Vereine, die ohne Code angelegt wurden, weil der Code in der Nation schon
+     * vergeben war (P7-3). Leer, wenn es keine gibt.
+     *
+     * @param  list<string>  $names
+     */
+    public static function withoutCodeNote(array $names): string
+    {
+        return $names === [] ? '' : ' Ohne Code angelegt, weil der Code in der Nation schon vergeben ist: '
+            .implode(', ', $names).'.';
+    }
+
+    public function setCodeAttribute(?string $value): void
+    {
+        $this->attributes['code'] = self::normalizeCode($value);
+    }
+
+    // ── Änderungsprotokoll ────────────────────────────────────────────────────
+
+    /** Der Verein selbst ist der Bezug für seinen Verlauf (Trait Auditable). */
+    public function auditClubId(): ?int
+    {
+        return $this->id;
+    }
 
     // ── Relationen ────────────────────────────────────────────────────────────
 
@@ -67,6 +128,11 @@ class Club extends Model
     public function athletes(): HasMany
     {
         return $this->hasMany(Athlete::class);
+    }
+
+    public function coaches(): HasMany
+    {
+        return $this->hasMany(Coach::class);
     }
 
     public function meets(): BelongsToMany

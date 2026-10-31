@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\BaseTimeDiscipline;
 use App\Models\QualifyingExcludedDiscipline;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,7 @@ class QualifyingExcludedDisciplineController extends Controller
 {
     public function index(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $disciplines = BaseTimeDiscipline::where('relay_count', 1)
             ->with(['strokeType', 'qualifyingExclusion'])
@@ -35,7 +36,7 @@ class QualifyingExcludedDisciplineController extends Controller
 
     public function store(BaseTimeDiscipline $discipline): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         QualifyingExcludedDiscipline::firstOrCreate(['base_time_discipline_id' => $discipline->id]);
 
@@ -46,7 +47,7 @@ class QualifyingExcludedDisciplineController extends Controller
 
     public function destroy(BaseTimeDiscipline $discipline): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         QualifyingExcludedDiscipline::where('base_time_discipline_id', $discipline->id)->delete();
 
@@ -55,8 +56,8 @@ class QualifyingExcludedDisciplineController extends Controller
             ->with('success', "\"$discipline->display_name\" wieder für die Richtzeiten-Berechnung zugelassen.");
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::QualifyingTimes), 403, 'Kein Schreibrecht für Richtzeiten.');
     }
 }

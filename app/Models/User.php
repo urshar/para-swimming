@@ -3,17 +3,21 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\AccessScope;
+use App\Enums\Module;
+use App\Enums\RoleTemplate;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'email', 'password', 'is_admin', 'club_id'])]
+#[Fillable(['name', 'email', 'password', 'is_admin', 'club_id', 'coach_id', 'role_template'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -37,6 +41,12 @@ class User extends Authenticatable
         return $this->belongsTo(Club::class);
     }
 
+    /** Verknüpfter Trainer-Datensatz (Spec club-permissions N7). */
+    public function coach(): BelongsTo
+    {
+        return $this->belongsTo(Coach::class);
+    }
+
     public function isAdmin(): bool
     {
         return (bool) $this->is_admin;
@@ -45,6 +55,90 @@ class User extends Authenticatable
     public function hasClub(): bool
     {
         return $this->club_id !== null;
+    }
+
+    public function modulePermissions(): HasMany
+    {
+        return $this->hasMany(UserModulePermission::class);
+    }
+
+    /**
+     * Lesebereich für ein Modul (Spec club-permissions §4.1). Admins immer "alle"; "eigener Verein" ohne Verein
+     * zählt als kein Zugriff. Die Rechte werden einmal je Benutzer-Instanz geladen (Relation).
+     */
+    public function readScope(Module $module): AccessScope
+    {
+        return $this->effectiveScope($this->modulePermission($module)?->read_scope);
+    }
+
+    /** Schreibbereich für ein Modul, Regeln wie readScope(). */
+    public function writeScope(Module $module): AccessScope
+    {
+        return $this->effectiveScope($this->modulePermission($module)?->write_scope);
+    }
+
+    public function canRead(Module $module): bool
+    {
+        return $this->readScope($module) !== AccessScope::None;
+    }
+
+    public function canWrite(Module $module): bool
+    {
+        return $this->writeScope($module) !== AccessScope::None;
+    }
+
+    /** Lesen im Bereich "alle" (verbandsweite Ansichten, z. B. das Melde-Cockpit). */
+    public function canReadAll(Module $module): bool
+    {
+        return $this->readScope($module) === AccessScope::All;
+    }
+
+    /** Schreiben im Bereich "alle" (z. B. Melden für jeden Verein). */
+    public function canWriteAll(Module $module): bool
+    {
+        return $this->writeScope($module) === AccessScope::All;
+    }
+
+    /**
+     * Zwei-Faktor-Pflicht (Spec club-permissions §4.7): Admins und jeder Benutzer mit mindestens einem Schreibrecht;
+     * reine Leser nicht. Ob die Pflicht durchgesetzt wird, steuert config('auth.two_factor_required').
+     */
+    public function requiresTwoFactor(): bool
+    {
+        return $this->is_admin
+            || collect(Module::cases())->contains(fn (Module $module): bool => $this->canWrite($module));
+    }
+
+    /** Zwei-Faktor-Anmeldung zurücksetzen (Handy verloren); bei Pflicht wird sie beim nächsten Seitenaufruf neu eingerichtet. */
+    public function resetTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Erster Bereich, den der Benutzer öffnen darf, als Routenname — Ziel nach dem Login (/dashboard). Null, wenn
+     * dem Benutzer noch kein Bereich freigegeben ist.
+     */
+    public function homeRoute(): ?string
+    {
+        $candidates = [
+            'meets.index' => $this->canRead(Module::Meets),
+            'club-entries.pick-meet' => $this->canWrite(Module::Entries),
+            'athletes.index' => $this->canRead(Module::Athletes),
+            'clubs.index' => $this->canRead(Module::Clubs),
+            'records.index' => $this->canRead(Module::Records),
+            'championships.index' => $this->canRead(Module::Championships),
+            'wps.rankings' => $this->canRead(Module::Wps),
+            'cups.overall-ranking.index' => $this->canRead(Module::Cup),
+            'qualifying-time-lists.index' => $this->canRead(Module::QualifyingTimes),
+            'statistics.index' => $this->canRead(Module::Statistics),
+        ];
+
+        return array_key_first(array_filter($candidates));
     }
 
     /**
@@ -58,6 +152,25 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'role_template' => RoleTemplate::class,
         ];
+    }
+
+    private function modulePermission(Module $module): ?UserModulePermission
+    {
+        return $this->modulePermissions->first(fn (UserModulePermission $p) => $p->module === $module);
+    }
+
+    private function effectiveScope(?AccessScope $stored): AccessScope
+    {
+        if ($this->is_admin) {
+            return AccessScope::All;
+        }
+
+        if ($stored === AccessScope::Own && $this->club_id === null) {
+            return AccessScope::None;
+        }
+
+        return $stored ?? AccessScope::None;
     }
 }

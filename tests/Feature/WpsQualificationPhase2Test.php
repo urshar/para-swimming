@@ -24,7 +24,8 @@ function admin_wq2(): User
 
 function clubUser_wq2(): User
 {
-    return User::factory()->create(['is_admin' => false]);
+    // Mit Verein: Meisterschaften lesen ist in der Vorlage "Verein" auf den eigenen Verein beschränkt.
+    return User::factory()->create(['is_admin' => false, 'club_id' => makeClub_p5()->id]);
 }
 
 function stroke_wq2(string $code): StrokeType

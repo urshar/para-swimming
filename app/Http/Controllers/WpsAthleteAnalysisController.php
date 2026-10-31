@@ -11,6 +11,7 @@ use App\Services\WpsChartService;
 use App\Support\WpsAthleteProfile;
 use App\Support\WpsRankingFilter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -26,8 +27,8 @@ use Symfony\Component\HttpFoundation\Response;
  * per Query-Parameter, über welchen Weg die Seite erreicht wurde, damit der Rückweg-Button zum
  * richtigen Ziel führt (Design-Feedback Erik, 15.09.2026).
  *
- * Lesend, verbandsweit — die Notizen im PDF unterliegen dagegen der Sichtbarkeitsregel
- * aus §7.5.
+ * Lesend; sichtbar sind nur Athleten, die der Benutzer sehen darf (AthletePolicy, Spec club-permissions
+ * P3-2). Die Notizen im PDF unterliegen zusätzlich der Sichtbarkeitsregel aus §7.5.
  */
 class WpsAthleteAnalysisController extends Controller
 {
@@ -47,6 +48,8 @@ class WpsAthleteAnalysisController extends Controller
      */
     public function show(Athlete $athlete, Request $request): View
     {
+        Gate::authorize('view', $athlete);
+
         $fromAthlete = $request->query('from') === 'athlete';
 
         return view('wps.athletes.show', [
@@ -64,9 +67,10 @@ class WpsAthleteAnalysisController extends Controller
      * Erik, 15.09.2026), ohne dabei die ursprüngliche Athletenliste zu duplizieren: nur ein
      * durchsuchbares Auswahlfeld, keine eigene, zweite Tabelle.
      */
-    public function picker(): View
+    public function picker(Request $request): View
     {
         $athletes = Athlete::query()
+            ->visibleTo($request->user())
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name']);
@@ -76,6 +80,8 @@ class WpsAthleteAnalysisController extends Controller
 
     public function pdf(Request $request, Athlete $athlete): Response
     {
+        Gate::authorize('view', $athlete);
+
         $bahn = strtoupper((string) $request->query('course', WpsRankingFilter::COURSE_MIXED));
 
         $profil = $this->service->profile(

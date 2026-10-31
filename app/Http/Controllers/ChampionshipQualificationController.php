@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Championship;
 use App\Services\PdfExportService;
 use App\Services\QualificationEvaluationService;
@@ -24,7 +25,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Meisterschaft und die Vereinsbeschränkung durch. Die PDF-Ausgaben laufen dagegen hier, weil
  * sie einen vollständigen Antwortkörper liefern und keinen Zustand halten.
  *
- * Lesend, deshalb ohne RequireAdmin; Vereinsnutzer sehen nur die Athleten ihres Vereins.
+ * Lesend (module:championships,read); bei "eigener Verein" nur die Athleten des eigenen Vereins.
  */
 class ChampionshipQualificationController extends Controller
 {
@@ -179,11 +180,11 @@ class ChampionshipQualificationController extends Controller
         );
     }
 
-    /** Vereinsnutzer sehen nur die Athleten ihres Vereins; Admins alle. */
+    /** Bei Meisterschaften lesen "eigener Verein" nur die Athleten des eigenen Vereins, bei "alle" alle. */
     private function clubFilter(): ?int
     {
         $nutzer = auth()->user();
 
-        return $nutzer?->is_admin === true ? null : $nutzer?->club_id;
+        return $nutzer?->canReadAll(Module::Championships) === true ? null : $nutzer?->club_id;
     }
 }

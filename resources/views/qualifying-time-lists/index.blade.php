@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Richtzeitenlisten ÖSTM & ÖM')
@@ -6,7 +8,7 @@
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Richtzeitenlisten ÖSTM & ÖM</h1>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::QualifyingTimes))
                 <flux:button href="{{ route('qualifying-time-lists.create') }}" variant="primary" icon="plus">
                     Neue Liste
                 </flux:button>
@@ -44,7 +46,7 @@
                                 <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('qualifying-time-lists.show', $list) }}"
                                                  variant="ghost" size="sm" icon="eye"/>
-                                    @if(auth()->user()?->is_admin && $list->isLatest())
+                                    @if(auth()->user()?->canWrite(Module::QualifyingTimes) && $list->isLatest())
                                         <flux:button href="{{ route('qualifying-time-lists.edit', $list) }}"
                                                      variant="ghost" size="sm" icon="pencil" class="text-amber-500!"/>
                                         <form method="POST"

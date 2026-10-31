@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @php
     use App\Models\SwimRecord;
     use App\Support\ListUrl;
@@ -29,7 +31,7 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Records))
             <flux:button href="{{ route('records.edit', $record) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
@@ -81,10 +83,10 @@
                                             <flux:badge size="sm" color="zinc"
                                                         class="font-mono w-6 text-center">{{ $member->position }}</flux:badge>
                                             @if($member->athlete_id)
-                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                <x-athlete-link :athlete="$member->athlete"
                                                    class="hover:text-blue-600 transition-colors">
                                                     {{ $member->display_name }}
-                                                </a>
+                                                </x-athlete-link>
                                             @else
                                                 <span>{{ $member->display_name }}</span>
                                             @endif
@@ -99,10 +101,10 @@
                                 <span class="text-zinc-400 italic">Kein Team erfasst</span>
                             @endif
                         @elseif($record->athlete)
-                            <a href="{{ route('athletes.show', $record->athlete) }}"
+                            <x-athlete-link :athlete="$record->athlete"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->full_name }}
-                            </a>
+                            </x-athlete-link>
                             <span class="text-zinc-400 text-xs ml-1">({{ $record->athlete->nation?->code }})</span>
                         @else
                             <span class="text-zinc-400">–</span>
@@ -189,7 +191,8 @@
                 </p>
             @endif
 
-            @if($record->result)
+            {{-- Nur wenn der Benutzer das Ergebnis sehen darf (bei "eigener Verein" nur eigene Athleten, P9-1). --}}
+            @if($record->result && auth()->user()->can('view', $record->result))
                 <div class="mt-3 text-sm">
                     <div class="text-zinc-500 dark:text-zinc-400 mb-1">Ergebnis-Referenz</div>
                     <a href="{{ route('results.show', $record->result) }}" class="text-blue-600 hover:underline">
@@ -248,7 +251,7 @@
                         <flux:table.cell>
                             @if(!$histRecord->is_current)
                                 <div class="flex items-center gap-1 justify-end">
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->canWrite(Module::Records))
                                     <form method="POST" action="{{ route('records.restore', $histRecord) }}"
                                           x-data="{ submit() { if (confirm('Diesen Rekord als aktuellen Rekord wiederherstellen?')) this.$el.submit() } }"
                                           @submit.prevent="submit()">
@@ -257,7 +260,7 @@
                                                      class="text-emerald-500" title="Wiederherstellen"/>
                                     </form>
                                     @endif
-                                    @if(auth()->user()?->is_admin)
+                                    @if(auth()->user()?->canWrite(Module::Records))
                                     <form method="POST" action="{{ route('records.destroy', $histRecord) }}"
                                           x-data="{ submit() { if (confirm('Historischen Rekord löschen?')) this.$el.submit() } }"
                                           @submit.prevent="submit()">

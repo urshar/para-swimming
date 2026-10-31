@@ -145,8 +145,8 @@
                         <flux:table.row>
                             <flux:table.cell class="font-medium whitespace-normal">
                                 @if($item->athlete_id !== null)
-                                    <a href="{{ route('athletes.show', $item->athlete_id) }}"
-                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $item->athlete?->display_name }}</a>
+                                    <x-athlete-link :athlete="$item->athlete"
+                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $item->athlete?->display_name }}</x-athlete-link>
                                 @elseif($item->swimRecord)
                                     <a href="{{ route('records.show', $item->swim_record_id) }}"
                                        class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $details['label'] ?? 'Rekord' }}</a>

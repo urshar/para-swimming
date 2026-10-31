@@ -1,4 +1,5 @@
 @php
+    use App\Enums\Module;
     use App\Models\MeetSession;
     use App\Support\ListUrl;
 @endphp
@@ -26,24 +27,25 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            {{-- Vereinsmeldungen — für Club-User und Admins, nur wenn Meet offen --}}
-            @if(auth()->check() && (auth()->user()->is_admin || (auth()->user()->club_id && $meet->is_open)))
+            {{-- Vereinsmeldungen — wer Meldungen lesen darf, auch bei geschlossenem Wettkampf (P9-5); die Schaltflächen
+                 zum Melden regelt die Übersicht selbst --}}
+            @if(auth()->user()?->canReadAll(Module::Entries) || (auth()->user()?->canRead(Module::Entries) && auth()->user()->club_id))
                 <flux:button href="{{ route('club-entries.index', $meet) }}" variant="filled"
                              icon="pencil-square" size="sm" class="text-blue-500!">
                     Meldungen
                 </flux:button>
             @endif
 
-            {{-- Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine) — nur Admin --}}
-            @if(auth()->user()?->is_admin)
+            {{-- Meet-weite Gesamtübersicht aller Meldungen (Einzel + Staffel, alle Vereine) — Meldungen lesen "alle" --}}
+            @if(auth()->user()?->canReadAll(Module::Entries))
                 <flux:button href="{{ route('meets.entries-overview', $meet) }}" variant="filled"
                              icon="list-bullet" size="sm" class="text-blue-500!">
                     Alle Meldungen
                 </flux:button>
             @endif
 
-            {{-- Sammelansicht aller Ergebnisse (Erfassen, Bearbeiten, Löschen) — nur Admin --}}
-            @if(auth()->user()?->is_admin)
+            {{-- Sammelansicht der Ergebnisse — bei "eigener Verein" nur eigene Athleten und Staffeln (P9-3) --}}
+            @if(auth()->user()?->canRead(Module::Results))
                 <flux:button href="{{ route('meets.results-overview', $meet) }}" variant="filled"
                              icon="list-bullet" size="sm" class="text-blue-500!">
                     Ergebnisse
@@ -75,7 +77,7 @@
                          icon="arrow-down-tray" size="sm" class="text-blue-500!">
                 LENEX Export
             </flux:button>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Meets))
             <form method="POST" action="{{ route('records.check', $meet) }}"
                   x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"
                   @submit.prevent="submit()">
@@ -85,7 +87,7 @@
                 </flux:button>
             </form>
             @endif
-            @if($meet->hasWpsPointsEnabled() && auth()->user()?->is_admin)
+            @if($meet->hasWpsPointsEnabled() && auth()->user()?->canWrite(Module::Meets))
                 <form method="POST" action="{{ route('meets.wps-points.recalculate', $meet) }}"
                       x-data="{ submit() { if (confirm('WPS-Punkte für alle Ergebnisse neu berechnen?')) this.$el.submit() } }"
                       @submit.prevent="submit()">
@@ -95,7 +97,7 @@
                     </flux:button>
                 </form>
             @endif
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Meets))
             <flux:button href="{{ route('meets.edit', $meet) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
@@ -115,12 +117,12 @@
             <p>{{ $errors->first('wps') }}</p>
 
             <p class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Meets))
                 <a href="{{ route('meets.edit', $meet) }}" class="font-medium underline">
                     Punkteberechnung dieses Wettkampfs bearbeiten
                 </a>
                 @endif
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Wps))
                     <a href="{{ route('wps.versions.index') }}" class="font-medium underline">
                         WPS-Versionen verwalten
                     </a>
@@ -137,27 +139,28 @@
         @include('records.check-result', ['checkResult' => session('record_check_result')])
     @endif
 
-    @if(auth()->user()?->is_admin && $meet->isDeadlinePassed())
+    @if(auth()->user()?->canWrite(Module::Meets) && $meet->isDeadlinePassed())
         @include('meets._entries-reopen')
     @endif
 
     {{--
         Stats: jede Kachel führt zu den Daten dahinter (Disziplinen per Anker auf dieser Seite). Meldungen: Admin die
-        meet-weite Übersicht, Vereine die eigenen Meldungen; Ergebnisse nur Admin (Sammelansicht ist Admin-Bereich).
+        meet-weite Übersicht, Vereine die eigenen Meldungen; Ergebnisse die Sammelansicht (bei "eigener Verein" gefiltert).
         Alle Zielseiten führen mit "Zurück" wieder hierher.
     --}}
     @php
         $statUser = auth()->user();
-        $isStatAdmin = (bool) $statUser?->is_admin;
-        $hasClub = $statUser?->club_id !== null;
+        $entriesOverview = (bool) $statUser?->canReadAll(Module::Entries);
+        $ownEntries = $statUser?->canRead(Module::Entries) && $statUser->club_id;
         $statTiles = [
             ['Disziplinen', $meet->swim_events_count, '#disziplinen'],
-            ['Einzelmeldungen', $meet->entries_count, $isStatAdmin ? route('meets.entries-overview', $meet)
-                : ($hasClub ? route('club-entries.index', $meet) : null)],
-            ['Staffelmeldungen', $meet->relay_entries_count, $isStatAdmin
+            ['Einzelmeldungen', $meet->entries_count, $entriesOverview ? route('meets.entries-overview', $meet)
+                : ($ownEntries ? route('club-entries.index', $meet) : null)],
+            ['Staffelmeldungen', $meet->relay_entries_count, $entriesOverview
                 ? route('meets.entries-overview', $meet).'#staffelmeldungen'
-                : ($hasClub ? route('club-entries.relay.index', $meet) : null)],
-            ['Ergebnisse', $meet->results_count, $isStatAdmin ? route('meets.results-overview', $meet) : null],
+                : ($ownEntries ? route('club-entries.relay.index', $meet) : null)],
+            ['Ergebnisse', $meet->results_count, $statUser?->canRead(Module::Results)
+                ? route('meets.results-overview', $meet) : null],
             ['Teilnehmer', $participantsCount, route('meets.participants', $meet)],
             ['Clubs', $participatingClubsCount, route('meets.participants', [$meet, 'ansicht' => 'vereine'])],
         ];
@@ -185,18 +188,18 @@
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Disziplinen</h2>
         <div class="flex items-center gap-2">
             @if($swimEvents->isNotEmpty())
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Meets))
                 <flux:button href="{{ route('meets.sessions.edit', $meet) }}" variant="ghost" icon="calendar-days" size="sm">
                     Abschnitte bearbeiten
                 </flux:button>
                 @endif
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Meets))
                     <flux:button href="{{ route('meets.fees.edit', $meet) }}" variant="ghost" icon="banknotes" size="sm">
                         Meldegelder
                     </flux:button>
                 @endif
             @endif
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Meets))
             <flux:button href="{{ route('meets.events.create', $meet) }}" variant="ghost" icon="plus" size="sm">
                 Disziplin hinzufügen
             </flux:button>
@@ -207,7 +210,7 @@
     @if($swimEvents->isEmpty())
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
             <p class="text-zinc-400 text-sm mb-3">Noch keine Disziplinen angelegt.</p>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Meets))
             <flux:button href="{{ route('meets.events.create', $meet) }}" variant="primary" icon="plus" size="sm">
                 Erste Disziplin anlegen
             </flux:button>
@@ -268,7 +271,7 @@
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <div class="flex items-center gap-1 justify-end">
-                                        @if(auth()->user()?->is_admin)
+                                        @if(auth()->user()?->canWrite(Module::Meets))
                                         <flux:button href="{{ route('events.edit', $event) }}" size="sm"
                                                      variant="ghost" icon="pencil" class="text-amber-500!"/>
                                         <form method="POST" action="{{ route('events.destroy', $event) }}"

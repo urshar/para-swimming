@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\SportClassGroup;
 use App\Models\SportClassGroupMember;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,7 @@ class SportClassGroupController extends Controller
 {
     public function index(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $groups = SportClassGroup::withCount('members')
             ->orderBy('sort_order')
@@ -31,7 +32,7 @@ class SportClassGroupController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateGroup($request);
 
@@ -44,14 +45,14 @@ class SportClassGroupController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('sport-class-groups.form', ['group' => null]);
     }
 
     public function edit(SportClassGroup $sportClassGroup): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $sportClassGroup->load('members');
 
@@ -62,7 +63,7 @@ class SportClassGroupController extends Controller
 
     public function update(Request $request, SportClassGroup $sportClassGroup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateGroup($request, $sportClassGroup->id);
 
@@ -75,7 +76,7 @@ class SportClassGroupController extends Controller
 
     public function destroy(SportClassGroup $sportClassGroup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $name = $sportClassGroup->name_de;
         $sportClassGroup->delete(); // kaskadiert Mitglieder und Cup-Einstellungen
@@ -93,7 +94,7 @@ class SportClassGroupController extends Controller
      */
     public function storeMember(Request $request, SportClassGroup $sportClassGroup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $request->validate([
             'sport_classes' => 'required|string|max:500',
@@ -132,7 +133,7 @@ class SportClassGroupController extends Controller
 
     public function destroyMember(SportClassGroup $sportClassGroup, SportClassGroupMember $member): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         abort_unless($member->sport_class_group_id === $sportClassGroup->id, 404);
 
@@ -143,9 +144,9 @@ class SportClassGroupController extends Controller
             ->with('success', "Sportklasse \"$member->sport_class\" entfernt.");
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::MasterData), 403, 'Kein Schreibrecht für Stammdaten.');
     }
 
     private function validateGroup(Request $request, ?int $excludeId = null): array

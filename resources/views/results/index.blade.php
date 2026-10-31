@@ -1,3 +1,7 @@
+@php
+    use App\Enums\Module;
+@endphp
+
 @extends('layouts.app')
 
 @section('title', 'Ergebnisse')
@@ -124,10 +128,10 @@
                 @forelse($results as $result)
                     <flux:table.row>
                         <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
-                            <a href="{{ route('athletes.show', $result->athlete) }}"
+                            <x-athlete-link :athlete="$result->athlete"
                                class="hover:text-blue-600 dark:hover:text-blue-400">
                                 {{ $result->athlete?->display_name }}
-                            </a>
+                            </x-athlete-link>
                         </flux:table.cell>
                         <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                             {{ $result->swimEvent?->display_name }}
@@ -184,8 +188,10 @@
                         <flux:table.cell class="text-right">
                             <flux:button href="{{ route('results.show', $result) }}" size="xs" variant="ghost"
                                          icon="eye"/>
-                            <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
-                                         icon="pencil" class="text-amber-500!"/>
+                            @can('module.write', Module::Results)
+                                <flux:button href="{{ route('results.edit', $result) }}" size="xs" variant="ghost"
+                                             icon="pencil" class="text-amber-500!"/>
+                            @endcan
                         </flux:table.cell>
                     </flux:table.row>
                 @empty

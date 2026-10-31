@@ -1,4 +1,5 @@
 @php
+    use App\Enums\Module;
     use App\Support\ListUrl;
     use App\Support\TimeParser;
 @endphp
@@ -16,20 +17,22 @@
                 {{ $result->athlete?->display_name }} – {{ $result->swimEvent?->display_name }}
             </h1>
         </div>
-        <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            <flux:button href="{{ route('results.edit', $result) }}" variant="filled" icon="pencil" size="sm"
-                         class="text-amber-500!">
-                Bearbeiten
-            </flux:button>
-            <form method="POST" action="{{ route('results.destroy', $result) }}"
-                  x-data="{ submit() { if (confirm('Ergebnis löschen?')) this.$el.submit() } }"
-                  @submit.prevent="submit()">
-                @csrf @method('DELETE')
-                <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
-                    Löschen
+        @can('module.write', Module::Results)
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <flux:button href="{{ route('results.edit', $result) }}" variant="filled" icon="pencil" size="sm"
+                             class="text-amber-500!">
+                    Bearbeiten
                 </flux:button>
-            </form>
-        </div>
+                <form method="POST" action="{{ route('results.destroy', $result) }}"
+                      x-data="{ submit() { if (confirm('Ergebnis löschen?')) this.$el.submit() } }"
+                      @submit.prevent="submit()">
+                    @csrf @method('DELETE')
+                    <flux:button type="submit" variant="filled" icon="trash" size="sm" class="text-red-500!">
+                        Löschen
+                    </flux:button>
+                </form>
+            </div>
+        @endcan
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -42,10 +45,10 @@
                         <div class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
                             Athlet
                         </div>
-                        <a href="{{ route('athletes.show', $result->athlete) }}"
+                        <x-athlete-link :athlete="$result->athlete"
                            class="text-lg font-semibold text-zinc-900 dark:text-white hover:text-blue-600">
                             {{ $result->athlete?->full_name }}
-                        </a>
+                        </x-athlete-link>
                         <div class="text-sm text-zinc-500 mt-0.5">{{ $result->athlete?->nation?->code }}</div>
                     </div>
                     <div>

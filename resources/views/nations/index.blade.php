@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Nationen')
@@ -5,7 +7,7 @@
 @section('content')
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Nationen</h1>
-        @if(auth()->user()?->is_admin)
+        @if(auth()->user()?->canWrite(Module::Nations))
         <flux:button href="{{ route('nations.create') }}" variant="primary" icon="plus">Neue Nation</flux:button>
         @endif
     </div>
@@ -71,7 +73,7 @@
                     </flux:table.cell>
                     <flux:table.cell class="text-right">
                         <div class="flex items-center justify-end gap-1">
-                            @if(auth()->user()?->is_admin)
+                            @if(auth()->user()?->canWrite(Module::Nations))
                             <flux:button href="{{ route('nations.edit', $nation) }}" size="xs" variant="ghost"
                                          icon="pencil" class="text-amber-500!"
                                          title="Bearbeiten" aria-label="{{ $nation->code }} bearbeiten"/>

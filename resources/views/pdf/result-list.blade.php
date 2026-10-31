@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="utf-8">
-    <title>Ergebnisliste — {{ $meet->name }}</title>
+    <title>Ergebnisliste{{ $club ? " " . $club->display_name : "" }} — {{ $meet->name }}</title>
     <style>
         /*
          * Ergebnisliste einer Veranstaltung (MeetResultListService). Eigenständiges HTML/CSS für
@@ -56,7 +56,7 @@
         </tr>
     </table>
     <div class="meet">{{ $meet->name }}</div>
-    <div class="sub">Ergebnisliste</div>
+    <div class="sub">Ergebnisliste{{ $club ? " – " . $club->display_name : "" }}</div>
     <div class="rule"></div>
 </div>
 

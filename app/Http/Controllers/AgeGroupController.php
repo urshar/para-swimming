@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\AgeGroup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class AgeGroupController extends Controller
 {
     public function index(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $ageGroups = AgeGroup::orderBy('sort_order')->orderBy('name_de')->get();
 
@@ -27,14 +28,14 @@ class AgeGroupController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('age-groups.form', ['ageGroup' => null]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateAgeGroup($request);
 
@@ -47,14 +48,14 @@ class AgeGroupController extends Controller
 
     public function edit(AgeGroup $ageGroup): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('age-groups.form', compact('ageGroup'));
     }
 
     public function update(Request $request, AgeGroup $ageGroup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateAgeGroup($request, $ageGroup->id);
 
@@ -67,7 +68,7 @@ class AgeGroupController extends Controller
 
     public function destroy(AgeGroup $ageGroup): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $name = $ageGroup->name_de;
         $ageGroup->delete();
@@ -101,8 +102,8 @@ class AgeGroupController extends Controller
         return $validated;
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::MasterData), 403, 'Kein Schreibrecht für Stammdaten.');
     }
 }

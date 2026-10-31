@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -26,7 +26,7 @@
         </p>
 
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWrite(Module::Classifiers))
             <flux:button href="{{ route('classifiers.edit', $classifier) }}" variant="filled" icon="pencil"
                          size="sm" class="text-amber-500!">
                 Bearbeiten
@@ -127,10 +127,10 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         @if($cl->athlete)
-                            <a href="{{ route('athletes.show', $cl->athlete) }}"
+                            <x-athlete-link :athlete="$cl->athlete"
                                class="font-medium text-zinc-900 dark:text-zinc-100 hover:text-blue-600 transition-colors">
                                 {{ $cl->athlete->display_name }}
-                            </a>
+                            </x-athlete-link>
                         @else
                             <span class="text-zinc-400">–</span>
                         @endif

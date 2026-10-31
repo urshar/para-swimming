@@ -6,6 +6,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Module;
 use App\Models\Meet;
 use App\Models\User;
 
@@ -14,11 +15,12 @@ use App\Models\User;
  *
  * Steuert, ob ein User Meldungen für einen Wettkampf verwalten darf.
  *
- * Regeln:
- *  - Admin       → immer erlaubt
- *  - Vereins-User → nur, wenn kein Meldeschluss, Meldeschluss noch nicht abgelaufen oder wiedereröffnet
- *                   (Meet::acceptsClubEntries)
- *  - Kein Club   → nie erlaubt
+ * Regeln (Spec club-permissions §4.1):
+ *  - Meldungen schreiben "alle"            → immer erlaubt (auch nach Meldeschluss)
+ *  - Meldungen schreiben "eigener Verein" → nur bei freigegebenem Wettkampf (is_open) und wenn kein
+ *                                          Meldeschluss, Meldeschluss noch nicht abgelaufen oder
+ *                                          wiedereröffnet (Meet::acceptsClubEntries)
+ *  - sonst                                 → nie erlaubt
  */
 class EntryPolicy
 {
@@ -41,18 +43,20 @@ class EntryPolicy
      */
     public function manageEntries(User $user, Meet $meet): bool
     {
-        // Admins dürfen immer
-        if ($user->is_admin) {
+        // Melden für alle Vereine: immer
+        if ($user->canWriteAll(Module::Entries)) {
             return true;
         }
 
-        // Kein Verein → nie
-        if (! $user->club_id) {
+        // Ohne Melderecht oder ohne Verein → nie ("eigener Verein" ohne Verein zählt als kein Recht)
+        if (! $user->canWrite(Module::Entries) || ! $user->club_id) {
             return false;
         }
 
-        // Kein Meldeschluss, Meldeschluss noch nicht erreicht oder vom Admin wiedereröffnet → erlaubt
-        return $meet->acceptsClubEntries();
+        // Wettkampf für Vereinsmeldungen freigegeben und kein Meldeschluss, Meldeschluss noch nicht erreicht oder vom
+        // Admin wiedereröffnet → erlaubt. Die Freigabe prüfte bisher nur die Übersicht; seit sie mit Leserecht auch
+        // geschlossene Wettkämpfe zeigt (P9-5), gehört sie hierher.
+        return $meet->is_open && $meet->acceptsClubEntries();
     }
 
     public function updateEntry(User $user, Meet $meet): bool

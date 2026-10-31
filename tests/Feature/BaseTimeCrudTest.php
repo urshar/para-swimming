@@ -29,9 +29,15 @@ function makeClubUser_bt(): User
 // ── BaseTimeVersionController ────────────────────────────────────────────────
 
 describe('BaseTimeVersionController', function () {
-    it('Club-User bekommt 403', function () {
+    // Seit Spec club-permissions P3c-1 öffnet Basiswerte lesen die Versionsliste; die Pflege bleibt gesperrt.
+    it('Club-User sieht die Versionsliste, darf sie aber nicht pflegen', function () {
         $this->actingAs(makeClubUser_bt())
             ->get(route('base-times.versions.index'))
+            ->assertOk()
+            ->assertDontSee(route('base-times.versions.create'));
+
+        $this->actingAs(makeClubUser_bt())
+            ->get(route('base-times.versions.create'))
             ->assertForbidden();
     })->group('base-time-crud');
 

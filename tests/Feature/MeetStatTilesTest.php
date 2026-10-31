@@ -65,16 +65,17 @@ it('verlinkt für Admins alle Kacheln auf die Daten dahinter', function () {
         ->assertSee('aria-label="Clubs: 2 anzeigen"', false);
 });
 
-it('verlinkt für Vereinsnutzer die eigenen Meldungen und lässt Ergebnisse ohne Link', function () {
+it('verlinkt für Vereinsnutzer die eigenen Meldungen und die gefilterten Ergebnisse', function () {
     ['meet' => $meet, 'a' => $a] = setup_mst();
 
+    // Ergebnisse lesen "eigener Verein" seit Phase 9: Die Sammelansicht zeigt nur die eigenen Zeilen.
     $this->actingAs(user_mst($a))
         ->get(route('meets.show', $meet))
         ->assertOk()
         ->assertSee('href="'.route('club-entries.index', $meet).'"', false)
         ->assertSee('href="'.route('club-entries.relay.index', $meet).'"', false)
-        ->assertDontSee('href="'.route('meets.results-overview', $meet).'"', false)
-        ->assertDontSee('aria-label="Ergebnisse:', false)
+        ->assertSee('href="'.route('meets.results-overview', $meet).'"', false)
+        ->assertSee('aria-label="Ergebnisse:', false)
         ->assertSee('href="'.route('meets.participants', $meet).'"', false);
 });
 

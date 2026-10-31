@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\BaseTime;
 use App\Models\BaseTimeCategory;
 use App\Models\BaseTimeVersion;
@@ -17,7 +18,7 @@ class BaseTimeCategoryController extends Controller
 {
     public function index(BaseTimeVersion $version): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeRead();
 
         $categories = BaseTimeCategory::query()
             ->whereHas('baseTimes', fn ($q) => $q->where('base_time_version_id', $version->id))
@@ -35,13 +36,13 @@ class BaseTimeCategoryController extends Controller
 
     public function show(BaseTimeVersion $version, BaseTimeCategory $category): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeRead();
 
         return view('base-times.categories.show', compact('version', 'category'));
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeRead(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\KaderType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class KaderTypeController extends Controller
 {
     public function index(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $kaderTypes = KaderType::withCount('memberships')
             ->orderBy('sort_order')
@@ -30,7 +31,7 @@ class KaderTypeController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateKaderType($request);
 
@@ -43,14 +44,14 @@ class KaderTypeController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('kader-types.form', ['kaderType' => null]);
     }
 
     public function edit(KaderType $kaderType): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('kader-types.form', compact('kaderType'));
     }
@@ -59,7 +60,7 @@ class KaderTypeController extends Controller
 
     public function update(Request $request, KaderType $kaderType): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateKaderType($request, $kaderType->id);
 
@@ -72,7 +73,7 @@ class KaderTypeController extends Controller
 
     public function destroy(KaderType $kaderType): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         if ($kaderType->memberships()->exists()) {
             return redirect()
@@ -89,9 +90,9 @@ class KaderTypeController extends Controller
             ->with('success', "Kaderart \"$name\" gelöscht.");
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::MasterData), 403, 'Kein Schreibrecht für Stammdaten.');
     }
 
     private function validateKaderType(Request $request, ?int $excludeId = null): array

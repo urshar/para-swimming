@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Services\PdfExportService;
 use App\Services\WpsClubRankingService;
 use App\Support\WpsClubRankingConfiguration;
@@ -58,6 +59,6 @@ class WpsClubRankingController extends Controller
     {
         $nutzer = auth()->user();
 
-        return $nutzer?->is_admin === true ? null : $nutzer?->club_id;
+        return $nutzer?->canReadAll(Module::Wps) === true ? null : $nutzer?->club_id;
     }
 }

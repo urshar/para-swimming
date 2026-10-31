@@ -1,3 +1,5 @@
+@php use App\Enums\Module; use App\Models\Athlete; use App\Models\ChangeRequest; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Athleten')
@@ -6,19 +8,26 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Athleten</h1>
-        @if(auth()->user()?->is_admin)
         <div class="flex items-center gap-2">
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button href="{{ route('athletes.duplicates.index') }}" variant="filled" icon="document-duplicate">
                 Dubletten
             </flux:button>
             <flux:button href="{{ route('team-manager-import') }}" variant="filled" icon="arrow-up-tray">
                 Team Manager übernehmen
             </flux:button>
+            @endif
+            @can('create', ChangeRequest::class)
+            <flux:button href="{{ route('change-requests.transfer.create') }}" variant="filled" icon="arrows-right-left">
+                Ummeldung beantragen
+            </flux:button>
+            @endcan
+            @can('create', Athlete::class)
             <flux:button href="{{ route('athletes.create') }}" variant="primary" icon="plus">
                 Neuer Athlet
             </flux:button>
+            @endcan
         </div>
-        @endif
     </div>
 
     {{-- Filter --}}
@@ -140,7 +149,7 @@
                         @endif
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
-                        {{ $athlete->sport_classes_display ?: '–' }}
+                        {{ $athlete->sport_classes_display ?: 'Noch nicht klassifiziert' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                         {{ $athlete->level ?? '–' }}
@@ -156,9 +165,11 @@
                                 title="WPS-Analyse"/>
                             <flux:button href="{{ route('athletes.show', $athlete) }}" size="sm" variant="ghost"
                                          icon="eye"/>
-                            @if(auth()->user()?->is_admin)
+                            @can('update', $athlete)
                             <flux:button href="{{ route('athletes.edit', $athlete) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
+                            @endcan
+                            @if(auth()->user()?->canWriteAll(Module::Athletes))
                             <form method="POST" action="{{ route('athletes.destroy', $athlete) }}"
                                   x-data="{ del() { if(confirm('Athlet wirklich löschen?')) this.$el.submit() } }"
                                   @submit.prevent="del()">

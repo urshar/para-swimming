@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\RoleTemplate;
 use App\Models\User;
+use App\Services\PermissionTemplateService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -34,6 +36,29 @@ class UserFactory extends Factory
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
         ];
+    }
+
+    /**
+     * Nicht-Admins bekommen die Rechte ihrer Vorlage, ohne Angabe die Vorlage "Verein" — das entspricht dem
+     * Zugriff, den Vereinsbenutzer vor den Rechten je Modul hatten (Spec club-permissions Phase 3).
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            if (! $user->is_admin) {
+                app(PermissionTemplateService::class)->applyTemplate($user, $user->role_template ?? RoleTemplate::Club);
+            }
+        });
+    }
+
+    /**
+     * Benutzer ohne Rechte (Vorlage "Ohne Rechte").
+     */
+    public function withoutPermissions(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role_template' => RoleTemplate::Empty,
+        ]);
     }
 
     /**

@@ -1,10 +1,12 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Meldung bearbeiten – ' . $meet->name)
 
 @section('content')
     <!--suppress BadExpressionStatementJS -->
-    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParams = auth()->user()->canWriteAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-2xl">
 
         {{-- Header --}}
@@ -64,7 +66,7 @@
                   x-data='singleEntryForm(@json($singleEntryFormConfig))'>
                 @csrf
                 @method('PUT')
-                @if(auth()->user()->is_admin && request('club_id'))
+                @if(auth()->user()->canWriteAll(Module::Entries) && request('club_id'))
                     <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
                 @endif
 

@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\Module;
 use App\Models\Meet;
 use App\Models\StrokeType;
 use App\Services\WpsClubRankingService;
@@ -176,12 +177,12 @@ class WpsClubRanking extends Component
         return view('livewire.wps-club-ranking');
     }
 
-    /** Vereinsnutzer sehen nur den eigenen Verein; Admins alle (**[R2]**). */
+    /** Bei WPS lesen "eigener Verein" nur der eigene Verein, bei "alle" alle (**[R2]**). */
     private function clubFilter(): ?int
     {
         $nutzer = auth()->user();
 
-        return $nutzer?->is_admin === true ? null : $nutzer?->club_id;
+        return $nutzer?->canReadAll(Module::Wps) === true ? null : $nutzer?->club_id;
     }
 
     private function intOrNull(string $wert): ?int

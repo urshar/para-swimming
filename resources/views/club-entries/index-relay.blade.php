@@ -1,11 +1,11 @@
-@php use App\Support\TimeParser; @endphp
+@php use App\Enums\Module;use App\Support\TimeParser; @endphp
 
 @extends('layouts.app')
 
 @section('title', 'Staffelmeldungen – ' . $meet->name)
 
 @section('content')
-    @php $clubParam = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParam = auth()->user()->canReadAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
 
     <div class="mb-6">
         <div class="flex items-center gap-2">

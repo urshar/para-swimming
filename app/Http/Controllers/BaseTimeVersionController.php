@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\BaseTimeVersion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class BaseTimeVersionController extends Controller
 {
     public function index(): View
     {
-        $this->authorizeAdmin();
+        abort_unless(auth()->user()?->canRead(Module::BaseTimes), 403, 'Kein Leserecht für Basiswerte.');
 
         $versions = BaseTimeVersion::withCount('baseTimes')
             ->orderByDesc('valid_from')
@@ -29,14 +30,14 @@ class BaseTimeVersionController extends Controller
 
     public function create(): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('base-times.versions.form', ['version' => null]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateVersion($request);
 
@@ -49,14 +50,14 @@ class BaseTimeVersionController extends Controller
 
     public function edit(BaseTimeVersion $version): View
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         return view('base-times.versions.form', compact('version'));
     }
 
     public function update(Request $request, BaseTimeVersion $version): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $validated = $this->validateVersion($request, $version->id);
 
@@ -69,7 +70,7 @@ class BaseTimeVersionController extends Controller
 
     public function destroy(BaseTimeVersion $version): RedirectResponse
     {
-        $this->authorizeAdmin();
+        $this->authorizeWrite();
 
         $label = $version->label;
         $version->delete(); // kaskadiert base_times über cascadeOnDelete
@@ -101,8 +102,8 @@ class BaseTimeVersionController extends Controller
         return $validated;
     }
 
-    private function authorizeAdmin(): void
+    private function authorizeWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWrite(Module::BaseTimes), 403, 'Kein Schreibrecht für Basiswerte.');
     }
 }

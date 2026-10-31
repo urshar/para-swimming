@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -37,6 +38,8 @@ use Illuminate\Support\Carbon;
  */
 class RelayEntry extends Model
 {
+    use Auditable;
+
     protected $attributes = [
         'status' => 'pending',
     ];

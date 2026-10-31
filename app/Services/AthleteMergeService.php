@@ -77,6 +77,7 @@ final readonly class AthleteMergeService
 
     public function __construct(
         private AthleteMergeRecalculationService $recalculationService,
+        private AuditLogger $audit,
     ) {}
 
     /**
@@ -209,6 +210,8 @@ final readonly class AthleteMergeService
                     .implode(', ', $remaining));
             }
 
+            // Die umgehängten Zeilen laufen über DB::table() ohne Model-Events; der Verlauf bekommt einen Eintrag.
+            $this->audit->merged($keep, $drop);
             $drop->forceDelete();
 
             return $recalculate

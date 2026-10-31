@@ -1998,10 +1998,13 @@ class LenexParserService
         ])->save();
 
         if ($members !== []) {
+            $audit = app(AuditLogger::class);
+            $membersBefore = $audit->relayMemberNames($relayEntry);
             $relayEntry->members()->delete();
             foreach ($members as $member) {
                 RelayEntryMember::create(['relay_entry_id' => $relayEntry->id] + $member);
             }
+            $audit->relayMembersChanged($relayEntry, $membersBefore);
         }
 
         $this->stats['relay_entries']++;

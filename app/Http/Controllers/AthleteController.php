@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\AthleteClassification;
 use App\Models\AthleteClubHistory;
 use App\Models\AthleteKaderMembership;
 use App\Models\AthleteLevelHistory;
+use App\Models\AuditLog;
+use App\Models\ChangeRequest;
 use App\Models\Classifier;
 use App\Models\Club;
 use App\Models\ExceptionCode;
@@ -14,10 +17,14 @@ use App\Models\KaderType;
 use App\Models\Nation;
 use App\Models\User;
 use App\Services\AthleteClubTransferService;
+use App\Services\ImportSuggestionService;
+use App\Support\AthleteFieldRules;
+use App\Support\AuditHistory;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
@@ -27,6 +34,7 @@ class AthleteController extends Controller
     public function index(Request $request): View
     {
         $query = Athlete::with(['club', 'nation', 'sportClasses'])
+            ->visibleTo($request->user())
             ->orderBy('last_name')
             ->orderBy('first_name');
 
@@ -71,7 +79,10 @@ class AthleteController extends Controller
 
         $athletes = $query->paginate(25)->withQueryString();
         $nations = Nation::active()->orderBy('code')->get();
-        $clubs = Club::orderBy('name')->get();
+        // Bei "eigener Verein" ergibt der Vereinsfilter nur für den eigenen Verein Treffer.
+        $clubs = Club::orderBy('name')
+            ->when(! $request->user()->canReadAll(Module::Athletes), fn ($q) => $q->whereKey($request->user()->club_id))
+            ->get();
 
         return view('athletes.index', compact('athletes', 'nations', 'clubs'));
     }
@@ -79,9 +90,26 @@ class AthleteController extends Controller
     /**
      * @throws Throwable
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ImportSuggestionService $suggestions): RedirectResponse
     {
-        $data = $this->validateAthlete($request);
+        Gate::authorize('create', Athlete::class);
+        $rules = AthleteFieldRules::for($request->user());
+        $data = $this->validateAthlete($request, $rules->locked(true));
+
+        if ($rules->restricted()) {
+            $data['club_id'] = $request->user()->club_id;
+
+            // Dublettenwarnung (N3, P5-1): nur der Hinweis, keine Daten des fremden Athleten (F5).
+            $similar = $suggestions->suggestAthletes($data['last_name'], $data['first_name'],
+                (string) ($data['birth_date'] ?? ''), $data['gender']);
+            if ($similar->isNotEmpty() && ! $request->boolean('confirm_duplicate')) {
+                return back()->withInput()->withErrors([
+                    'duplicate' => 'Es gibt bereits einen Athleten mit gleichem Namen, Geschlecht und Jahrgang. Ist es '
+                        .'dieselbe Person, ist eine Ummeldung zum eigenen Verein der richtige Weg — bitte an den Verband '
+                        .'wenden. Ist es eine andere Person, kann der Athlet trotzdem angelegt werden.',
+                ]);
+            }
+        }
 
         $athlete = DB::transaction(function () use ($data, $request) {
             $athlete = Athlete::create($data);
@@ -112,6 +140,13 @@ class AthleteController extends Controller
             return $athlete;
         });
 
+        // Klassifikationen sind Verbandssache (Spec §4.4, P5-2): Vereine landen ohne Eintragen-Panel auf der Detailseite.
+        if ($rules->restricted()) {
+            return redirect()
+                ->route('athletes.show', $athlete)
+                ->with('success', 'Athlet angelegt. Die Klassifikation trägt der Verband ein.');
+        }
+
         // Sportklassen/Exceptions werden nicht mehr über dieses Formular gepflegt, sondern
         // ausschließlich über die Klassifikations-History — siehe athletes.show. Direkt dorthin
         // weiterleiten und das Eintragen-Panel automatisch öffnen.
@@ -120,16 +155,21 @@ class AthleteController extends Controller
             ->with('success', 'Athlet erfolgreich angelegt. Jetzt die erste Klassifikation eintragen.');
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        Gate::authorize('create', Athlete::class);
         $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
+        $locked = AthleteFieldRules::for($request->user())->locked(true);
+        $ownClub = $request->user()->club;
 
-        return view('athletes.form', compact('nations', 'clubs'));
+        return view('athletes.form', compact('nations', 'clubs', 'locked', 'ownClub'));
     }
 
     public function show(Athlete $athlete): View
     {
+        Gate::authorize('view', $athlete);
+
         $athlete->load([
             'club.nation',
             'nation',
@@ -157,20 +197,35 @@ class AthleteController extends Controller
         $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
         $kaderTypes = KaderType::active()->orderBy('sort_order')->get();
 
+        // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
+        $history = auth()->user()->is_admin
+            ? AuditHistory::build(AuditLog::forAthlete($athlete), request()->query('verlauf') === 'alle')
+            : null;
+
+        // Offene Anträge als Hinweis (Spec §4.5): Admins sehen alle, Vereine nur die eigenen.
+        $user = auth()->user();
+        $openRequests = ChangeRequest::open()->with('club')->where('athlete_id', $athlete->id)
+            ->when(! $user->is_admin, fn ($query) => $query->where('club_id', $user->club_id ?? 0))
+            ->get();
+
         return view('athletes.show', compact(
             'athlete', 'results',
-            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes'
+            'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history',
+            'openRequests'
         ));
     }
 
     // ── Vereinswechsel (Ummeldung) ────────────────────────────────────────────
 
-    public function edit(Athlete $athlete): View
+    public function edit(Request $request, Athlete $athlete): View
     {
+        Gate::authorize('update', $athlete);
         $nations = Nation::active()->orderBy('code')->get();
         $clubs = Club::with('nation')->orderBy('name')->get();
+        $locked = AthleteFieldRules::for($request->user())->locked(false);
+        $ownClub = $request->user()->club;
 
-        return view('athletes.form', compact('athlete', 'nations', 'clubs'));
+        return view('athletes.form', compact('athlete', 'nations', 'clubs', 'locked', 'ownClub'));
     }
 
     // ── Klassifikation ────────────────────────────────────────────────────────
@@ -217,7 +272,8 @@ class AthleteController extends Controller
      */
     public function update(Request $request, Athlete $athlete): RedirectResponse
     {
-        $data = $this->validateAthlete($request);
+        Gate::authorize('update', $athlete);
+        $data = $this->validateAthlete($request, AthleteFieldRules::for($request->user())->locked(false));
 
         DB::transaction(function () use ($athlete, $data) {
             $oldLevel = $athlete->level;
@@ -359,14 +415,14 @@ class AthleteController extends Controller
     /**
      * POST /athletes/{athlete}/kader-memberships
      *
-     * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur für
-     * Admins — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
+     * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur mit Athleten
+     * schreiben "alle" — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
      *
      * @used-by web.php (Route::post athletes.kader-memberships.store)
      */
     public function storeKaderMembership(Request $request, Athlete $athlete): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
 
         $validated = $request->validate([
             'kader_type_id' => 'required|exists:kader_types,id',
@@ -389,7 +445,7 @@ class AthleteController extends Controller
      */
     public function destroyKaderMembership(Athlete $athlete, AthleteKaderMembership $kaderMembership): RedirectResponse
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Nur für Administratoren.');
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
 
         abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
 
@@ -405,10 +461,15 @@ class AthleteController extends Controller
      * ausschließlich über die Klassifikations-History (validateClassification() weiter unten) —
      * siehe athletes.show. Das hält die Stammdaten und die Klassifikations-Historie konsistent,
      * statt zwei parallele, sich gegenseitig überschreibende Wege zu pflegen.
+     *
+     * Gesperrte Felder (AthleteFieldRules) fallen aus den Regeln und damit aus den Daten: Sie werden ignoriert, nicht
+     * abgelehnt.
+     *
+     * @param  array<string, string>  $locked
      */
-    private function validateAthlete(Request $request): array
+    private function validateAthlete(Request $request, array $locked): array
     {
-        return $request->validate([
+        return $request->validate(array_diff_key([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'name_prefix' => 'nullable|string|max:50',
@@ -432,7 +493,7 @@ class AthleteController extends Controller
             'level' => 'nullable|string|max:50',
             'last_medical_check_at' => 'nullable|date',
             'next_medical_check_at' => 'nullable|date',
-        ]);
+        ], $locked));
     }
 
     /**

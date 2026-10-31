@@ -105,8 +105,8 @@
                         @foreach($rows as $row)
                             <flux:table.row>
                                 <flux:table.cell class="font-medium whitespace-normal">
-                                    <a href="{{ route('athletes.show', $row['athlete']) }}"
-                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $row['athlete']->display_name }}</a>
+                                    <x-athlete-link :athlete="$row['athlete']"
+                                       class="text-zinc-900 dark:text-zinc-100 hover:underline">{{ $row['athlete']->display_name }}</x-athlete-link>
                                 </flux:table.cell>
                                 <flux:table.cell class="tabular-nums">{{ $row['athlete']->birth_date?->format('Y') ?? '–' }}</flux:table.cell>
                                 <flux:table.cell class="whitespace-normal">{{ $row['club']?->display_name ?? '–' }}</flux:table.cell>

@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Cup-Tageswertung — '.$meet->name)
@@ -22,7 +24,7 @@
                              icon="printer" size="sm" class="text-purple-500!" target="_blank">
                     PDF / Drucken
                 </flux:button>
-                @if(auth()->user()?->is_admin)
+                @if(auth()->user()?->canWrite(Module::Meets))
                     <form method="POST" action="{{ route('meets.cup-daily-ranking.calculate', $meet) }}"
                           x-data="{ submit() { if (confirm('Tageswertung neu berechnen? Der bisherige Snapshot wird ersetzt.')) this.$el.submit() } }"
                           @submit.prevent="submit()">
@@ -65,9 +67,9 @@
                                 <flux:table.row>
                                     <flux:table.cell class="font-medium">{{ $row->rank }}</flux:table.cell>
                                     <flux:table.cell>
-                                        <a href="{{ route('athletes.show', $row->athlete) }}" class="hover:underline">
+                                        <x-athlete-link :athlete="$row->athlete" class="hover:underline">
                                             {{ $row->athlete->last_name }}, {{ $row->athlete->first_name }}
-                                        </a>
+                                        </x-athlete-link>
                                     </flux:table.cell>
                                     <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
                                     <flux:table.cell class="font-mono">{{ $row->points }}</flux:table.cell>

@@ -116,10 +116,10 @@
                 @forelse($entries as $entry)
                     <flux:table.row>
                         <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
-                            <a href="{{ route('athletes.show', $entry->athlete) }}"
+                            <x-athlete-link :athlete="$entry->athlete"
                                class="hover:text-blue-600 dark:hover:text-blue-400">
                                 {{ $entry->athlete?->display_name }}
-                            </a>
+                            </x-athlete-link>
                         </flux:table.cell>
                         <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">
                             {{ $entry->meet?->name }}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\Club;
 use App\Models\Cup;
@@ -188,13 +189,13 @@ class MeetController extends Controller
     /**
      * Schreibt die Zuordnung Wettkampf ↔ Punktesystem.
      *
-     * Nur Administratoren dürfen sie ändern — die Auswahl entscheidet mit, welche Punkte
-     * offiziell ausgewiesen werden. Für alle anderen bleibt die bestehende Zuordnung
+     * Nur mit Wettkämpfe schreiben — die Auswahl entscheidet mit, welche Punkte offiziell
+     * ausgewiesen werden. Für alle anderen bleibt die bestehende Zuordnung
      * unverändert; ein fehlendes Feld im Request darf sie nicht stillschweigend leeren.
      */
     private function syncPointSystems(Request $request, Meet $meet): void
     {
-        if (! auth()->user()?->is_admin) {
+        if (! auth()->user()?->canWrite(Module::Meets)) {
             return;
         }
 
@@ -221,7 +222,7 @@ class MeetController extends Controller
 
     /**
      * Validierte Formulardaten plus die Felder, die validateMeet() bewusst nicht selbst
-     * abdeckt: Checkboxen (werden bei "aus" gar nicht erst übertragen) und das Admin-Gate für
+     * abdeckt: Checkboxen (werden bei "aus" gar nicht erst übertragen) und das Schreibrecht-Gate für
      * is_published/livetiming_url/cup_id/qualifying_time_list_id. Von store() und update()
      * gleichermaßen genutzt — vorher war dieser Block dort wortgleich dupliziert.
      */
@@ -234,9 +235,9 @@ class MeetController extends Controller
         $data['wps_approved'] = $request->boolean('wps_approved');
         $data['keep_file_places'] = $request->boolean('keep_file_places');
 
-        if (auth()->user()?->is_admin) {
+        if (auth()->user()?->canWrite(Module::Meets)) {
             // Steuert die tatsächliche öffentliche Sichtbarkeit (Spec public-frontend §4.2) —
-            // das Feld ist im Formular bewusst nur für Admins sichtbar (siehe meets/form.blade.php);
+            // das Feld ist im Formular nur mit Wettkämpfe schreiben sichtbar (siehe meets/form.blade.php);
             // ohne diese Bedingung ließe sich is_published auch über einen rohen Request setzen.
             $data['is_published'] = $request->boolean('is_published');
         } else {

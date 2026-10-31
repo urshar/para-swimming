@@ -114,4 +114,17 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Zwei-Faktor-Pflicht
+    |--------------------------------------------------------------------------
+    |
+    | Benutzer mit Schreibrechten und Admins müssen die Zwei-Faktor-Anmeldung
+    | einrichten (Spec club-permissions §4.7, Middleware EnsureTwoFactorEnabled).
+    | Für die Einführung abschaltbar (P10-1); in der Testsuite aus (P10-2).
+    |
+    */
+
+    'two_factor_required' => (bool) env('AUTH_TWO_FACTOR_REQUIRED', true),
+
 ];

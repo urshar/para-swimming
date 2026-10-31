@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Athlete;
 use App\Models\AthleteClubHistory;
+use App\Support\AuditContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -35,7 +36,11 @@ final readonly class AthleteClubTransferService
                 'notes' => $notes,
             ]);
 
-            $athlete->update(['club_id' => $clubId]);
+            // Ein Eintrag "Vereinswechsel" statt eines einfachen Updates von club_id.
+            $audit = app(AuditLogger::class);
+            $fromClubId = $athlete->club_id;
+            app(AuditContext::class)->muted(fn () => $athlete->update(['club_id' => $clubId]));
+            $audit->transferred($athlete, $fromClubId, $clubId, $joinedAt);
         });
     }
 }

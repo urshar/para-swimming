@@ -1,4 +1,4 @@
-@php use App\Support\ListUrl; @endphp
+@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Support\ListUrl; @endphp
 
 @extends('layouts.app')
 
@@ -26,6 +26,21 @@
             · {{ $athlete->nation?->code }}
         </p>
 
+        {{-- Offene Anträge zu diesem Athleten (Spec club-permissions §4.5); Vereine sehen nur die eigenen. --}}
+        @foreach($openRequests as $openRequest)
+            <flux:callout icon="clock" color="amber" class="mt-4">
+                <flux:callout.text>
+                    Offener Antrag: {{ $openRequest->type_label }} vom {{ $openRequest->created_at?->format('d.m.Y') }}
+                    ({{ $openRequest->club?->display_name }}).
+                    @if(auth()->user()->is_admin)
+                        <a href="{{ route('admin.change-requests.show', $openRequest) }}" class="underline">Antrag ansehen</a>
+                    @else
+                        <a href="{{ route('change-requests.index') }}" class="underline">Meine Anträge</a>
+                    @endif
+                </flux:callout.text>
+            </flux:callout>
+        @endforeach
+
         <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
             {{-- ?from=athlete: der Rückweg-Button auf der WPS-Analyse führt dann hierher zurück
                  statt zur Athletenauswahl unter Statistik (Design-Feedback Erik, 15.09.2026). --}}
@@ -33,11 +48,19 @@
                          variant="filled" icon="chart-bar" size="sm" class="text-blue-500!">
                 WPS-Analyse
             </flux:button>
-            @if(auth()->user()?->is_admin)
+            @can('update', $athlete)
             <flux:button href="{{ route('athletes.edit', $athlete) }}" variant="filled" icon="pencil" size="sm"
                          class="text-amber-500!">
                 Bearbeiten
             </flux:button>
+            @endcan
+            @can('requestName', [ChangeRequest::class, $athlete])
+            <flux:button href="{{ route('change-requests.name.create', $athlete) }}" variant="filled" icon="identification"
+                         size="sm">
+                Namensänderung beantragen
+            </flux:button>
+            @endcan
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button href="{{ route('athletes.merge.create', $athlete) }}" variant="filled"
                          icon="arrows-pointing-in" size="sm" class="text-red-500!">
                 Zusammenführen
@@ -160,7 +183,7 @@
                     </div>
                 </div>
             @empty
-                <p class="text-sm text-zinc-400">Keine Klassen zugeordnet.</p>
+                <p class="text-sm text-zinc-400">Noch nicht klassifiziert — die Klassifikation trägt der Verband ein.</p>
             @endforelse
 
             @if($athlete->exceptions->isNotEmpty())
@@ -182,7 +205,7 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Vereins-History</h2>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button size="sm" variant="ghost" icon="arrows-right-left"
                          x-on:click="openTransfer = !openTransfer">
                 Ummeldung
@@ -273,7 +296,7 @@
 
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Klassifikations-History</h2>
-            @if(auth()->user()?->is_admin)
+            @if(auth()->user()?->canWriteAll(Module::Athletes))
             <flux:button size="sm" variant="ghost" icon="plus"
                          x-on:click="openClassification = !openClassification">
                 Neue Klassifikation
@@ -502,7 +525,7 @@
                                         <p class="text-xs text-zinc-400 mt-1">{{ $cl->notes }}</p>
                                     @endif
                                 </div>
-                                @if(auth()->user()?->is_admin)
+                                @if(auth()->user()?->canWriteAll(Module::Athletes))
                                     <div class="flex items-center gap-1 shrink-0">
                                         <flux:button size="sm" variant="ghost" icon="pencil" class="text-amber-500!"
                                                      title="Bearbeiten" aria-label="Klassifikation bearbeiten"
@@ -825,7 +848,7 @@
                                 <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
                             @endif
                         </div>
-                        @if(auth()->user()?->is_admin)
+                        @if(auth()->user()?->canWriteAll(Module::Athletes))
                             <form method="POST"
                                   action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
                                   onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
@@ -910,5 +933,11 @@
     </div>
 
     <div class="mt-4">{{ $results->links() }}</div>
+
+    @if($history !== null)
+        <div class="mt-6">
+            @include('partials.audit-history', ['history' => $history])
+        </div>
+    @endif
 
 @endsection

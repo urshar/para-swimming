@@ -223,12 +223,12 @@ it('sperrt die Ergebnisverwaltung für Vereinsnutzer', function () {
     $result = result_rea($meet, $event, $athlete, 6500, 'S9', null);
     $clubUser = User::factory()->create(['is_admin' => false, 'club_id' => $club->id]);
 
+    // Lesen "eigener Verein" seit Phase 9 (eigener Athlet); alles Schreibende bleibt gesperrt.
     $this->actingAs($clubUser);
-    $this->get(route('results.index'))->assertForbidden();
-    $this->get(route('results.show', $result))->assertForbidden();
+    $this->get(route('results.index'))->assertOk();
+    $this->get(route('results.show', $result))->assertOk();
     $this->get(route('results.edit', $result))->assertForbidden();
     $this->get(route('meets.results.create', $meet))->assertForbidden();
-    $this->get(route('meets.results-overview.pdf', $meet))->assertForbidden();
     $this->post(route('meets.results.store', $meet), payload_rea($event, $athlete, $club, []))->assertForbidden();
     $this->put(route('results.update', $result), payload_rea($event, $athlete, $club, []))->assertForbidden();
     $this->delete(route('results.destroy', $result))->assertForbidden();

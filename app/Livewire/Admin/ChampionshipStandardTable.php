@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Enums\Module;
 use App\Models\Championship;
 use App\Models\ChampionshipStandard;
 use App\Models\StrokeType;
@@ -110,7 +111,7 @@ class ChampionshipStandardTable extends Component
 
     public function addRow(ChampionshipStandardService $service): void
     {
-        $this->requireAdmin();
+        $this->requireWrite();
 
         $daten = $this->validate([
             'newStrokeTypeId' => ['required', 'integer', 'exists:stroke_types,id'],
@@ -143,7 +144,7 @@ class ChampionshipStandardTable extends Component
 
     public function deleteRow(int $standardId, ChampionshipStandardService $service): void
     {
-        $this->requireAdmin();
+        $this->requireWrite();
 
         $standard = $this->findStandard($standardId);
 
@@ -166,7 +167,7 @@ class ChampionshipStandardTable extends Component
      */
     public function applyBulkPercent(ChampionshipStandardService $service): void
     {
-        $this->requireAdmin();
+        $this->requireWrite();
 
         $daten = $this->validate([
             'bulkPercent' => ['required', 'numeric', 'min:0', 'max:99.99'],
@@ -206,7 +207,7 @@ class ChampionshipStandardTable extends Component
      */
     public function saveCell(int $standardId, string $feld, string $wert): void
     {
-        $this->requireAdmin();
+        $this->requireWrite();
 
         if (! in_array($feld, self::EDITABLE_FIELDS, true)) {
             return;
@@ -409,7 +410,9 @@ class ChampionshipStandardTable extends Component
 
     public function render(): View
     {
-        return view('livewire.admin.championship-standard-table');
+        return view('livewire.admin.championship-standard-table', [
+            'canEdit' => auth()->user()?->canWrite(Module::Championships) === true,
+        ]);
     }
 
     /**
@@ -471,10 +474,10 @@ class ChampionshipStandardTable extends Component
     /**
      * Die Route-Middleware prüft nur den ersten Seitenaufruf; jedes spätere Livewire-Update
      * kommt als eigener Request an der Komponente an. Ohne diese Prüfung könnte jeder
-     * angemeldete Nutzer die Normen ändern.
+     * Nutzer mit Leserecht die Normen ändern (Spec club-permissions §4.8).
      */
-    private function requireAdmin(): void
+    private function requireWrite(): void
     {
-        abort_unless(auth()->user()?->is_admin === true, 403);
+        abort_unless(auth()->user()?->canWrite(Module::Championships) === true, 403);
     }
 }

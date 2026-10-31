@@ -1,9 +1,11 @@
+@php use App\Enums\Module; @endphp
+
 @extends('layouts.app')
 
 @section('title', 'Neue Staffelmeldung – ' . $meet->name)
 
 @section('content')
-    @php $clubParams = auth()->user()->is_admin && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
+    @php $clubParams = auth()->user()->canWriteAll(Module::Entries) && request('club_id') ? ['club_id' => request()->integer('club_id')] : []; @endphp
     <div class="max-w-3xl">
 
         {{-- Header --}}
@@ -38,7 +40,7 @@
             <form method="POST" action="{{ route('club-entries.relay.store', $meet) }}"
                   @submit="onSubmit()">
                 @csrf
-                @if(auth()->user()->is_admin && request('club_id'))
+                @if(auth()->user()->canWriteAll(Module::Entries) && request('club_id'))
                     <input type="hidden" name="club_id" value="{{ request()->integer('club_id') }}">
                 @endif
                 {{-- storeRelay kehrt nach dem Speichern hierher zurück, wenn gesetzt

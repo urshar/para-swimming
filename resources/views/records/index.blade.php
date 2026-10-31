@@ -1,3 +1,5 @@
+@php use App\Enums\Module; @endphp
+
 @php
     use App\Models\SwimRecord;
 @endphp
@@ -10,7 +12,7 @@
 
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekordlisten</h1>
-        @if(auth()->user()?->is_admin)
+        @if(auth()->user()?->canWrite(Module::Records))
         <flux:button href="{{ route('records.create') }}" variant="primary" icon="plus">Rekord eintragen</flux:button>
         @endif
     </div>
@@ -257,10 +259,10 @@
                                         <div class="text-xs">
                                             <span class="text-zinc-400 font-mono w-4 inline-block">{{ $member->position }}.</span>
                                             @if($member->athlete_id)
-                                                <a href="{{ route('athletes.show', $member->athlete_id) }}"
+                                                <x-athlete-link :athlete="$member->athlete"
                                                    class="hover:text-blue-600 transition-colors">
                                                     {{ $member->display_name }}
-                                                </a>
+                                                </x-athlete-link>
                                             @else
                                                 {{ $member->display_name }}
                                             @endif
@@ -277,10 +279,10 @@
                             @if($record->athlete->nation)
                                 <x-flag code="{{ $record->athlete->nation->code }}" class="me-1 inline-block h-3 w-4 align-[-1px]"/>
                             @endif
-                            <a href="{{ route('athletes.show', $record->athlete) }}"
+                            <x-athlete-link :athlete="$record->athlete"
                                class="hover:text-blue-600 transition-colors">
                                 {{ $record->athlete->display_name }}
-                            </a>
+                            </x-athlete-link>
                             <span class="text-zinc-400">({{ $record->athlete->birth_date?->format('Y') ?? '–' }})</span>
                         @else
                             <span class="text-zinc-400">–</span>
@@ -307,7 +309,7 @@
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1 justify-end">
-                            @if(auth()->user()?->is_admin)
+                            @if(auth()->user()?->canWrite(Module::Records))
                             {{-- Status-Schnelländerung ohne das Formular zu öffnen. --}}
                             <flux:dropdown position="bottom" align="end">
                                 <flux:button size="sm" variant="ghost" icon="arrow-path"
@@ -332,7 +334,7 @@
                             @endif
                             <flux:button href="{{ route('records.show', $record) }}" size="sm" variant="ghost"
                                          icon="eye"/>
-                            @if(auth()->user()?->is_admin)
+                            @if(auth()->user()?->canWrite(Module::Records))
                             <flux:button href="{{ route('records.edit', $record) }}" size="sm" variant="ghost"
                                          icon="pencil" class="text-amber-500!"/>
                             <form method="POST" action="{{ route('records.destroy', $record) }}"

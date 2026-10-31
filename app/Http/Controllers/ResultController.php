@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\SearchesAthletes;
+use App\Enums\Module;
 use App\Models\Athlete;
 use App\Models\BaseTimeVersion;
 use App\Models\Club;
@@ -18,11 +19,12 @@ use App\Services\ScoringGroupService;
 use App\Services\WorldAquaticsPointsService;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -41,7 +43,9 @@ class ResultController extends Controller
 
     public function index(Request $request): View
     {
+        $user = $request->user();
         $query = Result::with(['athlete', 'club', 'swimEvent.strokeType', 'meet'])
+            ->visibleTo($user)
             ->latest();
 
         if ($meetId = $request->query('meet_id')) {
@@ -59,10 +63,16 @@ class ResultController extends Controller
         }
 
         $results = $query->paginate(25)->withQueryString();
-        $meets = Meet::orderByDesc('start_date')->get();
+        // Bei "eigener Verein" nur Wettkämpfe mit sichtbaren Ergebnissen.
+        $meets = Meet::orderByDesc('start_date')
+            ->when(! $user->canReadAll(Module::Results), fn (Builder $q) => $q->whereIn(
+                'id',
+                Result::visibleTo($user)->select('meet_id'),
+            ))
+            ->get();
 
-        // Für die "Punkte neu berechnen"-Aktion: nur relevant, wenn nach einem Meet gefiltert wird.
-        $selectedMeet = $meetId ? $meets->firstWhere('id', (int) $meetId) : null;
+        // Für die "Punkte neu berechnen"-Aktion (Wettkämpfe schreiben): nur relevant, wenn nach einem Meet gefiltert wird.
+        $selectedMeet = $meetId && $user->canWrite(Module::Meets) ? $meets->firstWhere('id', (int) $meetId) : null;
         $baseTimeVersions = $selectedMeet ? BaseTimeVersion::orderByDesc('valid_from')->get() : collect();
         $automaticVersion = $selectedMeet ? $this->pointsService->resolveAutomaticVersion($selectedMeet) : null;
 
@@ -89,6 +99,8 @@ class ResultController extends Controller
 
     public function show(Result $result): View
     {
+        Gate::authorize('view', $result);
+
         $result->load([
             'athlete.sportClasses',
             'club.nation',
@@ -263,19 +275,6 @@ class ResultController extends Controller
         return redirect()
             ->to(ListUrl::to('results'))
             ->with('success', 'Ergebnis gelöscht.');
-    }
-
-    // ── Ergebnisse eines Athleten (für API) ───────────────────────────────────
-
-    public function byAthlete(int $athleteId): JsonResponse
-    {
-        $results = Result::where('athlete_id', $athleteId)
-            ->with(['meet', 'swimEvent.strokeType', 'splits'])
-            ->whereNull('status')
-            ->orderByDesc('created_at')
-            ->get();
-
-        return response()->json($results);
     }
 
     // ── Private Hilfsmethoden ─────────────────────────────────────────────────

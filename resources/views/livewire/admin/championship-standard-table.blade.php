@@ -1,5 +1,5 @@
 <div>
-    @php($istAdmin = auth()->user()?->is_admin)
+    {{-- $canEdit kommt aus render(): Meisterschaften schreiben (Spec club-permissions §4.8). --}}
     @php($punkte = $this->pointsByStandard())
 
     @if($statusMessage)
@@ -22,7 +22,7 @@
         </p>
     @endif
 
-    @if($istAdmin)
+    @if($canEdit)
         <p class="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
             Zeitfelder: nur Ziffern tippen — „011319" wird zu 01:13.19. Gespeichert wird beim
             Verlassen des Feldes oder mit Enter.
@@ -68,7 +68,7 @@
         @endif
     </div>
 
-    @if($istAdmin)
+    @if($canEdit)
         {{-- ── Massenaktion ────────────────────────────────────────────────── --}}
         <div
             class="mb-4 p-4 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl">
@@ -127,7 +127,7 @@
                             field="mqs"
                             :value="$rows[$standard->getKey()]['mqs'] ?? ''"
                             :masked="true"
-                            :editable="$istAdmin"
+                            :editable="$canEdit"
                             :display="$standard->formatted_mqs"
                             width="w-32"
                             placeholder="__:__.__"/>
@@ -142,7 +142,7 @@
                             field="met"
                             :value="$rows[$standard->getKey()]['met'] ?? ''"
                             :masked="true"
-                            :editable="$istAdmin"
+                            :editable="$canEdit"
                             :display="$standard->formatted_met"
                             width="w-32"
                             placeholder="__:__.__"/>
@@ -154,7 +154,7 @@
                             field="percent"
                             :value="$rows[$standard->getKey()]['percent'] ?? ''"
                             :masked="false"
-                            :editable="$istAdmin"
+                            :editable="$canEdit"
                             :display="$standard->hasObsvPercent() ? $standard->obsv_percent.' %' : 'offen'"
                             width="w-20"
                             placeholder="offen"/>
@@ -166,7 +166,7 @@
                             field="obsv"
                             :value="$rows[$standard->getKey()]['obsv'] ?? ''"
                             :masked="true"
-                            :editable="$istAdmin"
+                            :editable="$canEdit"
                             :display="$standard->formatted_obsv"
                             width="w-32"
                             placeholder="__:__.__"/>
@@ -183,7 +183,7 @@
                     </td>
 
                     <td class="px-3 py-1.5 text-right">
-                        @if($istAdmin)
+                        @if($canEdit)
                             <flux:button wire:click="deleteRow({{ $standard->id }})"
                                          wire:confirm="Diese Norm wirklich löschen?"
                                          variant="ghost" size="sm" icon="trash"/>
@@ -207,7 +207,7 @@
         </div>
     @endif
 
-    @if($istAdmin)
+    @if($canEdit)
         {{-- ── Neue Zeile ──────────────────────────────────────────────────── --}}
         <div class="mt-6 p-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl">
             <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">Norm hinzufügen</h3>
