@@ -25,6 +25,7 @@ use App\Http\Controllers\CupClubRankingController;
 use App\Http\Controllers\CupController;
 use App\Http\Controllers\CupDailyRankingController;
 use App\Http\Controllers\CupOverallRankingController;
+use App\Http\Controllers\CupTopGroupController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\EntryFeeController;
@@ -265,6 +266,17 @@ Route::middleware(['auth'])->group(function () {
             [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
         Route::post('cups/{cup}/overall-ranking/calculate',
             [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
+
+        // Hand-Einstufung der Top-Gruppe (Spec cup-top-group.md), vor der lesenden Liste registriert.
+        Route::get('cups/{cup}/top-group/create', [CupTopGroupController::class, 'create'])
+            ->name('cups.top-group.create');
+        Route::post('cups/{cup}/top-group', [CupTopGroupController::class, 'store'])->name('cups.top-group.store');
+        Route::get('cups/{cup}/top-group/{athlete}/edit', [CupTopGroupController::class, 'edit'])
+            ->name('cups.top-group.edit');
+        Route::put('cups/{cup}/top-group/{athlete}', [CupTopGroupController::class, 'update'])
+            ->name('cups.top-group.update');
+        Route::delete('cups/{cup}/top-group/{athlete}', [CupTopGroupController::class, 'destroy'])
+            ->name('cups.top-group.destroy');
     });
 
     // Kadertypen, Altersklassen, Sportklassengruppen (Modul "Stammdaten").
@@ -295,6 +307,8 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('module:cup,read')->group(function () {
         Route::get('cup-wertung',
             [CupOverallRankingController::class, 'index'])->name('cups.overall-ranking.index');
+
+        Route::get('cups/{cup}/top-group', [CupTopGroupController::class, 'index'])->name('cups.top-group.index');
 
         Route::get('cups/{cup}/overall-ranking',
             [CupOverallRankingController::class, 'show'])->name('cups.overall-ranking.show');

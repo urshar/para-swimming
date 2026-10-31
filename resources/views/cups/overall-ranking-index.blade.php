@@ -31,10 +31,13 @@
                                 @endif
                             </flux:table.cell>
                             <flux:table.cell>
-                                <div class="flex justify-end">
+                                <div class="flex justify-end gap-2">
                                     <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
                                                  variant="ghost" size="sm" icon="trophy"
                                                  class="text-blue-500!" tooltip="Gesamtwertung"/>
+                                    <flux:button href="{{ route('cups.top-group.index', $cup) }}"
+                                                 variant="ghost" size="sm" icon="user-group"
+                                                 class="text-emerald-500!" tooltip="Top-Gruppe"/>
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
