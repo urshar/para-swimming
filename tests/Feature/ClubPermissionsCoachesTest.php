@@ -231,8 +231,11 @@ it('zeigt die Trainer auf der Vereinsseite nur mit Leserecht für diesen Verein'
     $club = makeClub_p5();
     coach_cp8($club, 'Sichtbar');
 
-    $this->actingAs(clubUser_cp8($club))->get(route('clubs.show', $club))->assertSee('Sichtbar');
-    $this->actingAs(clubUser_cp8(makeClub_p5()))->get(route('clubs.show', $club))->assertOk()->assertDontSee('Sichtbar');
+    // Seit Phase 10b im Reiter "Trainer" (P10b-2); ohne Leserecht gibt es den Reiter nicht.
+    $this->actingAs(clubUser_cp8($club))->get(route('clubs.show', [$club, 'reiter' => 'trainer']))->assertSee('Sichtbar');
+    $this->actingAs(clubUser_cp8(makeClub_p5()))->get(route('clubs.show', [$club, 'reiter' => 'trainer']))
+        ->assertOk()
+        ->assertDontSee('Sichtbar');
 });
 
 it('protokolliert Trainer und Ausbildungen im Verlauf des Vereins', function () {

@@ -75,6 +75,7 @@ class ClubController extends Controller
                 ->orderBy('last_name')
                 ->orderBy('first_name')
                 ->paginate(20)
+                ->withQueryString()
             : null;
 
         // Trainer des Vereins nach Modul "Trainer" (Phase 8), wie die Athletenliste oben.
@@ -83,12 +84,19 @@ class ClubController extends Controller
             ? $club->coaches()->with('qualifications')->orderBy('last_name')->orderBy('first_name')->get()
             : null;
 
+        // Reiter "Athleten" bzw. "Trainer" (Phase 10b, P10b-2). Der Trainer-Reiter ist Rücksprungziel des Bereichs
+        // "coaches", damit Trainer-Detailseite und -Formular hierher zurückführen.
+        $tab = $coaches !== null && request()->query('reiter') === 'trainer' ? 'trainer' : 'athleten';
+        if ($tab === 'trainer') {
+            ListUrl::remember('coaches', request()->fullUrl());
+        }
+
         // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
         $history = $user->is_admin
             ? AuditHistory::build(AuditLog::forClub($club), request()->query('verlauf') === 'alle')
             : null;
 
-        return view('clubs.show', compact('club', 'athletes', 'coaches', 'history'));
+        return view('clubs.show', compact('club', 'athletes', 'coaches', 'history', 'tab'));
     }
 
     public function edit(Request $request, Club $club): View
@@ -153,6 +161,7 @@ class ClubController extends Controller
             'swrid' => 'nullable|string|max:255',
             'contact_name' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
+            'contact_phone' => Club::PHONE_RULES,
             'address_street' => 'nullable|string|max:255',
             'address_zip' => 'nullable|string|max:20',
             'address_city' => 'nullable|string|max:255',

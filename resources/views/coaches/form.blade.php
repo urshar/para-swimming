@@ -63,6 +63,12 @@
                 </flux:field>
 
                 <flux:field>
+                    <flux:label>Telefon</flux:label>
+                    <flux:input type="tel" name="phone" value="{{ old('phone', $coach->phone) }}"/>
+                    <flux:error name="phone"/>
+                </flux:field>
+
+                <flux:field>
                     <flux:label>Notizen</flux:label>
                     <flux:textarea name="notes" rows="3">{{ old('notes', $coach->notes) }}</flux:textarea>
                     <flux:error name="notes"/>

@@ -19,6 +19,12 @@ class Club extends Model
     /** Verband statt Verein (Landesverband, ÖBSV); Rekorde dafür zählen nicht für den Stammverein. */
     public const string TYPE_VERBAND = 'VERBAND';
 
+    /**
+     * Validierung einer Telefonnummer (Verein, Trainer): kein erzwungenes Format, nur Ziffern, Leerzeichen und
+     * + / - ( ) (Spec club-permissions P10b-3).
+     */
+    public const array PHONE_RULES = ['nullable', 'string', 'max:30', 'regex:/^[0-9+\/()\- ]+$/'];
+
     const array REGIONAL_ASSOCIATIONS = [
         'BBSV' => 'Burgenländischer Behindertensportverband',
         'KBSV' => 'Kärntner Behindertensportverband',
@@ -58,6 +64,7 @@ class Club extends Model
         'swrid',
         'contact_name',
         'contact_email',
+        'contact_phone',
         'address_street',
         'address_zip',
         'address_city',

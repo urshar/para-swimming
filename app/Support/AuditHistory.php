@@ -81,6 +81,7 @@ final class AuditHistory
         'response' => 'Antwort',
         'contact_name' => 'Kontaktperson',
         'contact_email' => 'Kontakt-E-Mail',
+        'contact_phone' => 'Kontakt-Telefon',
         'kind' => 'Art',
         'title' => 'Bezeichnung',
         'completed_on' => 'Datum',

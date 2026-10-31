@@ -541,3 +541,19 @@ eigenem Sign-off:
 - P10-3: Wer 2FA braucht, kann sie nicht deaktivieren; Neueinrichtung über "2FA zurücksetzen" durch den Admin.
 - P10-4: Notfall-Zurücksetzen per Artisan, keine eigene Oberfläche.
 - P10-5: Ein neu vergebenes Schreibrecht wirkt ab der nächsten Seite.
+
+### Phase 10b im Detail (abgenommen)
+
+Nachtrag zu Phase 7/8 (Wunsch Erik, 31.10.2026), vor der Doku-Phase.
+
+- Telefonnummer: `clubs.contact_phone` und `coaches.phone` (nullable, 30 Zeichen), in Formular, Anzeige (`tel:`-Link)
+  und Verlauf. Die Vereinsnummer gehört zu den Kontaktdaten (sichtbar für Admins und den eigenen Verein, P7-4), der
+  Verein pflegt sie selbst.
+- Vereinsseite: Reiter "Athleten (n)" und "Trainer (n)" mit der jeweiligen Anlegen-Schaltfläche oben; der Reiter steht
+  in der URL (`?reiter=trainer`), Trainer-Formular und -Detailseite kehren dorthin zurück.
+
+**Entscheidungen Phase 10b (Erik, 31.10.2026)**
+
+- P10b-1: Eine Telefonnummer je Verein und je Trainer.
+- P10b-2: Reiter auf der Vereinsseite statt Schaltflächen zu gefilterten Listen.
+- P10b-3: Kein erzwungenes Format; erlaubt sind Ziffern, Leerzeichen und `+ / - ( )`.

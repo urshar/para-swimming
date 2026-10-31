@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $first_name
  * @property string $last_name
  * @property string|null $email
+ * @property string|null $phone
  * @property string|null $notes
  * @property bool $is_active
  * @property-read Club $club
@@ -31,7 +32,7 @@ class Coach extends Model
 {
     use Auditable;
 
-    protected $fillable = ['club_id', 'first_name', 'last_name', 'email', 'notes', 'is_active'];
+    protected $fillable = ['club_id', 'first_name', 'last_name', 'email', 'phone', 'notes', 'is_active'];
 
     protected $casts = [
         'is_active' => 'boolean',

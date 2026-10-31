@@ -49,6 +49,8 @@
                     –
                 @endif
             </dd>
+            <dt class="text-zinc-500 dark:text-zinc-400">Telefon</dt>
+            <dd><x-phone-link :phone="$coach->phone"/></dd>
             <dt class="text-zinc-500 dark:text-zinc-400">Login</dt>
             <dd>{{ $coach->user?->name ?? 'nicht verknüpft' }}</dd>
             <dt class="text-zinc-500 dark:text-zinc-400">Notizen</dt>

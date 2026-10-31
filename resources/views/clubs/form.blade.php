@@ -128,6 +128,12 @@
                                     value="{{ old('contact_email', $club->contact_email ?? '') }}"/>
                         <flux:error name="contact_email"/>
                     </flux:field>
+                    <flux:field>
+                        <flux:label>Telefon</flux:label>
+                        <flux:input type="tel" name="contact_phone"
+                                    value="{{ old('contact_phone', $club->contact_phone ?? '') }}"/>
+                        <flux:error name="contact_phone"/>
+                    </flux:field>
                 </div>
 
                 <flux:field>
