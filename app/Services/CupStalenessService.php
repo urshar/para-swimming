@@ -40,14 +40,31 @@ readonly class CupStalenessService
         }
 
         $calculatedAt = Carbon::parse($calculatedAt);
-        $latestKaderChange = AthleteKaderMembership::max('updated_at');
 
-        $isStale = $latestKaderChange !== null && Carbon::parse($latestKaderChange)->gt($calculatedAt);
+        $reasons = [];
+
+        $latestKaderChange = AthleteKaderMembership::max('updated_at');
+        if ($latestKaderChange !== null && Carbon::parse($latestKaderChange)->gt($calculatedAt)) {
+            $reasons[] = 'Kaderzugehörigkeiten seither geändert wurden';
+        }
+
+        // Zwei-Jahres-Regel: Die Einstufung baut auf der des vorigen Cups und den Tageswertungen früherer Cups auf.
+        $earlierCupIds = Cup::where('year', '<', $cup->year)->pluck('id');
+
+        $earlierClassificationAt = CupTopGroupClassification::whereIn('cup_id', $earlierCupIds)->max('calculated_at');
+        if ($earlierClassificationAt !== null && Carbon::parse($earlierClassificationAt)->gt($calculatedAt)) {
+            $reasons[] = 'die Einstufung eines früheren Cups seither aktualisiert wurde';
+        }
+
+        $earlierDailyAt = CupDailyResult::whereIn('cup_id', $earlierCupIds)->max('calculated_at');
+        if ($earlierDailyAt !== null && Carbon::parse($earlierDailyAt)->gt($calculatedAt)) {
+            $reasons[] = 'die Tageswertung eines früheren Cups seither neu berechnet wurde';
+        }
 
         return [
             'calculatedAt' => $calculatedAt,
-            'isStale' => $isStale,
-            'reason' => $isStale ? 'Kaderzugehörigkeiten wurden seither geändert.' : null,
+            'isStale' => $reasons !== [],
+            'reason' => $reasons !== [] ? 'Veraltet, da '.implode(' und ', $reasons).'.' : null,
         ];
     }
 

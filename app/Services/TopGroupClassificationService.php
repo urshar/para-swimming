@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\TopGroupReason;
 use App\Models\Athlete;
 use App\Models\Cup;
 use App\Models\CupDailyResult;
 use App\Models\CupTopGroupClassification;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,20 +16,23 @@ use Throwable;
 /**
  * TopGroupClassificationService
  *
- * Bestimmt zu Saisonbeginn, welche Athleten in die Top-Gruppe eines Cup-Jahres
- * fallen (Punkt 8 der Spec, konkretisiert durch Erik):
+ * Bestimmt zu Saisonbeginn, welche Athleten in die Top-Gruppe eines Cup-Jahres fallen (Spec cup-top-group.md):
  *
- *   - Nationalkader-Mitglieder bleiben IMMER in der Top-Gruppe (Ausnahme vom Abstieg).
- *   - Alle anderen: Auf-/Abstieg anhand der besten Tageswertung, die der
- *     Athlet in den beiden Kalenderjahren VOR dem Cup-Jahr bei einem
- *     Cup-Meet erzielt hat. Über der Punktgrenze → Top-Gruppe, sonst nicht.
+ *   1. Hand-Einstufung (manual_is_top_group) gilt vor allem anderen und bleibt bei Neuberechnung erhalten.
+ *   2. Nationalkader (Zugehörigkeit irgendwann im Cup-Jahr) → immer Top-Gruppe.
+ *   3. Zwei-Jahres-Regel gegen den Vorjahresstatus (wirksame Einstufung im vorigen Cup):
+ *      - kein Start im vorigen Cup → Status bleibt;
+ *      - Start im vorigen Cup und im letzten Cup davor mit Start: beide über der Grenze → Top,
+ *        beide darunter → nicht Top, sonst Status bleibt.
+ *      Jahreswert ist die beste Tageswertung, gemessen an der Grenze des einzustufenden Cups.
  *
- * MUSS vor DailyRankingService::calculateForMeet() für dasselbe Cup-Jahr
- * laufen, da GroupResolverService::isTopGroup() auf diesen Snapshot zugreift.
- * "Ausländischer Verein" (Punkt 6) ist bewusst NICHT Teil dieser saisonalen
- * Klassifizierung — das bleibt eine sofortige, ergebnisbezogene Prüfung.
+ * Fehlen Einstufungen früherer Cups, werden sie vorab vom ältesten an nachgerechnet; bestehende bleiben unverändert.
+ *
+ * MUSS vor DailyRankingService::calculateForMeet() für dasselbe Cup-Jahr laufen, da GroupResolverService::isTopGroup()
+ * auf diesen Snapshot zugreift. "Ausländischer Verein" ist bewusst NICHT Teil dieser saisonalen Einstufung — das bleibt
+ * eine sofortige, ergebnisbezogene Prüfung.
  */
-readonly class TopGroupClassificationService
+final readonly class TopGroupClassificationService
 {
     /**
      * @return EloquentCollection<int, CupTopGroupClassification>
@@ -37,32 +42,27 @@ readonly class TopGroupClassificationService
     public function calculateForCup(Cup $cup): EloquentCollection
     {
         DB::transaction(function () use ($cup) {
-            CupTopGroupClassification::where('cup_id', $cup->id)->delete();
-
-            $bestPointsByAthlete = $this->bestPointsFromPreviousTwoYears($cup);
-            $kaderAthleteIds = $this->currentlyActiveKaderAthleteIds();
-
-            $athleteIds = $bestPointsByAthlete->keys()->merge($kaderAthleteIds)->unique();
-
-            $calculatedAt = now();
-
-            foreach ($athleteIds as $athleteId) {
-                $isKader = $kaderAthleteIds->contains($athleteId);
-                $referencePoints = $bestPointsByAthlete->get($athleteId);
-                $exceedsThreshold = $referencePoints !== null && $referencePoints > $cup->top_group_points_threshold;
-
-                CupTopGroupClassification::create([
-                    'cup_id' => $cup->id,
-                    'athlete_id' => $athleteId,
-                    'is_top_group' => $isKader || $exceedsThreshold,
-                    'reason' => $isKader ? 'KADER' : ($exceedsThreshold ? 'POINTS_HISTORY' : null),
-                    'reference_points' => $referencePoints,
-                    'calculated_at' => $calculatedAt,
-                ]);
+            foreach ($this->predecessorsWithoutClassification($cup) as $predecessor) {
+                $this->classify($predecessor);
             }
+
+            $this->classify($cup);
         });
 
         return CupTopGroupClassification::where('cup_id', $cup->id)->get();
+    }
+
+    /**
+     * Frühere Cups ohne jede Einstufung, die calculateForCup() vorab nachrechnet (ältester zuerst).
+     *
+     * @return EloquentCollection<int, Cup>
+     */
+    public function predecessorsWithoutClassification(Cup $cup): EloquentCollection
+    {
+        return Cup::where('year', '<', $cup->year)
+            ->whereDoesntHave('topGroupClassifications')
+            ->orderBy('year')
+            ->get();
     }
 
     /**
@@ -79,39 +79,130 @@ readonly class TopGroupClassificationService
             ->mapWithKeys(fn (CupTopGroupClassification $row) => [$row->athlete_id => $row->is_top_group]);
     }
 
-    /**
-     * Beste Tageswertungs-Punkte je Athlet aus den Cups der beiden
-     * Kalenderjahre vor $cup->year (falls für diese Jahre überhaupt Cups
-     * existieren und bereits eine Tageswertung berechnet wurde).
-     *
-     * @return Collection<int, int> athlete_id => höchste erreichte Punktezahl
-     */
-    private function bestPointsFromPreviousTwoYears(Cup $cup): Collection
+    /** Stuft einen einzelnen Cup ein; setzt voraus, dass der vorige Cup bereits eingestuft ist. */
+    private function classify(Cup $cup): void
     {
-        $previousCupIds = Cup::whereIn('year', [$cup->year - 1, $cup->year - 2])->pluck('id');
-
-        if ($previousCupIds->isEmpty()) {
-            return collect();
-        }
-
-        return CupDailyResult::whereIn('cup_id', $previousCupIds)
-            ->selectRaw('athlete_id, MAX(points) as best_points')
-            ->groupBy('athlete_id')
+        $manualRows = CupTopGroupClassification::where('cup_id', $cup->id)
+            ->whereNotNull('manual_is_top_group')
             ->get()
-            ->mapWithKeys(fn (CupDailyResult $row) => [$row->athlete_id => (int) $row->best_points]);
+            ->keyBy('athlete_id');
+
+        CupTopGroupClassification::where('cup_id', $cup->id)->whereNull('manual_is_top_group')->delete();
+
+        $previousCup = Cup::where('year', '<', $cup->year)->orderByDesc('year')->first();
+        $previousStatus = $previousCup
+            ? $this->loadClassificationMap($previousCup)
+            : collect();
+        $startsByAthlete = $this->bestPointsPerEarlierCup($cup);
+        $kaderAthleteIds = $this->kaderAthleteIdsDuring($cup->year);
+
+        $startedInPreviousCup = $previousCup
+            ? $startsByAthlete->filter(fn (Collection $starts) => $starts->has($previousCup->year))->keys()
+            : collect();
+
+        $athleteIds = $kaderAthleteIds
+            ->merge($manualRows->keys())
+            ->merge($previousStatus->filter()->keys())
+            ->merge($startedInPreviousCup)
+            ->unique();
+
+        $calculatedAt = now();
+
+        foreach ($athleteIds as $athleteId) {
+            $starts = $startsByAthlete->get($athleteId, collect());
+            $lastStartYear = $starts->keys()->first();
+            $priorStartYear = $starts->keys()->skip(1)->first();
+            $wasTopGroup = $previousCup ? $previousStatus->get($athleteId, false) : null;
+
+            [$calculated, $reason] = $this->applyRule(
+                $kaderAthleteIds->contains($athleteId),
+                $wasTopGroup,
+                $previousCup !== null && $lastStartYear === $previousCup->year,
+                $starts->get($lastStartYear),
+                $starts->get($priorStartYear),
+                $cup->top_group_points_threshold,
+            );
+
+            $manual = $manualRows->get($athleteId);
+
+            CupTopGroupClassification::updateOrCreate(
+                ['cup_id' => $cup->id, 'athlete_id' => $athleteId],
+                [
+                    'is_top_group' => $manual?->manual_is_top_group ?? $calculated,
+                    'calculated_is_top_group' => $calculated,
+                    'reason' => $reason,
+                    'previous_is_top_group' => $wasTopGroup,
+                    'last_start_year' => $lastStartYear,
+                    'last_start_points' => $starts->get($lastStartYear),
+                    'prior_start_year' => $priorStartYear,
+                    'prior_start_points' => $starts->get($priorStartYear),
+                    'calculated_at' => $calculatedAt,
+                ],
+            );
+        }
     }
 
     /**
-     * IDs aller Athleten mit aktuell (Stichtag: Berechnungszeitpunkt) gültiger
-     * Nationalkader-Zugehörigkeit.
+     * @return array{bool, TopGroupReason}
+     */
+    private function applyRule(
+        bool $isKader,
+        ?bool $wasTopGroup,
+        bool $startedInPreviousCup,
+        ?int $lastStartPoints,
+        ?int $priorStartPoints,
+        int $threshold,
+    ): array {
+        if ($isKader) {
+            return [true, TopGroupReason::Kader];
+        }
+
+        if ($startedInPreviousCup && $priorStartPoints !== null) {
+            $lastAbove = $lastStartPoints > $threshold;
+            $priorAbove = $priorStartPoints > $threshold;
+
+            if ($lastAbove && $priorAbove) {
+                return [true, TopGroupReason::TwoYearsAbove];
+            }
+
+            if (! $lastAbove && ! $priorAbove) {
+                return [false, TopGroupReason::TwoYearsBelow];
+            }
+        }
+
+        return [$wasTopGroup ?? false, TopGroupReason::CarriedOver];
+    }
+
+    /**
+     * Beste Tageswertungs-Punkte je Athlet und früherem Cup-Jahr, neuestes Jahr zuerst.
+     *
+     * @return Collection<int, Collection<int, int>> athlete_id => (Cup-Jahr => höchste Punktezahl)
+     */
+    private function bestPointsPerEarlierCup(Cup $cup): Collection
+    {
+        return CupDailyResult::query()
+            ->join('cups', 'cups.id', '=', 'cup_daily_results.cup_id')
+            ->where('cups.year', '<', $cup->year)
+            ->selectRaw('cup_daily_results.athlete_id, cups.year, MAX(cup_daily_results.points) as best_points')
+            ->groupBy('cup_daily_results.athlete_id', 'cups.year')
+            ->orderByDesc('cups.year')
+            ->get()
+            ->groupBy('athlete_id')
+            ->map(fn (Collection $rows) => $rows->mapWithKeys(
+                fn (CupDailyResult $row) => [(int) $row->getAttribute('year') => (int) $row->getAttribute('best_points')]
+            ));
+    }
+
+    /**
+     * IDs aller Athleten, die irgendwann im Cup-Jahr dem Nationalkader angehören.
      *
      * @return Collection<int, int>
      */
-    private function currentlyActiveKaderAthleteIds(): Collection
+    private function kaderAthleteIdsDuring(int $year): Collection
     {
         return Athlete::whereHas(
             'kaderMemberships',
-            fn ($query) => $query->activeOn(now())
+            fn ($query) => $query->activeDuring(Carbon::create($year)->startOfYear(), Carbon::create($year)->endOfYear())
         )->pluck('id');
     }
 }

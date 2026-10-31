@@ -158,11 +158,17 @@ class CupController extends Controller
         // Einstufen gehört zur Cup-Wertung, nicht zu den Cup-Stammdaten (Route: module:cup,write).
         abort_unless(auth()->user()?->canWrite(Module::Cup), 403, 'Kein Schreibrecht für Cup-Wertung.');
 
+        $backfilledYears = $this->topGroupClassificationService->predecessorsWithoutClassification($cup)->pluck('year');
         $this->topGroupClassificationService->calculateForCup($cup);
+
+        $message = "Top-Gruppen-Klassifizierung für \"$cup->name\" berechnet.";
+        if ($backfilledYears->isNotEmpty()) {
+            $message .= ' Vorab nachgerechnet: '.$backfilledYears->implode(', ').'.';
+        }
 
         return redirect()
             ->route('cups.index')
-            ->with('success', "Top-Gruppen-Klassifizierung für \"$cup->name\" berechnet.");
+            ->with('success', $message);
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
