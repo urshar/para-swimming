@@ -95,7 +95,7 @@ und zeitlich begrenzte `AthleteKaderMembership`. Kaderzugehörigkeit ist u. a. e
 | **Tageswertung**  | Wertung je Wettkampftag/Meet (`CupDailyResult`)                                                                                          |
 | **Gesamtwertung** | Saison-Gesamtwertung über mehrere Meets (`CupOverallResult`)                                                                             |
 | **Jugendwertung** | Wertung nach Altersklassen (`AgeGroup`)                                                                                                  |
-| **Top-Gruppe**    | Saisonale Gruppe der leistungsstärksten Athleten; **Snapshot**, kein Live-Check je Ergebnis. Aufnahmegrund `KADER` oder `POINTS_HISTORY` |
+| **Top-Gruppe**    | Saisonale Gruppe der leistungsstärksten Athleten; **Snapshot**, kein Live-Check je Ergebnis. Kader, Zwei-Jahres-Regel oder von Hand   |
 
 Regeln (Auszug): Das **Alter** wird per **31. Dezember des Wettkampfjahres**
 berechnet. Deaktivierte Altersklassen führen zu dynamisch neu berechneten Grenzen (erste aktive Gruppe beginnt bei 0,

@@ -76,15 +76,21 @@ deaktiviert, wird "offen" 19+; ist zusätzlich Jugend deaktiviert, deckt "offen"
 ## Stufe 1 — Top-Gruppen-Klassifizierung (`TopGroupClassificationService`)
 
 `calculateForCup(Cup)` bestimmt zu Saisonbeginn, welche Athleten im Cup-Jahr zur Top-Gruppe gehören (Snapshot in
-`cup_top_group_classifications`):
+`cup_top_group_classifications`). Details, Entscheidungen und Datenmodell: [cup-top-group.md](cup-top-group.md).
 
-- **Nationalkader-Athleten** sind immer in der Top-Gruppe (`reason = KADER`).
-- **Alle anderen**: Auf-/Abstieg anhand der **besten Tageswertung der beiden Kalenderjahre vor dem Cup-Jahr** bei einem
-  Cup-Meet. Über dem Schwellenwert → `reason = POINTS_HISTORY`, sonst `reason = null` (nicht in der Top-Gruppe).
-- **Ausländische Vereine** (Nation ≠ AUT) gelangen über das Punkte-Kriterium **nicht** in die Top-Gruppe.
+- **Hand-Einstufung** (mit Pflicht-Begründung) gilt vor allem anderen und bleibt bei jeder Neuberechnung erhalten.
+- **Nationalkader-Athleten** (Zugehörigkeit irgendwann im Cup-Jahr) sind in der Top-Gruppe (`reason = KADER`).
+- **Alle anderen**: **Zwei-Jahres-Regel** gegen den Vorjahresstatus. Jahreswert ist die beste Tageswertung eines
+  Cup-Jahres, gemessen an der Grenze des einzustufenden Cups. Zwei Cup-Jahre mit Start hintereinander über der Grenze →
+  Top (`TWO_YEARS_ABOVE`), beide darunter → nicht Top (`TWO_YEARS_BELOW`), sonst (gemischt, kein Start im Vorjahr,
+  nur ein Startjahr) bleibt der Vorjahresstatus (`CARRIED_OVER`).
+- Fehlende Einstufungen früherer Cups werden vorab vom ältesten an nachgerechnet; bestehende bleiben unverändert.
+- **Ausländische Vereine** (Nation ≠ AUT) sind über die ergebnisbezogene Prüfung in `GroupResolverService` immer in der
+  Top-Gruppe, unabhängig von dieser Einstufung.
 
 Die Top-Gruppe ist ein **saisonaler Snapshot**, keine ergebnisbezogene Live-Prüfung. Dieser Lauf **muss vor** der
-Tageswertung desselben Cup-Jahres erfolgen.
+Tageswertung desselben Cup-Jahres erfolgen. Die Einstufungsliste je Cup (`CupTopGroupController`) zeigt Grund und
+Punkte und erlaubt die Hand-Einstufung; die Athleten-Detailseite zeigt die Einstufung je Cup-Jahr.
 
 ## Stufe 2 — Tageswertung (`DailyRankingService`)
 
@@ -142,6 +148,9 @@ Alle unter `auth`:
 |--------------------------------------------------|-------------------------------------|
 | `resource cups` (ohne `show`)                    | `cups.*`                            |
 | `POST /cups/{cup}/classify-top-group`            | `cups.classify-top-group`           |
+| `GET /cups/{cup}/top-group`                      | `cups.top-group.index`              |
+| `GET /cups/{cup}/top-group/create`, `POST …`     | `cups.top-group.create` / `.store`  |
+| `GET/PUT/DELETE /cups/{cup}/top-group/{athlete}` | `cups.top-group.edit/update/destroy` |
 | `GET /cup-wertung`                               | `cups.overall-ranking.index`        |
 | `GET /cups/{cup}/overall-ranking`                | `cups.overall-ranking.show`         |
 | `GET /cups/{cup}/overall-ranking/pdf`            | `cups.overall-ranking.pdf`          |
@@ -157,7 +166,8 @@ Alle unter `auth`:
   `CupStalenessServiceTest`, `CupAgeGenderSettingsTest`, `CupWertungPhase1ModelTest`.
 - `tests/Feature/`: `CupWertungPhase1Test`, `CupSettingsFormTest`,
   `CupDailyRankingControllerTest`, `CupOverallRankingControllerTest`,
-  `CupPdfExportTest`, `MeetCupAssignmentTest`.
+  `CupPdfExportTest`, `MeetCupAssignmentTest`, `CupTopGroupClassifyTest`, `CupTopGroupControllerTest`,
+  `CupTopGroupAthleteHistoryTest`.
 
 Die Cup- **Statistik** (Einbindung in den Jahresbericht) ist in
 [statistics.md](statistics.md) beschrieben (`CupStatisticsService`).
