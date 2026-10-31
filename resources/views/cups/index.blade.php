@@ -56,6 +56,9 @@
                                     <flux:button href="{{ route('cups.overall-ranking.show', $cup) }}"
                                                  variant="ghost" size="sm" icon="trophy"
                                                  class="text-blue-500!" tooltip="Gesamtwertung"/>
+                                    <flux:button href="{{ route('cups.top-group.index', $cup) }}"
+                                                 variant="ghost" size="sm" icon="user-group"
+                                                 class="text-emerald-500!" tooltip="Top-Gruppe"/>
                                     <form method="POST" action="{{ route('cups.classify-top-group', $cup) }}"
                                           x-data="{ submit() { if (confirm('Top-Gruppen-Klassifizierung berechnen? Sollte zu Saisonbeginn und vor der Tageswertung laufen.')) this.$el.submit() } }"
                                           @submit.prevent="submit()">

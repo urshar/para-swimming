@@ -12,6 +12,7 @@ use App\Models\AuditLog;
 use App\Models\ChangeRequest;
 use App\Models\Classifier;
 use App\Models\Club;
+use App\Models\CupTopGroupClassification;
 use App\Models\ExceptionCode;
 use App\Models\KaderType;
 use App\Models\Nation;
@@ -197,6 +198,12 @@ class AthleteController extends Controller
         $exceptionCodes = ExceptionCode::active()->orderBy('code')->get();
         $kaderTypes = KaderType::active()->orderBy('sort_order')->get();
 
+        // Top-Gruppen-Historie je Cup-Jahr, nur mit Leserecht für die Cup-Wertung (Spec cup-top-group.md).
+        $topGroupHistory = auth()->user()->canRead(Module::Cup)
+            ? $athlete->cupTopGroupClassifications()->with(['cup', 'manualSetBy'])->get()
+                ->sortByDesc(fn (CupTopGroupClassification $row) => $row->cup->year)->values()
+            : collect();
+
         // Verlauf aus dem Änderungsprotokoll nur für Admins (Spec club-permissions §4.7).
         $history = auth()->user()->is_admin
             ? AuditHistory::build(AuditLog::forAthlete($athlete), request()->query('verlauf') === 'alle')
@@ -211,7 +218,7 @@ class AthleteController extends Controller
         return view('athletes.show', compact(
             'athlete', 'results',
             'clubs', 'medClassifiers', 'techClassifiers', 'users', 'exceptionCodes', 'kaderTypes', 'history',
-            'openRequests'
+            'openRequests', 'topGroupHistory'
         ));
     }
 

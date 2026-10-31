@@ -245,8 +245,11 @@ Kaskade vom Spezifischen zum Allgemeinen.
 Wertungsstruktur). **CupDailyResult** — pro `(cup, meet, athlete)` ein Tageswertungs-Eintrag (`club_id`, `result_id`,
 `sport_class_group_id`, `gender`). **CupOverallResult** — Gesamtwertung je `(cup, athlete, gender, sport_class_group)`
 mit `age_group_id` und `counted_daily_result_ids` (JSON). **CupTopGroupClassification** — Top-Gruppen-Snapshot je
-`(cup, athlete)`:
-`is_top_group`, `reason` (KADER / POINTS_HISTORY).
+`(cup, athlete)`: `is_top_group` (wirksam), `calculated_is_top_group` (Kader/Regel), `reason`
+(`App\Enums\TopGroupReason`: KADER / TWO_YEARS_ABOVE / TWO_YEARS_BELOW / CARRIED_OVER, alt POINTS_HISTORY),
+`previous_is_top_group`, `last_start_year`/`_points`, `prior_start_year`/`_points`, Hand-Einstufung
+`manual_is_top_group`, `manual_note`, `manual_set_by`, `manual_set_at` — siehe
+[specs/cup-top-group.md](specs/cup-top-group.md).
 
 > **Hinweis:** Die Spalte in `cup_overall_results` heißt in der Erst-Migration
 > `counted_daily_result_ids`, wurde per Migration

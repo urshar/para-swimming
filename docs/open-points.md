@@ -187,10 +187,11 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 31.10.2026)** — je unten beschrieben, jeweils eigener Branch:
 
 1. "Rekorde je Veranstaltung (Liste und PDF)"
-2. "ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie"
-3. "WPS-Punkte: allgemeine Daten einer Version bearbeiten"
+2. "WPS-Punkte: allgemeine Daten einer Version bearbeiten"
 
-**Erledigt:** "Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung"
+**Erledigt:** "ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie" (`feature/cup-top-group`,
+[specs/cup-top-group.md](specs/cup-top-group.md)): Zwei-Jahres-Regel, Hand-Einstufung, Einstufungsliste je Cup,
+Historie auf der Athleten-Detailseite. "Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung"
 (`feature/split-records`, PR #71, [specs/split-records.md](specs/split-records.md)). "LENEX 2.0 (sem2004)
 importieren" (`feature/lenex-2-import`, PR #70, [specs/lenex-2.0-import.md](specs/lenex-2.0-import.md)): Phasen 1–4
 umgesetzt und abgenommen, die IDM auf dev als Wettkampf 26 neu eingelesen (22 Ergebnisse, keine doppelten),
@@ -551,27 +552,6 @@ Ergebnis; eine dauerhafte Liste gibt es nicht.
 **Zum Schließen nötig:** Liste aus der Rekordhistorie (Rekorde mit Ergebnis dieses Wettkampfs, inkl. aus
 Zwischenzeiten), gruppiert nach Rekordart; Ausgabe als PDF im Stil der übrigen Berichte. Vorab mit Erik klären: auch
 eingestellte Rekorde, auch ausländische Rekordarten, Sichtbarkeit (Verwaltung und/oder öffentlicher Bereich).
-
-## ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie
-
-**Seit:** 31.10.2026, Wunsch Erik.
-
-**Stand heute:** `TopGroupClassificationService` stuft zu Saisonbeginn automatisch ein — Nationalkader immer Top-Gruppe
-(bleibt so), alle anderen nach der **besten** Tageswertung der zwei Vorjahre über der Punktgrenze
-(`cups.top_group_points_threshold`). Von Hand setzen lässt sich die Einstufung nicht.
-
-**Was fehlt:**
-
-- **Von Hand setzen:** Die Liste ändert sich von Jahr zu Jahr; der Admin muss einzelne Athleten in die Top-Gruppe
-  aufnehmen bzw. herausnehmen können (mit Begründung), ohne dass eine Neuberechnung das überschreibt.
-- **Regel (Erik):** Wer **zwei Jahre hintereinander** über 450 Punkte erzielt, kommt in die Top-Gruppe; umgekehrt
-  steigt ab, wer zwei Jahre hintereinander darunter bleibt. Heute reicht ein einzelnes gutes Ergebnis in zwei Jahren.
-  Die Kaderzugehörigkeit bleibt wie implementiert.
-- **Historie:** je Athlet und Cup-Jahr die Einstufung mit Grund (Regel, Kader, von Hand), damit Auf- und Abstieg
-  nachvollziehbar sind.
-
-**Vorab mit Erik klären:** Was zählt als "über 450" in einem Jahr (beste Tageswertung oder Durchschnitt); Verhalten im
-ersten Jahr ohne zwei Vorjahre; ob die Grenze weiter je Cup einstellbar bleibt.
 
 ## WPS-Punkte: allgemeine Daten einer Version bearbeiten
 

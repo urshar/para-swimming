@@ -23,6 +23,7 @@ import scoringGroupRestrictionsForm from './scoring-group-restrictions-form';
 import scoringGroupsEditor from './scoring-groups-editor';
 import singleEntryForm from './single-entry-form';
 import standardCell from './standard-cell';
+import topGroupFilter from './top-group-filter';
 import wpsLivewireFilters from './wps-livewire-filters';
 
 window.IMask = IMask;
@@ -60,5 +61,6 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('scoringGroupsEditor', scoringGroupsEditor);
     window.Alpine.data('singleEntryForm', singleEntryForm);
     window.Alpine.data('standardCell', standardCell);
+    window.Alpine.data('topGroupFilter', topGroupFilter);
     window.Alpine.data('wpsLivewireFilters', wpsLivewireFilters);
 });

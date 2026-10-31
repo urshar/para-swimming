@@ -48,6 +48,11 @@ class Cup extends Model
         return $this->hasMany(CupAgeGroupSetting::class);
     }
 
+    public function topGroupClassifications(): HasMany
+    {
+        return $this->hasMany(CupTopGroupClassification::class);
+    }
+
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
     /**

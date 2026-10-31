@@ -1,4 +1,12 @@
-@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Support\ListUrl; @endphp
+@php
+    use App\Enums\Module;
+    use App\Models\ChangeRequest;
+    use App\Models\CupTopGroupClassification;
+    use App\Support\ListUrl;
+    use Illuminate\Support\Collection;
+
+    /** @var Collection<int, CupTopGroupClassification> $topGroupHistory */
+@endphp
 
 @extends('layouts.app')
 
@@ -865,6 +873,60 @@
             <p class="text-sm text-zinc-400">Kein Nationalkader-Eintrag vorhanden.</p>
         @endif
     </div>
+
+    {{-- ═══════════════════════════════════════════════════════════════════════
+         ÖBSV CUP — TOP-GRUPPE (Spec cup-top-group.md)
+    ════════════════════════════════════════════════════════════════════════ --}}
+    @can('module.read', Module::Cup)
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-5 mb-6">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">ÖBSV Cup — Top-Gruppe</h2>
+
+            @if($topGroupHistory->isNotEmpty())
+                <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
+                    @foreach($topGroupHistory as $tg)
+                        <div class="flex items-start justify-between gap-3 py-2.5 text-sm">
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $tg->cup->year }}</span>
+                                    @if($tg->is_top_group)
+                                        <flux:badge color="emerald" size="sm">Top-Gruppe</flux:badge>
+                                    @else
+                                        <flux:badge color="zinc" size="sm">nicht Top</flux:badge>
+                                    @endif
+                                    @if($tg->isManual())
+                                        <flux:badge color="amber" size="sm">von Hand</flux:badge>
+                                    @endif
+                                    <span class="text-zinc-500 dark:text-zinc-400">
+                                        {{ $tg->reason?->label() ?? 'noch nicht berechnet' }}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-zinc-400 mt-0.5">
+                                    @if($tg->last_start_year)
+                                        Starts: {{ $tg->last_start_year }} {{ $tg->last_start_points }} Pkt.
+                                        @if($tg->prior_start_year)
+                                            · {{ $tg->prior_start_year }} {{ $tg->prior_start_points }} Pkt.
+                                        @endif
+                                    @else
+                                        keine früheren Cup-Starts
+                                    @endif
+                                    @if($tg->isManual())
+                                        · Begründung: {{ $tg->manual_note }}
+                                        ({{ $tg->manualSetBy?->name ?? 'unbekannt' }}, {{ $tg->manual_set_at?->format('d.m.Y') }})
+                                    @endif
+                                </div>
+                            </div>
+                            <flux:button href="{{ route('cups.top-group.index', $tg->cup) }}" variant="ghost"
+                                         size="sm" icon="user-group" class="text-emerald-500!"
+                                         title="Einstufungsliste {{ $tg->cup->year }}"
+                                         aria-label="Einstufungsliste {{ $tg->cup->year }}"/>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-sm text-zinc-400">Noch in keinem Cup-Jahr eingestuft.</p>
+            @endif
+        </div>
+    @endcan
 
     {{-- ═══════════════════════════════════════════════════════════════════════
          ERGEBNISSE

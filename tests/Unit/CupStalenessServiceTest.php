@@ -154,6 +154,49 @@ describe('topGroupClassificationStatus', function () {
 
         expect($status['isStale'])->toBeTrue()->and($status['reason'])->not->toBeNull();
     })->group('cup-wertung-p11');
+
+    it('ist veraltet, wenn die Einstufung eines früheren Cups NACH der Klassifizierung aktualisiert wurde', function () {
+        $cup = makeCup_cup11();
+        $previousCup = Cup::create([
+            'year' => 2025, 'name' => 'ÖBSV Cup 2025', 'base_time_version_id' => $cup->base_time_version_id,
+            'rounds_count' => 1, 'best_of_count' => 3, 'top_group_points_threshold' => 450,
+        ]);
+        $athlete = makeAthlete_cup11();
+
+        CupTopGroupClassification::create([
+            'cup_id' => $cup->id, 'athlete_id' => $athlete->id, 'is_top_group' => true, 'calculated_at' => '2026-07-01 10:00',
+        ]);
+        CupTopGroupClassification::create([
+            'cup_id' => $previousCup->id, 'athlete_id' => $athlete->id, 'is_top_group' => true,
+            'calculated_at' => '2026-07-01 11:00',
+        ]);
+
+        $status = service_cup11()->topGroupClassificationStatus($cup);
+
+        expect($status['isStale'])->toBeTrue()
+            ->and($status['reason'])->toContain('Einstufung eines früheren Cups')
+            ->and(service_cup11()->topGroupClassificationStatus($previousCup)['isStale'])->toBeFalse();
+    })->group('cup-top-group-p1');
+
+    it('ist veraltet, wenn die Tageswertung eines früheren Cups NACH der Klassifizierung berechnet wurde', function () {
+        $cup = makeCup_cup11();
+        $previousCup = Cup::create([
+            'year' => 2025, 'name' => 'ÖBSV Cup 2025', 'base_time_version_id' => $cup->base_time_version_id,
+            'rounds_count' => 1, 'best_of_count' => 3, 'top_group_points_threshold' => 450,
+        ]);
+        $athlete = makeAthlete_cup11();
+
+        CupTopGroupClassification::create([
+            'cup_id' => $cup->id, 'athlete_id' => $athlete->id, 'is_top_group' => true, 'calculated_at' => '2026-07-01 10:00',
+        ]);
+        makeDailyResult_cup11($previousCup, makeMeet_cup11($previousCup), $athlete, makeClub_cup11(),
+            Carbon::parse('2026-07-01 11:00'));
+
+        $status = service_cup11()->topGroupClassificationStatus($cup);
+
+        expect($status['isStale'])->toBeTrue()
+            ->and($status['reason'])->toContain('Tageswertung eines früheren Cups');
+    })->group('cup-top-group-p1');
 });
 
 // ── dailyRankingStatus ────────────────────────────────────────────────────────

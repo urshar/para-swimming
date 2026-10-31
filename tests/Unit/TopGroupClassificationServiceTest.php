@@ -2,6 +2,7 @@
 
 /** @noinspection PhpUnhandledExceptionInspection Pest-Test-Closures fangen Exceptions selbst ab. */
 
+use App\Enums\TopGroupReason;
 use App\Models\Athlete;
 use App\Models\AthleteKaderMembership;
 use App\Models\BaseTimeVersion;
@@ -20,34 +21,31 @@ use App\Services\TopGroupClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-uses(TestCase::class, RefreshDatabase::class);
+uses(TestCase::class, RefreshDatabase::class)->group('cup-top-group-p1');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeNation_cup8(string $code = 'AUT'): Nation
+function makeNation_ctg1(): Nation
 {
-    return Nation::firstOrCreate(
-        ['code' => $code],
-        ['name_de' => $code, 'name_en' => $code, 'is_active' => true]
-    );
+    return Nation::firstOrCreate(['code' => 'AUT'], ['name_de' => 'AUT', 'name_en' => 'AUT', 'is_active' => true]);
 }
 
-function makeClub_cup8(): Club
+function makeClub_ctg1(): Club
 {
-    return Club::create(['name' => 'Testclub', 'nation_id' => makeNation_cup8()->id]);
+    return Club::firstOrCreate(['name' => 'Testclub'], ['nation_id' => makeNation_ctg1()->id]);
 }
 
-function makeAthlete_cup8(array $attrs = []): Athlete
+function makeAthlete_ctg1(): Athlete
 {
-    return Athlete::create(array_merge([
+    return Athlete::create([
         'first_name' => 'Max', 'last_name' => 'Mustermann', 'gender' => 'M',
-        'nation_id' => makeNation_cup8()->id, 'is_active' => true,
-    ], $attrs));
+        'nation_id' => makeNation_ctg1()->id, 'is_active' => true,
+    ]);
 }
 
-function makeCup_cup8(int $year, int $threshold = 450): Cup
+function makeCup_ctg1(int $year, int $threshold): Cup
 {
-    $version = BaseTimeVersion::create(['label' => "V$year", 'valid_from' => '2021-01-01']);
+    $version = BaseTimeVersion::create(['label' => "V$year", 'valid_from' => '2012-01-01']);
 
     return Cup::create([
         'year' => $year, 'name' => "ÖBSV Cup $year", 'base_time_version_id' => $version->id,
@@ -55,30 +53,19 @@ function makeCup_cup8(int $year, int $threshold = 450): Cup
     ]);
 }
 
-function makeMeet_cup8(Cup $cup): Meet
+/** Legt eine Tageswertungs-Zeile (ein Start) des Athleten im Cup an. */
+function makeStart_ctg1(Cup $cup, Athlete $athlete, int $points): CupDailyResult
 {
-    return Meet::create([
-        'name' => 'Testmeet', 'nation_id' => makeNation_cup8()->id,
-        'course' => 'LCM', 'start_date' => "$cup->year-06-01", 'cup_id' => $cup->id,
+    $nation = makeNation_ctg1();
+    $club = makeClub_ctg1();
+    $meet = Meet::create([
+        'name' => 'Testmeet', 'nation_id' => $nation->id, 'course' => 'LCM', 'start_date' => "$cup->year-06-01",
+        'cup_id' => $cup->id,
     ]);
-}
-
-function makeStrokeType_cup8(): StrokeType
-{
-    return StrokeType::firstOrCreate(
-        ['code' => 'FREE'],
-        ['lenex_code' => 'FREE', 'name_de' => 'Freistil', 'name_en' => 'Freestyle', 'category' => 'standard', 'is_active' => true]
-    );
-}
-
-/** Legt direkt eine Tageswertungs-Zeile in einem bestimmten Cup-Jahr an. */
-function makeDailyResult_cup8(Cup $cup, Athlete $athlete, Club $club, int $points): CupDailyResult
-{
-    $meet = makeMeet_cup8($cup);
     $group = SportClassGroup::firstOrCreate(['code' => 'PI'], ['name_de' => 'PI', 'is_active' => true]);
-    $event = SwimEvent::create([
-        'meet_id' => $meet->id, 'stroke_type_id' => makeStrokeType_cup8()->id, 'distance' => 100, 'gender' => 'A',
-    ]);
+    $stroke = StrokeType::firstOrCreate(['code' => 'FREE'],
+        ['lenex_code' => 'FREE', 'name_de' => 'Freistil', 'name_en' => 'Freestyle', 'category' => 'standard', 'is_active' => true]);
+    $event = SwimEvent::create(['meet_id' => $meet->id, 'stroke_type_id' => $stroke->id, 'distance' => 100, 'gender' => 'A']);
     $result = Result::create([
         'meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id, 'club_id' => $club->id,
         'sport_class' => 'S9', 'swim_time' => 60000, 'points' => 1,
@@ -91,132 +78,315 @@ function makeDailyResult_cup8(Cup $cup, Athlete $athlete, Club $club, int $point
     ]);
 }
 
-// ── calculateForCup: Punkte-Historie ─────────────────────────────────────────
+function makeKader_ctg1(Athlete $athlete, ?string $from, ?string $until): AthleteKaderMembership
+{
+    $type = KaderType::firstOrCreate(['code' => 'WELTKLASSE'], ['name_de' => 'Weltklasse']);
 
-describe('calculateForCup — Punkte-Historie', function () {
-    it('stuft einen Athleten hoch, der im Vorjahr über der Punktgrenze war', function () {
-        $club = makeClub_cup8();
-        $athlete = makeAthlete_cup8();
-        $cup2025 = makeCup_cup8(2025);
-        makeDailyResult_cup8($cup2025, $athlete, $club, 460);
+    return AthleteKaderMembership::create([
+        'athlete_id' => $athlete->id, 'kader_type_id' => $type->id, 'valid_from' => $from, 'valid_until' => $until,
+    ]);
+}
 
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
+/** Legt eine Einstufung direkt an, ohne Berechnung (z. B. für einen vorhandenen Vorjahresstatus). */
+function makeClassification_ctg1(Cup $cup, Athlete $athlete, bool $isTopGroup, ?bool $manual): CupTopGroupClassification
+{
+    return CupTopGroupClassification::create([
+        'cup_id' => $cup->id, 'athlete_id' => $athlete->id, 'is_top_group' => $manual ?? $isTopGroup,
+        'calculated_is_top_group' => $isTopGroup, 'reason' => TopGroupReason::CarriedOver,
+        'manual_is_top_group' => $manual, 'manual_note' => $manual === null ? null : 'Trainerwunsch',
+        'calculated_at' => now()->subDay(),
+    ]);
+}
 
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->firstOrFail();
+function classify_ctg1(Cup $cup): void
+{
+    app(TopGroupClassificationService::class)->calculateForCup($cup);
+}
 
-        expect($classification->is_top_group)->toBeTrue()
-            ->and($classification->reason)->toBe('POINTS_HISTORY')
-            ->and($classification->reference_points)->toBe(460);
-    })->group('cup-wertung-p8');
+function classificationOf_ctg1(Cup $cup, Athlete $athlete): ?CupTopGroupClassification
+{
+    return CupTopGroupClassification::where('cup_id', $cup->id)->where('athlete_id', $athlete->id)->first();
+}
 
-    it('stuft NICHT hoch, wenn die Punktgrenze in beiden Vorjahren nicht überschritten wurde', function () {
-        $club = makeClub_cup8();
-        $athlete = makeAthlete_cup8();
-        $cup2025 = makeCup_cup8(2025);
-        makeDailyResult_cup8($cup2025, $athlete, $club, 400);
+// ── Zwei-Jahres-Regel ────────────────────────────────────────────────────────
 
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
+describe('Zwei-Jahres-Regel', function () {
+    it('stuft hoch, wer zwei Cup-Jahre hintereinander über der Grenze war', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1($cup2024 = makeCup_ctg1(2024, 450), $athlete, 460);
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 480);
+        makeStart_ctg1($cup2025, $athlete, 300);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
 
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->firstOrFail();
-
-        expect($classification->is_top_group)->toBeFalse()->and($classification->reason)->toBeNull();
-    })->group('cup-wertung-p8');
-
-    it('berücksichtigt nur die beiden Kalenderjahre unmittelbar vor dem Cup-Jahr, nicht davor', function () {
-        $club = makeClub_cup8();
-        $athlete = makeAthlete_cup8();
-        $cup2023 = makeCup_cup8(2023); // 3 Jahre vor 2026 → darf NICHT zählen
-        makeDailyResult_cup8($cup2023, $athlete, $club, 500);
-
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
-
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->first();
-
-        // Athlet taucht gar nicht in der Klassifizierung auf, da weder Punkte-Historie noch Kader zutreffen.
-        expect($classification)->toBeNull();
-    })->group('cup-wertung-p8');
-
-    it('verwendet den höheren Wert, wenn beide Vorjahre Ergebnisse liefern', function () {
-        $club = makeClub_cup8();
-        $athlete = makeAthlete_cup8();
-        $cup2024 = makeCup_cup8(2024);
-        $cup2025 = makeCup_cup8(2025);
-        makeDailyResult_cup8($cup2024, $athlete, $club, 300);
-        makeDailyResult_cup8($cup2025, $athlete, $club, 470);
-
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
-
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->firstOrFail();
-
-        expect($classification->reference_points)->toBe(470)->and($classification->is_top_group)->toBeTrue();
-    })->group('cup-wertung-p8');
-});
-
-// ── calculateForCup: Nationalkader ───────────────────────────────────────────
-
-describe('calculateForCup — Nationalkader', function () {
-    it('Kader-Athlet bleibt Top-Gruppe, auch ohne Punkte-Historie', function () {
-        $athlete = makeAthlete_cup8();
-        $kaderType = KaderType::create(['code' => 'WELTKLASSE', 'name_de' => 'Weltklasse']);
-        AthleteKaderMembership::create(['athlete_id' => $athlete->id, 'kader_type_id' => $kaderType->id]);
-
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
-
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->firstOrFail();
+        $classification = classificationOf_ctg1($cup2026, $athlete);
 
         expect($classification->is_top_group)->toBeTrue()
-            ->and($classification->reason)->toBe('KADER')
-            ->and($classification->reference_points)->toBeNull();
-    })->group('cup-wertung-p8');
+            ->and($classification->calculated_is_top_group)->toBeTrue()
+            ->and($classification->reason)->toBe(TopGroupReason::TwoYearsAbove)
+            ->and($classification->previous_is_top_group)->toBeFalse()
+            ->and($classification->last_start_year)->toBe(2025)
+            ->and($classification->last_start_points)->toBe(480)
+            ->and($classification->prior_start_year)->toBe(2024)
+            ->and($classification->prior_start_points)->toBe(460)
+            ->and(classificationOf_ctg1($cup2024, $athlete))->toBeNull();
+    });
 
-    it('Kader-Status übersteuert eine niedrige Punkte-Historie (kein Abstieg trotz Punkten unter der Grenze)', function () {
-        $club = makeClub_cup8();
-        $athlete = makeAthlete_cup8();
-        $kaderType = KaderType::create(['code' => 'WELTKLASSE', 'name_de' => 'Weltklasse']);
-        AthleteKaderMembership::create(['athlete_id' => $athlete->id, 'kader_type_id' => $kaderType->id]);
-        $cup2025 = makeCup_cup8(2025);
-        makeDailyResult_cup8($cup2025, $athlete, $club, 100); // weit unter der Grenze
+    it('stuft nicht hoch, wenn nur ein Jahr über der Grenze war', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 300);
+        makeStart_ctg1(makeCup_ctg1(2025, 450), $athlete, 500);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
 
-        $cup2026 = makeCup_cup8(2026);
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
+        $classification = classificationOf_ctg1($cup2026, $athlete);
 
-        $classification = CupTopGroupClassification::where('cup_id', $cup2026->id)->firstOrFail();
+        expect($classification->is_top_group)->toBeFalse()
+            ->and($classification->reason)->toBe(TopGroupReason::CarriedOver);
+    });
 
-        expect($classification->is_top_group)->toBeTrue()->and($classification->reason)->toBe('KADER');
-    })->group('cup-wertung-p8');
+    it('stuft einen neuen Athleten mit nur einem Startjahr nicht hoch', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2025, 450), $athlete, 600);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeFalse()
+            ->and($classification->reason)->toBe(TopGroupReason::CarriedOver)
+            ->and($classification->prior_start_year)->toBeNull();
+    });
+
+    it('lässt einen Top-Athleten nach einem Jahr unter der Grenze in der Top-Gruppe', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 500);
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 400);
+        makeClassification_ctg1($cup2025, $athlete, true, null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeTrue()
+            ->and($classification->reason)->toBe(TopGroupReason::CarriedOver)
+            ->and($classification->previous_is_top_group)->toBeTrue();
+    });
+
+    it('stuft ab, wer zwei Cup-Jahre hintereinander unter der Grenze war', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 400);
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 420);
+        makeClassification_ctg1($cup2025, $athlete, true, null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeFalse()
+            ->and($classification->reason)->toBe(TopGroupReason::TwoYearsBelow);
+    });
+
+    it('wertet genau die Grenze als nicht darüber', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 450);
+        makeStart_ctg1(makeCup_ctg1(2025, 450), $athlete, 500);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete)->is_top_group)->toBeFalse();
+    });
+
+    it('misst beide Vorjahre an der Grenze des einzustufenden Cups', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 600), $athlete, 500);
+        makeStart_ctg1(makeCup_ctg1(2025, 600), $athlete, 500);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete)->reason)->toBe(TopGroupReason::TwoYearsAbove);
+    });
 });
 
-// ── calculateForCup: Grundlagen ──────────────────────────────────────────────
+// ── Jahre ohne Start ─────────────────────────────────────────────────────────
 
-describe('calculateForCup — Grundlagen', function () {
-    it('ersetzt bei erneuter Berechnung den bisherigen Snapshot vollständig', function () {
-        $athlete = makeAthlete_cup8();
-        $kaderType = KaderType::create(['code' => 'WELTKLASSE', 'name_de' => 'Weltklasse']);
-        AthleteKaderMembership::create(['athlete_id' => $athlete->id, 'kader_type_id' => $kaderType->id]);
-        $cup2026 = makeCup_cup8(2026);
+describe('Jahre ohne Start', function () {
+    it('übernimmt den Status, wenn im Vorjahr kein Start war', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2023, 450), $athlete, 300);
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 300);
+        makeClassification_ctg1(makeCup_ctg1(2025, 450), $athlete, true, null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
 
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeTrue()
+            ->and($classification->reason)->toBe(TopGroupReason::CarriedOver)
+            ->and($classification->last_start_year)->toBe(2024);
+    });
+
+    it('überspringt ein Jahr ohne Start beim Vergleich zweier Jahre', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2023, 450), $athlete, 500);
+        makeCup_ctg1(2024, 450);
+        makeStart_ctg1(makeCup_ctg1(2025, 450), $athlete, 510);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->reason)->toBe(TopGroupReason::TwoYearsAbove)
+            ->and($classification->prior_start_year)->toBe(2023);
+    });
+
+    it('legt für Athleten ohne Start im Vorjahr und ohne Top-Status keine Einstufung an', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 300);
+        makeCup_ctg1(2025, 450);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete))->toBeNull();
+    });
+});
+
+// ── Kettenstart ──────────────────────────────────────────────────────────────
+
+describe('Kettenstart', function () {
+    it('rechnet fehlende Einstufungen früherer Cups vom ältesten an nach', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1($cup2023 = makeCup_ctg1(2023, 450), $athlete, 500);
+        makeStart_ctg1($cup2024 = makeCup_ctg1(2024, 450), $athlete, 500);
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 300);
+        $cup2026 = makeCup_ctg1(2026, 450);
+
+        expect(app(TopGroupClassificationService::class)->predecessorsWithoutClassification($cup2026)->pluck('year')->all())
+            ->toBe([2023, 2024, 2025]);
+
+        classify_ctg1($cup2026);
+
+        // 2025: zwei Jahre drüber → Top; 2026: 2025 drunter, 2024 drüber → Status bleibt Top.
+        expect(classificationOf_ctg1($cup2023, $athlete))->toBeNull()
+            ->and(classificationOf_ctg1($cup2024, $athlete)->is_top_group)->toBeFalse()
+            ->and(classificationOf_ctg1($cup2025, $athlete)->reason)->toBe(TopGroupReason::TwoYearsAbove)
+            ->and(classificationOf_ctg1($cup2026, $athlete)->is_top_group)->toBeTrue()
+            ->and(classificationOf_ctg1($cup2026, $athlete)->reason)->toBe(TopGroupReason::CarriedOver);
+    });
+
+    it('rechnet bestehende Einstufungen früherer Cups nicht neu', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 300);
+        $existing = makeClassification_ctg1($cup2025, $athlete, true, null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect($existing->fresh()->calculated_at->equalTo($existing->calculated_at))->toBeTrue()
+            ->and(classificationOf_ctg1($cup2026, $athlete)->previous_is_top_group)->toBeTrue();
+    });
+
+    it('hat im ersten Cup keinen Vorjahresstatus', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, null, null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete)->previous_is_top_group)->toBeNull();
+    });
+});
+
+// ── Nationalkader ────────────────────────────────────────────────────────────
+
+describe('Nationalkader', function () {
+    it('stuft Kader-Athleten trotz zwei Jahren unter der Grenze in die Top-Gruppe', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, null, null);
+        makeStart_ctg1(makeCup_ctg1(2024, 450), $athlete, 100);
+        makeStart_ctg1(makeCup_ctg1(2025, 450), $athlete, 100);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeTrue()
+            ->and($classification->reason)->toBe(TopGroupReason::Kader)
+            ->and($classification->last_start_points)->toBe(100);
+    });
+
+    it('zählt eine Kaderzugehörigkeit, die erst im Lauf des Cup-Jahres beginnt', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, '2026-05-01', null);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete)->reason)->toBe(TopGroupReason::Kader);
+    });
+
+    it('zählt eine vor dem Cup-Jahr beendete Kaderzugehörigkeit nicht', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, '2020-01-01', '2025-12-31');
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2026, $athlete))->toBeNull();
+    });
+
+    it('lässt nach dem Kaderende den Top-Status bis zu zwei Jahren unter der Grenze weiterlaufen', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, '2020-01-01', '2025-06-30');
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 300);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        expect(classificationOf_ctg1($cup2025, $athlete)->reason)->toBe(TopGroupReason::Kader)
+            ->and(classificationOf_ctg1($cup2026, $athlete)->is_top_group)->toBeTrue()
+            ->and(classificationOf_ctg1($cup2026, $athlete)->reason)->toBe(TopGroupReason::CarriedOver);
+    });
+});
+
+// ── Hand-Einstufung ──────────────────────────────────────────────────────────
+
+describe('Hand-Einstufung', function () {
+    it('bleibt bei Neuberechnung erhalten und geht vor dem Kader', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, null, null);
+        $cup2026 = makeCup_ctg1(2026, 450);
+        makeClassification_ctg1($cup2026, $athlete, true, false);
+
+        classify_ctg1($cup2026);
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeFalse()
+            ->and($classification->calculated_is_top_group)->toBeTrue()
+            ->and($classification->reason)->toBe(TopGroupReason::Kader)
+            ->and($classification->isManual())->toBeTrue()
+            ->and($classification->manual_note)->toBe('Trainerwunsch');
+    });
+
+    it('wirkt im Folgejahr als Vorjahresstatus', function () {
+        $athlete = makeAthlete_ctg1();
+        makeStart_ctg1($cup2025 = makeCup_ctg1(2025, 450), $athlete, 300);
+        makeClassification_ctg1($cup2025, $athlete, false, true);
+        classify_ctg1($cup2026 = makeCup_ctg1(2026, 450));
+
+        $classification = classificationOf_ctg1($cup2026, $athlete);
+
+        expect($classification->is_top_group)->toBeTrue()
+            ->and($classification->previous_is_top_group)->toBeTrue()
+            ->and($classification->isManual())->toBeFalse();
+    });
+});
+
+// ── Grundlagen ───────────────────────────────────────────────────────────────
+
+describe('Grundlagen', function () {
+    it('ersetzt bei erneuter Berechnung den bisherigen Snapshot', function () {
+        $athlete = makeAthlete_ctg1();
+        makeKader_ctg1($athlete, null, null);
+        $cup2026 = makeCup_ctg1(2026, 450);
+
+        classify_ctg1($cup2026);
+        classify_ctg1($cup2026);
+
         expect(CupTopGroupClassification::where('cup_id', $cup2026->id)->count())->toBe(1);
+    });
 
-        app(TopGroupClassificationService::class)->calculateForCup($cup2026);
-        expect(CupTopGroupClassification::where('cup_id', $cup2026->id)->count())->toBe(1);
-    })->group('cup-wertung-p8');
+    it('loadClassificationMap liefert die wirksame Einstufung je Athlet', function () {
+        $kader = makeAthlete_ctg1();
+        makeKader_ctg1($kader, null, null);
+        $manual = makeAthlete_ctg1();
+        $cup2026 = makeCup_ctg1(2026, 450);
+        makeClassification_ctg1($cup2026, $manual, false, true);
+        classify_ctg1($cup2026);
 
-    it('loadClassificationMap liefert eine athlete_id => is_top_group Map', function () {
-        $athlete = makeAthlete_cup8();
-        $kaderType = KaderType::create(['code' => 'WELTKLASSE', 'name_de' => 'Weltklasse']);
-        AthleteKaderMembership::create(['athlete_id' => $athlete->id, 'kader_type_id' => $kaderType->id]);
-        $cup2026 = makeCup_cup8(2026);
-        $service = app(TopGroupClassificationService::class);
-        $service->calculateForCup($cup2026);
+        $map = app(TopGroupClassificationService::class)->loadClassificationMap($cup2026);
 
-        $map = $service->loadClassificationMap($cup2026);
-
-        expect($map->get($athlete->id))->toBeTrue();
-    })->group('cup-wertung-p8');
+        expect($map->get($kader->id))->toBeTrue()
+            ->and($map->get($manual->id))->toBeTrue();
+    });
 });
