@@ -10,11 +10,9 @@ use App\Models\CupAgeGroupSetting;
 use App\Models\CupGroupSetting;
 use App\Models\SportClassGroup;
 use App\Services\CupStalenessService;
-use App\Services\TopGroupClassificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Throwable;
 
 /**
  * CupController
@@ -25,7 +23,6 @@ use Throwable;
 class CupController extends Controller
 {
     public function __construct(
-        private readonly TopGroupClassificationService $topGroupClassificationService,
         private readonly CupStalenessService $stalenessService,
     ) {}
 
@@ -142,33 +139,6 @@ class CupController extends Controller
         return redirect()
             ->route('cups.index')
             ->with('success', "Cup \"$name\" gelöscht.");
-    }
-
-    /**
-     * POST /cups/{cup}/classify-top-group
-     *
-     * Löst die saisonale Top-Gruppen-Klassifizierung aus (siehe
-     * TopGroupClassificationService). MUSS vor der Tageswertungs-Berechnung
-     * für dieses Cup-Jahr laufen.
-     *
-     * @throws Throwable bei einem Fehler innerhalb der Berechnung
-     */
-    public function classifyTopGroup(Cup $cup): RedirectResponse
-    {
-        // Einstufen gehört zur Cup-Wertung, nicht zu den Cup-Stammdaten (Route: module:cup,write).
-        abort_unless(auth()->user()?->canWrite(Module::Cup), 403, 'Kein Schreibrecht für Cup-Wertung.');
-
-        $backfilledYears = $this->topGroupClassificationService->predecessorsWithoutClassification($cup)->pluck('year');
-        $this->topGroupClassificationService->calculateForCup($cup);
-
-        $message = "Top-Gruppen-Klassifizierung für \"$cup->name\" berechnet.";
-        if ($backfilledYears->isNotEmpty()) {
-            $message .= ' Vorab nachgerechnet: '.$backfilledYears->implode(', ').'.';
-        }
-
-        return redirect()
-            ->route('cups.index')
-            ->with('success', $message);
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────

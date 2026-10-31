@@ -133,8 +133,10 @@ Methoden:
 
 ## HTTP & PDF
 
-- `CupController` — Cup-Stammdaten (Ressource ohne `show`); `classifyTopGroup(Cup)`
-  stößt Stufe 1 an.
+- `CupController` — Cup-Stammdaten (Ressource ohne `show`); die Liste zeigt je Cup nur den Status der Top-Gruppe
+  (Link zur Einstufungsliste).
+- `CupTopGroupController` — Einstufungsliste je Cup (`index`), `classify` stößt Stufe 1 an (zurück auf die Liste),
+  Hand-Einstufung (`create`/`store`/`edit`/`update`/`destroy`).
 - `CupDailyRankingController` — je Meet: `show`, `pdf` (`pdf.cup-daily-ranking`),
   `calculate` (Stufe 2).
 - `CupOverallRankingController` — `index` (Cup-Wertungsübersicht), je Cup: `show`,

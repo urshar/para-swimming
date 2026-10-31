@@ -263,7 +263,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('cups', CupController::class)->except(['show'])->middleware('module:cup_settings,write');
     Route::middleware('module:cup,write')->group(function () {
         Route::post('cups/{cup}/classify-top-group',
-            [CupController::class, 'classifyTopGroup'])->name('cups.classify-top-group');
+            [CupTopGroupController::class, 'classify'])->name('cups.classify-top-group');
         Route::post('cups/{cup}/overall-ranking/calculate',
             [CupOverallRankingController::class, 'calculate'])->name('cups.overall-ranking.calculate');
 

@@ -9,22 +9,49 @@ use App\Models\CupTopGroupClassification;
 use App\Models\Meet;
 use App\Models\Result;
 use App\Services\CupStalenessService;
+use App\Services\TopGroupClassificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * CupTopGroupController
  *
  * Einstufungsliste der Top-Gruppe je Cup (Spec cup-top-group.md, Phase 2): zeigt alle eingestuften Athleten mit
- * Grund und den Punkten der letzten zwei Cup-Jahre mit Start, und erlaubt eine Hand-Einstufung, die eine
- * Neuberechnung nicht überschreibt. Lesen: module:cup,read; Hand-Einstufung: module:cup,write.
+ * Grund und den Punkten der letzten zwei Cup-Jahre mit Start, stößt die Einstufung an und erlaubt eine
+ * Hand-Einstufung, die eine Neuberechnung nicht überschreibt. Lesen: module:cup,read; Einstufen und
+ * Hand-Einstufung: module:cup,write.
  */
 class CupTopGroupController extends Controller
 {
     public function __construct(
         private readonly CupStalenessService $stalenessService,
+        private readonly TopGroupClassificationService $topGroupClassificationService,
     ) {}
+
+    /**
+     * POST /cups/{cup}/classify-top-group
+     *
+     * Stuft die Top-Gruppe des Cups (neu) ein, siehe TopGroupClassificationService. MUSS vor der Tageswertung
+     * dieses Cup-Jahres laufen.
+     *
+     * @throws Throwable bei einem Fehler innerhalb der Berechnung
+     */
+    public function classify(Cup $cup): RedirectResponse
+    {
+        $backfilledYears = $this->topGroupClassificationService->predecessorsWithoutClassification($cup)->pluck('year');
+        $this->topGroupClassificationService->calculateForCup($cup);
+
+        $message = "Top-Gruppen-Klassifizierung für \"$cup->name\" berechnet.";
+        if ($backfilledYears->isNotEmpty()) {
+            $message .= ' Vorab nachgerechnet: '.$backfilledYears->implode(', ').'.';
+        }
+
+        return redirect()
+            ->route('cups.top-group.index', $cup)
+            ->with('success', $message);
+    }
 
     /** GET /cups/{cup}/top-group */
     public function index(Cup $cup): View

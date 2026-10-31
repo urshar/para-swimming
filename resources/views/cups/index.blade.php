@@ -20,7 +20,7 @@
                     <flux:table.column>Beste X</flux:table.column>
                     <flux:table.column>Meets</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
-                    <flux:table.column>Klassifizierung</flux:table.column>
+                    <flux:table.column>Top-Gruppe</flux:table.column>
                     <flux:table.column></flux:table.column>
                 </flux:table.columns>
                 <flux:table.rows>
@@ -40,16 +40,19 @@
                                 @endif
                             </flux:table.cell>
                             <flux:table.cell>
-                                @if(! $classification['calculatedAt'])
-                                    <flux:badge color="zinc">Noch nicht berechnet</flux:badge>
-                                @elseif($classification['isStale'])
-                                    <flux:badge color="amber" title="{{ $classification['reason'] }}">Veraltet</flux:badge>
-                                @else
-                                    <flux:badge color="emerald"
-                                                title="Berechnet am {{ $classification['calculatedAt']->format('d.m.Y H:i') }} Uhr">
-                                        Aktuell
-                                    </flux:badge>
-                                @endif
+                                {{-- Nur Status; eingestuft wird auf der Top-Gruppe-Seite (Cup-Wertung, nicht Stammdaten). --}}
+                                <a href="{{ route('cups.top-group.index', $cup) }}" class="inline-flex"
+                                   title="{{ $classification['isStale'] ? $classification['reason'] : 'Zur Top-Gruppe' }}">
+                                    @if(! $classification['calculatedAt'])
+                                        <flux:badge color="zinc">Noch nicht eingestuft</flux:badge>
+                                    @elseif($classification['isStale'])
+                                        <flux:badge color="amber">Veraltet</flux:badge>
+                                    @else
+                                        <flux:badge color="emerald">
+                                            Aktuell
+                                        </flux:badge>
+                                    @endif
+                                </a>
                             </flux:table.cell>
                             <flux:table.cell>
                                 <div class="flex justify-end gap-2">
@@ -59,13 +62,6 @@
                                     <flux:button href="{{ route('cups.top-group.index', $cup) }}"
                                                  variant="ghost" size="sm" icon="user-group"
                                                  class="text-emerald-500!" tooltip="Top-Gruppe"/>
-                                    <form method="POST" action="{{ route('cups.classify-top-group', $cup) }}"
-                                          x-data="{ submit() { if (confirm('Top-Gruppen-Klassifizierung berechnen? Sollte zu Saisonbeginn und vor der Tageswertung laufen.')) this.$el.submit() } }"
-                                          @submit.prevent="submit()">
-                                        @csrf
-                                        <flux:button type="submit" variant="ghost" size="sm" icon="arrow-trending-up"
-                                                      class="text-orange-500!" tooltip="Top-Gruppe klassifizieren"/>
-                                    </form>
                                     <flux:button href="{{ route('cups.edit', $cup) }}" variant="ghost" size="sm"
                                                  icon="pencil" class="text-amber-500!" tooltip="Bearbeiten"/>
                                     <form method="POST" action="{{ route('cups.destroy', $cup) }}"
