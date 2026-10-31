@@ -75,7 +75,7 @@ it('zeigt die Top-Gruppen-Einstufung je Cup-Jahr, neuestes zuerst', function () 
     ]);
 
     $this->actingAs($admin)
-        ->get(route('athletes.show', $athlete))
+        ->get(route('athletes.show', [$athlete, 'reiter' => 'cup']))
         ->assertOk()
         ->assertSeeInOrder(['ÖBSV Cup — Top-Gruppe', '2026', 'nicht Top', 'von Hand', 'Verletzungspause',
             '2025', 'Top-Gruppe', 'zwei Jahre über der Grenze', '2024 501 Pkt.', '2023 488 Pkt.']);
@@ -83,7 +83,7 @@ it('zeigt die Top-Gruppen-Einstufung je Cup-Jahr, neuestes zuerst', function () 
 
 it('zeigt einen Hinweis, wenn der Athlet nie eingestuft wurde', function () {
     $this->actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
-        ->get(route('athletes.show', makeAthlete_ctg3()))
+        ->get(route('athletes.show', [makeAthlete_ctg3(), 'reiter' => 'cup']))
         ->assertOk()
         ->assertSee('Noch in keinem Cup-Jahr eingestuft.');
 });
@@ -92,7 +92,7 @@ it('blendet den Abschnitt ohne Leserecht für die Cup-Wertung aus', function () 
     $user = makeUser_ctg3(['athletes' => ['read' => AccessScope::All, 'write' => AccessScope::None]]);
 
     $this->actingAs($user)
-        ->get(route('athletes.show', makeAthlete_ctg3()))
+        ->get(route('athletes.show', [makeAthlete_ctg3(), 'reiter' => 'cup']))
         ->assertOk()
         ->assertDontSee('ÖBSV Cup — Top-Gruppe');
 });
@@ -104,7 +104,7 @@ it('zeigt den Abschnitt mit Leserecht für die Cup-Wertung', function () {
     ]);
 
     $this->actingAs($user)
-        ->get(route('athletes.show', makeAthlete_ctg3()))
+        ->get(route('athletes.show', [makeAthlete_ctg3(), 'reiter' => 'cup']))
         ->assertOk()
         ->assertSee('ÖBSV Cup — Top-Gruppe');
 });

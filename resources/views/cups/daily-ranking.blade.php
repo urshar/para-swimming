@@ -54,13 +54,16 @@
                     <span class="text-xs text-zinc-400">{{ $bracket['results']->count() }} Athlet(en)</span>
                 </div>
 
-                <div class="p-4 [--flux-bleed:1rem]">
-                    <flux:table bleed>
+                {{-- Feste Spaltenbreiten (table-fixed), damit Rang, Athlet, Verein und Punkte in allen
+                     Kategorie-Tabellen untereinander stehen statt sich je Tabelle nach dem Inhalt
+                     auszurichten; Athlet und Verein teilen sich die Restbreite zu gleichen Teilen. --}}
+                <div class="overflow-x-auto p-4 [--flux-bleed:1rem]">
+                    <flux:table bleed class="table-fixed w-full min-w-140">
                         <flux:table.columns>
-                            <flux:table.column>Rang</flux:table.column>
+                            <flux:table.column class="w-16">Rang</flux:table.column>
                             <flux:table.column>Athlet</flux:table.column>
                             <flux:table.column>Verein</flux:table.column>
-                            <flux:table.column>Punkte</flux:table.column>
+                            <flux:table.column align="end" class="w-24">Punkte</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach($bracket['results'] as $row)
@@ -72,7 +75,7 @@
                                         </x-athlete-link>
                                     </flux:table.cell>
                                     <flux:table.cell>{{ $row->club?->display_name }}</flux:table.cell>
-                                    <flux:table.cell class="font-mono">{{ $row->points }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="font-mono tabular-nums">{{ $row->points }}</flux:table.cell>
                                 </flux:table.row>
                             @endforeach
                         </flux:table.rows>

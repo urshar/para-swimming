@@ -127,7 +127,7 @@ it('kennzeichnet den Hinweis in der Historie des Athleten mit Link zum Wettkampf
     import_lch($club);
     $admin = User::forceCreate(['name' => 'Admin', 'email' => 'admin@lch.at', 'password' => bcrypt('x'), 'is_admin' => true]);
 
-    $this->actingAs($admin)->get(route('athletes.show', $athlete))
+    $this->actingAs($admin)->get(route('athletes.show', [$athlete, 'reiter' => 'klassifikation']))
         ->assertOk()
         ->assertSee('aus Ergebnisliste')
         ->assertSee(route('meets.show', Meet::query()->sole()), false);

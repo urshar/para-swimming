@@ -264,13 +264,13 @@ describe('Athlete Kaderzugehörigkeit', function () {
                 'kader_type_id' => $kaderType->id,
                 'valid_from' => '2026-01-01',
             ])
-            ->assertRedirect(route('athletes.show', $athlete));
+            ->assertRedirect(route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader']));
 
         $membership = AthleteKaderMembership::where('athlete_id', $athlete->id)->firstOrFail();
 
         $this->actingAs($admin)
             ->delete(route('athletes.kader-memberships.destroy', [$athlete, $membership]))
-            ->assertRedirect(route('athletes.show', $athlete));
+            ->assertRedirect(route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader']));
 
         expect(AthleteKaderMembership::find($membership->id))->toBeNull();
     })->group('cup-wertung-p1');
