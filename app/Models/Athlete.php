@@ -192,6 +192,11 @@ class Athlete extends Model
         return $this->hasMany(AthleteKaderMembership::class)->orderByDesc('valid_from');
     }
 
+    public function cupTopGroupClassifications(): HasMany
+    {
+        return $this->hasMany(CupTopGroupClassification::class);
+    }
+
     /** Ist der Athlet an einem bestimmten Stichtag Mitglied eines Nationalkaders? */
     public function isInKaderOn(Carbon|string $date): bool
     {

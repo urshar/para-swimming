@@ -3,7 +3,7 @@
 Erweitert die Top-Gruppen-Klassifizierung (Stufe 1 in [cup-scoring.md](cup-scoring.md)). Grundlage: offener Punkt
 "ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie" in [../open-points.md](../open-points.md).
 
-**Stand:** in Umsetzung (Branch `feature/cup-top-group`), Phasen 1–2 umgesetzt.
+**Stand:** in Umsetzung (Branch `feature/cup-top-group`), Phasen 1–3 umgesetzt.
 
 ## Entscheidungen (Erik, 31.10.2026)
 
@@ -67,5 +67,5 @@ Cups nicht mit; sie erscheinen dann als veraltet.
 1. **Datenmodell und Regel** — Migration, `TopGroupReason`, `TopGroupClassificationService` (Kette, Hand-Einstufung
    bleibt erhalten), Aktualität, Tests (`--group=cup-top-group-p1`). ✔
 2. **Einstufungsliste je Cup** — `CupTopGroupController`, Route `cups.top-group.*` (Liste `module:cup,read`, Hand-Einstufung `module:cup,write`), Filter client-seitig (`top-group-filter.js`), Hand-Einstufung setzen/zurücknehmen mit Pflicht-Begründung; Hinweis, wenn Meets des vorigen Cups keine Tageswertung haben. Tests `--group=cup-top-group-p2`. ✔
-3. **Historie auf der Athleten-Detailseite.**
+3. **Historie auf der Athleten-Detailseite** — Abschnitt "ÖBSV Cup — Top-Gruppe" in `athletes/show` (nur mit `module:cup,read`): je Cup-Jahr Einstufung, Grund, Starts mit Punkten, Hand-Einstufung mit Begründung; Link zur Einstufungsliste. Tests `--group=cup-top-group-p3`. ✔
 4. **Dokumentation** — `cup-scoring.md`, `data-model.md`, `domain-glossary.md`, offener Punkt.
