@@ -187,9 +187,12 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 31.10.2026)** — je unten beschrieben, jeweils eigener Branch:
 
 1. "Rekorde je Veranstaltung (Liste und PDF)"
-2. "WPS-Punkte: allgemeine Daten einer Version bearbeiten"
 
-**Erledigt:** "ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie" (`feature/cup-top-group`,
+**Erledigt:** "WPS-Punkte: allgemeine Daten einer Version bearbeiten" (`feature/wps-version-edit`, 01.11.2026):
+Bearbeiten-Formular für Bezeichnung, Jahr, Version, Quelle und Gültigkeit; die Detailseite der Version listet
+Wettkämpfe, deren gespeicherte WPS-Punkte nicht mehr zur heute automatisch gewählten Version passen (neu berechnet
+wird nicht von selbst). Beim Import stehen die Versionsdaten in der Vorschau, vorbelegt aus der Datei
+([specs/wps-points-engine.md](specs/wps-points-engine.md) §11.4.6). "ÖBSV Cup: Top-Gruppe setzen, Regel über zwei Jahre, Historie" (`feature/cup-top-group`,
 [specs/cup-top-group.md](specs/cup-top-group.md)): Zwei-Jahres-Regel, Hand-Einstufung, Einstufungsliste je Cup,
 Historie auf der Athleten-Detailseite. "Rekorde aus Zwischenzeiten" und "Rekord-Check ohne Datumsprüfung bei nachträglicher Prüfung"
 (`feature/split-records`, PR #71, [specs/split-records.md](specs/split-records.md)). "LENEX 2.0 (sem2004)
@@ -552,16 +555,3 @@ Ergebnis; eine dauerhafte Liste gibt es nicht.
 **Zum Schließen nötig:** Liste aus der Rekordhistorie (Rekorde mit Ergebnis dieses Wettkampfs, inkl. aus
 Zwischenzeiten), gruppiert nach Rekordart; Ausgabe als PDF im Stil der übrigen Berichte. Vorab mit Erik klären: auch
 eingestellte Rekorde, auch ausländische Rekordarten, Sichtbarkeit (Verwaltung und/oder öffentlicher Bereich).
-
-## WPS-Punkte: allgemeine Daten einer Version bearbeiten
-
-**Seit:** 31.10.2026, Wunsch Erik.
-
-**Was fehlt:** Bei einer WPS-Punkteversion lassen sich die allgemeinen Daten (Bezeichnung, Gültig ab) nach dem Import
-nicht mehr ändern — z. B. wenn die Version vergessen wurde oder das Gültigkeitsdatum falsch ist. Es gibt nur
-Aktivieren, Archivieren und Löschen.
-
-**Zum Schließen nötig:** Bearbeiten-Formular für die allgemeinen Daten einer Version (Rechte: WPS schreiben); beim
-Excel-Import die Angaben aus dem Tab "Version" (u. a. das Datum, ab dem die Punkte gelten) übernehmen und als Vorschlag
-vorbelegen. Achtung: Ein geändertes "Gültig ab" kann die automatisch gewählte Version für bestehende Ergebnisse ändern
-— Hinweis auf Neuberechnung der WPS-Punkte vorsehen.
