@@ -450,11 +450,14 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('module:wps,write')->prefix('wps')->name('wps.')->group(function () {
         Route::get('import', [WpsPointImportController::class, 'showForm'])->name('import');
         Route::post('import/preview', [WpsPointImportController::class, 'preview'])->name('import.preview');
+        Route::get('import/preview', [WpsPointImportController::class, 'showPreview'])->name('import.preview.show');
         Route::post('import/run', [WpsPointImportController::class, 'run'])->name('import.run');
         Route::post('import/cancel', [WpsPointImportController::class, 'cancel'])->name('import.cancel');
 
         Route::get('versions', [WpsPointVersionController::class, 'index'])->name('versions.index');
         Route::get('versions/{version}', [WpsPointVersionController::class, 'show'])->name('versions.show');
+        Route::get('versions/{version}/edit', [WpsPointVersionController::class, 'edit'])->name('versions.edit');
+        Route::put('versions/{version}', [WpsPointVersionController::class, 'update'])->name('versions.update');
         Route::post('versions/{version}/activate',
             [WpsPointVersionController::class, 'activate'])->name('versions.activate');
         Route::post('versions/{version}/archive',

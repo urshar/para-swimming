@@ -95,7 +95,7 @@ function admin_wps3(): User
     return User::factory()->create(['is_admin' => true]);
 }
 
-/** @return array<string, string> Formularfelder für den Preview-Schritt */
+/** @return array<string, string> Versionsdaten aus dem Vorschau-Formular, abgeschickt mit dem Import */
 function versionInput_wps3(array $overrides = []): array
 {
     return array_merge([
@@ -301,7 +301,7 @@ describe('Import-Flow', function () {
     it('zeigt die Vorschau, ohne etwas zu speichern', function () {
         $response = $this->actingAs(admin_wps3())->post(
             route('wps.import.preview'),
-            versionInput_wps3() + ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
+            ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
         );
 
         $response->assertOk()->assertViewIs('wps.import.preview');
@@ -315,10 +315,10 @@ describe('Import-Flow', function () {
 
         $this->actingAs($admin)->post(
             route('wps.import.preview'),
-            versionInput_wps3() + ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
+            ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
         );
 
-        $this->actingAs($admin)->post(route('wps.import.run'))
+        $this->actingAs($admin)->post(route('wps.import.run'), versionInput_wps3())
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -339,15 +339,24 @@ describe('Import-Flow', function () {
 
         $this->actingAs(admin_wps3())->post(
             route('wps.import.preview'),
-            versionInput_wps3() + ['wps_file' => $file]
+            ['wps_file' => $file]
         )->assertRedirect(route('wps.import'))->assertSessionHasErrors('wps_file');
     });
 
-    it('verlangt die Pflichtangaben zur Version', function () {
-        $this->actingAs(admin_wps3())->post(
+    it('verlangt die Pflichtangaben zur Version beim Import und führt zurück in die Vorschau', function () {
+        $admin = admin_wps3();
+
+        $this->actingAs($admin)->post(
             route('wps.import.preview'),
             ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
-        )->assertSessionHasErrors(['label', 'year', 'valid_from']);
+        );
+
+        $this->actingAs($admin)
+            ->post(route('wps.import.run'), versionInput_wps3(['label' => '', 'year' => '', 'valid_from' => '']))
+            ->assertRedirect(route('wps.import.preview.show'))
+            ->assertSessionHasErrors(['label', 'year', 'valid_from']);
+
+        expect(WpsPointVersion::count())->toBe(0);
     });
 
     it('bricht ab und verwirft die Vorschau', function () {
@@ -355,7 +364,7 @@ describe('Import-Flow', function () {
 
         $this->actingAs($admin)->post(
             route('wps.import.preview'),
-            versionInput_wps3() + ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
+            ['wps_file' => makeWpsFile_wps3(validRows_wps3())]
         );
 
         $this->actingAs($admin)->post(route('wps.import.cancel'))->assertRedirect();

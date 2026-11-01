@@ -1021,12 +1021,23 @@ Zusätzlich zu §11.3:
 
 ### 11.4.6 Versionsmetadaten
 
-Aus `version control` Zeile 2: `year = 2026` (aus dem Datum), `version = "1"`, `source =
-"World Para Swimming Point Scores for Senior Long Course Events 2026"`, `official = true`,
-`valid_from = 2026-01-01`. `valid_until` bleibt `null`.
+Aus `version control` Zeile 2 (z. B. `1`, `30/01/2026`): `label = "WPS 2026"`, `year = 2026` (aus dem Datum),
+`version = "1"`, `source = "World Para Swimming Point Scores for Senior Long Course Events 2026"`,
+`valid_from = 2026-01-30` (das Datum der Datei). `valid_until` bleibt `null`, `official = true`.
 
-Die Werte werden im Preview-Schritt vorbelegt und sind vom Administrator korrigierbar — insbesondere
-`valid_from`, da das Veröffentlichungsdatum nicht zwingend dem Gültigkeitsbeginn entspricht.
+Textdateien (Kopfblock, z. B. "WPP 2017"): `Version=2017` ist das Jahr der Tabelle, keine Versionsnummer — daraus
+`label = "WPS 2017"`, `year = 2017`, `version` leer, `source` = Kurzname (`ShortNameVersion`), `valid_from =
+2017-01-01` (die Datei trägt kein Datum).
+
+Umsetzung: `WpsImportPreview::versionSuggestion()`. Der Upload fragt nur die Datei ab; das Formular für die
+Versionsdaten steht in der Vorschau, vorbelegt mit diesen Werten, und geht mit dem Import mit. Alles ist vom
+Administrator korrigierbar — insbesondere `valid_from`, da das Veröffentlichungsdatum nicht zwingend dem
+Gültigkeitsbeginn entspricht. Fehler beim Import (Pflichtfelder, vorhandene Kombination aus Jahr und Version) führen
+zurück in die Vorschau (`GET wps/import/preview`).
+
+Nachträglich lassen sich die allgemeinen Daten einer Version über "Bearbeiten" ändern (`wps.versions.edit`). Ein
+geänderter Gültigkeitszeitraum kann die automatisch gewählte Version bestehender Wettkämpfe ändern; die Detailseite
+der Version listet solche Wettkämpfe (`WpsVersionImpactService`), neu berechnet wird nicht von selbst.
 
 ### 11.4.7 Referenz-Testvektoren
 

@@ -11,12 +11,6 @@
                 <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import-Vorschau</h1>
                 <flux:badge color="zinc" size="sm">{{ $fileName }}</flux:badge>
             </div>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Zielversion: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $version['label'] }}</span>
-                {{-- Kein @if direkt vor der schließenden Klammer: eine Blade-Direktive,
-                     der unmittelbar ')' folgt, wird als Direktiven-Parameter gelesen. --}}
-                ({{ $version['year'] }}{{ $version['version'] ? ', Version '.$version['version'] : '' }})
-            </p>
         </div>
 
         @if($preview->errorCount() > 0)
@@ -99,22 +93,85 @@
             </div>
         @endif
 
-        <div class="flex justify-end gap-2">
-            <form method="POST" action="{{ route('wps.import.cancel') }}">
+        @if($preview->isValid())
+            {{-- Versionsdaten erst hier: vorbelegt aus den Angaben der Datei (WpsImportPreview::versionSuggestion()),
+                 nach einem Fehler beim Import aus der letzten Eingabe. "Abbrechen" schickt dasselbe Formular per
+                 formaction an die Abbrechen-Route — verschachtelte Formulare sind nicht erlaubt. --}}
+            <form method="POST" action="{{ route('wps.import.run') }}">
                 @csrf
-                <flux:button type="submit" variant="ghost">Abbrechen</flux:button>
-            </form>
 
-            @if($preview->isValid())
-                <form method="POST" action="{{ route('wps.import.run') }}">
-                    @csrf
+                <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4 mb-4">
+                    <div>
+                        <h2 class="font-semibold text-zinc-900 dark:text-zinc-100">Version</h2>
+                        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Vorschlag aus den Angaben der Datei — bitte prüfen, insbesondere "Gültig ab".
+                        </p>
+                    </div>
+
+                    <flux:field>
+                        <flux:label>Bezeichnung<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                        <flux:input name="label" value="{{ old('label', $suggestion['label']) }}" placeholder="WPS 2026"
+                                    required/>
+                        <flux:error name="label"/>
+                    </flux:field>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                            <flux:input type="number" name="year"
+                                        value="{{ old('year', $suggestion['year'] ?? now()->year) }}" required/>
+                            <flux:error name="year"/>
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Version</flux:label>
+                            <flux:input name="version" value="{{ old('version', $suggestion['version']) }}"/>
+                            <flux:error name="version"/>
+                        </flux:field>
+                    </div>
+
+                    <flux:field>
+                        <flux:label>Quelle</flux:label>
+                        <flux:input name="source" value="{{ old('source', $suggestion['source']) }}"/>
+                        <flux:error name="source"/>
+                    </flux:field>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Gültig ab<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_from"
+                                              value="{{ old('valid_from', $suggestion['valid_from']) }}" required/>
+                            <flux:error name="valid_from"/>
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Gültig bis</flux:label>
+                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_until"
+                                              value="{{ old('valid_until') }}" clearable/>
+                            <flux:description>Leer lassen für "bis auf Weiteres".</flux:description>
+                            <flux:error name="valid_until"/>
+                        </flux:field>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <flux:button type="submit" variant="ghost" formaction="{{ route('wps.import.cancel') }}"
+                                 formnovalidate>
+                        Abbrechen
+                    </flux:button>
                     <flux:button type="submit" variant="primary">
                         {{ $preview->rowCount() }} Parametersätze importieren
                     </flux:button>
+                </div>
+            </form>
+        @else
+            <div class="flex justify-end gap-2">
+                <form method="POST" action="{{ route('wps.import.cancel') }}">
+                    @csrf
+                    <flux:button type="submit" variant="ghost">Abbrechen</flux:button>
                 </form>
-            @else
                 <flux:button variant="primary" disabled>Import nicht möglich</flux:button>
-            @endif
-        </div>
+            </div>
+        @endif
     </div>
 @endsection

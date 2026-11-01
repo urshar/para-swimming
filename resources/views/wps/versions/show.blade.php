@@ -13,7 +13,45 @@
                     <flux:badge color="zinc" size="sm">Archiviert</flux:badge>
                 @endif
             </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {{ $version->year }}{{ $version->version ? ' · Version '.$version->version : '' }}
+                · gültig {{ $version->valid_from?->format('d.m.Y') ?? '—' }}
+                – {{ $version->valid_until?->format('d.m.Y') ?? 'offen' }}
+                {{ $version->source ? ' · '.$version->source : '' }}
+            </p>
+
+            {{-- Der ganze Bereich liegt hinter module:wps,write, daher kein eigenes @can. --}}
+            <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
+                <flux:button href="{{ route('wps.versions.edit', $version) }}" variant="filled" icon="pencil"
+                             size="sm" class="text-amber-500!">
+                    Bearbeiten
+                </flux:button>
+            </div>
         </div>
+
+        @if($affectedMeets->isNotEmpty())
+            <div class="mb-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-300">
+                <p class="font-medium mb-1">
+                    {{ $affectedMeets->count() }} Wettkampf/Wettkämpfe würden heute mit einer anderen Version gerechnet
+                </p>
+                <p class="mb-2">
+                    Die gespeicherten WPS-Punkte stammen von einer anderen Version als der, die nach dem
+                    Wettkampfdatum jetzt gewählt würde. Neu berechnen über "WPS-Punkte neu berechnen" auf der
+                    jeweiligen Wettkampfseite.
+                </p>
+                <ul class="space-y-0.5">
+                    @foreach($affectedMeets as $row)
+                        <li>
+                            <a href="{{ route('meets.show', $row['meet']) }}"
+                               class="font-medium text-blue-600 dark:text-blue-400 hover:underline">{{ $row['meet']->name }}</a>
+                            ({{ $row['meet']->start_date?->format('d.m.Y') }}):
+                            gerechnet mit {{ $row['stored']->pluck('display_name')->implode(', ') }},
+                            jetzt {{ $row['resolved']?->display_name ?? 'keine gültige Version' }}
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         {{-- x-model + $watch statt onchange="this.form.submit()" — dasselbe Muster wie
              records/index.blade.php: flux:select (Custom Element <ui-select>) feuert sein
