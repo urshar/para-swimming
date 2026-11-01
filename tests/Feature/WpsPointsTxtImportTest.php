@@ -290,7 +290,7 @@ function upload_wpstxt(string $path, string $name = 'WPS_2017.txt'): UploadedFil
     return new UploadedFile($path, $name, 'text/plain', null, true);
 }
 
-/** @return array<string, string> Formularfelder für den Preview-Schritt */
+/** @return array<string, string> Versionsdaten aus dem Vorschau-Formular, abgeschickt mit dem Import */
 function versionInput_wpstxt(): array
 {
     return [
@@ -312,7 +312,7 @@ describe('Import-Flow mit Textdatei', function () {
     it('zeigt die Vorschau mit den Angaben aus dem Kopfblock, ohne etwas zu speichern', function () {
         $this->actingAs(admin_wpstxt())->post(
             route('wps.import.preview'),
-            versionInput_wpstxt() + ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()))]
+            ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()))]
         )->assertOk()
             ->assertViewIs('wps.import.preview')
             ->assertSee('Kurzname: WPP 2017')
@@ -327,10 +327,10 @@ describe('Import-Flow mit Textdatei', function () {
 
         $this->actingAs($admin)->post(
             route('wps.import.preview'),
-            versionInput_wpstxt() + ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()))]
+            ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()))]
         );
 
-        $this->actingAs($admin)->post(route('wps.import.run'))
+        $this->actingAs($admin)->post(route('wps.import.run'), versionInput_wpstxt())
             ->assertRedirect()
             ->assertSessionHas('success', '5 Parametersätze importiert.');
 
@@ -344,12 +344,12 @@ describe('Import-Flow mit Textdatei', function () {
 
         $this->actingAs($admin)->post(
             route('wps.import.preview'),
-            versionInput_wpstxt() + [
+            [
                 'wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()), 'WPS_2017.TXT'),
             ]
         )->assertOk();
 
-        $this->actingAs($admin)->post(route('wps.import.run'))
+        $this->actingAs($admin)->post(route('wps.import.run'), versionInput_wpstxt())
             ->assertSessionHas('success');
 
         expect(WpsPointParameter::count())->toBe(5);
@@ -361,7 +361,7 @@ describe('Import-Flow mit Textdatei', function () {
 
         $this->actingAs(admin_wpstxt())->post(
             route('wps.import.preview'),
-            versionInput_wpstxt() + ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt(), $header))]
+            ['wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt(), $header))]
         )->assertRedirect(route('wps.import'))
             ->assertSessionHasErrors('wps_file');
     });
@@ -369,7 +369,7 @@ describe('Import-Flow mit Textdatei', function () {
     it('lehnt andere Dateiendungen ab', function () {
         $this->actingAs(admin_wpstxt())->post(
             route('wps.import.preview'),
-            versionInput_wpstxt() + [
+            [
                 'wps_file' => upload_wpstxt(makeTxtFile_wpstxt(validRows_wpstxt()), 'WPS_2017.csv'),
             ]
         )->assertSessionHasErrors('wps_file');

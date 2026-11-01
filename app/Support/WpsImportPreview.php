@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
+
 /**
  * Ergebnis des Parsens einer WPS-Point-Score-Datei.
  *
@@ -77,6 +80,46 @@ final readonly class WpsImportPreview
         );
     }
 
+    /**
+     * Vorschlag für die allgemeinen Versionsdaten aus den Angaben der Datei — Vorbelegung des Formulars in der
+     * Vorschau, vom Administrator korrigierbar (Spec wps-points-engine §11.4.6).
+     *
+     * Excel (Blatt "version control"): Das Datum wird zu "Gültig ab", das Jahr stammt aus dem Datum. Text
+     * (Kopfblock): "Version" ist dort das Jahr der Tabelle, keine Versionsnummer; ein Datum fehlt, daher gilt der
+     * 1. Jänner des Jahres. Was die Datei nicht hergibt, bleibt leer.
+     *
+     * @return array{label: ?string, year: ?int, version: ?string, source: ?string, valid_from: ?string}
+     */
+    public function versionSuggestion(): array
+    {
+        $date = $this->metadataDate();
+
+        if (isset($this->metadata['short_name']) || isset($this->metadata['name'])) {
+            $year = $this->yearFrom($this->metadata['version'] ?? null)
+                ?? $this->yearFrom($this->metadata['short_name'] ?? null);
+
+            return [
+                'label' => $year !== null ? "WPS $year" : null,
+                'year' => $year,
+                'version' => null,
+                'source' => $this->metadata['short_name'] ?? $this->metadata['name'] ?? null,
+                'valid_from' => $year !== null ? "$year-01-01" : null,
+            ];
+        }
+
+        $year = $date !== null ? (int) $date->format('Y') : null;
+
+        return [
+            'label' => $year !== null ? "WPS $year" : null,
+            'year' => $year,
+            'version' => $this->metadata['version'] ?? null,
+            'source' => $year !== null
+                ? "World Para Swimming Point Scores for Senior Long Course Events $year"
+                : null,
+            'valid_from' => $date?->format('Y-m-d'),
+        ];
+    }
+
     public function isValid(): bool
     {
         return $this->errors === [] && $this->rows !== [];
@@ -90,6 +133,29 @@ final readonly class WpsImportPreview
     public function errorCount(): int
     {
         return count($this->errors);
+    }
+
+    /** Datum aus "version control" — der Service liefert es als "d.m.Y", sonst unverändert aus der Zelle. */
+    private function metadataDate(): ?CarbonImmutable
+    {
+        $value = $this->metadata['date'] ?? null;
+
+        if (! is_string($value) || preg_match('/^\d{2}\.\d{2}\.\d{4}$/', $value) !== 1) {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::createFromFormat('!d.m.Y', $value);
+        } catch (InvalidFormatException) {
+            return null;
+        }
+    }
+
+    private function yearFrom(mixed $value): ?int
+    {
+        return is_string($value) && preg_match('/\b(19|20)\d{2}\b/', $value, $match) === 1
+            ? (int) $match[0]
+            : null;
     }
 
     /**
