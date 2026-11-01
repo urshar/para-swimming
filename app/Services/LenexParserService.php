@@ -450,6 +450,11 @@ class LenexParserService
         // LXF = ZIP-Archiv das eine LEF-Datei enthält
         $xmlContent = $this->extractXmlContent($filePath);
 
+        // Vor der XML-Deklaration darf nichts stehen — manche ältere Exporte beginnen aber mit einem Tab oder
+        // Zeilenumbruch (z. B. LENEX 2.0 aus 2022), libxml lehnt sie sonst mit "XML declaration allowed only at
+        // the start of the document" ab. Ein UTF-8-BOM davor würde ltrim() blockieren, deshalb zuerst entfernen.
+        $xmlContent = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $xmlContent));
+
         libxml_use_internal_errors(true);
         $xml = simplexml_load_string($xmlContent, 'SimpleXMLElement', LIBXML_NOCDATA);
 
