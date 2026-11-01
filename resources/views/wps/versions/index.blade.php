@@ -61,6 +61,10 @@
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <div class="flex justify-end gap-1">
+                                        <flux:button href="{{ route('wps.versions.edit', $version) }}" size="sm"
+                                                     variant="ghost" icon="pencil" class="text-amber-500!"
+                                                     title="Bearbeiten" aria-label="Bearbeiten"/>
+
                                         @if($version->isArchived())
                                             <form method="POST"
                                                   action="{{ route('wps.versions.activate', $version) }}">

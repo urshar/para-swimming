@@ -455,6 +455,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::get('versions', [WpsPointVersionController::class, 'index'])->name('versions.index');
         Route::get('versions/{version}', [WpsPointVersionController::class, 'show'])->name('versions.show');
+        Route::get('versions/{version}/edit', [WpsPointVersionController::class, 'edit'])->name('versions.edit');
+        Route::put('versions/{version}', [WpsPointVersionController::class, 'update'])->name('versions.update');
         Route::post('versions/{version}/activate',
             [WpsPointVersionController::class, 'activate'])->name('versions.activate');
         Route::post('versions/{version}/archive',
