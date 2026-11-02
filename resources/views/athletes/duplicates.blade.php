@@ -56,6 +56,15 @@
                     @endif
                 </div>
 
+                @if($pair['conflicts'] !== [])
+                    <flux:callout variant="warning" icon="exclamation-triangle" class="mb-3">
+                        <flux:callout.text>
+                            {{ implode(' · ', $pair['conflicts']) }} – vermutlich zwei verschiedene Personen
+                            (z. B. Geschwister).
+                        </flux:callout.text>
+                    </flux:callout>
+                @endif
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     @foreach(['keep' => 'Bleibt', 'drop' => 'Wird aufgelöst'] as $role => $roleLabel)
                         @php
