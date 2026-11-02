@@ -171,6 +171,18 @@ it('lehnt eine ungültige Auswahl für ein Stammdatenfeld ab', /** @throws Throw
     service_am1()->merge($keep, $drop, ['license' => 'both'], [], false);
 })->throws(InvalidArgumentException::class);
 
+it('weist in der Vorschau auf verschiedene Lizenz und SDMS ID hin, ohne zu blockieren', function () {
+    $keep = athlete_am1('Angerer', 'Daniela', ['license' => 'W-1653', 'license_ipc' => '69058']);
+    $drop = athlete_am1('Angerer', 'Angelika', ['license' => 'W-1655', 'license_ipc' => '69084']);
+
+    $analysis = service_am1()->analyze($keep, $drop);
+
+    expect($analysis['hints'])->toBe([
+        'Verschiedene Lizenz (W-1653 / W-1655) – prüfen, ob es wirklich dieselbe Person ist (z. B. Geschwister).',
+        'Verschiedene SDMS ID (69058 / 69084) – prüfen, ob es wirklich dieselbe Person ist (z. B. Geschwister).',
+    ])->and($analysis['blocking'])->toBe([]);
+});
+
 // ── Ergebnisse, Meldungen, Staffeln, Rekorde ─────────────────────────────────
 
 it('hängt Ergebnisse und Meldungen um und löscht den aufgelösten Athleten endgültig', /** @throws Throwable */ function () {

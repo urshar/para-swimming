@@ -78,6 +78,7 @@ final readonly class AthleteMergeService
     public function __construct(
         private AthleteMergeRecalculationService $recalculationService,
         private AuditLogger $audit,
+        private AthleteDuplicateFinder $duplicateFinder,
     ) {}
 
     /**
@@ -109,7 +110,8 @@ final readonly class AthleteMergeService
             ]])->all(),
             'blocking' => $this->blockingCollisions($keep, $drop),
             'sport_classes' => $this->sportClassConflicts($keep, $drop),
-            'hints' => [...$this->overlappingClubPeriods($keep, $drop), ...$this->duplicateRecords($keep, $drop)],
+            'hints' => [...$this->conflictingIdentifiers($keep, $drop), ...$this->overlappingClubPeriods($keep, $drop),
+                ...$this->duplicateRecords($keep, $drop)],
             'cup_ids' => DB::table('cup_top_group_classifications')->whereIn('athlete_id', $ids)->pluck('cup_id')
                 ->merge(DB::table('cup_daily_results')->whereIn('athlete_id', $ids)->pluck('cup_id'))
                 ->merge(DB::table('cup_overall_results')->whereIn('athlete_id', $ids)->pluck('cup_id'))
@@ -387,6 +389,19 @@ final readonly class AthleteMergeService
         ]);
 
         return $details === [] ? $class->sport_class : $class->sport_class.' ('.implode(', ', $details).')';
+    }
+
+    /**
+     * Verschiedene Lizenz, SDMS ID oder swimrankings-ID: vermutlich zwei Personen, aber kein Hindernis (Tippfehler).
+     *
+     * @return list<string>
+     */
+    private function conflictingIdentifiers(Athlete $keep, Athlete $drop): array
+    {
+        return array_map(
+            fn (string $conflict) => "$conflict – prüfen, ob es wirklich dieselbe Person ist (z. B. Geschwister).",
+            $this->duplicateFinder->conflictingIdentifiers($keep, $drop),
+        );
     }
 
     /**

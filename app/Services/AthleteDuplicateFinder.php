@@ -14,6 +14,10 @@ use App\Models\AthleteDuplicateDismissal;
  * - schwach: gleiches Geburtsdatum und Geschlecht und ein gemeinsamer Namensteil (wie die Vorschläge auf der
  *   LENEX-Klärungsseite) — trifft Tippfehler und Namenswechsel, aber auch Geschwister
  *
+ * Haben beide bei derselben Kennung verschiedene Werte (z. B. Zwillinge mit eigener Lizenz), sind es vermutlich zwei
+ * Personen: Ein schwacher Vorschlag entfällt dann ganz, ein starker oder mittlerer bleibt, trägt den Widerspruch aber
+ * als Warnung (conflicts).
+ *
  * Vorbelegte Richtung: Es bleibt der Athlet mit mehr Daten (Ergebnisse, Rekorde, Meldungen), bei Gleichstand der mit
  * der kleineren ID (meist der Datensatz aus dem Team Manager). Als "kein Duplikat" markierte Paare
  * (AthleteDuplicateDismissal) fallen heraus, außer sie werden ausdrücklich mit angefordert.
@@ -35,13 +39,20 @@ final readonly class AthleteDuplicateFinder
         'swrid' => 'Gleiche swimrankings-ID',
     ];
 
+    /** Kennung → Bezeichnung, wenn beide verschiedene Werte haben. */
+    private const array CONFLICTS = [
+        'license' => 'Verschiedene Lizenz',
+        'license_ipc' => 'Verschiedene SDMS ID',
+        'swrid' => 'Verschiedene swimrankings-ID',
+    ];
+
     public function __construct(
         private ImportSuggestionService $suggestionService,
     ) {}
 
     /**
      * @return list<array{keep: Athlete, drop: Athlete, reasons: list<string>, strength: string,
-     *     dismissal: ?AthleteDuplicateDismissal}>
+     *     conflicts: list<string>, dismissal: ?AthleteDuplicateDismissal}>
      */
     public function find(bool $withDismissed): array
     {
@@ -63,6 +74,11 @@ final readonly class AthleteDuplicateFinder
                     continue;
                 }
 
+                $conflicts = $this->conflictingIdentifiers($athletes[$i], $athletes[$j]);
+                if ($conflicts !== [] && $strength === self::WEAK) {
+                    continue;
+                }
+
                 // Nach id sortiert geladen: $athletes[$i] hat die kleinere ID.
                 $dismissal = $dismissals->get($athletes[$i]->id.'-'.$athletes[$j]->id);
                 if ($dismissal !== null && ! $withDismissed) {
@@ -74,13 +90,41 @@ final readonly class AthleteDuplicateFinder
                     : [$athletes[$i], $athletes[$j]];
 
                 $pairs[] = ['keep' => $keep, 'drop' => $drop, 'reasons' => $reasons, 'strength' => $strength,
-                    'dismissal' => $dismissal];
+                    'conflicts' => $conflicts, 'dismissal' => $dismissal];
             }
         }
 
         usort($pairs, fn (array $a, array $b) => $this->sortKey($a) <=> $this->sortKey($b));
 
         return $pairs;
+    }
+
+    /**
+     * Kennungen, bei denen beide Athleten einen echten, aber verschiedenen Wert haben, z. B.
+     * "Verschiedene Lizenz (W-1653 / W-1655)". Auch für die Hinweise in der Vorschau (AthleteMergeService).
+     *
+     * @return list<string>
+     */
+    public function conflictingIdentifiers(Athlete $a, Athlete $b): array
+    {
+        $conflicts = [];
+        foreach (self::CONFLICTS as $column => $label) {
+            $valueA = $this->identifier($a, $column);
+            $valueB = $this->identifier($b, $column);
+            if ($valueA !== null && $valueB !== null && mb_strtolower($valueA) !== mb_strtolower($valueB)) {
+                $conflicts[] = "$label ($valueA / $valueB)";
+            }
+        }
+
+        return $conflicts;
+    }
+
+    /** Wert einer Kennung, nur mit Ziffer (Platzhalter wie "W-" zählen nicht). */
+    private function identifier(Athlete $athlete, string $column): ?string
+    {
+        $value = trim((string) $athlete->$column);
+
+        return preg_match('/\d/', $value) === 1 ? $value : null;
     }
 
     /**
@@ -94,8 +138,8 @@ final readonly class AthleteDuplicateFinder
 
         $identifiers = [];
         foreach (array_keys(self::IDENTIFIERS) as $column) {
-            $value = trim((string) $athlete->$column);
-            if (preg_match('/\d/', $value) === 1) {
+            $value = $this->identifier($athlete, $column);
+            if ($value !== null) {
                 $identifiers[$column] = mb_strtolower($value);
             }
         }

@@ -84,6 +84,12 @@ Paarweiser Vergleich aller Athleten in PHP (Namen normalisiert wie auf der LENEX
 - **mittel:** gleicher Name, anderes oder fehlendes Geburtsdatum.
 - **schwach:** gleiches Geburtsdatum und Geschlecht und ein gemeinsamer Namensteil — trifft Tippfehler und
   Namenswechsel, aber auch Geschwister (Zwillinge, Drillinge).
+- **Widersprüchliche Kennungen:** Haben beide bei Lizenz, SDMS ID oder swimrankings-ID einen echten (Ziffer), aber
+  verschiedenen Wert, sind es vermutlich zwei Personen. Ein schwacher Vorschlag entfällt dann ganz; ein starker oder
+  mittlerer bleibt (Tippfehler in der Lizenz), zeigt den Widerspruch aber als Warnung. Auch die Vorschau
+  (`AthleteMergeService::analyze()`) nennt ihn als Hinweis, ohne zu blockieren — sie ist auch ohne Vorschlag
+  erreichbar. Anlass: Die Zwillinge Angerer Daniela/Angelika (gleiches Geburtsdatum, Verein, Sportklasse, aber
+  W-1653/W-1655) wurden am 30.10.2026 als schwacher Vorschlag versehentlich zusammengeführt.
 
 Vorbelegt bleibt der Athlet mit mehr Daten (Ergebnisse + Rekorde + Meldungen), bei Gleichstand die kleinere ID.
 "Kein Duplikat" speichert das Paar in `athlete_duplicate_dismissals` (kleinere ID zuerst, mit Admin); markierte Paare

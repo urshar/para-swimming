@@ -102,6 +102,38 @@ it('berücksichtigt kein Geschlecht übergreifendes Paar mit gleichem Geburtsdat
     expect(summary_am4(false))->toBe([]);
 });
 
+it('schlägt Zwillinge mit verschiedener Lizenz oder SDMS ID nicht vor', function () {
+    athlete_am4('Angerer', 'Daniela', '2000-06-07', ['license' => 'W-1653']);
+    athlete_am4('Angerer', 'Angelika', '2000-06-07', ['license' => 'W-1655']);
+    athlete_am4('Huber', 'Anna', '2001-03-04', ['license_ipc' => '69058']);
+    athlete_am4('Huber', 'Eva', '2001-03-04', ['license_ipc' => '69084']);
+    // Nur einer mit Lizenz oder eine Platzhalter-Lizenz ist kein Widerspruch.
+    $placeholderA = athlete_am4('Schmid', 'Patrick', '1987-11-18', ['license' => 'W-1700']);
+    $placeholderB = athlete_am4('Schmid', 'Manuel', '1987-11-18', ['license' => 'W-']);
+
+    expect(summary_am4(false))->toBe([
+        "weak: #$placeholderA->id → #$placeholderB->id (Gleiches Geburtsdatum, gemeinsamer Namensteil)",
+    ]);
+});
+
+it('behält starke und mittlere Vorschläge trotz verschiedener Lizenz, aber mit Warnung', function () {
+    $strongA = athlete_am4('Kopfer', 'Nina', '2002-12-20', ['license' => 'V-1041']);
+    $strongB = athlete_am4('Kopfer', 'Nina', '2002-12-20', ['license' => 'v-1014']);
+    $mediumA = athlete_am4('Muhrhofer', 'Katrin', '1950-01-01', ['license' => 'O-0001']);
+    $mediumB = athlete_am4('Muhrhofer', 'Katrin', '1979-01-03', ['license' => 'o-0001']);
+
+    $conflicts = array_map(fn (array $pair) => $pair['conflicts'], app(AthleteDuplicateFinder::class)->find(false));
+
+    expect(summary_am4(false))->toBe([
+        "strong: #$strongA->id → #$strongB->id (Gleicher Name und Geburtsdatum)",
+        "strong: #$mediumA->id → #$mediumB->id (Gleiche Lizenz, Gleicher Name, anderes Geburtsdatum)",
+    ])->and($conflicts)->toBe([['Verschiedene Lizenz (V-1041 / v-1014)'], []]);
+
+    $this->actingAs(admin_am4())->get(route('athletes.duplicates.index'))
+        ->assertOk()
+        ->assertSee('Verschiedene Lizenz (V-1041 / v-1014) – vermutlich zwei verschiedene Personen');
+});
+
 // ── Seite und "kein Duplikat" ────────────────────────────────────────────────
 
 it('zeigt Admins die Vorschläge mit Link zur Vorschau, Vereinsnutzern nicht', function () {
