@@ -59,10 +59,15 @@ Gruppe), PDF-Ergebnisliste (`MeetResultListService`), öffentlicher Ergebnisseit
 ## Pflege
 
 - Im Bewerbsformular: Zeilen mit Name, Geschlecht, Klassen, Alter ab/bis, Titel; Speichern ersetzt die Gruppen.
-  Ungültige Gruppen verhindern das Speichern des Bewerbs.
+  Ungültige Gruppen verhindern das Speichern des Bewerbs. Eine neue Gruppe übernimmt das gewählte Geschlecht des
+  Bewerbs (Damen/Herren), sonst "Alle".
 - "Wertungsgruppen auf andere Bewerbe übernehmen" (Route `events.scoring-groups.copy`, nur Admin): ersetzt die
   Gruppen aller Bewerbe derselben Veranstaltung mit gleicher Art (Einzel/Staffel) und Klassenkategorie (S:
-  Freistil/Rücken/Delfin, SB: Brust, SM: Lagen).
+  Freistil/Rücken/Delfin, SB: Brust, SM: Lagen). Ist der Zielbewerb Damen bzw. Herren, bekommen die Gruppen dessen
+  Geschlecht; aus einem offenen/Mixed-Bewerb werden dabei nur Gruppen des passenden Geschlechts und "Alle"
+  übernommen. Offene/Mixed-Zielbewerbe übernehmen die Gruppen unverändert.
+- Die Disziplinliste der Veranstaltung zeigt die Klassen zusammengefasst je Behinderungsgruppe mit dem Präfix der
+  Lage (`S1-S10, S11-S13, S14`; `SwimEvent::sport_classes_display`); Staffeln zeigen den Rohwert.
 - Gespeicherte Vorlagen (z. B. "ÖSTM-Standard") sind bewusst nicht umgesetzt; bei Bedarf als späterer Schritt.
 
 ## LENEX

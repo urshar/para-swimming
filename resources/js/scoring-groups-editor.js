@@ -1,7 +1,7 @@
 /**
  * Alpine-Komponente für die Wertungsgruppen im Bewerbsformular (resources/views/swim-events/form.blade.php).
  *
- * Zeilen hinzufügen und entfernen; jede Zeile wird als scoring_groups[i][feld] abgeschickt. Die LENEX-ID einer
+ * Zeilen hinzufügen (Geschlecht vorbelegt aus dem Bewerb) und entfernen; jede Zeile wird als scoring_groups[i][feld] abgeschickt. Die LENEX-ID einer
  * importierten Gruppe läuft als verstecktes Feld mit, damit ein erneuter Import die Gruppe wiedererkennt.
  * Landesverbände und Level sind Listen (Flux-Checkbox-Gruppen), abgeschickt kommagetrennt über versteckte Felder;
  * Geschlecht und Titel sind Flux-Selects (Titel "ohne" = Sentinel NONE, abgeschickt als leerer Wert).
@@ -17,7 +17,7 @@ export default function scoringGroupsEditor(config) {
         addGroup() {
             this.groups.push({
                 name: '',
-                gender: 'A',
+                gender: this.eventGender(),
                 sport_classes: '',
                 age_min: '',
                 age_max: '',
@@ -27,6 +27,16 @@ export default function scoringGroupsEditor(config) {
                 title: 'NONE',
                 lenex_agegroup_id: '',
             });
+        },
+
+        // Geschlecht einer neuen Gruppe: das gerade gewählte Geschlecht des Bewerbs (Damen/Herren), sonst "Alle".
+        eventGender() {
+            const form = this.$root.closest('form');
+            const gender = form
+                ? (new FormData(form).get('gender') ?? form.querySelector('[name="gender"]')?.value)
+                : null;
+
+            return gender === 'M' || gender === 'F' ? gender : 'A';
         },
 
         removeGroup(index) {

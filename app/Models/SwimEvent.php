@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SportClassRanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -113,6 +114,29 @@ class SwimEvent extends Model
     }
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
+    /** Klassenkategorie der Lage: SB (Brust), SM (Lagen), sonst S. */
+    public function classCategory(): string
+    {
+        return match ($this->strokeType?->lenex_code) {
+            'BREAST' => 'SB',
+            'MEDLEY', 'IMRELAY' => 'SM',
+            default => 'S',
+        };
+    }
+
+    /**
+     * Sportklassen für Listen, zu Bereichen je Behinderungsgruppe zusammengefasst ("S1-S10, S11-S13, S14"). Staffeln
+     * behalten den Rohwert (Staffelklassen sind keine Einzelklassen).
+     */
+    public function getSportClassesDisplayAttribute(): ?string
+    {
+        if ($this->sport_classes === null || $this->sport_classes === '' || $this->relay_count > 1) {
+            return $this->sport_classes;
+        }
+
+        return SportClassRanges::formatGrouped($this->sport_classes, $this->classCategory()) ?: $this->sport_classes;
+    }
 
     public function getDisplayNameAttribute(): string
     {

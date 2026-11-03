@@ -267,7 +267,7 @@
                                     {{ $event->round !== 'TIM' ? $event->round : '–' }}
                                 </flux:table.cell>
                                 <flux:table.cell class="text-zinc-500 text-sm truncate" title="{{ $event->sport_classes }}">
-                                    {{ $event->sport_classes ?? '–' }}
+                                    {{ $event->sport_classes_display ?? '–' }}
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <div class="flex items-center gap-1 justify-end">

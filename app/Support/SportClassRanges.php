@@ -32,19 +32,43 @@ final class SportClassRanges
         foreach ($groups as $prefix => $numbers) {
             $numbers = array_values(array_unique($numbers));
             sort($numbers);
-            $parts[] = self::compress($prefix, $numbers);
+            $parts[] = self::compress($prefix, $numbers, false);
         }
 
         return implode(', ', $parts);
     }
 
     /**
+     * Wie format(), aber mit festem Präfix der Lage (S/SB/SM) für alle Klassen und
+     * Bereichsgrenzen zusätzlich an den Behinderungsgruppen (1-10 körperlich,
+     * 11-13 Sehbehinderung, 14 intellektuell, 15-20, ab 21):
+     *
+     *   "1 2 3 4 5 6 7 8 9 10 11 12 13 14" mit "S" → "S1-S10, S11-S13, S14"
+     *
+     * Ein vorhandenes Präfix der Einträge wird ignoriert.
+     */
+    public static function formatGrouped(?string $raw, string $prefix): string
+    {
+        $numbers = [];
+        foreach (preg_split('/[\s,;]+/', trim((string) $raw), flags: PREG_SPLIT_NO_EMPTY) ?: [] as $token) {
+            if (preg_match('/^[A-Za-z]*(\d+)$/', $token, $m)) {
+                $numbers[] = (int) $m[1];
+            }
+        }
+        $numbers = array_values(array_unique($numbers));
+        sort($numbers);
+
+        return self::compress($prefix, $numbers, true);
+    }
+
+    /**
      * Komprimiert aufsteigend sortierte, deduplizierte Zahlen einer Präfixgruppe
-     * zu Bereichen ("1-7, 9-15, 21").
+     * zu Bereichen ("1-7, 9-15, 21"); mit $byImpairment brechen die Bereiche auch
+     * an den Grenzen der Behinderungsgruppen.
      *
      * @param  list<int>  $numbers
      */
-    private static function compress(string $prefix, array $numbers): string
+    private static function compress(string $prefix, array $numbers, bool $byImpairment): string
     {
         $ranges = [];
         $start = null;
@@ -57,7 +81,7 @@ final class SportClassRanges
                 continue;
             }
 
-            if ($n === $prev + 1) {
+            if ($n === $prev + 1 && (! $byImpairment || self::impairmentGroup($n) === self::impairmentGroup($prev))) {
                 $prev = $n;
 
                 continue;
@@ -72,6 +96,18 @@ final class SportClassRanges
         }
 
         return implode(', ', $ranges);
+    }
+
+    /** Behinderungsgruppe einer Klassennummer: 1-10, 11-13, 14, 15-20, ab 21. */
+    private static function impairmentGroup(int $class): int
+    {
+        return match (true) {
+            $class <= 10 => 1,
+            $class <= 13 => 2,
+            $class === 14 => 3,
+            $class <= 20 => 4,
+            default => 5,
+        };
     }
 
     private static function range(string $prefix, int $start, int $end): string
