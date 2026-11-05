@@ -162,8 +162,9 @@ class SwimEventController extends Controller
             'scoring_groups.*.name' => 'required|string|max:100',
             'scoring_groups.*.gender' => 'required|in:M,F,X,A',
             'scoring_groups.*.sport_classes' => 'nullable|string|max:100',
-            'scoring_groups.*.age_min' => 'nullable|integer|min:0|max:99',
-            'scoring_groups.*.age_max' => 'nullable|integer|min:0|max:99',
+            // Bis 999: Bei Staffeln ist das Alter die Summe der Alter (Masters z. B. 320-359).
+            'scoring_groups.*.age_min' => 'nullable|integer|min:0|max:999',
+            'scoring_groups.*.age_max' => 'nullable|integer|min:0|max:999',
             'scoring_groups.*.regional_associations' => ['nullable', 'string', 'max:100', new CodeList(array_keys(Club::REGIONAL_ASSOCIATIONS))],
             'scoring_groups.*.regional_mode' => 'nullable|required_with:scoring_groups.*.regional_associations|in:'
                 .implode(',', array_keys(ScoringGroup::REGION_MODES)),

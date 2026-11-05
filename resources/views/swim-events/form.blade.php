@@ -237,11 +237,11 @@
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][sport_classes]'" x-model="group.sport_classes">
                             </label>
                             <label class="md:col-span-1 text-xs text-zinc-500">Alter ab
-                                <input type="number" min="0" max="99" class="{{ $inputClass }}"
+                                <input type="number" min="0" max="999" class="{{ $inputClass }}"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][age_min]'" x-model="group.age_min">
                             </label>
                             <label class="md:col-span-1 text-xs text-zinc-500">bis
-                                <input type="number" min="0" max="99" class="{{ $inputClass }}"
+                                <input type="number" min="0" max="999" class="{{ $inputClass }}"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][age_max]'" x-model="group.age_max">
                             </label>
                             {{-- "ohne" als Sentinel NONE: eine leere Flux-Option kommt nicht zuverlässig an (CLAUDE.md). --}}

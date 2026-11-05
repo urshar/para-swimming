@@ -21,6 +21,7 @@ use App\Models\SwimEvent;
 use App\Support\TimeParser;
 use Exception;
 use InvalidArgumentException;
+use LibXMLError;
 use SimpleXMLElement;
 use ZipArchive;
 
@@ -453,13 +454,21 @@ class LenexParserService
         // Vor der XML-Deklaration darf nichts stehen — manche ältere Exporte beginnen aber mit einem Tab oder
         // Zeilenumbruch (z. B. LENEX 2.0 aus 2022), libxml lehnt sie sonst mit "XML declaration allowed only at
         // the start of the document" ab. Ein UTF-8-BOM davor würde ltrim() blockieren, deshalb zuerst entfernen.
-        $xmlContent = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $xmlContent));
+        $withoutBom = preg_replace('/^\xEF\xBB\xBF/', '', $xmlContent);
+        $xmlContent = ltrim($withoutBom);
+
+        // Entfernte Zeilen mitzählen, damit die Fehlermeldung auf die Zeile in der Originaldatei zeigt.
+        $skippedLines = substr_count($withoutBom, "\n") - substr_count($xmlContent, "\n");
 
         libxml_use_internal_errors(true);
+        libxml_clear_errors();
         $xml = simplexml_load_string($xmlContent, 'SimpleXMLElement', LIBXML_NOCDATA);
 
         if ($xml === false) {
-            $errors = array_map(fn ($e) => $e->message, libxml_get_errors());
+            $errors = array_map(
+                fn (LibXMLError $e) => sprintf('Zeile %d, Spalte %d: %s', $e->line + $skippedLines, $e->column, trim($e->message)),
+                libxml_get_errors()
+            );
             libxml_clear_errors();
             throw new Exception('XML-Fehler: '.implode(', ', $errors));
         }

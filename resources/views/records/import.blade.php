@@ -126,12 +126,13 @@
                     <flux:error name="before"/>
                 </flux:field>
 
-                {{-- Submit --}}
+                {{-- Submit: Flux zeigt bei type="submit" sonst an jedem deaktivierten Button den Spinner. --}}
                 <flux:button
                     type="submit"
                     variant="primary"
                     icon="arrow-up-tray"
                     class="w-full mt-5"
+                    :loading="false"
                     x-bind:disabled="!filename">
                     Vorschau anzeigen
                 </flux:button>
