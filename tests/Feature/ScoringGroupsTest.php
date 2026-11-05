@@ -413,3 +413,41 @@ it('setzt die Plätze nach der Punkte-Neuberechnung', function () {
     // Ohne Basiswerte bleiben die Punkte; der Platz wird aus ihnen gesetzt.
     expect($result->fresh()->place)->toBe(1);
 });
+
+// ── Staffel-Altersgruppen (Summe der Alter) ───────────────────────────────────
+
+it('übernimmt Staffel-Altersgruppen über 255 aus dem LENEX-Import', function () {
+    makeNation_p5();
+    makeStrokeType_p5();
+
+    importLenex_sg('<?xml version="1.0" encoding="UTF-8"?>
+<LENEX version="3.0"><MEETS><MEET name="Masters" city="Samorin" nation="AUT" course="LCM"><SESSIONS><SESSION number="1" date="2026-08-18"><EVENTS>
+<EVENT eventid="1" number="1" gender="F" round="TIM"><SWIMSTYLE distance="50" relaycount="4" stroke="FREE" />
+<AGEGROUPS><AGEGROUP agegroupid="10" agemin="320" agemax="359" gender="F" /></AGEGROUPS></EVENT>
+</EVENTS></SESSION></SESSIONS></MEET></MEETS></LENEX>', null);
+
+    $group = ScoringGroup::sole();
+
+    expect($group->age_min)->toBe(320)
+        ->and($group->age_max)->toBe(359);
+});
+
+it('speichert im Formular Altersgruppen bis 999 und lehnt höhere ab', /** @throws JsonException */ function () {
+    $meet = makeMeet_p5();
+    $event = makeEvent_p5($meet, ['distance' => 50]);
+    $payload = fn (int $ageMax) => [
+        'stroke_type_id' => $event->stroke_type_id, 'session_number' => 1, 'gender' => 'F', 'round' => 'TIM',
+        'distance' => 50, 'relay_count' => 4,
+        'scoring_groups' => [['name' => 'Alle', 'gender' => 'F', 'age_min' => 320, 'age_max' => $ageMax]],
+    ];
+
+    $this->actingAs(admin_sg())->put(route('events.update', $event), $payload(1000))
+        ->assertSessionHasErrors(['scoring_groups.0.age_max']);
+    $this->actingAs(admin_sg())->put(route('events.update', $event), $payload(359))
+        ->assertSessionHasNoErrors();
+
+    $group = $event->fresh()->scoringGroups->sole();
+
+    expect($group->age_min)->toBe(320)
+        ->and($group->age_max)->toBe(359);
+});

@@ -16,7 +16,8 @@ z. B. bei den ÖSTM 2025 in 50 m Freistil "Damen ÖSTM: S01 - S08", "Damen ÖM: 
 
 `scoring_groups`: `swim_event_id`, `name`, `gender` (M/F/X, A = alle), `sport_classes` (Nummern, kommagetrennt;
 leer = alle Klassen; die Kategorie S/SB/SM ergibt sich aus der Lage, bei Staffeln die Staffelklasse 14/20/34/49),
-`age_min`/`age_max` (optional, Jahrgangsalter), `title` (`OSTM` = Österr. Staatsmeisterschaft, `OM` = Österr.
+`age_min`/`age_max` (optional, Jahrgangsalter, bei Staffeln Summe der Alter), `title` (`OSTM` = Österr.
+Staatsmeisterschaft, `OM` = Österr.
 Meisterschaft, leer = ohne Titel), `sort_order`, `lenex_agegroup_id`.
 
 Dazu die Einschränkung nach **Landesverband** des Ergebnisvereins (`regional_associations` + `regional_mode`, "nur
