@@ -234,14 +234,15 @@
                 </div>
                 <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
                 {{-- Feste Spaltenbreiten (table-fixed), damit die Tabellen der Abschnitte untereinander gleich ausgerichtet
-                     sind; die Disziplin nimmt den Rest. --}}
-                <flux:table bleed class="w-full min-w-160">
+                     sind; die Disziplin nimmt den Rest. Die Klassen-Spalte fasst die längsten Angaben ("SB1-SB10, SB11-SB13,
+                     SB14, SB15, SB201") in einer Zeile, noch längere brechen um statt abgeschnitten zu werden. --}}
+                <flux:table bleed class="w-full min-w-220">
                     <flux:table.columns>
                         <flux:table.column class="w-14">Nr.</flux:table.column>
                         <flux:table.column>Disziplin</flux:table.column>
                         <flux:table.column class="w-28">Geschlecht</flux:table.column>
                         <flux:table.column class="w-20">Runde</flux:table.column>
-                        <flux:table.column class="w-48">Klassen</flux:table.column>
+                        <flux:table.column class="w-80">Klassen</flux:table.column>
                         <flux:table.column class="w-24"></flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
@@ -266,7 +267,7 @@
                                 <flux:table.cell class="text-zinc-500 text-sm">
                                     {{ $event->round !== 'TIM' ? $event->round : '–' }}
                                 </flux:table.cell>
-                                <flux:table.cell class="text-zinc-500 text-sm truncate" title="{{ $event->sport_classes }}">
+                                <flux:table.cell class="text-zinc-500 text-sm whitespace-normal!" title="{{ $event->sport_classes }}">
                                     {{ $event->sport_classes_display ?? '–' }}
                                 </flux:table.cell>
                                 <flux:table.cell>
