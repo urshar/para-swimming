@@ -317,6 +317,37 @@ it('übernimmt Wertungsgruppen auf Bewerbe derselben Klassenkategorie', function
         ->and($relay->scoringGroups()->count())->toBe(0);
 });
 
+it('setzt beim Übernehmen das Geschlecht des Zielbewerbs', function () {
+    $meet = makeMeet_p5();
+    $source = makeEvent_p5($meet, ['event_number' => 1, 'gender' => 'M']);
+    $women = makeEvent_p5($meet, ['event_number' => 2, 'gender' => 'F']);
+    $open = makeEvent_p5($meet, ['event_number' => 3, 'gender' => 'A']);
+    group_sg($source, 'Open', 'M', null, 1, null);
+    group_sg($source, 'Jugend', 'A', null, 2, 18);
+
+    $this->actingAs(admin_sg())->post(route('events.scoring-groups.copy', $source))->assertRedirect();
+
+    expect($women->scoringGroups()->orderBy('sort_order')->pluck('gender', 'name')->all())
+        ->toBe(['Open' => 'F', 'Jugend' => 'F'])
+        ->and($open->scoringGroups()->orderBy('sort_order')->pluck('gender', 'name')->all())
+        ->toBe(['Open' => 'M', 'Jugend' => 'A']);
+});
+
+it('übernimmt aus einem offenen Bewerb nur die passenden Gruppen auf Damen-/Herren-Bewerbe', function () {
+    $meet = makeMeet_p5();
+    $source = makeEvent_p5($meet, ['event_number' => 1, 'gender' => 'A']);
+    $women = makeEvent_p5($meet, ['event_number' => 2, 'gender' => 'F']);
+    group_sg($source, 'Herren', 'M', null, 1, null);
+    group_sg($source, 'Damen', 'F', null, 2, null);
+    group_sg($source, 'Alle', 'A', null, 3, 18);
+
+    $this->actingAs(admin_sg())->post(route('events.scoring-groups.copy', $source))->assertRedirect();
+
+    $groups = $women->scoringGroups()->orderBy('sort_order')->get();
+    expect($groups->pluck('gender', 'name')->all())->toBe(['Damen' => 'F', 'Alle' => 'F'])
+        ->and($groups->pluck('sort_order')->all())->toBe([1, 2]);
+});
+
 // ── Anzeige ───────────────────────────────────────────────────────────────────
 
 it('gliedert Sammelansicht und öffentliche Ergebnisseite nach Wertungsgruppen', function () {

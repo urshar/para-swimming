@@ -101,27 +101,25 @@ class SwimEventController extends Controller
     /**
      * Übernimmt die Wertungsgruppen dieses Bewerbs auf alle anderen Bewerbe der Veranstaltung derselben Art (Einzel
      * bzw. Staffel) und derselben Klassenkategorie (S: Freistil/Rücken/Delfin, SB: Brust, SM: Lagen). Deren bisherige
-     * Gruppen werden ersetzt.
+     * Gruppen werden ersetzt. Ist der Zielbewerb Damen bzw. Herren, bekommen die Gruppen dessen Geschlecht (siehe
+     * groupsForTarget()).
      */
     public function copyScoringGroups(SwimEvent $event): RedirectResponse
     {
         $event->load(['scoringGroups', 'strokeType']);
-        $category = self::classCategory($event);
+        $category = $event->classCategory();
 
         $targets = SwimEvent::where('meet_id', $event->meet_id)
             ->whereKeyNot($event->id)
             ->with('strokeType')
             ->get()
             ->filter(fn (SwimEvent $other): bool => ($other->relay_count > 1) === ($event->relay_count > 1)
-                && self::classCategory($other) === $category);
+                && $other->classCategory() === $category);
 
         foreach ($targets as $target) {
             $target->scoringGroups()->delete();
-            foreach ($event->scoringGroups as $group) {
-                $target->scoringGroups()->create($group->only([
-                    'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
-                    'title', 'sort_order',
-                ]));
+            foreach (self::groupsForTarget($event, $target) as $row) {
+                $target->scoringGroups()->create($row);
             }
             $target->syncSportClassesFromGroups();
             $this->scoring->syncPlaces($target);
@@ -218,14 +216,35 @@ class SwimEventController extends Controller
         return ScoringGroup::levelOptions([...$groupLevels, ...collect(old('scoring_groups', []))->pluck('levels')->all()]);
     }
 
-    /** Klassenkategorie der Lage: SB (Brust), SM (Lagen), sonst S. */
-    private static function classCategory(SwimEvent $event): string
+    /**
+     * Zu übernehmende Gruppen für einen Zielbewerb. Ist das Ziel Damen bzw. Herren, bekommt jede Gruppe dessen
+     * Geschlecht; ist die Quelle offen/Mixed, entfallen dabei Gruppen des anderen Geschlechts (sonst entstünden
+     * doppelte Gruppen). Ein offenes/Mixed-Ziel übernimmt die Gruppen unverändert.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function groupsForTarget(SwimEvent $source, SwimEvent $target): array
     {
-        return match ($event->strokeType?->lenex_code) {
-            'BREAST' => 'SB',
-            'MEDLEY', 'IMRELAY' => 'SM',
-            default => 'S',
-        };
+        $targetGender = in_array($target->gender, ['M', 'F'], true) ? $target->gender : null;
+        $sourceGendered = in_array($source->gender, ['M', 'F'], true);
+
+        $rows = [];
+        foreach ($source->scoringGroups as $group) {
+            $row = $group->only([
+                'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
+                'title',
+            ]);
+            if ($targetGender !== null) {
+                if (! $sourceGendered && ! in_array($group->gender, [$targetGender, 'A'], true)) {
+                    continue;
+                }
+                $row['gender'] = $targetGender;
+            }
+            $row['sort_order'] = count($rows) + 1;
+            $rows[] = $row;
+        }
+
+        return $rows;
     }
 
     private function validateSwimEvent(Request $request): array

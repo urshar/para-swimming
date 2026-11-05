@@ -26,3 +26,16 @@ it('liefert für leere Eingabe einen leeren String', function () {
         ->and(SportClassRanges::format(''))->toBe('')
         ->and(SportClassRanges::format('   '))->toBe('');
 });
+
+it('trennt Bereiche an den Behinderungsgruppen und setzt das Präfix der Lage', function () {
+    expect(SportClassRanges::formatGrouped('1 2 3 4 5 6 7 8 9 10 11 12 13 14', 'S'))
+        ->toBe('S1-S10, S11-S13, S14')
+        ->and(SportClassRanges::formatGrouped('1 2 3 4 5 6 7 8 9 11 12 13 14', 'SB'))
+        ->toBe('SB1-SB9, SB11-SB13, SB14')
+        ->and(SportClassRanges::formatGrouped('14 15 21 22', 'SM'))->toBe('SM14, SM15, SM21-SM22');
+});
+
+it('ignoriert vorhandene Präfixe, Lücken und Duplikate bei der Gruppierung', function () {
+    expect(SportClassRanges::formatGrouped('S3 S1 S2 S2 S5', 'S'))->toBe('S1-S3, S5')
+        ->and(SportClassRanges::formatGrouped(null, 'S'))->toBe('');
+});
