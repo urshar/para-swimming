@@ -130,12 +130,13 @@
                     </div>
                 </div>
 
-                {{-- Submit --}}
+                {{-- Submit: Flux zeigt bei type="submit" sonst an jedem deaktivierten Button den Spinner. Der Lade-Zustand läuft hier über "importing". --}}
                 <flux:button
                     type="submit"
                     variant="primary"
                     icon="arrow-up-tray"
                     class="w-full mt-5"
+                    :loading="false"
                     x-bind:disabled="!filename">
                     Datei importieren
                 </flux:button>
