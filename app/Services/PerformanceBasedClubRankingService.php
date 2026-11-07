@@ -313,6 +313,7 @@ final readonly class PerformanceBasedClubRankingService
                 athleteName: (string) ($athletes->get($athlete['athlete_id'])?->display_name ?? '—'),
                 position: $position,
                 meetPoints: $athlete['meet_points'],
+                meetIds: $athlete['meet_ids'],
                 seasonValue: $athlete['season_value'],
                 weight: $weight,
                 weightedValue: round($athlete['season_value'] * $weight, 2),
