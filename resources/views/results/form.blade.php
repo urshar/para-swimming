@@ -162,7 +162,8 @@
                                 <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
                                     @foreach($clubs as $club)
                                         <flux:select.option
-                                            value="{{ $club->id }}" :selected="$oldClubId === (string) $club->id">{{ $club->name }}</flux:select.option>
+                                            value="{{ $club->id }}" :selected="$oldClubId === (string) $club->id"
+                                            :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                                     @endforeach
                                 </flux:select>
                                 <flux:description class="mt-1!">

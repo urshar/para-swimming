@@ -113,11 +113,9 @@
                 </div>
                 <div>
                     <dt class="text-zinc-500 dark:text-zinc-400">Verein</dt>
-                    <dd class="font-medium mt-0.5">
+                    <dd class="font-medium mt-0.5" title="{{ $record->recordClub()?->full_name_hint }}">
                         {{-- Verein zum Zeitpunkt des Rekords -- kann von aktuellem Verein abweichen --}}
-                        {{ $record->club?->name
-                            ?? $record->athlete?->club?->short_name
-                            ?? $record->athlete?->club?->name ?? '–' }}
+                        {{ $record->record_club_name ?? '–' }}
                         @if($record->club && $record->athlete?->club_id !== $record->club_id)
                             <span class="text-zinc-400 text-xs ml-1">(zum Zeitpunkt des Rekords)</span>
                         @endif

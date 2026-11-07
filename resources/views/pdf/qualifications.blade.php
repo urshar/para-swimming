@@ -81,7 +81,7 @@
     }
     if (!empty($filters['club_id'])) {
         $club = $clubs->firstWhere('id', $filters['club_id']);
-        $activeFilters[] = 'Verein: '.($club->display_name ?? $club->name ?? '?');
+        $activeFilters[] = 'Verein: '.($club?->display_name ?? '?');
     }
     if (!empty($filters['search'])) {
         $activeFilters[] = 'Suche: "'.$filters['search'].'"';
@@ -121,7 +121,7 @@
             @foreach($strokeGroup['items'] as $q)
                 <tr>
                     <td>{{ $q->athlete?->last_name }}, {{ $q->athlete?->first_name }}</td>
-                    <td>{{ $q->club?->display_name ?? $q->club?->name ?? '–' }}</td>
+                    <td>{{ $q->club?->display_name ?? '–' }}</td>
                     <td>{{ $q->qualifyingTime->gender }}</td>
                     <td>{{ $q->sport_class }}</td>
                     <td class="time">{{ $q->formatted_swim_time }}</td>

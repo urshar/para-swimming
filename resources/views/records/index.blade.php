@@ -288,11 +288,9 @@
                             <span class="text-zinc-400">–</span>
                         @endif
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm text-zinc-500">
+                    <flux:table.cell class="text-sm text-zinc-500" :title="$record->recordClub()?->full_name_hint">
                         {{-- Verein zum Zeitpunkt des Rekords (kann vom aktuellen Verein abweichen) --}}
-                        {{ $record->club?->name ?? $record->club?->short_name
-                            ?? $record->athlete?->club?->short_name
-                            ?? $record->athlete?->club?->name ?? '–' }}
+                        {{ $record->record_club_name ?? '–' }}
                     </flux:table.cell>
                     <flux:table.cell class="text-sm text-zinc-500 whitespace-nowrap">
                         @if($record->meet_city)

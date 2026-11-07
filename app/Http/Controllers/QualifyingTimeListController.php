@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Module;
 use App\Models\BaseTimeSportClass;
+use App\Models\Club;
 use App\Models\Qualification;
 use App\Models\QualifyingTargetPoint;
 use App\Models\QualifyingTime;
@@ -363,7 +364,7 @@ class QualifyingTimeListController extends Controller
         // für den Rekorde-Filter, siehe dort.
         $sportClassOptions = $this->buildSportClassOptions();
 
-        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
+        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy(fn (Club $club): string => mb_strtolower($club->display_name))->values();
 
         $filtered = $base;
 

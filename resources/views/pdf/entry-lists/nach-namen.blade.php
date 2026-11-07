@@ -74,7 +74,7 @@
     @foreach($section['clubs'] as $clubBlock)
         <div class="club-block">
             <div class="club-header">
-                {{ $clubBlock['club']->name }}
+                {{ $clubBlock['club']->display_name }}
                 @if($clubBlock['codeLine'])
                     <span class="code">— {{ $clubBlock['codeLine'] }}</span>
                 @endif

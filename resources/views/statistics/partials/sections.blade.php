@@ -389,7 +389,7 @@
         @forelse($statistics['clubs'] as $row)
             <tr>
                 <td class="num">{{ $row['rank'] }}</td>
-                <td>{{ $row['club'] }}</td>
+                <td title="{{ $row['club_full_name'] }}">{{ $row['club'] }}</td>
                 <td>{{ $row['nation'] ?? '—' }}</td>
                 <td class="num">{{ $row['participants'] }}</td>
                 <td class="num">{{ $row['starts'] }}</td>
@@ -565,7 +565,7 @@
                     <tr>
                         <td class="num">{{ $result->rank }}</td>
                         <td>{{ $result->athlete?->display_name }}</td>
-                        <td>{{ $result->club?->name }}</td>
+                        <td title="{{ $result->club?->full_name_hint }}">{{ $result->club?->display_name }}</td>
                         <td class="num">{{ $result->total_points }}</td>
                     </tr>
                 @endforeach

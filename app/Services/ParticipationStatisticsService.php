@@ -285,7 +285,7 @@ final readonly class ParticipationStatisticsService
      * 1-basierte Position. Es werden alle beteiligten Vereine (inkl.
      * ausländischer, erkennbar am Nationscode) geliefert.
      *
-     * @return Collection<int, array{rank: int, club_id: int, club: string, nation: ?string, participants: int, starts: int}>
+     * @return Collection<int, array{rank: int, club_id: int, club: string, club_full_name: ?string, nation: ?string, participants: int, starts: int}>
      */
     public function byClub(ReportConfiguration $config): Collection
     {
@@ -302,10 +302,11 @@ final readonly class ParticipationStatisticsService
         return Club::query()
             ->with('nation:id,code')
             ->whereIn('id', $aggregates->keys())
-            ->get(['id', 'name', 'nation_id'])
+            ->get(['id', 'name', 'short_name', 'nation_id'])
             ->map(fn (Club $club): array => [
                 'club_id' => $club->id,
-                'club' => $club->name,
+                'club' => $club->display_name,
+                'club_full_name' => $club->full_name_hint,
                 'nation' => $club->nation?->code,
                 'participants' => (int) $aggregates[$club->id]->participants,
                 'starts' => (int) $aggregates[$club->id]->starts,

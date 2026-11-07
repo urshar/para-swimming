@@ -116,7 +116,7 @@
                 <flux:label>Verein</flux:label>
                 <flux:select variant="listbox" x-model="clubId" placeholder="Alle" clearable>
                     @foreach($this->clubs() as $club)
-                        <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
+                        <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                     @endforeach
                 </flux:select>
             </flux:field>

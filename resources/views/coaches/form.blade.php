@@ -49,7 +49,7 @@
                     @else
                         <flux:select variant="listbox" searchable name="club_id" placeholder="Wählen…" required>
                             @foreach($clubs as $club)
-                                <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $coach->club_id) == $club->id">{{ $club->display_name }}</flux:select.option>
+                                <flux:select.option value="{{ $club->id }}" :selected="old('club_id', $coach->club_id) == $club->id" :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     @endif

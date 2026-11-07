@@ -92,7 +92,7 @@
                 'club' => (string) ($a->club_id ?? ''),
                 'label' => trim($a->last_name.' '.$a->first_name)
                     .($a->birth_date ? ' ('.$a->birth_date->format('Y').')' : '')
-                    .($a->club ? ' — '.($a->club->short_name ?? $a->club->name) : ''),
+                    .($a->club ? ' — '.$a->club->display_name : ''),
             ])->values(),
         ];
     @endphp
@@ -279,7 +279,7 @@
                                                 && (ignoreClassification || !sportClassFilter || [{{ $athleteSportClasses }}].includes(sportClassFilter.trim().toUpperCase()))">
                                             {{ $athlete->last_name }} {{ $athlete->first_name }}
                                             @if($athlete->club)
-                                                ({{ $athlete->club->short_name ?? $athlete->club->name }})
+                                                ({{ $athlete->club->display_name }})
                                             @endif
                                             @if(! $athlete->is_active)
                                                 — inaktiv
@@ -294,8 +294,8 @@
                                 <flux:select variant="listbox" searchable name="club_id" x-model="clubId"
                                              placeholder="Kein Verein / unbekannt" clearable>
                                     @foreach($clubs as $club)
-                                        <flux:select.option value="{{ $club->id }}">
-                                            {{ $club->name }}
+                                        <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">
+                                            {{ $club->display_name }}
                                             @if($club->code)
                                                 ({{ $club->code }})
                                             @endif

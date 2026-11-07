@@ -82,32 +82,9 @@ class SwimRecord extends Model
         return $this->belongsTo(Result::class);
     }
 
-    /** Der neuere Rekord der diesen ersetzt hat */
-    public function supersededBy(): BelongsTo
-    {
-        return $this->belongsTo(SwimRecord::class, 'superseded_by_id');
-    }
-
     public function splits(): HasMany
     {
         return $this->hasMany(RecordSplit::class)->orderBy('distance');
-    }
-
-    public function scopeCurrent($query)
-    {
-        return $query->where('is_current', true);
-    }
-
-    // ── Scopes ────────────────────────────────────────────────────────────────
-
-    public function scopeHistory($query)
-    {
-        return $query->where('is_current', false);
-    }
-
-    public function scopeOfType($query, string $type)
-    {
-        return $query->where('record_type', $type);
     }
 
     /** Wertung als Text: Herren, Damen oder Mixed (nur Staffeln). */
@@ -298,7 +275,14 @@ class SwimRecord extends Model
      */
     public function getRecordClubNameAttribute(): ?string
     {
-        return $this->club?->display_name
-            ?? $this->athlete?->club?->display_name;
+        return $this->recordClub()?->display_name;
+    }
+
+    /**
+     * Verein zum Zeitpunkt des Rekords. Fallback: aktueller Verein des Athleten.
+     */
+    public function recordClub(): ?Club
+    {
+        return $this->club ?? $this->athlete?->club;
     }
 }

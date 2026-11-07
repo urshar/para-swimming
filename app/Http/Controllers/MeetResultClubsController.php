@@ -56,7 +56,7 @@ class MeetResultClubsController extends Controller
         return view('meets.result-clubs', [
             'meet' => $meet,
             'rows' => $rows,
-            'clubs' => Club::orderBy('name')->get(),
+            'clubs' => Club::orderByDisplayName()->get(),
             'federationCount' => $this->federationResults($meet)->count(),
             'backUrl' => MeetResultsOverviewController::backUrl($meet),
         ]);

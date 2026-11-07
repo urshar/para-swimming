@@ -69,8 +69,9 @@
                     <flux:label>Neuer Verein</flux:label>
                     <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
                         @foreach($clubs as $club)
-                            <flux:select.option value="{{ $club->id }}" :selected="old('club_id') == $club->id">
-                                {{ $club->name }}
+                            <flux:select.option value="{{ $club->id }}" :selected="old('club_id') == $club->id"
+                                    :description="$club->full_name_hint">
+                                {{ $club->display_name }}
                             </flux:select.option>
                         @endforeach
                     </flux:select>

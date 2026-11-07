@@ -182,7 +182,13 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 1. "Filter: Suchfeld verliert beim Tippen den Fokus"
 2. "Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde"
-3. "Vereine überall mit Kurznamen anzeigen"
+
+**Erledigt:** "Vereine überall mit Kurznamen anzeigen" (`feature/club-short-names`, 07.11.2026): Anzeige überall
+über `Club::display_name` (leerer Kurzname zählt als keiner), voller Name als `title`-Tooltip
+(`Club::full_name_hint`) und in Auswahllisten als Flux-`description` (wird mitdurchsucht, in der gewählten Anzeige
+ausgeblendet); Auswahllisten nach Anzeigename sortiert (`Club::orderByDisplayName()`). Voller Name bleibt bewusst im
+Vereinsformular, in der Überschrift der Vereins-Detailseite, in der Vereinsliste, im LENEX-Export und in der
+Vereinszuordnung des LENEX-Imports. Tests: `--group=club-short-names`.
 
 **Neue Wünsche (Erik, 31.10.2026)** — je unten beschrieben, jeweils eigener Branch:
 
@@ -325,24 +331,6 @@ und S21.
 
 **Zum Schließen nötig:** Für Einzel die reinen Staffelklassen (20, 34, 49 aus `RelayClassValidator`) ausschließen —
 14, 15 und 21 sind auch Einzelklassen und bleiben. Test für beide Filterlisten (Einzel ohne, Staffel mit 20/34/49).
-
-## Vereine überall mit Kurznamen anzeigen
-
-**Seit:** 27.10.2026, Wunsch Erik.
-
-**Ausgangslage:** Vereine sollen in der Anzeige immer mit dem Kurznamen erscheinen, wenn es einen gibt.
-`Club::display_name` liefert genau das (`short_name ?? name`) und wird an vielen Stellen schon verwendet, aber
-rund 29 Stellen in 18 Views geben `->name` aus (z. B. `records/index`, `records/show`, `clubs/show`,
-`results/form`, `relay-results/form`, `entries/form`, `meets/results-overview`, `meets/result-clubs`,
-`qualifying-time-lists/qualifications`, `pdf/qualifications`, `statistics/partials/sections`).
-
-**Wer entscheidet:** Erik — wo der volle Name bewusst bleiben soll. Vorschlag: Vereinsformular und Vereins-Detailseite
-(Überschrift) mit vollem Namen, als `title`-Tooltip überall dort, wo der Kurzname steht; Auswahllisten mit Kurzname,
-aber Suche auch über den vollen Namen. Öffentlicher Bereich, PDFs und Gastvereine (`foreign_starts.club_name`, kein
-Kurzname) mitprüfen.
-
-**Zum Schließen nötig:** Entscheidung, dann alle Ausgaben auf `display_name` umstellen (Suche nach `club->name`,
-`club?->name`, `$club->name` in Views, PDFs und JS-Daten), Test für Stichproben.
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 

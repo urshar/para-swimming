@@ -112,7 +112,7 @@
             <flux:select variant="listbox" searchable name="club_id" x-model="clubFilter" placeholder="Alle Vereine"
                 clearable class="w-56">
                 @foreach($clubs as $club)
-                    <flux:select.option value="{{ $club->id }}">{{ $club->display_name ?? $club->name }}</flux:select.option>
+                    <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                 @endforeach
             </flux:select>
 
@@ -174,8 +174,8 @@
                                                     <flux:table.cell class="font-medium truncate">
                                                         {{ $q->athlete?->last_name }}, {{ $q->athlete?->first_name }}
                                                     </flux:table.cell>
-                                                    <flux:table.cell class="truncate" title="{{ $q->club?->display_name ?? $q->club?->name }}">
-                                                        {{ $q->club?->display_name ?? $q->club?->name ?? '–' }}
+                                                    <flux:table.cell class="truncate" :title="$q->club?->full_name_hint ?? $q->club?->display_name">
+                                                        {{ $q->club?->display_name ?? '–' }}
                                                     </flux:table.cell>
                                                     <flux:table.cell>{{ $q->qualifyingTime->gender }}</flux:table.cell>
                                                     <flux:table.cell class="font-mono">{{ $q->sport_class }}</flux:table.cell>

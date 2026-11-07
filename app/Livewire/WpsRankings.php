@@ -295,7 +295,7 @@ class WpsRankings extends Component
     #[Computed]
     public function clubs(): Collection
     {
-        return Club::query()->orderBy('name')->get(['id', 'name', 'short_name']);
+        return Club::query()->orderByDisplayName()->get(['id', 'name', 'short_name']);
     }
 
     /**

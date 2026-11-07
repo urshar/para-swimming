@@ -47,7 +47,7 @@ class ResolveRelayClassesCommand extends Command
             $change['relay']->meet?->name,
             $change['relay']->meet?->start_date?->format('d.m.Y'),
             $change['relay']->swimEvent?->display_name,
-            $change['relay']->club?->name,
+            $change['relay']->club?->display_name,
             $change['relay']->relay_class ?? '–',
             $change['class'] ?? '–',
         ])->all());

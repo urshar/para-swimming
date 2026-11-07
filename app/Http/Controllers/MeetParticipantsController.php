@@ -49,7 +49,7 @@ class MeetParticipantsController extends Controller
             ->get();
 
         $clubIds = $meet->entryClubIds()->merge($meet->resultClubIds())->unique()->values();
-        $clubs = Club::query()->whereKey($clubIds)->orderBy('name')->get();
+        $clubs = Club::query()->whereKey($clubIds)->orderByDisplayName()->get();
 
         $rows = $athletes->map(fn (Athlete $athlete) => [
             'athlete' => $athlete,
