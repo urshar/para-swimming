@@ -62,7 +62,7 @@ Gruppe), PDF-Ergebnisliste (`MeetResultListService`), öffentlicher Ergebnisseit
 - Im Bewerbsformular: Zeilen mit Name, Geschlecht, Klassen, Alter ab/bis, Titel; Speichern ersetzt die Gruppen.
   Ungültige Gruppen verhindern das Speichern des Bewerbs. Eine neue Gruppe übernimmt das gewählte Geschlecht des
   Bewerbs (Damen/Herren), sonst "Alle".
-- "Wertungsgruppen auf andere Bewerbe übernehmen" (Route `events.scoring-groups.copy`, nur Admin): ersetzt die
+- "Wertungsgruppen auf andere Bewerbe übernehmen" (Route `events.scoring-groups.copy`, `module:meets,write`): ersetzt die
   Gruppen aller Bewerbe derselben Veranstaltung mit gleicher Art (Einzel/Staffel) und Klassenkategorie (S:
   Freistil/Rücken/Delfin, SB: Brust, SM: Lagen). Ist der Zielbewerb Damen bzw. Herren, bekommen die Gruppen dessen
   Geschlecht; aus einem offenen/Mixed-Bewerb werden dabei nur Gruppen des passenden Geschlechts und "Alle"
@@ -70,6 +70,54 @@ Gruppe), PDF-Ergebnisliste (`MeetResultListService`), öffentlicher Ergebnisseit
 - Die Disziplinliste der Veranstaltung zeigt die Klassen zusammengefasst je Behinderungsgruppe mit dem Präfix der
   Lage (`S1-S10, S11-S13, S14`; `SwimEvent::sport_classes_display`); Staffeln zeigen den Rohwert.
 - Gespeicherte Vorlagen (z. B. "ÖSTM-Standard") sind bewusst nicht umgesetzt; bei Bedarf als späterer Schritt.
+
+## Reihenfolge und einzelne Gruppe kopieren
+
+Tests: `tests/Feature/ScoringGroupOrderCopyTest.php` (Gruppe `scoring-group-order-copy-p1`).
+
+**Reihenfolge:**
+
+- Im Bewerbsformular bekommt jede Gruppe die Knöpfe "nach oben" und "nach unten" (per Tastatur bedienbar, keine
+  zusätzliche Bibliothek). Gespeichert wird mit dem Bewerb über `sort_order`, das schon aus der Zeilenfolge gesetzt
+  wird.
+- Die Zeilen im Alpine-Editor (`scoring-groups-editor.js`) bekommen einen festen internen Schlüssel, damit die Eingaben
+  beim Verschieben an der richtigen Gruppe bleiben.
+- **Die Reihenfolge wirkt auf gespeicherte Plätze:** Liegt ein Ergebnis in mehreren Gruppen, wird der Platz der ersten
+  Gruppe gespeichert (`syncPlaces()`). Beim Speichern werden die Plätze neu berechnet, und ein Hinweis im Formular
+  erklärt diesen Effekt. Die Regel selbst bleibt unverändert.
+
+**Einzelne Gruppe kopieren:**
+
+- Jede gespeicherte Gruppe bekommt einen Knopf "Kopieren", der einen Dialog mit den Zielbewerben derselben Veranstaltung
+  öffnet; "Alle mit gleicher Klassenkategorie" hakt die passenden Bewerbe auf einmal an (Route `scoring-groups.copy`,
+  `SwimEventController::copySingleScoringGroup()`, Alpine `scoringGroupCopyDialog`). Recht: `module:meets,write`, wie das
+  Übernehmen aller Gruppen. Gibt es keinen möglichen Zielbewerb, fehlen Knopf und Dialog.
+- **Zur Auswahl** stehen alle Bewerbe gleicher Art (Einzel oder Staffel), auch über S, SB und SM hinweg. Die Kategorie
+  steht in der Liste dabei; die Klassen-Nummern werden unverändert übernommen und sind bei SB und SM eventuell
+  anzupassen.
+- **Im Ziel** wird die Gruppe hinten angefügt, vorhandene Gruppen bleiben bestehen (anders als beim Übernehmen aller
+  Gruppen, das ersetzt).
+- **Gibt es im Ziel schon eine Gruppe mit gleichem Namen und Geschlecht,** wird das Ziel übersprungen und gemeldet.
+- **Kopiert** werden alle Einstellungen außer der LENEX-ID. Beim Geschlecht gilt dieselbe Regel wie beim Übernehmen aller
+  Gruppen (`groupsForTarget()`): Ein Damen- oder Herrenbewerb gibt der Gruppe sein Geschlecht, eine Herrengruppe aus einem
+  offenen Bewerb wird nicht in einen Damenbewerb kopiert.
+- **Danach** werden Klassen und Plätze der Zielbewerbe neu berechnet, und eine Meldung nennt kopierte und übersprungene
+  Bewerbe.
+- **Kopiert wird der gespeicherte Stand.** Neue, noch nicht gespeicherte Zeilen haben keinen Kopierknopf. Der Dialog weist
+  darauf hin, auch darauf, dass nicht gespeicherte Änderungen im Formular beim Kopieren verloren gehen (die Seite wird neu
+  geladen).
+- **Meldeberechtigung:** Ein Bewerb ohne Gruppen ist für alle Klassen offen; nach dem Kopieren einer Gruppe gelten dort nur
+  noch deren Klassen, bis weitere Gruppen dazukommen (`syncSportClassesFromGroups()`). Der Dialog warnt bei solchen
+  Zielbewerben.
+
+## Medaillenwertung
+
+> **Status: geplant, noch nicht umgesetzt.** Details in [meet-entry-summary.md](meet-entry-summary.md).
+
+Je Gruppe die Einstellung "Medaillenwertung" ja/nein (`awards_medals`), z. B. nein beim ÖBSV Cup, wo die Tageswertung
+zählt. Sie wirkt nur auf die Medaillenaufstellung der Melde-Kennzahlen; Plätze, Punkte und Cup-Wertung bleiben unberührt.
+Dazu kommen die Titel `OJM` und `OBM`. "Wertungsgruppen auf andere Bewerbe übernehmen" und das Kopieren einer einzelnen
+Gruppe übernehmen die Einstellung mit.
 
 ## LENEX
 

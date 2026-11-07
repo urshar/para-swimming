@@ -19,6 +19,7 @@ import relayEntryForm from './relay-entry-form';
 import relayResultForm from './relay-result-form';
 import resultClubsForm from './result-clubs-form';
 import resultForm from './result-form';
+import scoringGroupCopyDialog from './scoring-group-copy-dialog';
 import scoringGroupRestrictionsForm from './scoring-group-restrictions-form';
 import scoringGroupsEditor from './scoring-groups-editor';
 import singleEntryForm from './single-entry-form';
@@ -57,6 +58,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('relayResultForm', relayResultForm);
     window.Alpine.data('resultClubsForm', resultClubsForm);
     window.Alpine.data('resultForm', resultForm);
+    window.Alpine.data('scoringGroupCopyDialog', scoringGroupCopyDialog);
     window.Alpine.data('scoringGroupRestrictionsForm', scoringGroupRestrictionsForm);
     window.Alpine.data('scoringGroupsEditor', scoringGroupsEditor);
     window.Alpine.data('singleEntryForm', singleEntryForm);

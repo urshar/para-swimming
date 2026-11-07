@@ -509,6 +509,8 @@ Route::middleware(['auth'])->group(function () {
             ->shallow()
             ->except(['index', 'show'])
             ->parameters(['events' => 'event']);
+        Route::post('scoring-groups/{scoringGroup}/copy', [SwimEventController::class, 'copySingleScoringGroup'])
+            ->name('scoring-groups.copy');
         Route::post('events/{event}/scoring-groups/copy', [SwimEventController::class, 'copyScoringGroups'])
             ->name('events.scoring-groups.copy');
         // Landesverband und Level gesammelt an den Wertungsgruppen der Veranstaltung setzen (nach Namensanfang).
