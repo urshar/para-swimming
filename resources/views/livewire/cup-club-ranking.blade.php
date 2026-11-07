@@ -13,11 +13,15 @@
         </div>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ $cup->name }} · {{ $systemLabel }}
+            @if($this->forecastActive())
+                · Prognose
+            @endif
             @if($this->system === 'performance' && $this->calculatedAt())
                 · Tageswertungen zuletzt berechnet am {{ $this->calculatedAt()->format('d.m.Y H:i') }} Uhr
             @endif
         </p>
 
+        {{-- Bei aktiver Prognose exportiert das PDF die Prognose (forecast=1, siehe pdfUrl()). --}}
         @unless($this->ranking()->isEmpty())
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 @if($this->system === 'performance')
@@ -89,8 +93,26 @@
                 </flux:button>
             </div>
 
+            {{-- Prognose nur für Admins und nur, wenn der Cup ein Meet mit Meldungen, aber ohne
+                 Ergebnisse hat (docs/specs/cup-club-ranking-forecast.md §3/§7). --}}
+            @if($this->canForecast())
+                <div>
+                    <span id="forecast-toggle-label"
+                          class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Prognose</span>
+                    <flux:button wire:click="toggleForecast"
+                                 aria-labelledby="forecast-toggle-label"
+                                 aria-pressed="{{ $this->forecastActive() ? 'true' : 'false' }}"
+                                 :variant="$this->forecastActive() ? 'primary' : 'filled'"
+                                 :icon="$this->forecastActive() ? 'check' : null">
+                        {{ $this->forecastActive() ? 'eingeblendet' : 'ausgeblendet' }}
+                    </flux:button>
+                </div>
+            @endif
+
+            {{-- w-40 statt w-48: Mit dem Prognose-Umschalter passen sonst bei 1024 px Inhaltsbreite
+                 nicht mehr alle Filter in eine Zeile (Erik, 07.11.2026). Das Label braucht 148 px. --}}
             @if($system === 'performance')
-                <flux:field class="w-48">
+                <flux:field class="w-40">
                     <flux:label>Kaderathleten je Verein</flux:label>
                     <flux:select variant="listbox" x-model="kaderCount">
                         @for($i = 0; $i <= $this->maxCountedAthletes(); $i++)
@@ -111,6 +133,28 @@
         </div>
     @endif
 
+    {{-- Prognose-Hinweis: worauf die voraussichtliche Endwertung beruht --}}
+    @if($this->forecastActive())
+        <div role="note"
+             class="mb-4 p-4 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 rounded-xl text-sm text-sky-800 dark:text-sky-300 flex items-start gap-2">
+            <flux:icon name="information-circle" class="w-4 h-4 mt-0.5 shrink-0"/>
+            <div>
+                <p>
+                    Voraussichtliche Endwertung: echte Ergebnisse plus die Meldungen von
+                    {{ $this->forecastResult()?->forecastMeetsLabel() }}.
+                    Meldezeiten gelten als erwartete Zeiten; Meldungen ohne Zeit (NT) zählen nur als Start;
+                    Abmeldungen und Starts außer Konkurrenz zählen nicht.
+                </p>
+                @if($this->unratedSummary()->isNotEmpty())
+                    <p class="mt-2">
+                        Ohne Punkte (nur als Start gezählt):
+                        {{ $this->unratedSummary()->map(fn ($count, $reason) => $reason.': '.$count)->join(' · ') }}
+                    </p>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if($this->ranking()->isEmpty())
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8 text-center">
             <p class="text-sm text-zinc-400">
@@ -128,8 +172,14 @@
                     <thead>
                     <tr class="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-100 dark:border-zinc-700">
                         <th class="font-medium px-4 py-3 w-16">Rang</th>
+                        @if($this->forecastActive())
+                            <th class="font-medium px-4 py-3 w-24">Rang jetzt</th>
+                        @endif
                         <th class="font-medium px-4 py-3">Verein</th>
                         <th class="font-medium px-4 py-3 text-right w-24">Starts</th>
+                        @if($this->forecastActive())
+                            <th class="font-medium px-4 py-3 text-right w-28">Differenz</th>
+                        @endif
                         <th class="font-medium px-4 py-3 text-right w-32">Athleten</th>
                         <th class="font-medium px-4 py-3 text-right w-32">Cup-Meets</th>
                     </tr>
@@ -139,8 +189,14 @@
                         <tr wire:key="start-{{ $row->clubName }}"
                             class="border-b border-zinc-50 dark:border-zinc-700/50 hover:bg-zinc-50 dark:hover:bg-zinc-700/30">
                             <td class="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400">{{ $row->rank }}</td>
+                            @if($this->forecastActive())
+                                @include('partials.cup-club-ranking-forecast-rank', ['currentRank' => $this->comparisonFor($row->clubId)?->currentRank, 'change' => $this->rankChangeDisplay($row->clubId)])
+                            @endif
                             <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{{ $row->clubName }}</td>
                             <td class="px-4 py-3 text-right font-semibold text-zinc-900 dark:text-zinc-100">{{ $row->starts }}</td>
+                            @if($this->forecastActive())
+                                <td class="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-300">{{ $this->valueDeltaDisplay($row->clubId) }}</td>
+                            @endif
                             <td class="px-4 py-3 text-right text-zinc-600 dark:text-zinc-300">{{ $row->athletes }}</td>
                             <td class="px-4 py-3 text-right text-zinc-600 dark:text-zinc-300">{{ $row->meets }}</td>
                         </tr>
@@ -157,8 +213,14 @@
                     <thead>
                     <tr class="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-100 dark:border-zinc-700">
                         <th class="font-medium px-4 py-3 w-16">Rang</th>
+                        @if($this->forecastActive())
+                            <th class="font-medium px-4 py-3 w-24">Rang jetzt</th>
+                        @endif
                         <th class="font-medium px-4 py-3">Verein</th>
                         <th class="font-medium px-4 py-3 text-right w-32">Gesamtpunkte</th>
+                        @if($this->forecastActive())
+                            <th class="font-medium px-4 py-3 text-right w-32">Differenz</th>
+                        @endif
                         <th class="font-medium px-4 py-3 text-right w-36">gew. Athleten</th>
                         <th class="font-medium px-4 py-3 text-right w-32">gew. Meets</th>
                         <th class="font-medium px-4 py-3 w-10"></th>
@@ -169,8 +231,14 @@
                                class="border-b border-zinc-50 dark:border-zinc-700/50">
                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30 cursor-pointer" @click="open = ! open">
                             <td class="px-4 py-3 font-semibold text-zinc-500 dark:text-zinc-400">{{ $row->rank }}</td>
+                            @if($this->forecastActive())
+                                @include('partials.cup-club-ranking-forecast-rank', ['currentRank' => $this->comparisonFor($row->clubId)?->currentRank, 'change' => $this->rankChangeDisplay($row->clubId)])
+                            @endif
                             <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{{ $row->clubName }}</td>
                             <td class="px-4 py-3 text-right font-semibold text-zinc-900 dark:text-zinc-100">{{ $fmt($row->totalPoints) }}</td>
+                            @if($this->forecastActive())
+                                <td class="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-300">{{ $this->valueDeltaDisplay($row->clubId) }}</td>
+                            @endif
                             <td class="px-4 py-3 text-right text-zinc-600 dark:text-zinc-300">{{ $row->countedAthletes }}</td>
                             <td class="px-4 py-3 text-right text-zinc-600 dark:text-zinc-300">{{ $row->countedMeets }}</td>
                             <td class="px-4 py-3 text-right">
@@ -179,7 +247,7 @@
                             </td>
                         </tr>
                         <tr x-show="open" x-cloak>
-                            <td colspan="6" class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900/40">
+                            <td colspan="{{ $this->forecastActive() ? 8 : 6 }}" class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900/40">
                                 <div class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                                     Gewertete Athleten (beste je Verein), gewichtet nach Position:
                                 </div>
@@ -205,7 +273,19 @@
                                                         class="ms-1 inline-block rounded bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 text-[10px] font-medium align-middle">Kader</span>
                                                 @endif
                                             </td>
-                                            <td class="py-1 pe-3 tabular-nums">{{ implode(' + ', $athlete->meetPoints) }}</td>
+                                            <td class="py-1 pe-3 tabular-nums">
+                                                @foreach($this->meetPointParts($athlete) as $part)
+                                                    @unless($loop->first)
+                                                        +
+                                                    @endunless
+                                                    @if($part['note'])
+                                                        <span class="italic text-sky-700 dark:text-sky-300">{{ $part['points'] }}
+                                                            <span class="not-italic text-[10px]">({{ $part['note'] }})</span></span>
+                                                    @else
+                                                        {{ $part['points'] }}
+                                                    @endif
+                                                @endforeach
+                                            </td>
                                             <td class="py-1 pe-3 text-right tabular-nums">{{ $athlete->seasonValue }}</td>
                                             <td class="py-1 pe-3 text-right tabular-nums">{{ $fmt($athlete->weight) }}</td>
                                             <td class="py-1 text-right font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{{ $fmt($athlete->weightedValue) }}</td>

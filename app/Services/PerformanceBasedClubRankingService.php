@@ -70,8 +70,23 @@ final readonly class PerformanceBasedClubRankingService
     {
         $config ??= ClubRankingConfiguration::fromConfig();
 
-        $dailyResults = $this->loadDailyResults($cup);
+        return $this->rankDailyResults($cup, $this->loadDailyResults($cup), $config);
+    }
 
+    /**
+     * Reiht bereits geladene Tageswertungs-Zeilen zur Vereinswertung — die reine
+     * Wertungsberechnung ohne Datenbeschaffung. getRanking() übergibt die Zeilen aus
+     * cup_daily_results; die Prognose (docs/specs/cup-club-ranking-forecast.md) ergänzt sie
+     * um aus Meldungen abgeleitete Zeilen desselben Formats.
+     *
+     * Erwartet je (Athlet, Meet) höchstens eine Zeile (das punktbeste Ergebnis), wie
+     * cup_daily_results sie führt. Der Cup wird für den Kader-Bezug auf das Cup-Jahr benötigt.
+     *
+     * @param  Collection<int, stdClass>  $dailyResults  je Zeile: athlete_id, club_id, meet_id, points
+     * @return Collection<int, PerformanceClubRankingResult>
+     */
+    public function rankDailyResults(Cup $cup, Collection $dailyResults, ClubRankingConfiguration $config): Collection
+    {
         if ($dailyResults->isEmpty()) {
             return collect();
         }
@@ -130,9 +145,12 @@ final readonly class PerformanceBasedClubRankingService
      * veraltete Snapshots. DSQ/DNS/DNF/WDR sind in cup_daily_results ohnehin
      * nicht enthalten (Result::isValid()).
      *
+     * Öffentlich, damit die Prognose die echten Zeilen laden und um die prognostizierten
+     * ergänzen kann.
+     *
      * @return Collection<int, stdClass> je Zeile: athlete_id, club_id, meet_id, points
      */
-    private function loadDailyResults(Cup $cup): Collection
+    public function loadDailyResults(Cup $cup): Collection
     {
         return CupDailyResult::query()
             ->join('results', 'results.id', '=', 'cup_daily_results.result_id')
@@ -295,6 +313,7 @@ final readonly class PerformanceBasedClubRankingService
                 athleteName: (string) ($athletes->get($athlete['athlete_id'])?->display_name ?? '—'),
                 position: $position,
                 meetPoints: $athlete['meet_points'],
+                meetIds: $athlete['meet_ids'],
                 seasonValue: $athlete['season_value'],
                 weight: $weight,
                 weightedValue: round($athlete['season_value'] * $weight, 2),

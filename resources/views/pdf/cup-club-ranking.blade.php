@@ -2,6 +2,8 @@
     $systemLabel = $system === 'start' ? 'Startwertung' : 'Leistungswertung';
     $fmt = fn ($v) => number_format((float) $v, 2, ',', '.');
     $foreignLabel = $includeForeign ? 'einbezogen' : 'ausgeschlossen';
+    // Prognose (docs/specs/cup-club-ranking-forecast.md, Phase 5): ClubRankingForecast oder null.
+    $columns = $forecast ? 7 : 5;
 @endphp
     <!DOCTYPE html>
 <html lang="de">
@@ -116,6 +118,37 @@
             font-weight: bold;
         }
 
+        .forecast {
+            font-size: 9px;
+            color: #075985;
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            padding: 6px 8px;
+            margin: 0 0 14px 0;
+        }
+
+        .forecast p {
+            margin: 0;
+        }
+
+        .forecast p + p {
+            margin-top: 4px;
+        }
+
+        td.change, th.change {
+            width: 62px;
+        }
+
+        .projected {
+            font-style: italic;
+            color: #075985;
+        }
+
+        .projected-note {
+            font-size: 7px;
+            font-style: normal;
+        }
+
         .empty {
             font-size: 11px;
             color: #888;
@@ -125,7 +158,12 @@
 </head>
 <body>
 <h1>ÖBSV Cup — Vereinswertung</h1>
-<p class="subtitle">{{ $cup->name }} · {{ $systemLabel }}</p>
+<p class="subtitle">
+    {{ $cup->name }} · {{ $systemLabel }}
+    @if($forecast)
+        · Prognose
+    @endif
+</p>
 <p class="meta">
     Ausländische Vereine: {{ $foreignLabel }}
     @if($system === 'performance')
@@ -141,6 +179,23 @@
     <p class="stale">{{ $staleReason }} Bitte die Tageswertung der betroffenen Meets neu berechnen.</p>
 @endif
 
+@if($forecast)
+    <div class="forecast">
+        <p>
+            Voraussichtliche Endwertung: echte Ergebnisse plus die Meldungen von
+            {{ $forecast->forecastMeetsLabel() }}. Meldezeiten gelten als erwartete Zeiten; Meldungen ohne
+            Zeit (NT) zählen nur als Start; Abmeldungen und Starts außer Konkurrenz zählen nicht.
+            "Rang jetzt" ist der Rang in der aktuellen Wertung (in Klammern die Veränderung).
+        </p>
+        @if($forecast->unratedSummary()->isNotEmpty())
+            <p>
+                Ohne Punkte (nur als Start gezählt):
+                {{ $forecast->unratedSummary()->map(fn ($count, $reason) => $reason.': '.$count)->join(' · ') }}
+            </p>
+        @endif
+    </div>
+@endif
+
 @if($ranking->isEmpty())
     <p class="empty">Keine {{ $systemLabel }} verfügbar.</p>
 @elseif($system === 'start')
@@ -148,8 +203,14 @@
         <thead>
         <tr>
             <th class="rank">Rang</th>
+            @if($forecast)
+                <th class="change">Rang jetzt</th>
+            @endif
             <th>Verein</th>
             <th class="num">Starts</th>
+            @if($forecast)
+                <th class="num">Differenz</th>
+            @endif
             <th class="num">Athleten</th>
             <th class="num">Cup-Meets</th>
         </tr>
@@ -158,8 +219,14 @@
         @foreach($ranking as $row)
             <tr class="club-row">
                 <td class="rank">{{ $row->rank }}</td>
+                @if($forecast)
+                    @include('pdf.partials.cup-club-ranking-forecast-rank', ['comparison' => $forecast->comparisons[$row->clubId] ?? null])
+                @endif
                 <td class="club">{{ $row->clubName }}</td>
                 <td class="num">{{ $row->starts }}</td>
+                @if($forecast)
+                    <td class="num">{{ ($forecast->comparisons[$row->clubId] ?? null)?->formattedValueDelta(0) }}</td>
+                @endif
                 <td class="num">{{ $row->athletes }}</td>
                 <td class="num">{{ $row->meets }}</td>
             </tr>
@@ -171,8 +238,14 @@
         <thead>
         <tr>
             <th class="rank">Rang</th>
+            @if($forecast)
+                <th class="change">Rang jetzt</th>
+            @endif
             <th>Verein</th>
             <th class="num">Gesamtpunkte</th>
+            @if($forecast)
+                <th class="num">Differenz</th>
+            @endif
             <th class="num">gew. Athleten</th>
             <th class="num">gew. Meets</th>
         </tr>
@@ -181,14 +254,20 @@
         @foreach($ranking as $row)
             <tr class="club-row">
                 <td class="rank">{{ $row->rank }}</td>
+                @if($forecast)
+                    @include('pdf.partials.cup-club-ranking-forecast-rank', ['comparison' => $forecast->comparisons[$row->clubId] ?? null])
+                @endif
                 <td class="club">{{ $row->clubName }}</td>
                 <td class="num">{{ $fmt($row->totalPoints) }}</td>
+                @if($forecast)
+                    <td class="num">{{ ($forecast->comparisons[$row->clubId] ?? null)?->formattedValueDelta(2) }}</td>
+                @endif
                 <td class="num">{{ $row->countedAthletes }}</td>
                 <td class="num">{{ $row->countedMeets }}</td>
             </tr>
             @if($detail)
                 <tr>
-                    <td class="detail-cell" colspan="5">
+                    <td class="detail-cell" colspan="{{ $columns }}">
                         <table class="athletes">
                             <thead>
                             <tr>
@@ -210,7 +289,22 @@
                                             <span class="kader-tag">(Kader)</span>
                                         @endif
                                     </td>
-                                    <td>{{ implode(' + ', $athlete->meetPoints) }}</td>
+                                    <td>
+                                        @if($forecast)
+                                            @foreach($forecast->meetPointParts($athlete) as $part)
+                                                @unless($loop->first)
+                                                    +
+                                                @endunless
+                                                @if($part['note'])
+                                                    <span class="projected">{{ $part['points'] }} <span class="projected-note">({{ $part['note'] }})</span></span>
+                                                @else
+                                                    {{ $part['points'] }}
+                                                @endif
+                                            @endforeach
+                                        @else
+                                            {{ implode(' + ', $athlete->meetPoints) }}
+                                        @endif
+                                    </td>
                                     <td class="num">{{ $athlete->seasonValue }}</td>
                                     <td class="num">{{ $fmt($athlete->weight) }}</td>
                                     <td class="num">{{ $fmt($athlete->weightedValue) }}</td>
