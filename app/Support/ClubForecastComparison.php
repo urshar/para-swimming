@@ -26,4 +26,30 @@ final readonly class ClubForecastComparison
         public ?int $rankChange,
         public float $valueDelta,
     ) {}
+
+    /**
+     * Differenz mit Vorzeichen im deutschen Zahlenformat, z. B. "+ 1.800,00", "- 12" oder "± 0".
+     * Bewusst ASCII-Minus statt "−" (U+2212): Die Standardschrift des PDF-Exports (Helvetica in
+     * dompdf) kennt das typografische Minus nicht.
+     */
+    public function formattedValueDelta(int $decimals): string
+    {
+        $sign = $this->valueDelta > 0 ? '+' : ($this->valueDelta < 0 ? '-' : '±');
+
+        return $sign.' '.number_format(abs($this->valueDelta), $decimals, ',', '.');
+    }
+
+    /**
+     * Rangänderung als Kurztext ohne Pfeilsymbole (für den PDF-Export): "+2", "-1", "±0" oder
+     * "neu" für einen bisher nicht gewerteten Verein.
+     */
+    public function rankChangeShort(): string
+    {
+        return match (true) {
+            $this->rankChange === null => 'neu',
+            $this->rankChange > 0 => '+'.$this->rankChange,
+            $this->rankChange < 0 => (string) $this->rankChange,
+            default => '±0',
+        };
+    }
 }

@@ -59,4 +59,51 @@ final readonly class ClubRankingForecast
     {
         return in_array($athleteId, $this->offCourseEntryAthletes[$meetId] ?? [], true);
     }
+
+    /**
+     * Gewertete Meet-Punkte eines Athleten mit Kennzeichnung prognostizierter Beiträge — gemeinsam
+     * genutzt von Ansicht (CupClubRanking) und PDF-Export.
+     *
+     * @return list<array{points: int, note: ?string}> note: "Meldezeit" bzw. "Meldezeit, andere
+     *                                                 Bahnlänge" für Beiträge aus Meldungen, sonst null
+     */
+    public function meetPointParts(CountedAthleteBreakdown $athlete): array
+    {
+        $parts = [];
+
+        foreach ($athlete->meetPoints as $index => $points) {
+            $meetId = $athlete->meetIds[$index] ?? null;
+            $note = null;
+
+            if ($meetId !== null && $this->isProjected($meetId)) {
+                $note = $this->isOffCourse($meetId, $athlete->athleteId)
+                    ? 'Meldezeit, andere Bahnlänge'
+                    : 'Meldezeit';
+            }
+
+            $parts[] = ['points' => $points, 'note' => $note];
+        }
+
+        return $parts;
+    }
+
+    /**
+     * Nicht bewertbare Meldungen, gezählt je Grund (absteigend).
+     *
+     * @return Collection<string, int>
+     */
+    public function unratedSummary(): Collection
+    {
+        return $this->unratedEntries
+            ->countBy(fn (UnratedEntry $entry): string => $entry->reason)
+            ->sortDesc();
+    }
+
+    /** Prognose-Meets als Text, z. B. "Cup-Finale (20.11.2026)". */
+    public function forecastMeetsLabel(): string
+    {
+        return $this->forecastMeets
+            ->map(fn (Meet $meet): string => $meet->name.' ('.$meet->start_date?->format('d.m.Y').')')
+            ->join(', ');
+    }
 }

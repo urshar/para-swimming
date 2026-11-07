@@ -233,7 +233,7 @@ it('zeigt Admins die prognostizierte Startwertung mit Rangänderung und Differen
         ->assertSee('▼ 1')
         ->assertSee('+ 3')
         ->assertSee('aria-pressed="true"', false)
-        ->assertDontSee('club-ranking/pdf')
+        ->assertSee('forecast=1')
         ->assertSeeInOrder(['Verein Beta', 'Verein Alpha']);
 });
 

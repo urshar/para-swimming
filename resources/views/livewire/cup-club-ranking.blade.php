@@ -21,9 +21,8 @@
             @endif
         </p>
 
-        {{-- Kein PDF der Prognose (Spec §9, Phase 5 optional): Der Export zeigt immer die aktuelle
-             Wertung, deshalb sind die Buttons bei aktiver Prognose ausgeblendet. --}}
-        @unless($this->ranking()->isEmpty() || $this->forecastActive())
+        {{-- Bei aktiver Prognose exportiert das PDF die Prognose (forecast=1, siehe pdfUrl()). --}}
+        @unless($this->ranking()->isEmpty())
             <div class="flex items-center flex-wrap justify-end gap-2 mt-4">
                 @if($this->system === 'performance')
                     <flux:button href="{{ $this->pdfUrl(0) }}" variant="filled" size="sm"
@@ -142,7 +141,7 @@
             <div>
                 <p>
                     Voraussichtliche Endwertung: echte Ergebnisse plus die Meldungen von
-                    {{ $this->forecastMeets()->map(fn ($m) => $m->name.' ('.$m->start_date?->format('d.m.Y').')')->join(', ') }}.
+                    {{ $this->forecastResult()?->forecastMeetsLabel() }}.
                     Meldezeiten gelten als erwartete Zeiten; Meldungen ohne Zeit (NT) zählen nur als Start;
                     Abmeldungen und Starts außer Konkurrenz zählen nicht.
                 </p>

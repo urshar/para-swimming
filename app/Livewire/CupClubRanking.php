@@ -12,7 +12,6 @@ use App\Support\ClubForecastComparison;
 use App\Support\ClubRankingConfiguration;
 use App\Support\ClubRankingForecast;
 use App\Support\CountedAthleteBreakdown;
-use App\Support\UnratedEntry;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -231,11 +230,7 @@ class CupClubRanking extends Component
      */
     public function valueDeltaDisplay(int $clubId): string
     {
-        $delta = $this->comparisonFor($clubId)?->valueDelta ?? 0.0;
-        $sign = $delta > 0 ? '+' : ($delta < 0 ? '−' : '±');
-        $decimals = $this->system === 'start' ? 0 : 2;
-
-        return $sign.' '.number_format(abs($delta), $decimals, ',', '.');
+        return $this->comparisonFor($clubId)?->formattedValueDelta($this->system === 'start' ? 0 : 2) ?? '';
     }
 
     /**
@@ -247,22 +242,12 @@ class CupClubRanking extends Component
     public function meetPointParts(CountedAthleteBreakdown $athlete): array
     {
         $forecast = $this->forecastResult();
-        $parts = [];
 
-        foreach ($athlete->meetPoints as $index => $points) {
-            $meetId = $athlete->meetIds[$index] ?? null;
-            $note = null;
-
-            if ($forecast && $meetId !== null && $forecast->isProjected($meetId)) {
-                $note = $forecast->isOffCourse($meetId, $athlete->athleteId)
-                    ? 'Meldezeit, andere Bahnlänge'
-                    : 'Meldezeit';
-            }
-
-            $parts[] = ['points' => $points, 'note' => $note];
+        if ($forecast) {
+            return $forecast->meetPointParts($athlete);
         }
 
-        return $parts;
+        return array_map(fn (int $points): array => ['points' => $points, 'note' => null], $athlete->meetPoints);
     }
 
     /**
@@ -273,9 +258,7 @@ class CupClubRanking extends Component
     #[Computed]
     public function unratedSummary(): Collection
     {
-        return ($this->forecastResult()?->unratedEntries ?? collect())
-            ->countBy(fn (UnratedEntry $entry): string => $entry->reason)
-            ->sortDesc();
+        return $this->forecastResult()?->unratedSummary() ?? collect();
     }
 
     #[Computed]
@@ -344,6 +327,7 @@ class CupClubRanking extends Component
             'foreign' => $this->includeForeign ? 1 : 0,
             'kader' => $this->kaderCount,
             'detail' => $detail,
+            'forecast' => $this->forecastActive() ? 1 : 0,
         ]);
     }
 

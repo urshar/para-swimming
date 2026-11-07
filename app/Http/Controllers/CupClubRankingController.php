@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cup;
+use App\Services\CupClubRankingForecastService;
 use App\Services\CupClubRankingService;
 use App\Services\CupStalenessService;
 use App\Services\PdfExportService;
 use App\Support\ClubRankingConfiguration;
+use App\Support\ClubRankingForecast;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -22,6 +24,10 @@ use Symfony\Component\HttpFoundation\Response;
  * gibt daher keinen calculate-Schritt. Die Anzeige ist für alle angemeldeten
  * Nutzer offen (analog Tages-/Gesamtwertung). Der PDF-Export bildet dieselbe
  * Wertung mit denselben Filtern ab (Spec §17 Phase 4).
+ *
+ * Prognose (docs/specs/cup-club-ranking-forecast.md, Phase 5): forecast=1 exportiert die
+ * voraussichtliche Endwertung — nur für Admins (sonst 403). Gibt es kein Prognose-Meet, entsteht
+ * das normale PDF der aktuellen Wertung.
  */
 class CupClubRankingController extends Controller
 {
@@ -32,6 +38,7 @@ class CupClubRankingController extends Controller
 
     public function __construct(
         private readonly CupClubRankingService $clubRankingService,
+        private readonly CupClubRankingForecastService $forecastService,
         private readonly CupStalenessService $stalenessService,
         private readonly PdfExportService $pdfExportService,
     ) {}
@@ -62,21 +69,25 @@ class CupClubRankingController extends Controller
     }
 
     /**
-     * GET /cups/{cup}/club-ranking/pdf?system=&foreign=&kader=&detail=0|1
+     * GET /cups/{cup}/club-ranking/pdf?system=&foreign=&kader=&detail=0|1&forecast=0|1
      *
      * PDF-Export mit denselben Filtern wie show(). detail=1 weist bei der
-     * Leistungswertung zusätzlich die gewerteten Athleten je Verein aus.
+     * Leistungswertung zusätzlich die gewerteten Athleten je Verein aus. forecast=1
+     * exportiert die Prognose (nur Admins).
      */
     public function pdf(Cup $cup, Request $request): Response
     {
+        abort_if($request->boolean('forecast') && $request->user()?->isAdmin() !== true, 403);
+
         $data = $this->resolveRankingData($cup, $request);
+        $prefix = $data['forecast'] ? 'cup-vereinswertung-prognose' : 'cup-vereinswertung';
 
         return $this->pdfExportService->stream('pdf.cup-club-ranking', [
             ...$data,
             'cup' => $cup,
             'detail' => $data['system'] === 'performance' && $request->boolean('detail'),
             'generatedAt' => now(),
-        ], "cup-vereinswertung-{$data['system']}-$cup->id.pdf");
+        ], "$prefix-{$data['system']}-$cup->id.pdf");
     }
 
     /**
@@ -84,7 +95,10 @@ class CupClubRankingController extends Controller
      * von show() und pdf(), damit PDF und Ansicht garantiert dieselbe Wertung
      * zeigen.
      *
-     * @return array{system: string, includeForeign: bool, kaderCount: int, maxCountedAthletes: int, ranking: Collection<int, object>, calculatedAt: ?Carbon, isStale: bool, staleReason: ?string}
+     * forecast=1 (Admin-Prüfung in pdf()) ersetzt die Rangliste durch die Prognose, sofern es
+     * ein Prognose-Meet gibt; 'forecast' ist sonst null.
+     *
+     * @return array{system: string, includeForeign: bool, kaderCount: int, maxCountedAthletes: int, ranking: Collection<int, object>, forecast: ?ClubRankingForecast, calculatedAt: ?Carbon, isStale: bool, staleReason: ?string}
      */
     private function resolveRankingData(Cup $cup, Request $request): array
     {
@@ -102,9 +116,17 @@ class CupClubRankingController extends Controller
             ? max(0, min($maxCountedAthletes, (int) $request->query('kader')))
             : null;
 
+        $wantsForecast = $request->boolean('forecast');
+        $forecast = null;
+
         if ($system === 'start') {
             $ranking = $this->clubRankingService->calculateStartRanking($cup, $includeForeign);
             $status = ['calculatedAt' => null, 'isStale' => false, 'reason' => null];
+
+            if ($wantsForecast) {
+                $forecast = $this->forecastService->forecastStartRanking($cup,
+                    $includeForeign ?? (bool) config('cup_club_ranking.include_foreign_clubs', false));
+            }
         } else {
             $config = ClubRankingConfiguration::fromConfig();
 
@@ -118,6 +140,15 @@ class CupClubRankingController extends Controller
 
             $ranking = $this->clubRankingService->calculatePerformanceRanking($cup, $config);
             $status = $this->stalenessService->clubRankingStatus($cup);
+
+            if ($wantsForecast) {
+                $forecast = $this->forecastService->forecastPerformanceRanking($cup, $config);
+            }
+        }
+
+        // Ohne Prognose-Meet entspricht die Prognose der aktuellen Wertung: dann das normale PDF.
+        if ($forecast !== null && ! $forecast->hasForecastMeets()) {
+            $forecast = null;
         }
 
         return [
@@ -125,7 +156,8 @@ class CupClubRankingController extends Controller
             'includeForeign' => $includeForeign ?? (bool) config('cup_club_ranking.include_foreign_clubs', false),
             'kaderCount' => $kader ?? (int) config('cup_club_ranking.counted_kader_athletes_per_club', 0),
             'maxCountedAthletes' => $maxCountedAthletes,
-            'ranking' => $ranking,
+            'ranking' => $forecast !== null ? $forecast->ranking : $ranking,
+            'forecast' => $forecast,
             'calculatedAt' => $status['calculatedAt'],
             'isStale' => $status['isStale'],
             'staleReason' => $status['reason'],
