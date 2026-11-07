@@ -63,6 +63,7 @@ class SwimEventController extends Controller
             'event' => $event,
             'strokeTypes' => $strokeTypes,
             'levelOptions' => self::levelOptions($event->scoringGroups()->pluck('levels')->all()),
+            'copyTargets' => self::copyTargets($event),
         ]);
     }
 
@@ -128,6 +129,75 @@ class SwimEventController extends Controller
         return redirect()
             ->route('events.edit', $event)
             ->with('success', 'Wertungsgruppen auf '.$targets->count().' '.($targets->count() === 1 ? 'Bewerb' : 'Bewerbe').' übernommen.');
+    }
+
+    /**
+     * Kopiert eine einzelne Wertungsgruppe (gespeicherter Stand) in die gewählten Bewerbe derselben Veranstaltung und
+     * derselben Art (Einzel bzw. Staffel), auch über die Klassenkategorie hinweg. Sie wird hinten angefügt, vorhandene
+     * Gruppen bleiben. Übersprungen werden Ziele, die schon eine Gruppe mit gleichem Namen und Geschlecht haben oder zu
+     * deren Geschlecht die Gruppe nicht passt (groupRowForTarget()). IDs außerhalb der Auswahl werden ignoriert.
+     *
+     * @throws Throwable
+     */
+    public function copySingleScoringGroup(Request $request, ScoringGroup $scoringGroup): RedirectResponse
+    {
+        $validated = $request->validate([
+            'target_event_ids' => 'nullable|array',
+            'target_event_ids.*' => 'integer',
+        ]);
+
+        $source = $scoringGroup->swimEvent;
+        $targets = SwimEvent::where('meet_id', $source->meet_id)
+            ->whereKeyNot($source->id)
+            ->whereIn('id', $validated['target_event_ids'] ?? [])
+            ->orderBy('session_number')
+            ->orderBy('event_number')
+            ->get()
+            ->filter(fn (SwimEvent $target): bool => $target->isRelay() === $source->isRelay());
+
+        if ($targets->isEmpty()) {
+            return redirect()->route('events.edit', $source)->with('error', 'Bitte mindestens einen Zielbewerb auswählen.');
+        }
+
+        $copied = 0;
+        $duplicates = [];
+        $otherGender = [];
+        DB::transaction(function () use ($scoringGroup, $source, $targets, &$copied, &$duplicates, &$otherGender) {
+            foreach ($targets as $target) {
+                $row = self::groupRowForTarget($scoringGroup, $source, $target);
+                if ($row === null) {
+                    $otherGender[] = self::shortEventLabel($target);
+
+                    continue;
+                }
+
+                $existing = $target->scoringGroups()->get();
+                $name = mb_strtolower($row['name']);
+                if ($existing->contains(fn (ScoringGroup $g): bool => mb_strtolower($g->name) === $name && $g->gender === $row['gender'])) {
+                    $duplicates[] = self::shortEventLabel($target);
+
+                    continue;
+                }
+
+                $target->scoringGroups()->create([...$row, 'sort_order' => (int) $existing->max('sort_order') + 1]);
+                $target->syncSportClassesFromGroups();
+                $this->scoring->syncPlaces($target);
+                $copied++;
+            }
+        });
+
+        $skipped = array_filter([
+            $duplicates !== [] ? implode(', ', $duplicates).' (Gruppe bereits vorhanden)' : null,
+            $otherGender !== [] ? implode(', ', $otherGender).' (anderes Geschlecht)' : null,
+        ]);
+        $skippedText = $skipped !== [] ? ' Übersprungen: '.implode('; ', $skipped).'.' : '';
+
+        return redirect()->route('events.edit', $source)->with(
+            $copied > 0 ? 'success' : 'error',
+            $copied > 0
+                ? 'Wertungsgruppe "'.$scoringGroup->label().'" in '.$copied.' '.($copied === 1 ? 'Bewerb' : 'Bewerbe').' kopiert.'.$skippedText
+                : 'Wertungsgruppe "'.$scoringGroup->label().'" wurde nicht kopiert.'.$skippedText,
+        );
     }
 
     public function destroy(SwimEvent $event): RedirectResponse
@@ -226,26 +296,74 @@ class SwimEventController extends Controller
      */
     private static function groupsForTarget(SwimEvent $source, SwimEvent $target): array
     {
-        $targetGender = in_array($target->gender, ['M', 'F'], true) ? $target->gender : null;
-        $sourceGendered = in_array($source->gender, ['M', 'F'], true);
-
         $rows = [];
         foreach ($source->scoringGroups as $group) {
-            $row = $group->only([
-                'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
-                'title',
-            ]);
-            if ($targetGender !== null) {
-                if (! $sourceGendered && ! in_array($group->gender, [$targetGender, 'A'], true)) {
-                    continue;
-                }
-                $row['gender'] = $targetGender;
+            $row = self::groupRowForTarget($group, $source, $target);
+            if ($row !== null) {
+                $row['sort_order'] = count($rows) + 1;
+                $rows[] = $row;
             }
-            $row['sort_order'] = count($rows) + 1;
-            $rows[] = $row;
         }
 
         return $rows;
+    }
+
+    /**
+     * Felder einer Gruppe für einen Zielbewerb (ohne LENEX-ID und Reihenfolge), Geschlechtsregel siehe
+     * groupsForTarget(); null = die Gruppe passt nicht zum Geschlecht des Ziels.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function groupRowForTarget(ScoringGroup $group, SwimEvent $source, SwimEvent $target): ?array
+    {
+        $row = $group->only([
+            'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
+            'title',
+        ]);
+
+        if (in_array($target->gender, ['M', 'F'], true)) {
+            $sourceGendered = in_array($source->gender, ['M', 'F'], true);
+            if (! $sourceGendered && ! in_array($group->gender, [$target->gender, 'A'], true)) {
+                return null;
+            }
+            $row['gender'] = $target->gender;
+        }
+
+        return $row;
+    }
+
+    /**
+     * Auswahl des Dialogs "Wertungsgruppe kopieren": alle anderen Bewerbe der Veranstaltung gleicher Art.
+     *
+     * @return list<array{id: int, label: string, category: string, same_category: bool, without_groups: bool}>
+     */
+    private static function copyTargets(SwimEvent $event): array
+    {
+        $category = $event->classCategory();
+
+        return SwimEvent::where('meet_id', $event->meet_id)
+            ->whereKeyNot($event->id)
+            ->with('strokeType')
+            ->withCount('scoringGroups')
+            ->orderBy('session_number')
+            ->orderBy('event_number')
+            ->get()
+            ->filter(fn (SwimEvent $target): bool => $target->isRelay() === $event->isRelay())
+            ->map(fn (SwimEvent $target): array => [
+                'id' => $target->id,
+                'label' => $target->selection_label,
+                'category' => $target->classCategory(),
+                'same_category' => $target->classCategory() === $category,
+                'without_groups' => $target->scoring_groups_count === 0,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** Kurzbezeichnung eines Bewerbs für Meldungen, z. B. "Nr. 7". */
+    private static function shortEventLabel(SwimEvent $event): string
+    {
+        return $event->event_number ? 'Nr. '.$event->event_number : trim($event->display_name);
     }
 
     private function validateSwimEvent(Request $request): array

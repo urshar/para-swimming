@@ -17,8 +17,14 @@
         }
 
         // Wertungsgruppen fürs Alpine-x-data (scoringGroupsEditor, resources/js/scoring-groups-editor.js).
+        // copy_url usw. nur bei gespeicherten Gruppen: Neue und nach einem Validierungsfehler wiederhergestellte Zeilen
+        // haben keinen Kopierknopf, weil immer der gespeicherte Stand kopiert wird.
+        $copyTargets ??= [];
         $groupRows = old('scoring_groups', isset($event)
             ? $event->scoringGroups->map(fn ($g) => [
+                'copy_url' => $copyTargets !== [] ? route('scoring-groups.copy', $g) : null,
+                'saved_label' => $g->label(),
+                'limits_classes' => $g->classNumbers() !== [],
                 'name' => $g->name,
                 'gender' => $g->gender,
                 'sport_classes' => $g->sport_classes ?? '',
@@ -40,6 +46,7 @@
             'title' => ($row['title'] ?? '') ?: 'NONE',
         ], array_values($groupRows));
         $groupConfig = ['groups' => $groupRows];
+        $copyDialogConfig = ['targets' => $copyTargets];
         // Level gibt es nur bei Einzelbewerben (eine Staffel hat kein Level).
         $isRelay = (int) old('relay_count', $event->relay_count ?? 1) > 1;
         // Rahmenbewerb: Checkbox sendet "0" = nicht gewertet.
@@ -208,15 +215,18 @@
                     Landesverband: Verein im Ergebnis, z.&nbsp;B. LM "nur WBSV", Gäste "alle außer WBSV"; Level: Einstufung
                     des Athleten zum Wettkampf. Ohne Auswahl keine Einschränkung.
                     Ohne Gruppen wird je Geschlecht und Sportklasse gewertet.
+                    Die Reihenfolge gilt auch für die Anzeige. Liegt ein Ergebnis in mehreren Gruppen, wird der Platz der
+                    ersten gespeichert (z.&nbsp;B. für Athletenseite, Qualifikation und LENEX-Export).
                 </p>
+                <p class="sr-only" aria-live="polite" x-text="moveStatus"></p>
                 <template x-if="groups.length === 0">
                     <p class="text-sm text-zinc-400 dark:text-zinc-500 italic">Keine Wertungsgruppen angelegt.</p>
                 </template>
                 <div class="space-y-2">
-                    <template x-for="group in groups">
-                        <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-end pb-3 md:pb-0 border-b md:border-0 border-zinc-200 dark:border-zinc-700">
+                    <template x-for="group in groups" :key="group.uid">
+                        <div data-group-row class="grid grid-cols-2 md:grid-cols-12 gap-2 items-end pb-3 border-b last:border-b-0 border-zinc-200 dark:border-zinc-700">
                             <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][lenex_agegroup_id]'" x-model="group.lenex_agegroup_id">
-                            <label class="col-span-2 md:col-span-3 text-xs text-zinc-500">Name
+                            <label class="col-span-2 md:col-span-4 text-xs text-zinc-500">Name
                                 <input type="text" maxlength="100" required class="{{ $inputClass }}" placeholder="ÖSTM: S01 - S08"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][name]'" x-model="group.name">
                             </label>
@@ -255,11 +265,6 @@
                                     <flux:select.option value="OM">ÖM</flux:select.option>
                                 </flux:select>
                             </div>
-                            <div class="md:col-span-1 text-right">
-                                <flux:button type="button" size="sm" variant="ghost" icon="trash" class="text-red-500!"
-                                             title="Gruppe entfernen" aria-label="Gruppe entfernen"
-                                             @click="removeGroup(groups.indexOf(group))"/>
-                            </div>
                             {{-- Einschränkung nach Landesverband des Ergebnisvereins und Athleten-Level (z. B. LM: nur WBSV,
                                  Gäste: alle außer WBSV). Die Flux-Felder binden nur an Alpine; abgeschickt wird über die
                                  versteckten Felder (Listen kommagetrennt, Modus nur mit Verbänden). --}}
@@ -294,6 +299,25 @@
                                         @endforeach
                                     </flux:select>
                                 </div>
+                                {{-- x-bind: statt ":" - an einer Blade-Komponente wäre ":" ein PHP-Ausdruck. --}}
+                                <div class="ms-auto flex items-center gap-1">
+                                    <flux:button type="button" size="sm" variant="ghost" icon="arrow-up" data-move-button
+                                                 title="Nach oben" x-bind:aria-label="'Gruppe ' + (group.name || 'ohne Namen') + ' nach oben'"
+                                                 x-bind:disabled="groups.indexOf(group) === 0"
+                                                 @click="moveGroup(groups.indexOf(group), -1, $event)"/>
+                                    <flux:button type="button" size="sm" variant="ghost" icon="arrow-down" data-move-button
+                                                 title="Nach unten" x-bind:aria-label="'Gruppe ' + (group.name || 'ohne Namen') + ' nach unten'"
+                                                 x-bind:disabled="groups.indexOf(group) === groups.length - 1"
+                                                 @click="moveGroup(groups.indexOf(group), 1, $event)"/>
+                                    <template x-if="group.copy_url">
+                                        <flux:button type="button" size="sm" variant="ghost" icon="document-duplicate" class="text-blue-500!"
+                                                     title="In andere Bewerbe kopieren" x-bind:aria-label="'Gruppe ' + group.saved_label + ' in andere Bewerbe kopieren'"
+                                                     @click="$dispatch('copy-scoring-group', { url: group.copy_url, name: group.saved_label, limitsClasses: group.limits_classes })"/>
+                                    </template>
+                                    <flux:button type="button" size="sm" variant="ghost" icon="trash" class="text-red-500!"
+                                                 title="Gruppe entfernen" x-bind:aria-label="'Gruppe ' + (group.name || 'ohne Namen') + ' entfernen'"
+                                                 @click="removeGroup(groups.indexOf(group))"/>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -323,6 +347,63 @@
                   @submit.prevent="submit()">
                 @csrf
             </form>
+        @endif
+
+        {{-- Dialog "Wertungsgruppe kopieren": eigenes Formular außerhalb des Bewerbsformulars, geöffnet von den Zeilen
+             des Editors. Native Checkboxen, weil die Auswahl komplett in Alpine liegt. --}}
+        @if($copyTargets !== [])
+            <div x-data='scoringGroupCopyDialog(@json($copyDialogConfig))' @copy-scoring-group.window="open($event.detail)">
+                <flux:modal name="copy-scoring-group" class="w-full max-w-xl">
+                    <form method="POST" :action="url" class="space-y-4">
+                        @csrf
+                        <div>
+                            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Wertungsgruppe kopieren</h2>
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                                <span class="font-medium text-zinc-800 dark:text-zinc-200" x-text="name"></span> wird in den
+                                gewählten Bewerben hinten angefügt, deren Gruppen bleiben bestehen.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2">
+                            <span id="copy-scoring-group-targets" class="text-sm font-medium text-zinc-800 dark:text-zinc-200">Zielbewerbe</span>
+                            <flux:button type="button" size="xs" variant="filled" @click="selectSameCategory()">
+                                Alle mit gleicher Klassenkategorie
+                            </flux:button>
+                        </div>
+                        <div role="group" aria-labelledby="copy-scoring-group-targets"
+                             class="max-h-72 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700/60">
+                            <template x-for="target in targets" :key="target.id">
+                                <label class="flex items-center gap-3 px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/40">
+                                    <input type="checkbox" name="target_event_ids[]" :value="target.id" x-model="selected"
+                                           class="rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-700">
+                                    <span class="flex-1" x-text="target.label"></span>
+                                    <span class="text-xs text-zinc-500 dark:text-zinc-400" x-show="target.without_groups">ohne Gruppen</span>
+                                    <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400" x-text="target.category"></span>
+                                </label>
+                            </template>
+                        </div>
+
+                        <p class="text-xs text-amber-700 dark:text-amber-400" x-show="restrictsEligibility()">
+                            Gewählte Bewerbe ohne Gruppen sind bisher für alle Klassen offen. Nach dem Kopieren können dort
+                            nur noch die Klassen dieser Gruppe melden, bis weitere Gruppen dazukommen.
+                        </p>
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Kopiert wird der gespeicherte Stand der Gruppe. Die Klassen-Nummern bleiben gleich und sind bei
+                            anderer Klassenkategorie (S, SB, SM) eventuell anzupassen. Nicht gespeicherte Änderungen in diesem
+                            Formular gehen beim Kopieren verloren.
+                        </p>
+
+                        <div class="flex justify-end gap-2">
+                            <flux:modal.close>
+                                <flux:button type="button" variant="ghost">Abbrechen</flux:button>
+                            </flux:modal.close>
+                            <flux:button type="submit" variant="primary" icon="document-duplicate" x-bind:disabled="selected.length === 0">
+                                Kopieren
+                            </flux:button>
+                        </div>
+                    </form>
+                </flux:modal>
+            </div>
         @endif
     </div>
 @endsection
