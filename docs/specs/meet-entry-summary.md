@@ -1,7 +1,7 @@
 # Spec: Melde-Kennzahlen und Medaillenplanung
 
-> **Status: geplant, noch nicht umgesetzt** (mit Erik abgestimmt am 07.11.2026). Diese Spec beschreibt den
-> vereinbarten Zielstand. Sobald eine Phase umgesetzt ist, wird der Abschnitt auf den implementierten Stand gebracht.
+> **Status: Phase 1 (Datenmodell und Berechnung) umgesetzt, Phase 2 (Oberfläche) geplant** (mit Erik abgestimmt am
+> 07.11.2026). Abschnitte zur Anzeige, zum Regel-Schalter und zur Sammelaktion beschreiben noch den Zielstand.
 
 Sobald es zu einer Veranstaltung Meldungen gibt, zeigt "Alle Meldungen" einen Block "Kennzahlen": wie viele Jugendliche
 gemeldet sind, wie viele Sportler in der Wertung der Österreichischen B-Meisterschaft stehen und wie viele Medaillen je
@@ -82,8 +82,10 @@ Attribut, die Einstellung wird nicht exportiert.
 
 | Teil            | Ort                                                                                  |
 |-----------------|--------------------------------------------------------------------------------------|
-| Medaillenregel  | reine Funktion in `App\Support` (ohne Datenbankzugriff)                              |
-| Auswertung      | `App\Services\MeetEntrySummaryService` (`final readonly`), Wertobjekte statt Arrays  |
+| Medaillenregel  | `App\Support\MedalRule::forParticipants()` liefert `MedalCount` (ohne Datenbank)     |
+| Titelerkennung  | `ScoringGroup::titleFromName()`, Kurzformen in `ScoringGroup::TITLE_SHORT`           |
+| Auswertung      | `App\Services\MeetEntrySummaryService::summarize()` liefert `App\Support\MeetEntrySummary` mit `MedalTableRow` (je Wertung) und `MedalDetailRow` (je Gruppe und Bewerb) |
+| Level zum Datum | `ScoringGroupService::levelsAt()`, gemeinsam für Ergebnisse und Meldungen            |
 | Anzeige         | Block "Kennzahlen" auf `meets/entries-overview`, `MeetEntriesOverviewController`     |
 | Regel-Schalter  | eigene Route mit `module:meets,write`, Schalter nur mit Schreibrecht sichtbar        |
 | Sammelaktion    | Seite "Wertungsgruppen einschränken", getrennt von den Einschränkungen               |
@@ -107,9 +109,12 @@ Zuerst kommt [scoring-groups.md](scoring-groups.md) "Reihenfolge und einzelne Gr
 `feature/scoring-group-order-copy`, eigener PR).
 Danach folgen diese zwei Phasen:
 
-1. **Datenmodell und Berechnung** (Branch `feature/meet-entry-summary`, Testgruppe `meet-entry-summary-p1`): Migration,
-   Titel und Namenserkennung, Medaillenregel, Service. Tests: alle Teilnehmerzahlen mit Regel an und aus, Ausschlüsse
-   nach Status, Gruppen ohne Medaillenwertung, Ersatzklasse, Jahrgangsregel.
+1. **Datenmodell und Berechnung** (umgesetzt; Branch `feature/meet-entry-summary`, Testgruppe `meet-entry-summary-p1`,
+   `tests/Feature/MeetEntrySummaryTest.php`): Migration, Titel und Namenserkennung, Medaillenregel, Service. Tests: alle
+   Teilnehmerzahlen mit Regel an und aus, Ausschlüsse nach Status, Gruppen ohne Medaillenwertung, Ersatzklasse,
+   Jahrgangsregel, B-Meisterschaft, Staffeln, Import-Vorbelegung, Migration, Formular und Kopieren.
+   Staffeln: Geschlecht des Bewerbs und `relay_entries.relay_class`; Staffeln außer Konkurrenz zählen nicht; Staffeln
+   ohne eingetragene Schwimmer oder in Bewerben ohne Gruppen gelten als nicht auswertbar.
 2. **Oberfläche** (Testgruppe `meet-entry-summary-p2`): Block, Regel-Schalter, Schalter im Bewerbsformular, Sammelaktion,
    Hinweise. Tests inkl. `AccessControlTest`, Barrierefreiheit, Dark Mode, Live-Test an Meet #213.
 
@@ -132,5 +137,22 @@ außerhalb der Anwendung gerechnet:
 | ÖJM     | 13 / 4 / 0 / 21                   | 21 / 13 / 4          |
 | ÖBM     | 10 / 7 / 7 / 6                    | 13 / 10 / 7          |
 
-Diese Zahlen sind vorläufig. Die Bewerbe #5, #7 und #11 (73 Meldungen) haben noch keine Wertungsgruppen und fehlen darin,
-die Staffelmeldungen haben noch keine Schwimmer und Klassen, und ihre Bewerbe (#8, #15) haben keine Gruppen.
+Diese Zahlen waren vorläufig: Damals hatten die Bewerbe #5, #7 und #11 (73 Meldungen) noch keine Wertungsgruppen.
+
+Nachrechnung mit `MeetEntrySummaryService` am 07.11.2026, nachdem alle Bewerbe Gruppen haben (104 ÖJM, 52 ÖBM mit
+Level B, 42 ohne Medaillenwertung, z. B. "ÖBSV Cup"):
+
+| Kennzahl                           | Wert |
+|------------------------------------|------|
+| Athleten gesamt                    | 68   |
+| Jugendliche (0-18)                 | 15   |
+| Sportler in der ÖBM-Wertung        | 23   |
+
+| Wertung | Regel an: G / S / B / Anerkennung | Regel aus: G / S / B |
+|---------|-----------------------------------|----------------------|
+| ÖJM     | 15 / 4 / 0 / 30                   | 30 / 15 / 4          |
+| ÖBM     | 18 / 11 / 11 / 10                 | 21 / 18 / 11         |
+
+Die 23. Person in der ÖBM-Wertung (statt 22) ist nur in #7 und #11 gemeldet, die beim Probelauf noch keine Gruppen
+hatten. Hinweise: 2 Meldungen ohne passende Gruppe (S15, Jahrgang 2016, in #2 und #6), 4 Staffeln ohne eingetragene
+Schwimmer.

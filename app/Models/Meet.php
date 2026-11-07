@@ -40,6 +40,7 @@ class Meet extends Model
         'livetiming_url',
         'is_published',
         'keep_file_places',
+        'medal_reduction_rule',
     ];
 
     /**
@@ -50,6 +51,7 @@ class Meet extends Model
         'wps_approved' => false,
         'is_published' => false,
         'keep_file_places' => false,
+        'medal_reduction_rule' => true,
     ];
 
     protected $casts = [
@@ -63,6 +65,8 @@ class Meet extends Model
         'is_published' => 'boolean',
         // Internationale Veranstaltung: Plätze aus der Ergebnisdatei behalten (ScoringGroupService).
         'keep_file_places' => 'boolean',
+        // Medaillenregel der Medaillenplanung (App\Support\MedalRule): weniger Medaillen bei wenigen Teilnehmern.
+        'medal_reduction_rule' => 'boolean',
     ];
 
     /**

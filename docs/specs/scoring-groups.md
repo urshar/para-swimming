@@ -112,18 +112,20 @@ Tests: `tests/Feature/ScoringGroupOrderCopyTest.php` (Gruppe `scoring-group-orde
 
 ## Medaillenwertung
 
-> **Status: geplant, noch nicht umgesetzt.** Details in [meet-entry-summary.md](meet-entry-summary.md).
+> **Status: Datenmodell umgesetzt, Schalter im Formular folgt.** Details in [meet-entry-summary.md](meet-entry-summary.md).
 
 Je Gruppe die Einstellung "Medaillenwertung" ja/nein (`awards_medals`), z. B. nein beim ÖBSV Cup, wo die Tageswertung
 zählt. Sie wirkt nur auf die Medaillenaufstellung der Melde-Kennzahlen; Plätze, Punkte und Cup-Wertung bleiben unberührt.
 Dazu kommen die Titel `OJM` und `OBM`. "Wertungsgruppen auf andere Bewerbe übernehmen" und das Kopieren einer einzelnen
-Gruppe übernehmen die Einstellung mit.
+Gruppe übernehmen die Einstellung mit. Das Bewerbsformular schickt den Wert bis zum sichtbaren Schalter verdeckt mit,
+damit er beim Speichern erhalten bleibt; neue Gruppen bekommen ja.
 
 ## LENEX
 
 - **Import:** je AGEGROUP eine Gruppe (über `agegroupid` wiedererkannt, manuell angelegte bleiben stehen). Klassen aus
   `handicap`, Geschlecht aus `gender` (fehlt = A), Alter aus `agemin`/`agemax` (-1 = ohne), Titel aus dem Namen (
-  "ÖSTM…", "ÖM…").
+  "ÖSTM…", "ÖM…", "ÖJM…", "ÖBM…", `ScoringGroup::titleFromName()`). Medaillenwertung bei neuen Gruppen ja, wenn ein
+  Titel erkannt wird; bei bestehenden bleibt sie unverändert.
 - **Export:** je Gruppe eine AGEGROUP mit `name`, `gender`, `handicap`, `agemin`/`agemax`; beim Ergebnisexport mit
   `RANKINGS` der Einzelergebnisse (place -1 für nicht gewertete). Staffel-Ranglisten folgen mit dem Export der
   Staffelergebnisse (Phase 2). Bewerbe ohne Gruppen: wie bisher je Sportklasse eine AGEGROUP.

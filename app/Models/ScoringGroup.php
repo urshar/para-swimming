@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $regional_mode
  * @property string|null $levels
  * @property string|null $title
+ * @property bool $awards_medals Zählt in der Medaillenplanung (MeetEntrySummaryService); wirkt nicht auf Plätze
  * @property int $sort_order
  * @property string|null $lenex_agegroup_id
  */
@@ -32,10 +33,24 @@ class ScoringGroup extends Model
 
     public const string TITLE_NATIONAL = 'OM';
 
+    public const string TITLE_JUNIOR = 'OJM';
+
+    public const string TITLE_B = 'OBM';
+
     /** Meisterschaftstitel für Auswahl und Anzeige. */
     public const array TITLES = [
         self::TITLE_STATE => 'Österr. Staatsmeisterschaft',
         self::TITLE_NATIONAL => 'Österr. Meisterschaft',
+        self::TITLE_JUNIOR => 'Österr. Jugendmeisterschaft',
+        self::TITLE_B => 'Österr. B-Meisterschaft',
+    ];
+
+    /** Kurzform der Titel für Aufstellungen ("ÖJM: 3 G, 2 S, 1 B"). */
+    public const array TITLE_SHORT = [
+        self::TITLE_STATE => 'ÖSTM',
+        self::TITLE_NATIONAL => 'ÖM',
+        self::TITLE_JUNIOR => 'ÖJM',
+        self::TITLE_B => 'ÖBM',
     ];
 
     /** Nur Vereine der angegebenen Landesverbände. */
@@ -76,13 +91,20 @@ class ScoringGroup extends Model
         'regional_mode',
         'levels',
         'title',
+        'awards_medals',
         'sort_order',
         'lenex_agegroup_id',
+    ];
+
+    /** Neue Gruppen zählen in der Medaillenplanung (wie der Spalten-Default); der LENEX-Import setzt den Wert selbst. */
+    protected $attributes = [
+        'awards_medals' => true,
     ];
 
     protected $casts = [
         'age_min' => 'integer',
         'age_max' => 'integer',
+        'awards_medals' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -266,6 +288,24 @@ class ScoringGroup extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Meisterschaftstitel aus dem Gruppennamen (LENEX kennt dafür kein Attribut): "ÖSTM…" → Staatsmeisterschaft,
+     * "ÖJM…" → Jugendmeisterschaft, "ÖBM…" → B-Meisterschaft, "ÖM…" → Meisterschaft; Leerzeichen und
+     * Groß-/Kleinschreibung egal, sonst null. Genutzt von LENEX-Import und Migration.
+     */
+    public static function titleFromName(string $name): ?string
+    {
+        $normalized = mb_strtoupper(str_replace(' ', '', $name));
+
+        return match (true) {
+            str_starts_with($normalized, 'ÖSTM') => self::TITLE_STATE,
+            str_starts_with($normalized, 'ÖJM') => self::TITLE_JUNIOR,
+            str_starts_with($normalized, 'ÖBM') => self::TITLE_B,
+            str_starts_with($normalized, 'ÖM') => self::TITLE_NATIONAL,
+            default => null,
+        };
     }
 
     /** Gäste-Gruppe einer Landesmeisterschaft ("Gäste SB 01 - 15", "Gastschwimmer"). */

@@ -33,6 +33,7 @@ export default function scoringGroupsEditor(config) {
                 regional_mode: 'only',
                 levels: [],
                 title: 'NONE',
+                awards_medals: '1',
                 lenex_agegroup_id: '',
             });
         },

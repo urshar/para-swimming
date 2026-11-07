@@ -34,6 +34,7 @@
                 'regional_mode' => $g->regional_mode ?? '',
                 'levels' => $g->levels ?? '',
                 'title' => $g->title ?? '',
+                'awards_medals' => $g->awards_medals ? '1' : '0',
                 'lenex_agegroup_id' => $g->lenex_agegroup_id ?? '',
             ])->values()->all()
             : []);
@@ -44,6 +45,7 @@
             'regional_mode' => ($row['regional_mode'] ?? '') ?: ScoringGroup::REGION_ONLY,
             'levels' => ScoringGroup::parseLevels($row['levels'] ?? ''),
             'title' => ($row['title'] ?? '') ?: 'NONE',
+            'awards_medals' => ($row['awards_medals'] ?? '1') === '0' ? '0' : '1',
         ], array_values($groupRows));
         $groupConfig = ['groups' => $groupRows];
         $copyDialogConfig = ['targets' => $copyTargets];
@@ -226,6 +228,8 @@
                     <template x-for="group in groups" :key="group.uid">
                         <div data-group-row class="grid grid-cols-2 md:grid-cols-12 gap-2 items-end pb-3 border-b last:border-b-0 border-zinc-200 dark:border-zinc-700">
                             <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][lenex_agegroup_id]'" x-model="group.lenex_agegroup_id">
+                            {{-- Medaillenwertung: bleibt beim Speichern erhalten; der sichtbare Schalter folgt mit der Oberfläche der Medaillenplanung. --}}
+                            <input type="hidden" :name="'scoring_groups[' + groups.indexOf(group) + '][awards_medals]'" x-model="group.awards_medals">
                             <label class="col-span-2 md:col-span-4 text-xs text-zinc-500">Name
                                 <input type="text" maxlength="100" required class="{{ $inputClass }}" placeholder="ÖSTM: S01 - S08"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][name]'" x-model="group.name">

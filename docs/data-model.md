@@ -158,13 +158,12 @@ Import gesetzt; leer bei App-Meldungen), `name` (frei vergebbar, nullable; Anzei
 
 **ScoringGroup** (Wertungsgruppe, LENEX AGEGROUP) — `swim_event_id`, `name`, `gender` (M/F/X/A), `sport_classes`
 (Nummern, kommagetrennt, leer = alle), `age_min`/`age_max`, `regional_associations` (Verbandscodes, kommagetrennt)
-mit `regional_mode` (`only`/`except`), `levels` (Athleten-Level, kommagetrennt), `title` (OSTM/OM), `sort_order`,
-`lenex_agegroup_id`. Zuordnung der Ergebnisse wird berechnet; Details: [specs/scoring-groups.md](specs/scoring-groups.md)
-und [specs/scoring-group-restrictions.md](specs/scoring-group-restrictions.md).
-
-> **Geplant, noch nicht umgesetzt** ([specs/meet-entry-summary.md](specs/meet-entry-summary.md)):
-> `scoring_groups.awards_medals` (Medaillenwertung der Gruppe), `scoring_groups.title` zusätzlich `OJM`/`OBM`,
-> `meets.medal_reduction_rule` (Medaillenregel der Veranstaltung an/aus, Standard an).
+mit `regional_mode` (`only`/`except`), `levels` (Athleten-Level, kommagetrennt), `title` (OSTM/OM/OJM/OBM), `awards_medals`
+(Medaillenwertung, nur für die Medaillenplanung), `sort_order`, `lenex_agegroup_id`. Zuordnung der Ergebnisse wird
+berechnet; Details: [specs/scoring-groups.md](specs/scoring-groups.md),
+[specs/scoring-group-restrictions.md](specs/scoring-group-restrictions.md) und
+[specs/meet-entry-summary.md](specs/meet-entry-summary.md). Dazu `meets.medal_reduction_rule` (Medaillenregel der
+Veranstaltung an/aus, Standard an).
 
 **RelayResult** (Staffelergebnis) — `meet_id`, `swim_event_id`, `club_id`, `relay_number` (LENEX Mannschaftsnummer),
 `name`, `gender` (Wertung der Mannschaft: M/F/X, nicht das Bewerbsgeschlecht), `relay_class` (S14, S20, S34, S49 ...),

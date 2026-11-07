@@ -1276,7 +1276,8 @@ class LenexParserService
      *
      * - Geschlecht aus gender (fehlt es: A = alle), Klassen aus handicap ("1,2,3" bzw. Leerzeichen-getrennt),
      *   Alter aus agemin/agemax (-1 = keine Grenze).
-     * - Titel aus dem Namen: "ÖSTM…" → Staatsmeisterschaft, "ÖM…" → Meisterschaft.
+     * - Titel aus dem Namen (ScoringGroup::titleFromName(): ÖSTM, ÖM, ÖJM, ÖBM); Medaillenwertung bei neuen Gruppen
+     *   ja, wenn ein Titel erkannt wird, bei bestehenden unverändert.
      * - Level aus levels bzw. levelmin/levelmax (agegroupLevels()), Landesverband aus dem Namen (restrictByName()).
      * - LENEX 2.0: nur Klassengruppen und die offene Gruppe (scoringAgegroups()).
      */
@@ -1293,7 +1294,6 @@ class LenexParserService
             $ageMin = (int) ($ageGroupXml['agemin'] ?? -1);
             $ageMax = (int) ($ageGroupXml['agemax'] ?? -1);
             $classes = ScoringGroup::parseClassNumbers(self::agegroupHandicap($ageGroupXml));
-            $normalizedName = mb_strtoupper(str_replace(' ', '', $name));
 
             $values = [
                 'name' => $name !== '' ? $name : ($classes !== [] ? 'Klassen '.implode(', ', $classes) : 'Alle'),
@@ -1301,11 +1301,7 @@ class LenexParserService
                 'sport_classes' => $classes !== [] ? implode(',', $classes) : null,
                 'age_min' => $ageMin >= 0 ? $ageMin : null,
                 'age_max' => $ageMax >= 0 ? $ageMax : null,
-                'title' => match (true) {
-                    str_starts_with($normalizedName, 'ÖSTM') => ScoringGroup::TITLE_STATE,
-                    str_starts_with($normalizedName, 'ÖM') => ScoringGroup::TITLE_NATIONAL,
-                    default => null,
-                },
+                'title' => ScoringGroup::titleFromName($name),
                 'sort_order' => $order,
             ];
             // Level nur, wenn die Datei welche nennt (sonst bleibt ein manuell gesetztes stehen); Staffeln haben keins.
@@ -1314,9 +1310,16 @@ class LenexParserService
                 $values['levels'] = $levels;
             }
 
-            $imported[] = $lenexId !== ''
-                ? ScoringGroup::updateOrCreate(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId], $values)
-                : ScoringGroup::create(['swim_event_id' => $swimEvent->id] + $values);
+            $group = $lenexId !== ''
+                ? ScoringGroup::firstOrNew(['swim_event_id' => $swimEvent->id, 'lenex_agegroup_id' => $lenexId])
+                : new ScoringGroup(['swim_event_id' => $swimEvent->id]);
+            $group->fill($values);
+            // Medaillenwertung nur bei neuen Gruppen vorbelegen (mit Titel ja); ein von Hand gesetzter Wert bleibt.
+            if (! $group->exists) {
+                $group->awards_medals = $values['title'] !== null;
+            }
+            $group->save();
+            $imported[] = $group;
         }
         self::restrictByName($imported);
 

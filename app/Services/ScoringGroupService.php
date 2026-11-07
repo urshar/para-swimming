@@ -166,6 +166,30 @@ final readonly class ScoringGroupService
     }
 
     /**
+     * Level der Athleten zu einem Datum: letzter Eintrag der Level-Historie bis dahin. Athleten ohne Eintrag fehlen
+     * (dann gilt ihr aktuelles Level). Auch für Meldungen genutzt (MeetEntrySummaryService).
+     *
+     * @param  list<int>  $athleteIds
+     * @return array<int, string> athlete_id => Level
+     */
+    public static function levelsAt(array $athleteIds, string $date): array
+    {
+        $history = AthleteLevelHistory::whereIn('athlete_id', $athleteIds)
+            ->whereDate('changed_at', '<=', $date)
+            ->oldest('changed_at')
+            ->oldest('id')
+            ->get(['athlete_id', 'level']);
+
+        // Aufsteigend sortiert: der letzte Eintrag je Athlet gewinnt.
+        $levels = [];
+        foreach ($history as $entry) {
+            $levels[$entry->athlete_id] = $entry->level;
+        }
+
+        return $levels;
+    }
+
+    /**
      * @param  Collection<int, ScoringGroup>  $groups
      * @param  Collection<int, Result|RelayResult>  $results
      * @return list<array{group: ?ScoringGroup, gender: ?string, name: string, label: string, missingPoints: int, rows: list<array{place: ?int, result: Result|RelayResult}>}>
@@ -280,16 +304,8 @@ final readonly class ScoringGroupService
 
         $levels = [];
         if ($meetDate !== null && $groups->contains(fn (ScoringGroup $g): bool => $g->levelCodes() !== [])) {
-            $athleteIds = $results->whereInstanceOf(Result::class)->pluck('athlete_id')->filter()->unique()->values();
-            $history = AthleteLevelHistory::whereIn('athlete_id', $athleteIds)
-                ->whereDate('changed_at', '<=', $meetDate)
-                ->oldest('changed_at')
-                ->oldest('id')
-                ->get(['athlete_id', 'level']);
-            // Aufsteigend sortiert: der letzte Eintrag je Athlet gewinnt.
-            foreach ($history as $entry) {
-                $levels[$entry->athlete_id] = $entry->level;
-            }
+            $athleteIds = $results->whereInstanceOf(Result::class)->pluck('athlete_id')->filter()->unique()->values()->all();
+            $levels = self::levelsAt($athleteIds, $meetDate);
         }
 
         return [$regions, $levels];
