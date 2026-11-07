@@ -87,8 +87,23 @@ final readonly class StartBasedClubRankingService
             return collect();
         }
 
-        $starts = $this->distinctStarts($meetIds);
+        return $this->rankStarts($this->distinctStarts($meetIds), $includeForeignClubs);
+    }
 
+    /**
+     * Reiht bereits ermittelte Starts zur Vereinswertung — die reine Wertungsberechnung ohne
+     * Datenbeschaffung. getRanking() übergibt die Starts aus `results`; die Prognose
+     * (docs/specs/cup-club-ranking-forecast.md) ergänzt sie um aus Meldungen abgeleitete Starts.
+     *
+     * Erwartet je Zeile genau einen Start, d. h. bereits je (Athlet, Disziplin, Meet)
+     * zusammengefasst (siehe distinctStarts()).
+     *
+     * @param  Collection<int, array{club_id: int, athlete_id: int, meet_id: int}>  $starts
+     * @return Collection<int, StartClubRankingResult> gereiht, mit dynamischem Rang;
+     *                                                 leer, wenn keine Starts übergeben wurden
+     */
+    public function rankStarts(Collection $starts, bool $includeForeignClubs): Collection
+    {
         if ($starts->isEmpty()) {
             return collect();
         }
@@ -140,10 +155,13 @@ final readonly class StartBasedClubRankingService
      * Datenmenge einer Cup-Saison ist dafür klein genug. Die Abfrage bleibt so
      * auf MySQL und SQLite gleich portabel.
      *
+     * Öffentlich, damit die Prognose die echten Starts einer Teilmenge der Cup-Meets
+     * (ohne Prognose-Meet) laden kann.
+     *
      * @param  Collection<int, int>  $meetIds  IDs der Cup-Meets
      * @return Collection<int, array{club_id: int, athlete_id: int, meet_id: int}>
      */
-    private function distinctStarts(Collection $meetIds): Collection
+    public function distinctStarts(Collection $meetIds): Collection
     {
         $rows = Result::query()
             ->join('swim_events', 'swim_events.id', '=', 'results.swim_event_id')
