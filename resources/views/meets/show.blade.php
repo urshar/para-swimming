@@ -184,9 +184,10 @@
     </div>
 
     {{-- Events --}}
-    <div class="flex items-center justify-between mb-3 scroll-mt-20" id="disziplinen">
+    {{-- flex-wrap: auf schmalen Bildschirmen rutschen die Knöpfe unter die Überschrift statt über den Rand. --}}
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 scroll-mt-20" id="disziplinen">
         <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Disziplinen</h2>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             @if($swimEvents->isNotEmpty())
                 @if(auth()->user()?->canWrite(Module::Meets))
                 <flux:button href="{{ route('meets.sessions.edit', $meet) }}" variant="ghost" icon="calendar-days" size="sm">
