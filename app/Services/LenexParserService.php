@@ -1727,7 +1727,7 @@ class LenexParserService
 
         if ($type === 'entries' && isset($athleteXml->ENTRIES)) {
             foreach ($athleteXml->ENTRIES->ENTRY as $entryXml) {
-                $this->importEntry($meet, $entryXml, $athlete->id, $clubId, $resolver);
+                $this->importEntry($meet, $entryXml, $athlete->id, $clubId, $resolver, $athleteXml->HANDICAP ?? null);
             }
         }
 
@@ -1760,12 +1760,35 @@ class LenexParserService
         SimpleXMLElement $entryXml,
         int $athleteId,
         int $clubId,
-        LenexResolverService $resolver
+        LenexResolverService $resolver,
+        ?SimpleXMLElement $handicapXml
     ): void {
         $swimEventId = $this->resolveSwimEventId($meet, (string) ($entryXml['eventid'] ?? ''), $resolver);
 
         if (! $swimEventId || isset($this->unscoredEventIds[$swimEventId])) {
             return;
+        }
+
+        // Sport-Klasse: ENTRY handicap (meist nur die Nummer, bekommt das Präfix zur Lage), sonst ATHLETE.HANDICAP
+        // zur Lage des Bewerbs (Swimify schreibt nur dieses) — beides über startSportClass(). Fehlt die Klasse in der
+        // Datei (kein HANDICAP oder z. B. nur "free" bei einem Brustbewerb), gilt wie bei der manuellen Meldung die
+        // Klasse des Athleten in der Datenbank.
+        $sportClass = $this->startSportClass($swimEventId, $handicapXml, $entryXml)
+            ?? app(ClubEntryService::class)->resolveSportClass($athleteId, SwimEvent::findOrFail($swimEventId));
+
+        $values = [
+            'club_id' => $clubId,
+            'entry_time' => $this->parseTime((string) ($entryXml['entrytime'] ?? '')),
+            'entry_time_code' => $this->parseTimeCode((string) ($entryXml['entrytime'] ?? '')),
+            'entry_course' => $this->mapCourse((string) ($entryXml['entrycourse'] ?? '')),
+            'sport_class' => $sportClass,
+            'status' => $this->mapEntryStatus((string) ($entryXml['status'] ?? '')),
+            'heat' => $this->heatNumber($entryXml),
+            'lane' => (int) ($entryXml['lane'] ?? 0) ?: null,
+        ];
+        // Ohne Klasse aus Datei und Datenbank bleibt eine vorhandene Klasse der Meldung stehen.
+        if ($sportClass === null) {
+            unset($values['sport_class']);
         }
 
         Entry::updateOrCreate(
@@ -1774,16 +1797,7 @@ class LenexParserService
                 'swim_event_id' => $swimEventId,
                 'athlete_id' => $athleteId,
             ],
-            [
-                'club_id' => $clubId,
-                'entry_time' => $this->parseTime((string) ($entryXml['entrytime'] ?? '')),
-                'entry_time_code' => $this->parseTimeCode((string) ($entryXml['entrytime'] ?? '')),
-                'entry_course' => $this->mapCourse((string) ($entryXml['entrycourse'] ?? '')),
-                'sport_class' => (string) ($entryXml['handicap'] ?? '') ?: null,
-                'status' => $this->mapEntryStatus((string) ($entryXml['status'] ?? '')),
-                'heat' => $this->heatNumber($entryXml),
-                'lane' => (int) ($entryXml['lane'] ?? 0) ?: null,
-            ]
+            $values
         );
 
         $this->stats['entries']++;
@@ -2186,19 +2200,20 @@ class LenexParserService
     }
 
     /**
-     * Sport-Klasse eines Einzelstarts: aus ATHLETE.HANDICAP (deriveSportClass()), sonst aus RESULT handicap. Dort steht
+     * Sport-Klasse eines Einzelstarts (RESULT bzw. ENTRY): aus ATHLETE.HANDICAP (deriveSportClass()), sonst aus dem
+     * handicap-Attribut des Starts. Dort steht
      * meist nur die Klassennummer ("14", z. B. in automatisch konvertierten Ergebnisdateien ohne HANDICAP-Element) —
      * sie bekommt wie beim HANDICAP-Element das Präfix zur Lage des Bewerbs ("SB3" bei Brust). Ein Wert mit Präfix
      * bleibt unverändert.
      */
-    private function startSportClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $resultXml): ?string
+    private function startSportClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $startXml): ?string
     {
         $derived = $this->deriveSportClass($swimEventId, $handicapXml);
         if ($derived !== null) {
             return $derived;
         }
 
-        $handicap = strtoupper(trim((string) ($resultXml['handicap'] ?? '')));
+        $handicap = strtoupper(trim((string) ($startXml['handicap'] ?? '')));
         if ($handicap === '' || $handicap === '0') {
             return null;
         }
