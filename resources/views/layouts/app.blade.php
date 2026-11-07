@@ -87,8 +87,9 @@
 
     {{-- Rest der Kopfzeile trägt seinen eigenen Innenabstand (der Logo-Abschnitt oben hat seinen bereits
          selbst), füllt die restliche Breite (flex-1), damit flux:spacer die Elemente weiter unten
-         auseinanderschiebt. --}}
-    <div class="flex items-center gap-2 flex-1 px-4 py-2">
+         auseinanderschiebt. min-w-0, damit der Abschnitt auf schmalen Bildschirmen schrumpfen darf (sonst
+         drückt er die Kopfzeile über die Viewport-Breite hinaus → horizontale Scrollleiste). --}}
+    <div class="flex items-center gap-2 flex-1 min-w-0 px-4 py-2">
 
         {{-- Dark/Light-Umschalter, gebunden an $flux.dark (Flux-eigene Alpine-Magic: berechneter Boolean aus
              $flux.appearance, löst "system" via matchMedia auf; Setter schreibt explizit "dark"/"light").
@@ -106,9 +107,11 @@
              components/desktop-user-menu.blade.php, hing aber nur im ungenutzten Starter-Kit-Rest
              layouts/app/header.blade.php und war dadurch im echten Layout nie sichtbar. Hier direkt
              eingebaut (kompaktere flux:profile statt flux:sidebar.profile, die für die Sidebar-Breite statt
-             für eine horizontale Kopfzeile gedacht ist). --}}
+             für eine horizontale Kopfzeile gedacht ist). Unter sm nur Avatar + Pfeil: der Name (das <span> in
+             flux:profile) steht ohnehin im aufgeklappten Menü und passt auf dem Handy nicht in die Kopfzeile. --}}
         <flux:dropdown position="bottom" align="end">
-            <flux:profile :name="auth()->user()->name" :initials="auth()->user()->initials()"/>
+            <flux:profile :name="auth()->user()->name" :initials="auth()->user()->initials()"
+                          class="max-sm:[&>span]:hidden"/>
 
             <flux:menu>
                 <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
