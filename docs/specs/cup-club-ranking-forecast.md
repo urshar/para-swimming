@@ -1,6 +1,6 @@
 # ÖBSV Cup Vereinswertung — Prognose (Forecast)
 
-**Status:** Freigegeben (Erik, 07.11.2026); Phase 1 in Umsetzung
+**Status:** Umgesetzt (Phasen 1–5, 07.11.2026)
 **Modul:** ÖBSV Cup Vereinswertung (Erweiterung von [obsv-cup-vereinswertung.md](obsv-cup-vereinswertung.md))
 
 ---
@@ -82,6 +82,21 @@ Vereine. Die normale Vereinswertung bleibt bei `module:cup,read`.
 3. `CupClubRankingForecastService`: Zusammenführung, Vergleich zur aktuellen Wertung, Staleness ohne Prognose-Meet.
 4. UI: Prognose-Umschalter in `CupClubRanking` (nur Admin, nur wenn ein Prognose-Meet existiert), Hinweis,
    Spalten Rang jetzt/Differenz, Kennzeichnung prognostizierter Meet-Punkte; Barrierefreiheit; Feature-Tests.
-5. Optional: PDF-Export der Prognose.
+5. PDF-Export der Prognose: `cups.club-ranking.pdf` mit `forecast=1` (nur Admins, sonst 403; ohne
+   Prognose-Meet das normale PDF). Rangänderung im PDF als `+2`/`-1`/`±0`/`neu`, weil Helvetica in dompdf
+   keine Pfeilsymbole kennt.
 
-Test-Gruppen `cup-club-ranking-forecast-p1` … `-p4`.
+Test-Gruppen `cup-club-ranking-forecast-p1` … `-p5`.
+
+## 10. Umsetzungshinweise
+
+- **Einstiegspunkte:** `StartBasedClubRankingService::rankStarts()` / `distinctStarts()`,
+  `PerformanceBasedClubRankingService::rankDailyResults()` / `loadDailyResults()`,
+  `ClubRankingEntryProjectionService` (Prognose-Meets, Starts, Punkte aus Meldungen),
+  `CupClubRankingForecastService` (Zusammenführung und Vergleich), Ergebnisobjekt `ClubRankingForecast`.
+- **Livewire-Fallstrick (Gateway-Timeout im Live-Test):** Livewire speichert einen `#[Computed]`-Wert nur
+  zwischen, wenn er als Eigenschaft gelesen wird (`$this->forecastResult`), nicht beim Methodenaufruf
+  (`$this->forecastResult()`), wie ihn die View je Tabellenzeile macht. Die Prognose (mehrere hundert Queries)
+  lief dadurch je Zeile neu, die Seite brach mit "504 Gateway Time-out" ab. `CupClubRanking` speichert die
+  Prognose deshalb in eigenen privaten Feldern je Request zwischen. Die Testsuite deckt so etwas nicht auf,
+  weil ihre Datenmengen klein sind — nur ein Aufruf mit echten Daten zeigt es.
