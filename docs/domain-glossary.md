@@ -101,6 +101,21 @@ Regeln (Auszug): Das **Alter** wird per **31. Dezember des Wettkampfjahres**
 berechnet. Deaktivierte Altersklassen führen zu dynamisch neu berechneten Grenzen (erste aktive Gruppe beginnt bei 0,
 letzte ohne obere Grenze). Die gezählten Meets stehen als IDs in `counted_meet_ids`.
 
+## Meisterschaften und Medaillen
+
+| Begriff               | Bedeutung                                                                                                     |
+|-----------------------|---------------------------------------------------------------------------------------------------------------|
+| **ÖSTM**              | Österreichische Staatsmeisterschaft                                                                           |
+| **ÖM**                | Österreichische Meisterschaft                                                                                 |
+| **ÖJM**               | Österreichische Jugendmeisterschaft (Jugendliche: 0-18 Jahre, Stichtag 31. Dezember des Wettkampfjahres)      |
+| **ÖBM**               | Österreichische B-Meisterschaft (Athleten mit Level B)                                                        |
+| **ÖJBM**              | Gemeinsame Veranstaltung von ÖJM und ÖBM                                                                      |
+| **Medaillenwertung**  | Einstellung je Wertungsgruppe: Werden im Bewerb Medaillen vergeben? Beim ÖBSV Cup nein, dort zählt die Tageswertung |
+| **Medaillenregel**    | Je Veranstaltung schaltbar: Alle Medaillen erst ab 4 Teilnehmern, darunter bekommt der Letzte die Anerkennungsmedaille |
+| **Anerkennungsmedaille** | Medaille für den Letzten bei 1 bis 3 Teilnehmern, wenn die Medaillenregel gilt                             |
+
+Einzelheiten in [specs/meet-entry-summary.md](specs/meet-entry-summary.md) (geplant).
+
 ## Richtzeiten (Qualifikation)
 
 Sollzeiten, die für die Qualifikation zu Meisterschaften erreicht werden müssen (`QualifyingTimeList`,

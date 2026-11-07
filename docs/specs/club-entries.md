@@ -338,6 +338,11 @@ leere Liste). Die **Sportpasskontrolle** ist zusätzlich admin-only (Route-Middl
 
 Staffelname in den Meldelisten: Anzeigename aus `RelayNames` (siehe "Staffelnamen" oben).
 
+## Melde-Kennzahlen und Medaillenplanung
+
+Geplant, noch nicht umgesetzt: Block "Kennzahlen" auf "Alle Meldungen" mit Jugendlichen, Sportlern in der ÖBM-Wertung und
+Medaillenbedarf je Wertung. Siehe [meet-entry-summary.md](meet-entry-summary.md).
+
 ## Meldegelder
 
 **Konfiguration** (Seite "Meldegelder", admin-only, Button auf `meets/show`; `MeetFeeController`):

@@ -67,7 +67,9 @@ die Plätze kommen weiter aus der Datei.
 - **Sammelaktion an der Veranstaltung** (nur Admin, Seite "Wertungsgruppen einschränken", Knopf in der
   Ergebnis-Sammelansicht, `MeetScoringGroupRestrictionsController`) — Namensanfang (z. B. "LM Wien" oder "Gäste"), Landesverbände + Modus, Level; setzt die
   Angaben an allen Wertungsgruppen der Veranstaltung, deren Name so beginnt (Groß-/Kleinschreibung egal), mit Vorschau
-  der Anzahl betroffener Gruppen. Danach werden die Plätze aller betroffenen Bewerbe neu berechnet.
+  der Anzahl betroffener Gruppen. Danach werden die Plätze aller betroffenen Bewerbe neu berechnet. Geplant ist auf
+  derselben Seite eine getrennte Sammelaktion für die Medaillenwertung, die keine Einschränkungen überschreibt, siehe
+  [meet-entry-summary.md](meet-entry-summary.md).
 - In der Gruppenanzeige (Bewerbsformular, Sammelansicht-Überschrift unverändert) wird die Einschränkung als kurzer
   Hinweis gezeigt, z. B. "nur WBSV" bzw. "ohne WBSV", "Level B".
 
