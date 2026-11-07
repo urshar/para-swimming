@@ -37,6 +37,7 @@ use App\Http\Controllers\MeetEntriesOverviewController;
 use App\Http\Controllers\MeetEntriesReopenController;
 use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
+use App\Http\Controllers\MeetMedalRuleController;
 use App\Http\Controllers\MeetParticipantsController;
 use App\Http\Controllers\MeetResultClubsController;
 use App\Http\Controllers\MeetResultsOverviewController;
@@ -518,6 +519,11 @@ Route::middleware(['auth'])->group(function () {
             ->name('meets.scoring-group-restrictions');
         Route::put('meets/{meet}/scoring-group-restrictions', [MeetScoringGroupRestrictionsController::class, 'update'])
             ->name('meets.scoring-group-restrictions.update');
+        // Medaillenplanung: Medaillenwertung je Gruppe gesammelt und Medaillenregel der Veranstaltung.
+        Route::put('meets/{meet}/scoring-group-medals', [MeetScoringGroupRestrictionsController::class, 'updateMedals'])
+            ->name('meets.scoring-group-medals.update');
+        Route::put('meets/{meet}/medal-rule', [MeetMedalRuleController::class, 'update'])
+            ->name('meets.medal-rule.update');
 
         Route::post('meets/{meet}/recalculate-points', [WorldAquaticsPointsController::class, 'recalculate'])
             ->name('meets.recalculate-points');

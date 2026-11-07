@@ -112,13 +112,14 @@ Tests: `tests/Feature/ScoringGroupOrderCopyTest.php` (Gruppe `scoring-group-orde
 
 ## Medaillenwertung
 
-> **Status: Datenmodell umgesetzt, Schalter im Formular folgt.** Details in [meet-entry-summary.md](meet-entry-summary.md).
+> **Status: umgesetzt.** Details in [meet-entry-summary.md](meet-entry-summary.md).
 
 Je Gruppe die Einstellung "Medaillenwertung" ja/nein (`awards_medals`), z. B. nein beim ÖBSV Cup, wo die Tageswertung
 zählt. Sie wirkt nur auf die Medaillenaufstellung der Melde-Kennzahlen; Plätze, Punkte und Cup-Wertung bleiben unberührt.
 Dazu kommen die Titel `OJM` und `OBM`. "Wertungsgruppen auf andere Bewerbe übernehmen" und das Kopieren einer einzelnen
-Gruppe übernehmen die Einstellung mit. Das Bewerbsformular schickt den Wert bis zum sichtbaren Schalter verdeckt mit,
-damit er beim Speichern erhalten bleibt; neue Gruppen bekommen ja.
+Gruppe übernehmen die Einstellung mit. Im Bewerbsformular hat jede Gruppe die Checkbox "Medaillenwertung" (neue Gruppen:
+ja), die Titelauswahl bietet ÖSTM, ÖM, ÖJM und ÖBM. Gesammelt nach Namensanfang auf der Seite "Wertungsgruppen
+einschränken".
 
 ## LENEX
 

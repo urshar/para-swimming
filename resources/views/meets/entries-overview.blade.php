@@ -1,4 +1,4 @@
-@php use App\Support\TimeParser; @endphp
+@php use App\Enums\Module; use App\Support\TimeParser; @endphp
 
 @extends('layouts.app')
 
@@ -82,6 +82,161 @@
             · {{ $einzelTotal }} Einzel-, {{ $staffelTotal }} Staffelmeldungen · alle Vereine
         </p>
     </div>
+
+    {{-- ── Kennzahlen (MeetEntrySummaryService, docs/specs/meet-entry-summary.md) ── --}}
+    @if($summary)
+        @php
+            $medalTotal = $summary->totalMedals();
+            $hints = array_filter([
+                $summary->eventsWithoutGroups !== []
+                    ? 'Bewerbe mit Meldungen, aber ohne Wertungsgruppen (nicht in den Medaillen): ' . implode(', ', $summary->eventsWithoutGroups)
+                    : null,
+                $summary->unassignedEntries > 0
+                    ? $summary->unassignedEntries . ($summary->unassignedEntries === 1 ? ' Meldung passt' : ' Meldungen passen') . ' in keine Wertungsgruppe.'
+                    : null,
+                $summary->unevaluableRelays > 0
+                    ? $summary->unevaluableRelays . ($summary->unevaluableRelays === 1 ? ' Staffel ist' : ' Staffeln sind') . ' nicht auswertbar (ohne eingetragene Schwimmer oder ohne Wertungsgruppen).'
+                    : null,
+                $summary->athletesWithoutBirthDate > 0
+                    ? $summary->athletesWithoutBirthDate . ($summary->athletesWithoutBirthDate === 1 ? ' Person hat' : ' Personen haben') . ' kein Geburtsdatum und fehlen bei den Jugendlichen.'
+                    : null,
+                $summary->groupsWithoutMedals !== []
+                    ? 'Ohne Medaillenwertung: ' . implode(', ', $summary->groupsWithoutMedals) . '.'
+                    : null,
+            ]);
+        @endphp
+        <section aria-labelledby="kennzahlen-heading"
+                 class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-6">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                    <h2 id="kennzahlen-heading" class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Kennzahlen</h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                        Planzahlen aus den Meldungen, ohne AK und Abmeldungen. Medaillenregel
+                        <strong class="font-medium text-zinc-700 dark:text-zinc-200">{{ $summary->reductionRule ? 'an' : 'aus' }}</strong>:
+                        alle drei Medaillen ab 4 Teilnehmern, bei weniger bekommt der Letzte eine Anerkennung.
+                    </p>
+                </div>
+                @can('module.write', Module::Meets)
+                    <form method="POST" action="{{ route('meets.medal-rule.update', $meet) }}">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="medal_reduction_rule" value="{{ $summary->reductionRule ? '0' : '1' }}">
+                        <flux:button type="submit" size="sm" variant="filled">
+                            Medaillenregel {{ $summary->reductionRule ? 'ausschalten' : 'einschalten' }}
+                        </flux:button>
+                    </form>
+                @endcan
+            </div>
+
+            <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
+                    <dt class="text-xs text-zinc-500 dark:text-zinc-400">Athleten</dt>
+                    <dd class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{{ $summary->athletes }}</dd>
+                </div>
+                <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
+                    <dt class="text-xs text-zinc-500 dark:text-zinc-400">Jugendliche (0–18)</dt>
+                    <dd class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{{ $summary->youthAthletes }}</dd>
+                </div>
+                @if($summary->bChampionshipAthletes !== null)
+                    <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
+                        <dt class="text-xs text-zinc-500 dark:text-zinc-400">In der ÖBM-Wertung</dt>
+                        <dd class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{{ $summary->bChampionshipAthletes }}</dd>
+                    </div>
+                @endif
+                <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
+                    <dt class="text-xs text-zinc-500 dark:text-zinc-400">Medaillen gesamt</dt>
+                    <dd class="text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{{ $medalTotal->total() }}</dd>
+                </div>
+            </dl>
+
+            @if($summary->medalRows === [])
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">Keine Wertungsgruppe mit Medaillenwertung hat Meldungen.</p>
+            @else
+                <div class="overflow-x-auto [--flux-bleed:1rem]">
+                    <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4">
+                        <flux:table.columns>
+                            <flux:table.column>Wertung</flux:table.column>
+                            <flux:table.column align="end">Gold</flux:table.column>
+                            <flux:table.column align="end">Silber</flux:table.column>
+                            <flux:table.column align="end">Bronze</flux:table.column>
+                            <flux:table.column align="end">Anerkennung</flux:table.column>
+                            <flux:table.column align="end">Gesamt</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @foreach($summary->medalRows as $row)
+                                <flux:table.row>
+                                    <flux:table.cell class="font-medium text-zinc-900 dark:text-white">
+                                        {{ $row->label }}@if($row->isRelay) <span class="text-zinc-500 dark:text-zinc-400 font-normal">· Staffel</span>@endif
+                                    </flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $row->medals->gold }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $row->medals->silver }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $row->medals->bronze }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $row->medals->recognition }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $row->medals->total() }}</flux:table.cell>
+                                </flux:table.row>
+                            @endforeach
+                            @if(count($summary->medalRows) > 1)
+                                <flux:table.row class="font-semibold">
+                                    <flux:table.cell class="text-zinc-900 dark:text-white">Summe</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $medalTotal->gold }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $medalTotal->silver }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $medalTotal->bronze }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $medalTotal->recognition }}</flux:table.cell>
+                                    <flux:table.cell align="end" class="tabular-nums">{{ $medalTotal->total() }}</flux:table.cell>
+                                </flux:table.row>
+                            @endif
+                        </flux:table.rows>
+                    </flux:table>
+                </div>
+
+                <details class="mt-4 group">
+                    <summary class="cursor-pointer text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                        Details nach Gruppe und Bewerb ({{ count($summary->details) }})
+                    </summary>
+                    <div class="mt-2 overflow-x-auto">
+                        <flux:table class="[&_td:first-child]:ps-4 [&_th:first-child]:ps-4">
+                            <flux:table.columns>
+                                <flux:table.column>Bewerb</flux:table.column>
+                                <flux:table.column>Wertungsgruppe</flux:table.column>
+                                <flux:table.column align="end">Teilnehmer</flux:table.column>
+                                <flux:table.column>Medaillen</flux:table.column>
+                            </flux:table.columns>
+                            <flux:table.rows>
+                                @foreach($summary->details as $detail)
+                                    <flux:table.row>
+                                        <flux:table.cell class="text-sm">{{ $detail->eventLabel }}</flux:table.cell>
+                                        <flux:table.cell class="text-sm">{{ $detail->groupLabel }}</flux:table.cell>
+                                        <flux:table.cell align="end" class="text-sm tabular-nums">
+                                            {{ $detail->participants }}{{ $detail->isRelay ? ($detail->participants === 1 ? ' Team' : ' Teams') : '' }}
+                                        </flux:table.cell>
+                                        <flux:table.cell class="text-sm tabular-nums">{{ $detail->medals->label() }}</flux:table.cell>
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                        <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">G = Gold, S = Silber, B = Bronze, A = Anerkennung; bei Staffeln je Team so viele wie Schwimmer.</p>
+                    </div>
+                </details>
+            @endif
+
+            @if($hints !== [])
+                <div class="mt-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                    <h3 class="text-sm font-medium text-amber-800 dark:text-amber-200">Hinweise</h3>
+                    <ul class="mt-1 list-disc ps-5 text-sm text-amber-800 dark:text-amber-200 space-y-0.5">
+                        @foreach($hints as $hint)
+                            <li>{{ $hint }}</li>
+                        @endforeach
+                    </ul>
+                    @can('module.write', Module::Meets)
+                        <a href="{{ route('meets.scoring-group-restrictions', $meet) }}"
+                           class="mt-1 inline-block text-sm font-medium text-amber-900 dark:text-amber-100 underline">
+                            Medaillenwertung der Wertungsgruppen gesammelt ändern
+                        </a>
+                    @endcan
+                </div>
+            @endif
+        </section>
+    @endif
 
     @php
         // Bei aktivem Disziplin-Filter nur den passenden Abschnitt zeigen: eine

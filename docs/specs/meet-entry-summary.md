@@ -1,7 +1,6 @@
 # Spec: Melde-Kennzahlen und Medaillenplanung
 
-> **Status: Phase 1 (Datenmodell und Berechnung) umgesetzt, Phase 2 (Oberfläche) geplant** (mit Erik abgestimmt am
-> 07.11.2026). Abschnitte zur Anzeige, zum Regel-Schalter und zur Sammelaktion beschreiben noch den Zielstand.
+> **Status: umgesetzt** (mit Erik abgestimmt am 07.11.2026; Datenmodell, Berechnung und Oberfläche).
 
 Sobald es zu einer Veranstaltung Meldungen gibt, zeigt "Alle Meldungen" einen Block "Kennzahlen": wie viele Jugendliche
 gemeldet sind, wie viele Sportler in der Wertung der Österreichischen B-Meisterschaft stehen und wie viele Medaillen je
@@ -87,21 +86,25 @@ Attribut, die Einstellung wird nicht exportiert.
 | Auswertung      | `App\Services\MeetEntrySummaryService::summarize()` liefert `App\Support\MeetEntrySummary` mit `MedalTableRow` (je Wertung) und `MedalDetailRow` (je Gruppe und Bewerb) |
 | Level zum Datum | `ScoringGroupService::levelsAt()`, gemeinsam für Ergebnisse und Meldungen            |
 | Anzeige         | Block "Kennzahlen" auf `meets/entries-overview`, `MeetEntriesOverviewController`     |
-| Regel-Schalter  | eigene Route mit `module:meets,write`, Schalter nur mit Schreibrecht sichtbar        |
-| Sammelaktion    | Seite "Wertungsgruppen einschränken", getrennt von den Einschränkungen               |
+| Regel-Schalter  | `PUT meets/{meet}/medal-rule` (`meets.medal-rule.update`, `MeetMedalRuleController`, `module:meets,write`), Knopf nur mit `@can('module.write', Module::Meets)` |
+| Sammelaktion    | `PUT meets/{meet}/scoring-group-medals` (`meets.scoring-group-medals.update`, `MeetScoringGroupRestrictionsController::updateMedals()`, `ScoringGroupService::setAwardsMedalsByNamePrefix()`) |
+| Bewerbsformular | Checkbox "Medaillenwertung" je Gruppe, Titelauswahl mit ÖJM und ÖBM                  |
 
 ## Anzeige
 
-Der Block erscheint nur, wenn es Meldungen gibt:
+Der Block erscheint nur, wenn es Meldungen gibt, immer für die ganze Veranstaltung (unabhängig vom Disziplin-Filter):
 
-- Jugendliche und, falls vorhanden, Sportler in der ÖBM-Wertung.
-- Medaillentabelle je Wertung mit Gold, Silber, Bronze und Anerkennung, darunter die Staffeln.
-- Aufklappbare Details nach Gruppe und Bewerb mit Teilnehmerzahl und Medaillen.
-- Hinweise: Bewerbe mit Meldungen, aber ohne Wertungsgruppen; Meldungen, die in keine Gruppe passen; Gruppen ohne
-  Medaillenwertung; nicht auswertbare Staffeln.
+- Athleten, Jugendliche, falls vorhanden Sportler in der ÖBM-Wertung, und Medaillen gesamt.
+- Medaillentabelle je Wertung mit Gold, Silber, Bronze, Anerkennung und Gesamt, darunter die Staffeln, ab zwei Zeilen
+  mit Summe.
+- Aufklappbare Details nach Gruppe und Bewerb (`<details>`) mit Teilnehmerzahl (Staffeln: Teams) und Medaillen.
+- Hinweise: Bewerbe mit Meldungen, aber ohne Wertungsgruppen; Meldungen, die in keine Gruppe passen; nicht auswertbare
+  Staffeln; Personen ohne Geburtsdatum; Gruppen ohne Medaillenwertung. Mit Schreibrecht ein Link zur Sammelaktion.
+- Knopf "Medaillenregel ausschalten/einschalten"; Lesende sehen nur, ob die Regel an ist.
 
 Die Sammelaktion setzt die Medaillenwertung über den Namensanfang (z. B. "ÖBSV Cup" auf nein), mit Vorschau der
-betroffenen Gruppen, und überschreibt keine Einschränkungen.
+betroffenen Gruppen und einer Spalte "Medaillenwertung" (ja, nein, teilweise) in der Gruppenliste. Sie überschreibt
+keine Einschränkungen und ändert keine Plätze.
 
 ## Phasen
 
@@ -115,8 +118,10 @@ Danach folgen diese zwei Phasen:
    Jahrgangsregel, B-Meisterschaft, Staffeln, Import-Vorbelegung, Migration, Formular und Kopieren.
    Staffeln: Geschlecht des Bewerbs und `relay_entries.relay_class`; Staffeln außer Konkurrenz zählen nicht; Staffeln
    ohne eingetragene Schwimmer oder in Bewerben ohne Gruppen gelten als nicht auswertbar.
-2. **Oberfläche** (Testgruppe `meet-entry-summary-p2`): Block, Regel-Schalter, Schalter im Bewerbsformular, Sammelaktion,
-   Hinweise. Tests inkl. `AccessControlTest`, Barrierefreiheit, Dark Mode, Live-Test an Meet #213.
+2. **Oberfläche** (umgesetzt; Testgruppe `meet-entry-summary-p2`, `tests/Feature/MeetEntrySummaryUiTest.php`): Block,
+   Regel-Schalter, Schalter im Bewerbsformular, Sammelaktion, Hinweise. Tests: Anzeige, Rechte (Lesende ohne Schalter,
+   403 ohne `module:meets,write`), Sammelaktion, Formular; `AccessControlTest` grün. Live-Test an Meet #213 in hellem
+   und dunklem Modus und bei schmaler Breite ohne seitliches Scrollen.
 
 Nicht enthalten: Export als PDF oder Excel, Medaillen nach tatsächlichen Starts, Landesmeisterschaften als eigener Titel,
 Medaillen der Cup-Tageswertung.

@@ -114,7 +114,7 @@ letzte ohne obere Grenze). Die gezählten Meets stehen als IDs in `counted_meet_
 | **Medaillenregel**    | Je Veranstaltung schaltbar: Alle Medaillen erst ab 4 Teilnehmern, darunter bekommt der Letzte die Anerkennungsmedaille |
 | **Anerkennungsmedaille** | Medaille für den Letzten bei 1 bis 3 Teilnehmern, wenn die Medaillenregel gilt                             |
 
-Einzelheiten in [specs/meet-entry-summary.md](specs/meet-entry-summary.md) (geplant).
+Einzelheiten in [specs/meet-entry-summary.md](specs/meet-entry-summary.md).
 
 ## Richtzeiten (Qualifikation)
 

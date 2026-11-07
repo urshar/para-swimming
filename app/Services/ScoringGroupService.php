@@ -142,6 +142,20 @@ final readonly class ScoringGroupService
     }
 
     /**
+     * Sammelaktion: setzt die Medaillenwertung an allen Wertungsgruppen der Veranstaltung, deren Name mit $prefix
+     * beginnt. Wirkt nur auf die Medaillenplanung; Plätze und Einschränkungen bleiben unverändert.
+     *
+     * @return int Anzahl der getroffenen Gruppen
+     */
+    public function setAwardsMedalsByNamePrefix(Meet $meet, string $prefix, bool $awardsMedals): int
+    {
+        $groups = $this->groupsByNamePrefix($meet, $prefix);
+        ScoringGroup::whereKey($groups->pluck('id')->all())->update(['awards_medals' => $awardsMedals]);
+
+        return $groups->count();
+    }
+
+    /**
      * Berechnete Plätze eines Ergebnisses je Wertungsgruppe (für die Anzeige im Formular).
      *
      * @return list<array{label: string, place: ?int}>

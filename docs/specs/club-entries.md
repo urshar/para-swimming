@@ -340,8 +340,9 @@ Staffelname in den Meldelisten: Anzeigename aus `RelayNames` (siehe "Staffelname
 
 ## Melde-Kennzahlen und Medaillenplanung
 
-Geplant, noch nicht umgesetzt: Block "Kennzahlen" auf "Alle Meldungen" mit Jugendlichen, Sportlern in der ÖBM-Wertung und
-Medaillenbedarf je Wertung. Siehe [meet-entry-summary.md](meet-entry-summary.md).
+Block "Kennzahlen" auf "Alle Meldungen" mit Athleten, Jugendlichen, Sportlern in der ÖBM-Wertung und Medaillenbedarf je
+Wertung, dazu der Schalter für die Medaillenregel (nur mit Schreibrecht für Veranstaltungen). Siehe
+[meet-entry-summary.md](meet-entry-summary.md).
 
 ## Meldegelder
 
