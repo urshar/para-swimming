@@ -126,7 +126,7 @@ class ResultController extends Controller
         $athletes = Athlete::with(['club', 'nation', 'sportClasses'])
             ->orderBy('last_name')
             ->get();
-        $clubs = Club::with('nation')->orderBy('name')->get();
+        $clubs = Club::with('nation')->orderByDisplayName()->get();
 
         // Meldungen außer Konkurrenz ("Bewerb-Athlet"): Das Formular belegt dafür den Status EXH vor (änderbar).
         $exhibitionKeys = Entry::where('meet_id', $meet->id)
@@ -214,7 +214,7 @@ class ResultController extends Controller
             'result' => $result,
             'swimEvents' => $swimEvents,
             'athletes' => collect(),
-            'clubs' => Club::with('nation')->orderBy('name')->get(),
+            'clubs' => Club::with('nation')->orderByDisplayName()->get(),
             'placements' => $this->scoring->placementsOf($result),
             'splitDistances' => self::splitDistances($result->meet, $swimEvents),
         ]);

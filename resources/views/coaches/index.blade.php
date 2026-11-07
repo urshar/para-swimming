@@ -31,7 +31,7 @@
         @if($clubs->isNotEmpty())
             <flux:select variant="listbox" searchable name="club_id" x-model="club_id" placeholder="Verein" clearable class="w-56">
                 @foreach($clubs as $club)
-                    <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
+                    <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                 @endforeach
             </flux:select>
         @endif

@@ -74,7 +74,7 @@
                         <flux:label>Verein<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" searchable name="club_id" x-model="clubId" required>
                             @foreach($clubs as $club)
-                                <flux:select.option value="{{ $club->id }}">{{ $club->display_name }}</flux:select.option>
+                                <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">{{ $club->display_name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:description class="mt-1!">Mitglieder werden aus der Staffelmeldung vorbelegt, falls vorhanden.</flux:description>
@@ -120,7 +120,7 @@
                                             <flux:select.option value="{{ $athlete->id }}">
                                                 {{ $athlete->display_name }}
                                                 {{ $athlete->sport_classes_display ? '– ' . $athlete->sport_classes_display : '' }}
-                                                ({{ $athlete->club?->short_name ?? $athlete->club?->name }})
+                                                ({{ $athlete->club?->display_name }})
                                             </flux:select.option>
                                         @endforeach
                                     </flux:select>

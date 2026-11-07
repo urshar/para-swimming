@@ -49,7 +49,7 @@ class CoachController extends Controller
 
         $coaches = $query->paginate(25)->withQueryString();
         $clubs = $user->canReadAll(Module::Coaches)
-            ? Club::whereHas('coaches')->orderBy('name')->get(['id', 'name', 'short_name'])
+            ? Club::whereHas('coaches')->orderByDisplayName()->get(['id', 'name', 'short_name'])
             : collect();
 
         return view('coaches.index', compact('coaches', 'clubs', 'level'));
@@ -151,7 +151,7 @@ class CoachController extends Controller
     private function selectableClubs(Request $request): Collection
     {
         return $this->ownClubId($request) === null
-            ? Club::orderBy('name')->get(['id', 'name', 'short_name'])
+            ? Club::orderByDisplayName()->get(['id', 'name', 'short_name'])
             : collect();
     }
 

@@ -125,7 +125,7 @@ class UserManager extends Component
     {
         // Sortiert nach der angezeigten Bezeichnung (Kurzname, sonst Name).
         return Club::get(['id', 'name', 'short_name'])
-            ->sortBy(fn (Club $club) => mb_strtolower($club->short_name ?: $club->name))
+            ->sortBy(fn (Club $club) => mb_strtolower($club->display_name))
             ->values();
     }
 

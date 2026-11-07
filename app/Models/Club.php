@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -150,11 +151,37 @@ class Club extends Model
         return $this->hasMany(Result::class);
     }
 
+    // ── Scopes ────────────────────────────────────────────────────────────────
+
+    /**
+     * Sortiert nach dem Anzeigenamen (Kurzname, sonst voller Name), passend zu display_name.
+     * Standard-SQL, läuft auf MySQL und SQLite.
+     */
+    public function scopeOrderByDisplayName(Builder $query): Builder
+    {
+        return $query->orderByRaw("COALESCE(NULLIF(short_name, ''), name)");
+    }
+
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
+    /**
+     * Anzeigename: Kurzname, falls gepflegt, sonst der volle Name. Wo der Kurzname steht, gehört
+     * der volle Name in den title-Tooltip. Voller Name bleibt nur im Vereinsformular, in der
+     * Überschrift der Vereins-Detailseite, in der Vereinsliste und im LENEX-Export.
+     */
     public function getDisplayNameAttribute(): string
     {
-        return $this->short_name ?? $this->name;
+        return filled($this->short_name) ? $this->short_name : $this->name;
+    }
+
+    /**
+     * Voller Name, wenn er sich vom Anzeigenamen unterscheidet, sonst null. Für title-Tooltips
+     * und als description in Auswahllisten (Flux durchsucht sie mit, blendet sie aber in der
+     * gewählten Anzeige aus), damit die Suche auch über den vollen Namen findet.
+     */
+    public function getFullNameHintAttribute(): ?string
+    {
+        return $this->display_name !== $this->name ? $this->name : null;
     }
 
     /**

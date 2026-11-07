@@ -80,7 +80,7 @@ class AthleteController extends Controller
         $athletes = $query->paginate(25)->withQueryString();
         $nations = Nation::active()->orderBy('code')->get();
         // Bei "eigener Verein" ergibt der Vereinsfilter nur für den eigenen Verein Treffer.
-        $clubs = Club::orderBy('name')
+        $clubs = Club::orderByDisplayName()
             ->when(! $request->user()->canReadAll(Module::Athletes), fn ($q) => $q->whereKey($request->user()->club_id))
             ->get();
 
@@ -159,7 +159,7 @@ class AthleteController extends Controller
     {
         Gate::authorize('create', Athlete::class);
         $nations = Nation::active()->orderBy('code')->get();
-        $clubs = Club::with('nation')->orderBy('name')->get();
+        $clubs = Club::with('nation')->orderByDisplayName()->get();
         $locked = AthleteFieldRules::for($request->user())->locked(true);
         $ownClub = $request->user()->club;
 
@@ -207,7 +207,7 @@ class AthleteController extends Controller
                 ->withQueryString()
             : null;
 
-        $clubs = $tab === 'vereine' ? Club::orderBy('name')->get() : collect();
+        $clubs = $tab === 'vereine' ? Club::orderByDisplayName()->get() : collect();
         $medClassifiers = $tab === 'klassifikation'
             ? Classifier::active()->medical()->orderBy('last_name')->get()
             : collect();
@@ -246,7 +246,7 @@ class AthleteController extends Controller
     {
         Gate::authorize('update', $athlete);
         $nations = Nation::active()->orderBy('code')->get();
-        $clubs = Club::with('nation')->orderBy('name')->get();
+        $clubs = Club::with('nation')->orderByDisplayName()->get();
         $locked = AthleteFieldRules::for($request->user())->locked(false);
         $ownClub = $request->user()->club;
 

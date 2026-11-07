@@ -53,7 +53,7 @@ class AssignRoleTemplateCommand extends Command
 
         $this->table(
             ['ID', 'Name', 'E-Mail', 'Verein'],
-            $users->map(fn (User $user) => [$user->id, $user->name, $user->email, $user->club?->name ?? '–'])->all(),
+            $users->map(fn (User $user) => [$user->id, $user->name, $user->email, $user->club?->display_name ?? '–'])->all(),
         );
 
         if ($this->option('dry-run')) {

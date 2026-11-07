@@ -32,8 +32,9 @@
                     <flux:select variant="listbox" searchable x-model="clubId" placeholder="Verein wählen…">
                         @foreach($clubs as $club)
                             <flux:select.option value="{{ $club->id }}"
-                                                :selected="request()->integer('club_id') === $club->id">
-                                {{ $club->name }}
+                                                :selected="request()->integer('club_id') === $club->id"
+                                                :description="$club->full_name_hint">
+                                {{ $club->display_name }}
                             </flux:select.option>
                         @endforeach
                     </flux:select>

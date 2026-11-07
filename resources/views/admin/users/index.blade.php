@@ -76,7 +76,7 @@
                         <flux:table.cell>
                             @if($user->club)
                                 <span class="text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $user->club->short_name ?? $user->club->name }}
+                                    {{ $user->club->display_name }}
                                 </span>
                             @else
                                 <span class="text-zinc-400 text-sm">–</span>
@@ -247,8 +247,8 @@
                         <flux:select variant="listbox" searchable wire:model.live="club_id"
                                      placeholder="— Kein Verein —" clearable>
                             @foreach($this->clubs as $club)
-                                <flux:select.option value="{{ $club->id }}">
-                                    {{ $club->short_name ?: $club->name }}
+                                <flux:select.option value="{{ $club->id }}" :description="$club->full_name_hint">
+                                    {{ $club->display_name }}
                                 </flux:select.option>
                             @endforeach
                         </flux:select>

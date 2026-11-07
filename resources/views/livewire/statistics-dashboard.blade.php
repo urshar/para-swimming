@@ -186,7 +186,7 @@
                     @forelse($stats['clubs']->take($topRows) as $row)
                         <flux:table.row>
                             <flux:table.cell class="font-mono text-zinc-400">{{ $row['rank'] }}</flux:table.cell>
-                            <flux:table.cell class="font-medium">
+                            <flux:table.cell class="font-medium" :title="$row['club_full_name']">
                                 {{ $row['club'] }}
                                 @if($row['nation'] && $row['nation'] !== 'AUT')
                                     <flux:badge size="sm" color="zinc">{{ $row['nation'] }}</flux:badge>

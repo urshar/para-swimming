@@ -187,7 +187,7 @@ final readonly class MeetEntryListService
 
             $sections->push([
                 'label' => trim($genderLabel.', '.$course, ', '),
-                'clubs' => $clubs->sortBy(fn (array $c): string => $c['club']->name)->values(),
+                'clubs' => $clubs->sortBy(fn (array $c): string => $c['club']->display_name)->values(),
             ]);
         }
 

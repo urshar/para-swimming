@@ -71,7 +71,7 @@ class EntryController extends Controller
             ->orderBy('event_number')
             ->get();
 
-        $clubs = Club::with('nation')->orderBy('name')->get();
+        $clubs = Club::with('nation')->orderByDisplayName()->get();
         $athletes = Athlete::with(['club', 'nation', 'sportClasses'])
             ->orderBy('last_name')
             ->get();
@@ -154,7 +154,7 @@ class EntryController extends Controller
     {
         $entry->load(['meet', 'athlete', 'club', 'swimEvent.strokeType']);
 
-        $clubs = Club::with('nation')->orderBy('name')->get();
+        $clubs = Club::with('nation')->orderByDisplayName()->get();
 
         return view('entries.edit', compact('entry', 'clubs'));
     }

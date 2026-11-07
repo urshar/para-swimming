@@ -276,7 +276,7 @@ final readonly class StatisticsExportService
                     $bracket['gender'],
                     $result->rank,
                     $result->athlete?->display_name,
-                    $result->club?->name,
+                    $result->club?->display_name,
                     $result->total_points,
                 ];
             }

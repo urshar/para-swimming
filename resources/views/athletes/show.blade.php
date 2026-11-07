@@ -264,7 +264,7 @@
                         <flux:label>Neuer Verein<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" searchable name="club_id" placeholder="Bitte wählen…" required>
                             @foreach($clubs as $club)
-                                <flux:select.option value="{{ $club->id }}" :selected="$club->id === $athlete->club_id">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
+                                <flux:select.option value="{{ $club->id }}" :selected="$club->id === $athlete->club_id" :description="$club->full_name_hint">{{ $club->display_name }} ({{ $club->nation?->code }})</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="club_id"/>

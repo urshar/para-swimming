@@ -594,7 +594,7 @@ class ClubEntryController extends Controller
 
         $user = auth()->user();
         $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
-        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderBy('name')->get() : null;
+        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderByDisplayName()->get() : null;
 
         if (! $user->canWriteAll(Module::Entries) && $openMeets->count() === 1) {
             return redirect()->route('club-entries.index', $openMeets->first());
@@ -617,7 +617,7 @@ class ClubEntryController extends Controller
 
         $user = auth()->user();
         $openMeets = Meet::where('is_open', true)->oldest('start_date')->get();
-        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderBy('name')->get() : null;
+        $clubs = $user->canWriteAll(Module::Entries) ? Club::orderByDisplayName()->get() : null;
 
         if (! $user->canWriteAll(Module::Entries) && $openMeets->count() === 1) {
             return redirect()->route('club-entries.relay.index', $openMeets->first());
@@ -645,7 +645,7 @@ class ClubEntryController extends Controller
                 ? Club::findOrFail($clubId)
                 : view('club-entries.choose-club', [
                     'meet' => $meet,
-                    'clubs' => Club::orderBy('name')->get(),
+                    'clubs' => Club::orderByDisplayName()->get(),
                     'routeName' => $routeName,
                 ]);
         }
@@ -679,7 +679,7 @@ class ClubEntryController extends Controller
 
         return view('club-entries.choose-club', [
             'meet' => $meet,
-            'clubs' => Club::orderBy('name')->get(),
+            'clubs' => Club::orderByDisplayName()->get(),
             'routeName' => $routeName,
         ]);
     }

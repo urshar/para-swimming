@@ -132,7 +132,7 @@ class RelayResultController extends Controller
 
         // Bewusst alle Athleten (auch vereinsfremde Mitglieder, z. B. bei AK-Staffeln).
         $athletes = Athlete::with(['club', 'sportClasses'])->orderBy('last_name')->orderBy('first_name')->get();
-        $clubs = Club::orderBy('name')->get();
+        $clubs = Club::orderByDisplayName()->get();
 
         // Vorbelegung der Mitglieder aus der Staffelmeldung: "Bewerb-Verein" → Athleten-IDs je Position.
         $entryMembers = RelayEntry::query()

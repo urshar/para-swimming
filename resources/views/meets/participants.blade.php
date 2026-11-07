@@ -71,7 +71,8 @@
             <flux:select variant="listbox" name="club_id" placeholder="Alle Vereine" clearable searchable
                          class="w-72" aria-label="Verein">
                 @foreach($clubs as $club)
-                    <flux:select.option value="{{ $club->id }}" :selected="$clubFilter === $club->id">
+                    <flux:select.option value="{{ $club->id }}" :selected="$clubFilter === $club->id"
+                                       :description="$club->full_name_hint">
                         {{ $club->display_name }}
                     </flux:select.option>
                 @endforeach

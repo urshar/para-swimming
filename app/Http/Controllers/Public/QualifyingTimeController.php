@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\Club;
 use App\Models\Qualification;
 use App\Models\QualifyingTime;
 use App\Models\QualifyingTimeList;
@@ -67,7 +68,7 @@ class QualifyingTimeController extends Controller
         $genders = $all->pluck('qualifyingTime.gender')->filter()->unique()->sort()->values();
         $sportClasses = $all->pluck('sport_class')->unique()->sortBy(fn (?string $sc
         ) => SportClassSorter::key($sc))->values();
-        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy('name')->values();
+        $clubs = $all->pluck('club')->filter()->unique('id')->sortBy(fn (Club $club): string => mb_strtolower($club->display_name))->values();
 
         // Zusätzlicher, gröberer Filter neben der einzelnen Sportklasse (Rückmeldung: "wenn alle
         // Sportklassen gewählt ist, dass man sich nur die Sportklassengruppen ebenfalls ansehen
