@@ -72,7 +72,7 @@
 
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 space-y-4">
 
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Session<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:input name="session_number" type="number" min="1"
@@ -96,8 +96,8 @@
                     </flux:field>
                 </div>
 
-                <div class="grid grid-cols-4 gap-4">
-                    <flux:field class="col-span-2">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <flux:field class="sm:col-span-2">
                         <flux:label>Schwimmstil<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                         <flux:select variant="listbox" name="stroke_type_id" required>
                             @foreach($strokeTypes->groupBy('category') as $category => $strokes)
@@ -301,13 +301,16 @@
                 <flux:error name="scoring_groups"/>
             </div>
 
-            <div class="flex gap-3 mt-6">
+            <div class="flex flex-wrap gap-3 mt-6">
                 <flux:button type="submit" variant="primary">
                     {{ isset($event) ? 'Speichern' : 'Disziplin anlegen' }}
                 </flux:button>
-                {{-- Gehört zum eigenen Formular unten (form-Attribut), steht aber in der Knopfzeile. --}}
+                {{-- Gehört zum eigenen Formular unten (form-Attribut), steht aber in der Knopfzeile. Der lange Text
+                     darf umbrechen ("!" gegen Flux' whitespace-nowrap/h-10), sonst ist der Knopf allein breiter als
+                     ein Handy-Bildschirm. --}}
                 @if(isset($event) && $event->scoringGroups->isNotEmpty())
-                    <flux:button type="submit" variant="primary" color="emerald" icon="document-duplicate" form="scoring-groups-copy">
+                    <flux:button type="submit" variant="primary" color="emerald" icon="document-duplicate" form="scoring-groups-copy"
+                                 class="max-w-full whitespace-normal! h-auto! min-h-10 py-2 text-start">
                         Wertungsgruppen auf andere Bewerbe übernehmen
                     </flux:button>
                 @endif
