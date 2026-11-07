@@ -32,12 +32,10 @@
                 @endif
 
                 <flux:field>
-                    <flux:label>Name</flux:label>
-                    <flux:input name="name" value="{{ old('name', $championship->name ?? '') }}"
+                    <flux:label>Name <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                    <flux:input name="name" value="{{ old('name', $championship->name ?? '') }}" required
                                 placeholder="World Para Swimming European Championships 2026"/>
-                    @error('name')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="name"/>
                 </flux:field>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -46,70 +44,52 @@
                         <flux:input name="short_name"
                                     value="{{ old('short_name', $championship->short_name ?? '') }}"
                                     placeholder="EM 2026"/>
-                        @error('short_name')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="short_name"/>
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Jahr</flux:label>
-                        <flux:input name="year" type="number"
+                        <flux:label>Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:input name="year" type="number" required
                                     value="{{ old('year', $championship->year ?? now()->year) }}"/>
-                        @error('year')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="year"/>
                     </flux:field>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Art</flux:label>
-                        <flux:select name="type">
+                        <flux:label>Art <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="type" placeholder="Wählen…" required>
                             @foreach($typLabels as $wert => $label)
-                                <option value="{{ $wert }}"
-                                        @if(old('type', $championship->type ?? '') === $wert) selected @endif>
-                                    {{ $label }}
-                                </option>
+                                <flux:select.option value="{{ $wert }}" :selected="old('type', $championship->type ?? '') === $wert">{{ $label }}</flux:select.option>
                             @endforeach
                         </flux:select>
-                        @error('type')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="type"/>
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Bahnlänge der Normen</flux:label>
-                        <flux:select name="course">
+                        <flux:label>Bahnlänge der Normen <span class="text-red-500 dark:text-red-400">*</span></flux:label>
+                        <flux:select variant="listbox" name="course" required>
                             @foreach(Championship::COURSES as $wert)
-                                <option value="{{ $wert }}"
-                                        @if(old('course', $championship->course ?? Championship::COURSE_LCM) === $wert) selected @endif>
-                                    {{ $wert }}
-                                </option>
+                                <flux:select.option value="{{ $wert }}" :selected="old('course', $championship->course ?? Championship::COURSE_LCM) === $wert">{{ $wert }}</flux:select.option>
                             @endforeach
                         </flux:select>
-                        @error('course')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="course"/>
                     </flux:field>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>Qualifikationszeitraum ab</flux:label>
+                        <flux:label>Qualifikationszeitraum ab <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" selectable-header name="qualification_start"
                                     value="{{ old('qualification_start', $championship?->qualification_start?->format('Y-m-d') ?? '') }}" clearable/>
-                        @error('qualification_start')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="qualification_start"/>
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>bis</flux:label>
+                        <flux:label>bis <span class="text-red-500 dark:text-red-400">*</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" selectable-header name="qualification_end"
                                     value="{{ old('qualification_end', $championship?->qualification_end?->format('Y-m-d') ?? '') }}" clearable/>
-                        @error('qualification_end')
-                        <flux:error>{{ $message }}</flux:error>
-                        @enderror
+                        <flux:error name="qualification_end"/>
                     </flux:field>
                 </div>
 
@@ -117,17 +97,13 @@
                     <flux:label>Herkunft der Normdatei</flux:label>
                     <flux:input name="source" value="{{ old('source', $championship->source ?? '') }}"
                                 placeholder="WPS Qualification Standards, Fassung vom …"/>
-                    @error('source')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="source"/>
                 </flux:field>
 
                 <flux:field>
                     <flux:label>Notizen</flux:label>
                     <flux:textarea name="notes" rows="3">{{ old('notes', $championship->notes ?? '') }}</flux:textarea>
-                    @error('notes')
-                    <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="notes"/>
                 </flux:field>
 
                 <flux:checkbox name="is_active" value="1" label="Aktiv"

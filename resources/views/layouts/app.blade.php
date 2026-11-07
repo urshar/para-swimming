@@ -391,7 +391,7 @@
         @endcan
 
         @can('module.read', Module::Championships)
-            <flux:navlist.group heading="Meisterschaften" expandable :expanded="request()->routeIs('championships.*')">
+            <flux:navlist.group heading="WM, EM, Paralympics" expandable :expanded="request()->routeIs('championships.*')">
                 <flux:navlist.item icon="trophy" href="{{ route('championships.index') }}"
                                    :current="request()->routeIs('championships.*')">
                     Qualifikationsnormen
