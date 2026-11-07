@@ -2,12 +2,12 @@
 
 @extends('layouts.app')
 
-@section('title', 'Meisterschaften')
+@section('title', 'WM, EM, Paralympics')
 
 @section('content')
     <div class="max-w-4xl">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Meisterschaften</h1>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">WM, EM, Paralympics</h1>
             @if(auth()->user()?->canWrite(Module::Championships))
                 <flux:button href="{{ route('championships.create') }}" variant="primary" icon="plus">
                     Neue Meisterschaft
