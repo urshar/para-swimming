@@ -13,6 +13,8 @@
             'associations' => ScoringGroup::parseCodes(old('regional_associations')),
             'levels' => ScoringGroup::parseLevels(old('levels')),
             'names' => $names->map(fn (array $row): array => ['name' => $row['name'], 'count' => $row['count']])->all(),
+            'medalPrefix' => (string) old('medal_prefix', ''),
+            'awardsMedals' => (string) old('awards_medals', '0'),
         ];
     @endphp
     <div class="max-w-5xl" x-data='scoringGroupRestrictionsForm(@json($formConfig))'>
@@ -92,6 +94,40 @@
                     <flux:button type="submit" variant="primary">Übernehmen</flux:button>
                 </form>
             </div>
+
+            {{-- ── Medaillenwertung setzen (getrennt von den Einschränkungen) ───── --}}
+            <div class="mb-6 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Medaillenwertung</h2>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 mb-4">
+                    Legt fest, ob die Gruppen in der Medaillenplanung unter "Alle Meldungen" zählen, z.&nbsp;B. "ÖBSV Cup" → nein,
+                    weil dort die Tageswertung entscheidet. Plätze, Punkte und Einschränkungen bleiben unverändert.
+                </p>
+                <form method="POST" action="{{ route('meets.scoring-group-medals.update', $meet) }}" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+                    @php $currentAwards = (string) old('awards_medals', '0'); @endphp
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Name beginnt mit</flux:label>
+                            <flux:input name="medal_prefix" x-model="medalPrefix" placeholder="ÖBSV Cup" required/>
+                            <flux:description class="mt-1!">
+                                <span x-text="medalMatchingCount() === 1 ? '1 Wertungsgruppe' : medalMatchingCount() + ' Wertungsgruppen'"></span>
+                                betroffen
+                            </flux:description>
+                            <flux:error name="medal_prefix"/>
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Medaillenwertung</flux:label>
+                            <flux:select variant="listbox" name="awards_medals" x-model="awardsMedals">
+                                <flux:select.option value="0" :selected="$currentAwards === '0'">nein</flux:select.option>
+                                <flux:select.option value="1" :selected="$currentAwards === '1'">ja</flux:select.option>
+                            </flux:select>
+                            <flux:error name="awards_medals"/>
+                        </flux:field>
+                    </div>
+                    <flux:button type="submit" variant="primary">Medaillenwertung setzen</flux:button>
+                </form>
+            </div>
         @endif
 
         {{-- ── Wertungsgruppen der Veranstaltung ────────────────────────────── --}}
@@ -104,13 +140,16 @@
                         <flux:table.column>Wertungsgruppe</flux:table.column>
                         <flux:table.column class="w-24">Bewerbe</flux:table.column>
                         <flux:table.column>Einschränkung</flux:table.column>
+                        <flux:table.column>Medaillenwertung</flux:table.column>
                     </flux:table.columns>
                     <flux:table.rows>
                         @foreach($names as $row)
-                            <flux:table.row x-bind:class="matches(names[{{ $loop->index }}].name) ? 'bg-blue-50 dark:bg-blue-950/30' : ''">
+                            {{-- Blau: trifft der Namensanfang der Einschränkung, Gelb: der der Medaillenwertung. --}}
+                            <flux:table.row x-bind:class="matches(names[{{ $loop->index }}].name) ? 'bg-blue-50 dark:bg-blue-950/30' : (medalMatches(names[{{ $loop->index }}].name) ? 'bg-amber-50 dark:bg-amber-950/30' : '')">
                                 <flux:table.cell class="font-medium text-zinc-900 dark:text-white">{{ $row['name'] }}</flux:table.cell>
                                 <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">{{ $row['count'] }}</flux:table.cell>
                                 <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">{{ implode(' / ', $row['restrictions']) }}</flux:table.cell>
+                                <flux:table.cell class="text-sm text-zinc-500 dark:text-zinc-400">{{ $row['medals'] }}</flux:table.cell>
                             </flux:table.row>
                         @endforeach
                     </flux:table.rows>

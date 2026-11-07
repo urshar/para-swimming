@@ -72,7 +72,7 @@ Merkmale, die sich durchziehen:
 
 ## Module und ihre Services
 
-- **Meldungen** – `ClubEntryService`, `RelayClassValidator`; geplant `MeetEntrySummaryService` (Melde-Kennzahlen und
+- **Meldungen** – `ClubEntryService`, `RelayClassValidator`, `MeetEntrySummaryService` (Melde-Kennzahlen und
   Medaillenplanung, rein lesend, siehe `docs/specs/meet-entry-summary.md`)
 - **Records** – `RecordCheckerService`, `RecordImportService`,
   `RecordLenexExportService`, `RecordStatisticsService`

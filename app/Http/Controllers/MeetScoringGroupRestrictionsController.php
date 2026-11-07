@@ -42,6 +42,8 @@ class MeetScoringGroupRestrictionsController extends Controller
                 'name' => $name,
                 'count' => $byName->count(),
                 'restrictions' => $byName->map(fn (ScoringGroup $g): string => $g->restrictionLabel() ?? '–')->unique()->values()->all(),
+                // "ja", "nein" oder bei unterschiedlichen Werten "teilweise (n von m)".
+                'medals' => self::medalsLabel($byName),
             ])
             ->values();
 
@@ -83,5 +85,41 @@ class MeetScoringGroupRestrictionsController extends Controller
             ->route('meets.scoring-group-restrictions', $meet)
             ->with('success', 'Einschränkung an '.$outcome['groups'].' '.($outcome['groups'] === 1 ? 'Wertungsgruppe' : 'Wertungsgruppen')
                 .' in '.$outcome['events'].' '.($outcome['events'] === 1 ? 'Bewerb' : 'Bewerben').' gesetzt, Plätze neu berechnet.');
+    }
+
+    /**
+     * Sammelaktion "Medaillenwertung": an allen Gruppen mit dem Namensanfang ja/nein setzen (z. B. "ÖBSV Cup" → nein).
+     * Getrennt von den Einschränkungen; Plätze bleiben unverändert (docs/specs/meet-entry-summary.md).
+     */
+    public function updateMedals(Request $request, Meet $meet): RedirectResponse
+    {
+        $data = $request->validate([
+            'medal_prefix' => 'required|string|max:100',
+            'awards_medals' => 'required|in:0,1',
+        ]);
+
+        $awards = $data['awards_medals'] === '1';
+        $count = $this->scoring->setAwardsMedalsByNamePrefix($meet, $data['medal_prefix'], $awards);
+
+        if ($count === 0) {
+            return back()->withInput()->with('error', 'Keine Wertungsgruppe beginnt mit "'.trim($data['medal_prefix']).'".');
+        }
+
+        return redirect()
+            ->route('meets.scoring-group-restrictions', $meet)
+            ->with('success', 'Medaillenwertung an '.$count.' '.($count === 1 ? 'Wertungsgruppe' : 'Wertungsgruppen')
+                .' '.($awards ? 'eingeschaltet' : 'ausgeschaltet').'.');
+    }
+
+    /** @param  Collection<int, ScoringGroup>  $groups */
+    private static function medalsLabel(Collection $groups): string
+    {
+        $yes = $groups->where('awards_medals', true)->count();
+
+        return match ($yes) {
+            $groups->count() => 'ja',
+            0 => 'nein',
+            default => 'teilweise ('.$yes.' von '.$groups->count().')',
+        };
     }
 }

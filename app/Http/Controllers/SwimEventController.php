@@ -240,6 +240,7 @@ class SwimEventController extends Controller
                 .implode(',', array_keys(ScoringGroup::REGION_MODES)),
             'scoring_groups.*.levels' => 'nullable|string|max:100',
             'scoring_groups.*.title' => 'nullable|in:'.implode(',', array_keys(ScoringGroup::TITLES)),
+            'scoring_groups.*.awards_medals' => 'nullable|boolean',
             'scoring_groups.*.lenex_agegroup_id' => 'nullable|string|max:50',
         ])['scoring_groups'] ?? []);
     }
@@ -267,6 +268,8 @@ class SwimEventController extends Controller
                 'regional_mode' => $associations !== [] ? $row['regional_mode'] : null,
                 'levels' => $levels !== [] ? implode(',', $levels) : null,
                 'title' => $row['title'] ?? null,
+                // Ohne Angabe (z. B. neue Gruppe) zählt die Gruppe in der Medaillenplanung.
+                'awards_medals' => (bool) ($row['awards_medals'] ?? true),
                 'sort_order' => $index + 1,
                 'lenex_agegroup_id' => $row['lenex_agegroup_id'] ?? null,
             ]);
@@ -318,7 +321,7 @@ class SwimEventController extends Controller
     {
         $row = $group->only([
             'name', 'gender', 'sport_classes', 'age_min', 'age_max', 'regional_associations', 'regional_mode', 'levels',
-            'title',
+            'title', 'awards_medals',
         ]);
 
         if (in_array($target->gender, ['M', 'F'], true)) {

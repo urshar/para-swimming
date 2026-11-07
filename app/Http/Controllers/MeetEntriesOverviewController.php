@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Entry;
 use App\Models\Meet;
 use App\Models\RelayEntry;
+use App\Services\MeetEntrySummaryService;
 use App\Support\RelayNames;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +26,10 @@ use Illuminate\Http\Request;
  */
 class MeetEntriesOverviewController extends Controller
 {
+    public function __construct(
+        private readonly MeetEntrySummaryService $summaries,
+    ) {}
+
     public function index(Request $request, Meet $meet): View
     {
         $events = $meet->swimEvents()
@@ -60,6 +65,9 @@ class MeetEntriesOverviewController extends Controller
             ->sortBy(fn (RelayEntry $r): string => $relayNames[$r->id])
             ->groupBy('swim_event_id');
 
+        $einzelTotal = $meet->entries()->count();
+        $staffelTotal = $meet->relayEntries()->count();
+
         return view('meets.entries-overview', [
             'meet' => $meet,
             'events' => $events,
@@ -67,8 +75,11 @@ class MeetEntriesOverviewController extends Controller
             'relaysByEvent' => $relaysByEvent,
             'relayNames' => $relayNames,
             'eventFilter' => $eventFilter,
-            'einzelTotal' => $meet->entries()->count(),
-            'staffelTotal' => $meet->relayEntries()->count(),
+            'einzelTotal' => $einzelTotal,
+            'staffelTotal' => $staffelTotal,
+            // Kennzahlen (Jugendliche, B-Meisterschaft, Medaillen) nur, wenn es Meldungen gibt; immer für die ganze
+            // Veranstaltung, unabhängig vom Disziplin-Filter.
+            'summary' => $einzelTotal + $staffelTotal > 0 ? $this->summaries->summarize($meet) : null,
         ]);
     }
 }
