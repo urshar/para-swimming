@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BaseTimeSportClass;
 use App\Models\Nation;
 use App\Models\StrokeType;
 use App\Models\SwimRecord;
@@ -101,4 +102,31 @@ it('bietet bei Einzel die Sportklassen auch ohne importierte Basiszeiten an', fu
     expect($html)->toContain('S01,SB01,SM01')
         ->toContain('S14,SB14,SM14')
         ->toContain('S21,SB21,SM21');
+});
+
+it('bietet bei Einzel keine reinen Staffelklassen an, auch wenn sie in den Basiswerten stehen', function () {
+    foreach (['S14', 'S20', 'S34', 'S49'] as $i => $code) {
+        BaseTimeSportClass::create(['code' => $code, 'sort_order' => $i + 1]);
+    }
+
+    $html = test()->actingAs(admin_rfr())
+        ->get(route('records.index', ['category' => 'national', 'relay' => 'single', 'course' => 'SCM']))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('S14,SB14,SM14')
+        ->not->toContain('S20,SB20,SM20')
+        ->not->toContain('S34,SB34,SM34')
+        ->not->toContain('S49,SB49,SM49');
+});
+
+it('bietet bei Staffeln alle sechs Staffelklassen an', function () {
+    $html = list_rfr([]);
+
+    expect($html)->toContain('S14,SB14,SM14')
+        ->toContain('S15,SB15,SM15')
+        ->toContain('S20,SB20,SM20')
+        ->toContain('S21,SB21,SM21')
+        ->toContain('S34,SB34,SM34')
+        ->toContain('S49,SB49,SM49');
 });

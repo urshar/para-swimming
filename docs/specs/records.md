@@ -205,7 +205,8 @@ Spricht ein Beleg (Stufe 1 oder 2) für einen anderen Verein, entsteht kein Reko
 
 **Filter der Rekordliste:** Sportklasse je Nummer über `S`/`SB`/`SM` zusammengefasst (ein Rekord hat genau eine
 davon) — bei Einzelrekorden S1–S15 und S21 plus weitere Nummern aus den Basiswerten (die feste Grundmenge hält den
-Filter auch ohne importierte Basiszeiten nutzbar), bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
+Filter auch ohne importierte Basiszeiten nutzbar), ohne die reinen Staffelklassen 20, 34, 49
+(`RelayClassValidator::RELAY_ONLY_CLASS_NUMBERS`, stehen auch in den Basiswerten), bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
 (Brust- und Lagenstaffeln heißen `SB…`/`SM…`). Wertung Herren/Damen, bei Staffeln zusätzlich Mixed (`X`); Anzeige über
 `SwimRecord::genderLabel()`/`genderColor()` (Herren blau, Damen rosa, Mixed violett).
 

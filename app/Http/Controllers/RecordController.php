@@ -14,6 +14,7 @@ use App\Models\SwimRecord;
 use App\Services\RecordCheckerService;
 use App\Services\RecordImportReviewService;
 use App\Services\RegionalRecordService;
+use App\Services\RelayClassValidator;
 use App\Support\ListUrl;
 use App\Support\TimeParser;
 use Illuminate\Http\RedirectResponse;
@@ -513,7 +514,8 @@ class RecordController extends Controller
      * Einzel: eine Option je in den Basiswerten gepflegter Klassennummer, zusammengefasst über
      * S/SB/SM (ein SwimRecord hat immer nur eine dieser drei Kategorien) — Wert
      * "S{n},SB{n},SM{n}" (ungepolstert, passend zu den tatsächlich gespeicherten
-     * sport_class-Werten), Label "S{n},SB{n},SM{n}" zweistellig gepolstert.
+     * sport_class-Werten), Label "S{n},SB{n},SM{n}" zweistellig gepolstert. Die reinen
+     * Staffelklassen (20, 34, 49) stehen zwar in den Basiswerten, fallen hier aber weg.
      * Staffel: die sechs kombinierten Staffelklassen aus RelayClassValidator (14, 15, 20, 21, 34, 49), ebenfalls über
      * S/SB/SM zusammengefasst (Brust- und Lagenstaffeln), keine Vorauswahl.
      *
@@ -523,7 +525,9 @@ class RecordController extends Controller
     {
         if ($relayFilter === 'relay') {
             // Wie bei Einzel je Klasse über S/SB/SM zusammengefasst: Brust- und Lagenstaffeln heißen SB…/SM….
-            return [collect([14, 15, 20, 21, 34, 49])->mapWithKeys(fn (int $n) => ["S$n,SB$n,SM$n" => "S$n,SB$n,SM$n"]),
+            return [collect(RelayClassValidator::RELAY_CLASSES)
+                ->map(fn (string $class) => substr($class, 1))
+                ->mapWithKeys(fn (string $n) => ["S$n,SB$n,SM$n" => "S$n,SB$n,SM$n"]),
                 null];
         }
 
@@ -534,6 +538,7 @@ class RecordController extends Controller
             ->pluck('code')
             ->map(fn ($code) => (int) preg_replace('/\D+/', '', $code))
             ->merge([...range(1, 15), 21])
+            ->reject(fn (int $n) => in_array($n, RelayClassValidator::RELAY_ONLY_CLASS_NUMBERS, true))
             ->unique()
             ->sort()
             ->values();
