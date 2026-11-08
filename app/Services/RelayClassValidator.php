@@ -32,6 +32,9 @@ class RelayClassValidator
     /** Gültige Staffelklassen. */
     public const array RELAY_CLASSES = ['S14', 'S15', 'S20', 'S21', 'S34', 'S49'];
 
+    /** Klassennummern, die es nur bei Staffeln gibt (14, 15 und 21 sind auch Einzelklassen). */
+    public const array RELAY_ONLY_CLASS_NUMBERS = [20, 34, 49];
+
     private const array VISUAL_CLASSES = [11, 12, 13];
 
     private const array INTELLECTUAL_CLASSES = [14, 21];

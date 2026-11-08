@@ -181,7 +181,11 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **UI-Kleinigkeiten (Erik, 27.10.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
 1. "Filter: Suchfeld verliert beim Tippen den Fokus"
-2. "Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde"
+
+**Erledigt:** "Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde"
+(`fix/record-filter-relay-classes`, 08.11.2026): Einzel ohne die reinen Staffelklassen 20, 34, 49
+(`RelayClassValidator::RELAY_ONLY_CLASS_NUMBERS`), Staffel aus `RelayClassValidator::RELAY_CLASSES`. Tests:
+`--group=record-relay-filter`.
 
 **Erledigt:** "Vereine überall mit Kurznamen anzeigen" (`feature/club-short-names`, 07.11.2026): Anzeige überall
 über `Club::display_name` (leerer Kurzname zählt als keiner), voller Name als `title`-Tooltip
@@ -319,18 +323,6 @@ Staffelmeldungen) prüfen.
 Cursor wieder ins zuletzt bearbeitete Suchfeld setzen (kleinster Eingriff, in `indexFilters` zentral), (b) Textfelder
 erst bei Enter oder beim Verlassen des Felds absenden, Selects weiter sofort, oder (c) die Liste ohne Neuladen
 nachladen (größerer Umbau). Live mit Tastatur prüfen.
-
-## Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde
-
-**Seit:** 27.10.2026, Rückmeldung Erik.
-
-**Ausgangslage:** Im Sportklassen-Filter der Rekordliste stehen bei Einzelrekorden auch S20/SB20/SM20,
-S34/SB34/SM34 und S49/SB49/SM49 — das sind Staffelklassen. Ursache: `RecordController::buildSportClassOptions()` nimmt
-für Einzel alle Klassennummern aus `BaseTimeSportClass` (die Basiswerte enthalten auch die Staffelwerte) plus S1–S15
-und S21.
-
-**Zum Schließen nötig:** Für Einzel die reinen Staffelklassen (20, 34, 49 aus `RelayClassValidator`) ausschließen —
-14, 15 und 21 sind auch Einzelklassen und bleiben. Test für beide Filterlisten (Einzel ohne, Staffel mit 20/34/49).
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 
