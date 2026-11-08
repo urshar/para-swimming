@@ -18,11 +18,13 @@ use App\Models\KaderType;
 use App\Models\Nation;
 use App\Services\AthleteClubTransferService;
 use App\Services\ImportSuggestionService;
+use App\Services\KaderMembershipService;
 use App\Support\AthleteFieldRules;
 use App\Support\AuditHistory;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -215,7 +217,14 @@ class AthleteController extends Controller
             ? Classifier::active()->technical()->orderBy('last_name')->get()
             : collect();
         $exceptionCodes = $tab === 'klassifikation' ? ExceptionCode::active()->orderBy('code')->get() : collect();
-        $kaderTypes = $tab === 'level-kader' ? KaderType::active()->orderBy('sort_order')->get() : collect();
+        // Inaktive Kaderarten nur, wenn ein bestehender Eintrag sie nutzt — sonst wäre die Kaderart im
+        // Bearbeitungsformular dieses Eintrags nicht vorbelegt.
+        $kaderTypes = $tab === 'level-kader'
+            ? KaderType::active()
+                ->orWhereIn('id', $athlete->kaderMemberships->pluck('kader_type_id'))
+                ->orderBy('sort_order')
+                ->get()
+            : collect();
 
         // Top-Gruppen-Historie je Cup-Jahr (Spec cup-top-group.md); der Reiter existiert nur mit Leserecht Cup.
         $topGroupHistory = $tab === 'cup'
@@ -442,13 +451,92 @@ class AthleteController extends Controller
      *
      * Trägt eine Nationalkader-Zugehörigkeit ein (Punkt 3 der Spec). Nur mit Athleten
      * schreiben "alle" — Kaderverwaltung ist eine ÖBSV-weite Aufgabe, keine Club-Funktion.
+     * Noch laufende Vorgänger werden am Vortag des Beginns automatisch abgeschlossen; ohne
+     * "Gültig ab" gilt das Eintragsdatum (siehe KaderMembershipService).
      *
      * @used-by web.php (Route::post athletes.kader-memberships.store)
+     *
+     * @throws Throwable
      */
-    public function storeKaderMembership(Request $request, Athlete $athlete): RedirectResponse
-    {
+    public function storeKaderMembership(
+        Request $request,
+        Athlete $athlete,
+        KaderMembershipService $kaderMemberships
+    ): RedirectResponse {
         abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
 
+        [, $closed] = $kaderMemberships->create($athlete, $this->validateKaderMembership($request));
+
+        $message = 'Kaderzugehörigkeit eingetragen.';
+        if ($closed->isNotEmpty()) {
+            $message .= ' Abgeschlossen: '.$this->describeKaderMemberships($closed).'.';
+        }
+
+        return redirect()
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
+            ->with('success', $message);
+    }
+
+    /**
+     * PUT /athletes/{athlete}/kader-memberships/{kaderMembership}
+     *
+     * Ändert genau diesen Eintrag (z.B. ein Enddatum nachtragen) — andere Einträge werden
+     * dabei bewusst nicht automatisch angepasst.
+     *
+     * @used-by web.php (Route::put athletes.kader-memberships.update)
+     */
+    public function updateKaderMembership(
+        Request $request,
+        Athlete $athlete,
+        AthleteKaderMembership $kaderMembership
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
+
+        abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
+
+        $kaderMembership->update($this->validateKaderMembership($request));
+
+        return redirect()
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
+            ->with('success', 'Kaderzugehörigkeit aktualisiert.');
+    }
+
+    /**
+     * DELETE /athletes/{athlete}/kader-memberships/{kaderMembership}
+     *
+     * War der Eintrag der neueste, wird der automatisch abgeschlossene Vorgänger wieder
+     * auf "laufend" gesetzt (siehe KaderMembershipService).
+     *
+     * @used-by web.php (Route::delete athletes.kader-memberships.destroy)
+     *
+     * @throws Throwable
+     */
+    public function destroyKaderMembership(
+        Athlete $athlete,
+        AthleteKaderMembership $kaderMembership,
+        KaderMembershipService $kaderMemberships
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
+
+        abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
+
+        $reopened = $kaderMemberships->delete($kaderMembership);
+
+        $message = 'Kaderzugehörigkeit gelöscht.';
+        if ($reopened->isNotEmpty()) {
+            $message .= ' Wieder laufend: '.$this->describeKaderMemberships($reopened).'.';
+        }
+
+        return redirect()
+            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
+            ->with('success', $message);
+    }
+
+    /**
+     * @return array{kader_type_id: int|string, valid_from: ?string, valid_until: ?string, notes: ?string}
+     */
+    private function validateKaderMembership(Request $request): array
+    {
         $validated = $request->validate([
             'kader_type_id' => 'required|exists:kader_types,id',
             'valid_from' => 'nullable|date',
@@ -456,29 +544,25 @@ class AthleteController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $athlete->kaderMemberships()->create($validated);
-
-        return redirect()
-            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
-            ->with('success', 'Kaderzugehörigkeit eingetragen.');
+        return [
+            'kader_type_id' => $validated['kader_type_id'],
+            'valid_from' => $validated['valid_from'] ?? null,
+            'valid_until' => $validated['valid_until'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ];
     }
 
     /**
-     * DELETE /athletes/{athlete}/kader-memberships/{kaderMembership}
+     * Kurzbeschreibung für die Flash-Meldung, z.B. "Weltklasse (bis 31.10.2026)".
      *
-     * @used-by web.php (Route::delete athletes.kader-memberships.destroy)
+     * @param  Collection<int, AthleteKaderMembership>  $memberships
      */
-    public function destroyKaderMembership(Athlete $athlete, AthleteKaderMembership $kaderMembership): RedirectResponse
+    private function describeKaderMemberships(Collection $memberships): string
     {
-        abort_unless(auth()->user()?->canWriteAll(Module::Athletes), 403, 'Nur mit Schreibrecht Athleten (alle).');
-
-        abort_if($kaderMembership->athlete_id !== $athlete->id, 404);
-
-        $kaderMembership->delete();
-
-        return redirect()
-            ->route('athletes.show', ['athlete' => $athlete, 'reiter' => 'level-kader'])
-            ->with('success', 'Kaderzugehörigkeit gelöscht.');
+        return $memberships
+            ->map(fn (AthleteKaderMembership $m) => $m->kaderType->name_de
+                .' ('.($m->valid_until ? 'bis '.$m->valid_until->format('d.m.Y') : 'laufend').')')
+            ->implode(', ');
     }
 
     /**

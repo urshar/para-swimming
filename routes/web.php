@@ -244,6 +244,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::post('athletes/{athlete}/kader-memberships',
             [AthleteController::class, 'storeKaderMembership'])->name('athletes.kader-memberships.store');
+        Route::put('athletes/{athlete}/kader-memberships/{kaderMembership}',
+            [AthleteController::class, 'updateKaderMembership'])->name('athletes.kader-memberships.update');
         Route::delete('athletes/{athlete}/kader-memberships/{kaderMembership}',
             [AthleteController::class, 'destroyKaderMembership'])->name('athletes.kader-memberships.destroy');
     });
