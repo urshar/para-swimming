@@ -845,7 +845,7 @@
                 <flux:field>
                     <flux:label>Kaderart<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
                     <flux:select variant="listbox" name="kader_type_id" placeholder="– auswählen –" required>
-                        @foreach($kaderTypes as $kaderType)
+                        @foreach($kaderTypes->where('is_active', true) as $kaderType)
                             <flux:select.option value="{{ $kaderType->id }}">{{ $kaderType->name_de }}</flux:select.option>
                         @endforeach
                     </flux:select>
@@ -853,7 +853,7 @@
                 </flux:field>
                 <div class="grid grid-cols-2 gap-3 mt-3">
                     <flux:field>
-                        <flux:label>Gültig ab <span class="font-normal text-zinc-400">(optional)</span></flux:label>
+                        <flux:label>Gültig ab <span class="font-normal text-zinc-400">(leer = heute)</span></flux:label>
                         <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_from" value="{{ old('valid_from') }}" clearable/>
                         <flux:error name="valid_from"/>
                     </flux:field>
@@ -879,28 +879,81 @@
         @if($athlete->kaderMemberships->isNotEmpty())
             <div class="divide-y divide-zinc-100 dark:divide-zinc-700">
                 @foreach($athlete->kaderMemberships as $km)
-                    <div class="flex items-center justify-between py-2.5 text-sm">
-                        <div class="flex items-center gap-3">
-                            <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                                {{ $km->kaderType->name_de }}
-                            </span>
-                            <span class="text-xs text-zinc-400">
-                                {{ $km->valid_from?->format('d.m.Y') ?? '—' }}
-                                bis {{ $km->valid_until?->format('d.m.Y') ?? 'laufend' }}
-                            </span>
-                            @if($km->notes)
-                                <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
+                    <div class="py-2.5 text-sm" x-data="{ editing: false }">
+                        <div x-show="!editing" class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100">
+                                    {{ $km->kaderType->name_de }}
+                                </span>
+                                <span class="text-xs text-zinc-400">
+                                    {{ $km->valid_from?->format('d.m.Y') ?? '—' }}
+                                    bis {{ $km->valid_until?->format('d.m.Y') ?? 'laufend' }}
+                                </span>
+                                @if($km->notes)
+                                    <span class="text-xs text-zinc-400">· {{ $km->notes }}</span>
+                                @endif
+                            </div>
+                            @if(auth()->user()?->canWriteAll(Module::Athletes))
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <flux:button size="sm" variant="ghost" icon="pencil" class="text-amber-500!"
+                                                 title="Bearbeiten" aria-label="Kaderzugehörigkeit bearbeiten"
+                                                 x-on:click="editing = true"/>
+                                    <form method="POST"
+                                          action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
+                                          onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"
+                                                     title="Löschen" aria-label="Kaderzugehörigkeit löschen"/>
+                                    </form>
+                                </div>
                             @endif
                         </div>
+
+                        {{-- Bearbeitungsmodus --}}
                         @if(auth()->user()?->canWriteAll(Module::Athletes))
-                            <form method="POST"
-                                  action="{{ route('athletes.kader-memberships.destroy', [$athlete, $km]) }}"
-                                  onsubmit="return confirm('Kaderzugehörigkeit wirklich löschen?');">
-                                @csrf
-                                @method('DELETE')
-                                <flux:button type="submit" variant="ghost" size="sm" icon="trash" class="text-red-500!"
-                                             title="Löschen" aria-label="Kaderzugehörigkeit löschen"/>
-                            </form>
+                            <div x-show="editing" x-cloak
+                                 class="p-4 bg-zinc-50 dark:bg-zinc-700/40 rounded-lg border border-zinc-200 dark:border-zinc-600">
+                                <h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
+                                    Kaderzugehörigkeit bearbeiten
+                                </h3>
+                                <form method="POST"
+                                      action="{{ route('athletes.kader-memberships.update', [$athlete, $km]) }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <flux:field>
+                                        <flux:label>Kaderart<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
+                                        <flux:select variant="listbox" name="kader_type_id" required>
+                                            @foreach($kaderTypes as $kaderType)
+                                                <flux:select.option value="{{ $kaderType->id }}"
+                                                                    :selected="$kaderType->id === $km->kader_type_id">{{ $kaderType->name_de }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    </flux:field>
+                                    <div class="grid grid-cols-2 gap-3 mt-3">
+                                        <flux:field>
+                                            <flux:label>Gültig ab</flux:label>
+                                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_from"
+                                                              value="{{ $km->valid_from?->format('Y-m-d') }}" clearable/>
+                                        </flux:field>
+                                        <flux:field>
+                                            <flux:label>Gültig bis <span class="font-normal text-zinc-400">(leer = laufend)</span></flux:label>
+                                            <flux:date-picker type="input" locale="de-AT" selectable-header name="valid_until"
+                                                              value="{{ $km->valid_until?->format('Y-m-d') }}" clearable/>
+                                        </flux:field>
+                                    </div>
+                                    <flux:field class="mt-3">
+                                        <flux:label>Bemerkung</flux:label>
+                                        <flux:input name="notes" value="{{ $km->notes }}" placeholder="Begründung…"/>
+                                    </flux:field>
+                                    <div class="flex gap-2 mt-3">
+                                        <flux:button type="submit" variant="primary" size="sm">Speichern</flux:button>
+                                        <flux:button type="button" variant="ghost" size="sm" x-on:click="editing = false">
+                                            Abbrechen
+                                        </flux:button>
+                                    </div>
+                                </form>
+                            </div>
                         @endif
                     </div>
                 @endforeach
