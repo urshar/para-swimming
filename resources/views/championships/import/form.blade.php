@@ -17,8 +17,8 @@
                 @csrf
 
                 <flux:field>
-                    <flux:label>WPS-Normdatei (.xlsx oder .xml)</flux:label>
-                    <flux:input name="standards_file" type="file" accept=".xlsx,.xls,.xml"/>
+                    <flux:label>WPS-Normdatei (.docx, .xlsx oder .xml)</flux:label>
+                    <flux:input name="standards_file" type="file" accept=".docx,.xlsx,.xls,.xml"/>
                     <flux:error name="standards_file"/>
                 </flux:field>
 
@@ -35,8 +35,17 @@
             class="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
             <p class="font-medium text-zinc-700 dark:text-zinc-300">Erwarteter Aufbau</p>
             <p>
-                <span class="font-medium">Excel:</span> Zeile 1 Titel, Zeile 2 die Überschriften Events, Class,
-                Men, Women, Zeile 3 die Unterüberschriften MQS und MET. Ab Zeile 4 die Daten in den Spalten A–F.
+                <span class="font-medium">Word:</span> die Normliste von World Para Swimming als .docx
+                (z. B. "Mexico 2027 MQS Final"), unverändert. Titel und Qualifikationszeitraum werden aus
+                den Absätzen vor der Tabelle gelesen, die Normen aus der Tabelle (Events, Sport Class, Men,
+                Women mit MQS und MET). Der Staffelabschnitt wird übersprungen. Wenn verfügbar, ist das das
+                verlässlichste Format.
+            </p>
+            <p>
+                <span class="font-medium">Excel:</span> eine Zeile mit den Überschriften Events, Class, Men,
+                Women, direkt darunter die Unterüberschriften MQS und MET, danach die Daten in den Spalten A–F.
+                Die Überschriften dürfen in einer der ersten 10 Zeilen stehen; Zeilen darüber gelten als Titel
+                (daraus wird, falls angegeben, der Qualifikationszeitraum vorgeschlagen).
             </p>
             <p>
                 <span class="font-medium">XML:</span> die Qualifikationsliste von World Para Swimming im
