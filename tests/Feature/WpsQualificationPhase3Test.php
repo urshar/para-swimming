@@ -5,6 +5,7 @@ use App\Models\Championship;
 use App\Models\ChampionshipStandard;
 use App\Models\StrokeType;
 use App\Models\User;
+use App\Services\ChampionshipStandardDocxReader;
 use App\Services\ChampionshipStandardImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -103,6 +104,124 @@ function standardFile_wq3(array $dataRows): string
         ['Events', 'Class', 'Men', 'Women'],
         ['MQS', 'MET', 'MQS', 'MET'],
     );
+}
+
+/**
+ * Baut eine Datei, wie sie beim Umwandeln des WPS-PDFs entsteht: ohne Titel bzw. mit beliebig
+ * vielen Titelzeilen vor der Kopfzeile, Zeiten als echte Excel-Zeitwerte.
+ *
+ * @param  list<string>  $titleRows  Zeilen vor der Kopfzeile (Spalte A)
+ * @param  list<array<int, string|int|null>>  $dataRows  [Events, Class, MQS m, MET m, MQS w, MET w], Zeiten in Hundertsteln
+ */
+function xlsxFlexible_wq3(array $titleRows, array $dataRows, array $subHeader): string
+{
+    $spreadsheet = new Spreadsheet;
+    $sheet = $spreadsheet->getActiveSheet();
+    $nummer = 1;
+
+    foreach ($titleRows as $titel) {
+        $sheet->setCellValue('A'.$nummer, $titel);
+        $nummer++;
+    }
+
+    foreach (['A' => 'Events', 'B' => 'Class', 'C' => 'Men', 'E' => 'Women'] as $column => $text) {
+        $sheet->setCellValue($column.$nummer, $text);
+    }
+
+    $nummer++;
+
+    foreach (['C', 'D', 'E', 'F'] as $index => $column) {
+        $sheet->setCellValue($column.$nummer, $subHeader[$index]);
+    }
+
+    $nummer++;
+
+    foreach ($dataRows as $zeile) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $index => $column) {
+            $wert = $zeile[$index] ?? null;
+
+            if ($wert === null) {
+                continue;
+            }
+
+            // Zeiten als Bruchteil eines Tages, wie Excel sie speichert.
+            $sheet->setCellValue($column.$nummer, is_int($wert) ? $wert / 8640000 : $wert);
+        }
+
+        $nummer++;
+    }
+
+    $pfad = tempnam(sys_get_temp_dir(), 'wq3_').'.xlsx';
+
+    (new XlsxWriter($spreadsheet))->save($pfad);
+
+    return $pfad;
+}
+
+/**
+ * Baut eine Word-Datei im Aufbau der WPS-Normliste (Mexico 2027): Absätze vor der Tabelle,
+ * Bewerb in vertikal verbundenen Zellen, MQS-Zellen über zwei Rasterspalten.
+ *
+ * @param  list<string>  $preamble  Absätze vor der Tabelle
+ * @param  list<list<string|null>>  $tableRows  Zellen je Zeile; null = Folgezelle einer vertikalen Verbindung
+ */
+function docx_wq3(array $preamble, array $tableRows): string
+{
+    $esc = static fn (string $text): string => htmlspecialchars($text, ENT_XML1);
+    $absatz = static fn (string $text): string => '<w:p><w:r><w:t xml:space="preserve">'.$esc($text).'</w:t></w:r></w:p>';
+
+    $body = implode('', array_map($absatz, $preamble));
+
+    // Ohne Zeilen gar keine Tabelle schreiben.
+    $body .= $tableRows === [] ? '' : '<w:tbl>';
+
+    foreach ($tableRows as $zeile) {
+        $body .= '<w:tr>';
+
+        foreach ($zeile as $index => $zelle) {
+            $eigenschaften = '';
+
+            if ($zelle === null) {
+                $eigenschaften = '<w:vMerge/>';
+            } elseif ($index === 0 && count($zeile) === 6) {
+                $eigenschaften = '<w:vMerge w:val="restart"/>';
+            }
+
+            // Wie im Original: die MQS-Zellen überspannen zwei Rasterspalten.
+            if (count($zeile) === 6 && in_array($index, [2, 4], true)) {
+                $eigenschaften .= '<w:gridSpan w:val="2"/>';
+            }
+
+            // Mehrere Absätze je Zelle, getrennt an "|".
+            $inhalt = implode('', array_map($absatz, explode('|', $zelle ?? '')));
+            $body .= '<w:tc><w:tcPr>'.$eigenschaften.'</w:tcPr>'.$inhalt.'</w:tc>';
+        }
+
+        $body .= '</w:tr>';
+    }
+
+    $body .= $tableRows === [] ? '' : '</w:tbl>';
+
+    $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        .'<w:document xmlns:w="'.ChampionshipStandardDocxReader::WORD_NAMESPACE.'">'
+        .'<w:body>'.$body.'</w:body></w:document>';
+
+    $pfad = tempnam(sys_get_temp_dir(), 'wq3_').'.docx';
+    $zip = new ZipArchive;
+    $zip->open($pfad, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $zip->addFromString('word/document.xml', $xml);
+    $zip->close();
+
+    return $pfad;
+}
+
+/** Kopf und Unterkopf der Word-Tabelle. */
+function docxHeader_wq3(): array
+{
+    return [
+        ['Events', 'Sport Class', 'Men', 'Women'],
+        [' ', ' ', 'MQS', 'MET', 'MQS', 'MET'],
+    ];
 }
 
 beforeEach(function () {
@@ -250,7 +369,124 @@ it('kommt ohne Zeitraum in der Titelzeile aus', function () {
         ->and($preview->rowCount())->toBe(1);
 });
 
+it('liest eine Datei ohne Titelzeile mit Kopf in Zeile 1 und Excel-Zeitwerten', function () {
+    $pfad = xlsxFlexible_wq3([], [
+        ['50m Freestyle', 'S3', 5311, 5800, 7469, 9689],
+        [null, 'S5', 3484, 3645, null, null],
+    ], ['MQS', 'MET', 'MQS', 'MET']);
+
+    $preview = $this->service->parse($pfad, null);
+
+    expect($preview->errors)->toBe([])
+        ->and($preview->rowCount())->toBe(3)
+        ->and($preview->rows[0]['row_number'])->toBe(3)
+        ->and($preview->rows[0]['mqs_centiseconds'])->toBe(5311)
+        ->and($preview->rows[0]['met_centiseconds'])->toBe(5800)
+        ->and($preview->rows[1]['gender'])->toBe('F')
+        ->and($preview->rows[1]['met_centiseconds'])->toBe(9689)
+        ->and($preview->rows[2]['sport_class'])->toBe('S5')
+        ->and($preview->suggestedPeriod)->toBeNull()
+        ->and($preview->title)->toBeNull();
+});
+
+it('findet die Kopfzeile auch unter mehreren Titelzeilen und liest den Zeitraum daraus', function () {
+    $pfad = xlsxFlexible_wq3([
+        'List of MQS and MET Times for the 2027 World Para Swimming Championships',
+        'Qualification Period - 1 January 2026 to 31 May 2027',
+    ], [
+        ['100m Backstroke', 'S9', 6655, 6757, null, null],
+    ], ['MQS', 'MET', 'MQS', 'MET']);
+
+    $preview = $this->service->parse($pfad, null);
+
+    expect($preview->errors)->toBe([])
+        ->and($preview->rowCount())->toBe(1)
+        ->and($preview->rows[0]['row_number'])->toBe(5)
+        ->and($preview->suggestedPeriod)->toBe(['start' => '2026-01-01', 'end' => '2027-05-31']);
+});
+
+// ── Word-Datei ───────────────────────────────────────────────────────────────
+
+it('liest die Word-Datei mit verbundenen Bewerbszellen und überspringt die Staffeln', function () {
+    BaseTimeSportClass::query()->firstOrCreate(['code' => 'S4'], ['sort_order' => 4]);
+
+    $pfad = docx_wq3([
+        'MQS and MET Times for the World Para Swimming Championships Mexico 2027',
+        'Qualification Period - 1 January 2026 to 13 June 2027 (inclusive)',
+    ], [
+        ...docxHeader_wq3(),
+        ['50m Freestyle', 'S3', '00:53.11', '00:58.00', '01:14.69', '01:36.89'],
+        [null, 'S5', '00:34.84', '00:36.45', '00:43.62', '00:44.97'],
+        ['', '', '', '', '', ''],
+        // Mehrzeilige Bewerbszelle mit geschütztem Leerzeichen, wie im Original.
+        ["100m\u{00A0}Breaststroke|", 'SB4', '02:01.66', '02:12.41', '', ''],
+        ['Relays', 'MQS'],
+        ['Mixed 4x50m Freestyle 20pts', '03:37.50'],
+    ]);
+
+    $preview = $this->service->parse($pfad, null);
+
+    expect($preview->errors)->toBe([])
+        ->and($preview->rowCount())->toBe(5)
+        ->and($preview->rows[0]['row_number'])->toBe(3)
+        ->and($preview->rows[0]['mqs_centiseconds'])->toBe(5311)
+        ->and($preview->rows[0]['met_centiseconds'])->toBe(5800)
+        ->and($preview->rows[1]['gender'])->toBe('F')
+        ->and($preview->rows[1]['met_centiseconds'])->toBe(9689)
+        ->and($preview->rows[2]['sport_class'])->toBe('S5')
+        ->and($preview->rows[2]['distance'])->toBe(50)
+        ->and($preview->rows[4]['sport_class'])->toBe('SB4')
+        ->and($preview->rows[4]['event_label'])->toBe('100m Breaststroke')
+        ->and($preview->rows[4]['distance'])->toBe(100)
+        ->and($preview->warnings[0])->toContain('Staffelabschnitt ab Zeile 7')
+        ->and($preview->suggestedPeriod)->toBe(['start' => '2026-01-01', 'end' => '2027-06-13'])
+        ->and($preview->title)->toContain('Mexico 2027');
+});
+
+it('bricht bei einer Word-Datei ohne Tabelle verständlich ab', function () {
+    $pfad = docx_wq3(['Nur Text, keine Tabelle'], []);
+
+    expect(fn () => $this->service->parse($pfad, null))
+        ->toThrow(RuntimeException::class, 'enthält keine Tabelle');
+});
+
+it('meldet einen falschen Unterkopf in der Word-Datei', function () {
+    $pfad = docx_wq3([], [
+        ['Events', 'Sport Class', 'Men', 'Women'],
+        [' ', ' ', 'MET', 'MQS', 'MET', 'MQS'],
+        ['50m Freestyle', 'S3', '00:53.11', '00:58.00', '01:14.69', '01:36.89'],
+    ]);
+
+    expect(fn () => $this->service->parse($pfad, null))
+        ->toThrow(RuntimeException::class, 'stehen in Zeile 1');
+});
+
+it('nimmt eine Word-Datei über das Formular an', function () {
+    $championship = championship_wq3();
+
+    $pfad = docx_wq3([], [
+        ...docxHeader_wq3(),
+        ['50m Freestyle', 'S7', '00:30.75', '00:31.45', '00:35.75', '00:36.15'],
+    ]);
+
+    $this->actingAs(admin_wq3())
+        ->post(route('championships.import.preview', $championship), [
+            'standards_file' => new UploadedFile($pfad, 'normen.docx', null, null, true),
+        ])
+        ->assertOk()
+        ->assertViewHas('preview', fn ($preview) => $preview->rowCount() === 2);
+});
+
 // ── Fehlerfälle ──────────────────────────────────────────────────────────────
+
+it('meldet einen falschen Unterkopf mit der Zeile der gefundenen Kopfzeile', function () {
+    $pfad = xlsxFlexible_wq3([], [
+        ['50m Freestyle', 'S3', 5311, 5800, 7469, 9689],
+    ], ['MQS', 'MQS', 'MET', 'MET']);
+
+    expect(fn () => $this->service->parse($pfad, null))
+        ->toThrow(RuntimeException::class, 'stehen in Zeile 1, direkt darunter in Zeile 2');
+});
 
 it('bricht bei fremdem Dateiaufbau mit einer verständlichen Meldung ab', function () {
     $pfad = xlsx_wq3(
