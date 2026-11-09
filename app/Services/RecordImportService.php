@@ -468,6 +468,15 @@ class RecordImportService
                             $seenAthleteKeys[$athKey] = true;
                             $suggestions = $this->suggestions->suggestAthletes($lastName, $firstName, $birthDate,
                                 $athGender);
+                            // Geänderter oder verschriebener Name (z. B. nach Heirat): gleiches Geburtsdatum + ein
+                            // gemeinsamer Namensteil. Nur anbieten, nie vorbelegen.
+                            $birthDateSuggestions = $this->suggestions->suggestAthletesByBirthDate($lastName,
+                                $firstName, $birthDate, $athGender, $suggestions->pluck('id')->all());
+                            $toOptions = fn (Collection $athletes): array => $athletes->map(fn (Athlete $a) => [
+                                'id' => $a->id,
+                                'label' => $a->display_name,
+                                'birth_date' => $a->birth_date?->format('d.m.Y'),
+                            ])->all();
                             $unknownAthletes[$athKey] = [
                                 'key' => $athKey,
                                 'last_name' => $lastName,
@@ -483,11 +492,8 @@ class RecordImportService
                                 // Vorschläge für den nicht exakt gefundenen Athleten (Jahres-Fallback).
                                 // Vorbelegung nur bei genau einem Jahr-Treffer mit vorhandenem Geburtsdatum;
                                 // bei leerem Geburtsdatum nie vorbelegen (nur anbieten).
-                                'suggestions' => $suggestions->map(fn (Athlete $a) => [
-                                    'id' => $a->id,
-                                    'label' => $a->display_name,
-                                    'birth_date' => $a->birth_date?->format('d.m.Y'),
-                                ])->all(),
+                                'suggestions' => $toOptions($suggestions),
+                                'birth_date_suggestions' => $toOptions($birthDateSuggestions),
                                 'preselect' => ($birthDate !== '' && $suggestions->count() === 1)
                                     ? $suggestions->first()->id
                                     : null,
