@@ -100,6 +100,11 @@ Prüfergebnis, Hinweis in der Erfolgsmeldung); die Rekordliste zeigt sie im Stat
 auch wenn sie nicht mehr gelten. Unverändert: Import und manuelle Pflege fügen nicht chronologisch ein,
 `RegionalRecordService::createIfFaster()` behält seine eigene Sperre.
 
+Alle Wettkämpfe auf einmal prüfen (z. B. Neuaufbau der Ketten nach einem Basis-Import mit Stichtag):
+`php artisan records:check-meets {--dry-run} {--meet=}` — derselbe Rekord-Check wie der Button am Wettkampf (End- und
+Zwischenzeiten), alle Wettkämpfe nach Datum, älteste zuerst; je Wettkampf eine Transaktion, `--dry-run` rollt alles
+zurück, ein zweiter Lauf legt nichts doppelt an. Ausstehende Rekorde zählen erst nach der Bestätigung zur Kette.
+
 ### Rekorde aus Zwischenzeiten
 
 Seit `feature/split-records` (25.10.2026; Regeln, Entscheidungen und Phasen in
@@ -446,5 +451,6 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/SplitRecordDisplayTest.php` (`split-records-p3`) — Anzeige in Liste, Detail und Prüfergebnis.
 - `tests/Feature/RelayLeadOffRecordTest.php` (`split-records-p4`) — Staffel-Startschwimmer.
 - `tests/Feature/CheckSplitRecordsCommandTest.php` (`split-records-p5`) — `records:check-splits`.
+- `tests/Feature/CheckMeetRecordsCommandTest.php` (`records-check-meets`) — `records:check-meets`.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).
