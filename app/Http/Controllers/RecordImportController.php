@@ -84,9 +84,8 @@ class RecordImportController extends Controller
             'clubs' => Club::orderByRaw('COALESCE(short_name, name)')->get(['id', 'name', 'short_name']),
             // Für die Zuordnung unbekannter Athleten auf eine bestehende Person (z.B. bei
             // falsch geschriebenem Namen im LENEX-Export), statt fälschlich eine neue anzulegen.
-            // Alphabetisch nach Nachname sortiert; die View filtert je unbekanntem Athleten auf
-            // Nachnamen mit demselben Anfangsbuchstaben, damit die Liste nicht mit allen 500+
-            // Athleten überfrachtet wird.
+            // Alphabetisch nach Nachname sortiert; die View zeigt je unbekanntem Athleten zuerst
+            // Nachnamen mit demselben Anfangsbuchstaben, danach alle übrigen (durchsuchbares Select).
             'athletes' => Athlete::orderBy('last_name')->orderBy('first_name')
                 ->get(['id', 'first_name', 'last_name', 'birth_date']),
         ]);
@@ -106,7 +105,10 @@ class RecordImportController extends Controller
         }
 
         $approvedClubs = $request->input('clubs', []);
-        $approvedAthletes = $request->input('athletes', []);
+        // Suchfeld "Anderer Name" (bestehender Athlet mit geändertem Namen) ersetzt die Auswahl im Select.
+        $athleteOverrides = array_filter($request->input('athlete_override', []),
+            fn ($id) => is_string($id) && ctype_digit($id));
+        $approvedAthletes = array_replace($request->input('athletes', []), $athleteOverrides);
         $newClubData = $request->input('new_clubs', []);
         $newAthleteData = $request->input('new_athletes', []);
         $approvedRegional = $request->input('regional', []);

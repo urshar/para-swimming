@@ -31,7 +31,7 @@ function makePreview_rip(): array
                 'birth_date' => '2000-01-01', 'gender' => 'F', 'license' => '',
                 'club_key' => 'FFST', 'club_name' => 'Flying Flippers Schwimmteam',
                 'club_db_id' => null, 'sport_class' => 'S10', 'db_id' => null,
-                'suggestions' => [], 'preselect' => null,
+                'suggestions' => [], 'birth_date_suggestions' => [], 'preselect' => null,
             ],
         ],
     ];

@@ -12,6 +12,10 @@
  * eines bestehenden Vereins). Jeder Vereins-Select schreibt seinen Wert per x-model in diese
  * Map; jede Athletenzeile liest über athleteClubName() reaktiv daraus ab.
  *
+ * Zusätzlich: Suchfeld "Anderer Name" je unbekanntem Athleten (gemeinsame `<datalist>` aller bestehenden
+ * Athleten). Die gewählte ID landet in einem versteckten Feld athlete_override[key] und ersetzt serverseitig die
+ * Auswahl im Select.
+ *
  * Konfiguration über data-config
  * ------------------------------
  * clubsById (ID → Anzeigename der bestehenden Vereine) und initialSelections (Vorbelegung je
@@ -26,10 +30,26 @@ export default function recordImportPreview() {
         /** Vereins-ID (String) → Anzeigename der bestehenden Vereine. */
         clubsById: {},
 
+        /** Anzeigetext der gemeinsamen Athleten-Suchliste → Athleten-ID. */
+        athleteIdsByLabel: {},
+
+        /** Athleten-key → per Suchfeld gewählte Athleten-ID (ersetzt beim Import die Auswahl im Select). */
+        athleteOverrides: {},
+
         init() {
             const config = JSON.parse(this.$el.dataset.config ?? '{}');
             this.clubsById = config.clubsById ?? {};
             this.clubSelections = config.initialSelections ?? {};
+            this.athleteIdsByLabel = config.athleteIdsByLabel ?? {};
+        },
+
+        /**
+         * Suchfeld "Anderer Name": Passt der Text genau auf einen Eintrag der Suchliste, wird dessen ID für diesen
+         * unbekannten Athleten gemerkt; sonst (geleert oder nur angetippt) gilt wieder die Auswahl im Select.
+         */
+        pickAthlete(input) {
+            const id = this.athleteIdsByLabel[input.value.trim()];
+            this.athleteOverrides[input.dataset.athleteKey] = id !== undefined ? String(id) : '';
         },
 
         /**

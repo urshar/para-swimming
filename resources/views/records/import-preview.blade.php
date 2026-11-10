@@ -52,7 +52,15 @@
             $initialClubSelections = collect($preview['unknown_clubs'])
                 ->mapWithKeys(fn ($c) => [$c['key'] => $c['preselect'] !== null ? (string) $c['preselect'] : 'new'])
                 ->all();
-            $previewConfig = ['clubsById' => $clubsById, 'initialSelections' => $initialClubSelections];
+            // Gemeinsame Suchliste für die Zuordnung unbekannter Athleten mit anderem Namen: Anzeigetext → ID.
+            // Doppelte Texte (gleicher Name und Geburtstag) bekommen die ID angehängt, damit sie eindeutig bleiben.
+            $athleteLabel = fn ($a) => $a->display_name.($a->birth_date ? ' (*'.$a->birth_date->format('d.m.Y').')' : '');
+            $labelCounts = $athletes->countBy($athleteLabel);
+            $athleteIdsByLabel = $athletes->mapWithKeys(fn ($a) => [
+                $athleteLabel($a).($labelCounts[$athleteLabel($a)] > 1 ? ' · #'.$a->id : '') => $a->id,
+            ])->all();
+            $previewConfig = ['clubsById' => $clubsById, 'initialSelections' => $initialClubSelections,
+                'athleteIdsByLabel' => $athleteIdsByLabel];
         @endphp
 
         <form method="POST" action="{{ route('records.import.run') }}"
@@ -156,16 +164,18 @@
                                                     class="ml-1">{{ $ath['sport_class'] }}</flux:badge>
                                         @if($ath['preselect'] !== null)
                                             <flux:badge size="sm" color="green" class="ml-1">Jahrgang-Treffer vorbelegt</flux:badge>
-                                        @elseif(!empty($ath['suggestions']))
+                                        @elseif(!empty($ath['suggestions']) || !empty($ath['birth_date_suggestions']))
                                             <flux:badge size="sm" color="amber" class="ml-1">Vorschlag</flux:badge>
                                         @endif
                                     </span>
                                     @php
-                                        // Athleten, die bereits als Vorschlag (Jahres-Fallback) gelistet sind, nicht
-                                        // noch einmal in der Anfangsbuchstaben-Gruppe zeigen.
-                                        $suggestedIds = array_map(fn ($s) => $s['id'], $ath['suggestions']);
+                                        // Athleten, die bereits als Vorschlag gelistet sind, nicht noch einmal in den
+                                        // weiteren Gruppen zeigen.
+                                        $suggestedIds = array_map(fn ($s) => $s['id'],
+                                            [...$ath['suggestions'], ...$ath['birth_date_suggestions']]);
                                         // Bestehende Athleten auf denselben Anfangsbuchstaben des Nachnamens
-                                        // eingegrenzt — sonst müsste man sich durch 500+ Namen scrollen.
+                                        // eingegrenzt — alle anderen über das Suchfeld darunter (eine gemeinsame
+                                        // Liste statt 700+ Optionen je Select).
                                         $firstLetter = mb_strtoupper(mb_substr($ath['last_name'], 0, 1));
                                         $matchingAthletes = $athletes->filter(
                                             fn ($a) => mb_strtoupper(mb_substr($a->last_name, 0, 1)) === $firstLetter
@@ -175,7 +185,8 @@
                                             ? 'Vorschlag — gleicher Name (Geburtsdatum im File fehlt)'
                                             : 'Vorschlag — gleicher Name & Geburtsjahr';
                                     @endphp
-                                    <flux:select variant="listbox" name="athletes[{{ $ath['key'] }}]" size="sm" class="w-96">
+                                    <flux:select variant="listbox" searchable name="athletes[{{ $ath['key'] }}]" size="sm"
+                                                 class="w-96" placeholder="Suchen …">
                                         <flux:select.option value="new" :selected="is_null($ath['preselect'])">Neu anlegen</flux:select.option>
                                         <flux:select.option value="skip">Überspringen</flux:select.option>
                                         @if(!empty($ath['suggestions']))
@@ -183,6 +194,15 @@
                                                 @foreach($ath['suggestions'] as $sug)
                                                     <flux:select.option value="{{ $sug['id'] }}"
                                                         :selected="$ath['preselect'] === $sug['id']">
+                                                        {{ $sug['label'] }}@if($sug['birth_date']) (*{{ $sug['birth_date'] }})@endif
+                                                    </flux:select.option>
+                                                @endforeach
+                                            </flux:select.group>
+                                        @endif
+                                        @if(!empty($ath['birth_date_suggestions']))
+                                            <flux:select.group label="Vorschlag — gleiches Geburtsdatum (Name geändert?)">
+                                                @foreach($ath['birth_date_suggestions'] as $sug)
+                                                    <flux:select.option value="{{ $sug['id'] }}">
                                                         {{ $sug['label'] }}@if($sug['birth_date']) (*{{ $sug['birth_date'] }})@endif
                                                     </flux:select.option>
                                                 @endforeach
@@ -200,9 +220,34 @@
                                         @endif
                                     </flux:select>
                                 </div>
+                                <div class="mt-2 flex items-center justify-end gap-2">
+                                    <label for="athlete-search-{{ $loop->index }}"
+                                           class="text-xs text-zinc-500 dark:text-zinc-400">
+                                        Anderer Name (z. B. nach Heirat):
+                                    </label>
+                                    <input type="text" id="athlete-search-{{ $loop->index }}"
+                                           list="record-import-athletes" autocomplete="off"
+                                           placeholder="Bestehenden Athleten suchen …"
+                                           data-athlete-key="{{ $ath['key'] }}"
+                                           x-on:change="pickAthlete($el)"
+                                           class="w-96 rounded-md border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100">
+                                    <input type="hidden" name="athlete_override[{{ $ath['key'] }}]"
+                                           data-athlete-key="{{ $ath['key'] }}"
+                                           x-bind:value="athleteOverrides[$el.dataset.athleteKey] ?? ''">
+                                </div>
+                                <p class="mt-1 text-right text-xs text-amber-600 dark:text-amber-400"
+                                   data-athlete-key="{{ $ath['key'] }}"
+                                   x-show="athleteOverrides[$el.dataset.athleteKey]" x-cloak>
+                                    Der gesuchte Athlet ersetzt die Auswahl oben.
+                                </p>
                             </div>
                         @endforeach
                     </div>
+                    <datalist id="record-import-athletes">
+                        @foreach(array_keys($athleteIdsByLabel) as $label)
+                            <option value="{{ $label }}"></option>
+                        @endforeach
+                    </datalist>
                 </div>
             @endif
 
