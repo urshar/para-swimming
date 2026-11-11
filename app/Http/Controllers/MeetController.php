@@ -13,6 +13,7 @@ use App\Models\QualifyingTimeList;
 use App\Models\Result;
 use App\Models\WpsPointVersion;
 use App\Services\MeetDeletionService;
+use App\Services\MeetRecordsService;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,7 +87,7 @@ class MeetController extends Controller
             ->with('success', 'Wettkampf erfolgreich erstellt.');
     }
 
-    public function show(Meet $meet): View
+    public function show(Meet $meet, MeetRecordsService $meetRecords): View
     {
         $meet->load(['nation', 'cup', 'pointSystems']);
         $meet->loadCount(['swimEvents', 'entries', 'relayEntries', 'results', 'documents']);
@@ -101,9 +102,10 @@ class MeetController extends Controller
         $participatingClubs = $meet->participatingClubs();
         $participatingClubsCount = $meet->participatingClubsCount();
         $sessions = $meet->sessions()->get()->keyBy('number');
+        $recordsCount = auth()->user()?->canRead(Module::Records) ? $meetRecords->count($meet) : 0;
 
-        return view('meets.show',
-            compact('meet', 'swimEvents', 'participantsCount', 'participatingClubs', 'participatingClubsCount', 'sessions'));
+        return view('meets.show', compact('meet', 'swimEvents', 'participantsCount', 'participatingClubs',
+            'participatingClubsCount', 'sessions', 'recordsCount'));
     }
 
     public function edit(Meet $meet): View
