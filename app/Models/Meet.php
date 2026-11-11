@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,11 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * @property CarbonInterface|null $records_checked_at Letzter erfolgreicher Rekordcheck, null = ungeprüft.
+ */
 class Meet extends Model
 {
     use SoftDeletes;
@@ -67,6 +72,8 @@ class Meet extends Model
         'keep_file_places' => 'boolean',
         // Medaillenregel der Medaillenplanung (App\Support\MedalRule): weniger Medaillen bei wenigen Teilnehmern.
         'medal_reduction_rule' => 'boolean',
+        // Letzter erfolgreicher Rekordcheck, null = ungeprüft (siehe InvalidatesMeetRecordCheck).
+        'records_checked_at' => 'datetime',
     ];
 
     /**
@@ -86,6 +93,33 @@ class Meet extends Model
             ->map(fn ($date): int => (int) $date->year)
             ->unique()
             ->values();
+    }
+
+    // ── Prüfstatus Rekordcheck ────────────────────────────────────────────────
+
+    /**
+     * Markiert Veranstaltungen als ungeprüft, z. B. nach einer Ergebnisänderung. Ohne Model-Events und ohne
+     * updated_at, damit das Zurücksetzen nichts anderes auslöst.
+     *
+     * @param  list<int>  $meetIds
+     */
+    public static function invalidateRecordCheck(array $meetIds): void
+    {
+        if ($meetIds === []) {
+            return;
+        }
+
+        // Bewusst DB::table() statt Eloquent: records_checked_at ist nicht fillable (kein Formularfeld).
+        DB::table('meets')->whereIn('id', $meetIds)->whereNotNull('records_checked_at')
+            ->update(['records_checked_at' => null]);
+    }
+
+    /** Hält den erfolgreichen Rekordcheck fest (RecordCheckerService::checkMeet()). */
+    public function markRecordsChecked(): void
+    {
+        $this->records_checked_at = now();
+        DB::table('meets')->where('id', $this->id)->update(['records_checked_at' => $this->records_checked_at]);
+        $this->syncOriginalAttribute('records_checked_at');
     }
 
     // ── Relationen ────────────────────────────────────────────────────────────

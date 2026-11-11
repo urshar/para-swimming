@@ -131,6 +131,10 @@ readonly class RecordCheckerService
         // 50-m-Rekord aus diesem Wettkampf.
         $pendingRecords = array_merge($pendingRecords, $this->checkSplits($meet, $results, $relayResults));
 
+        // Erst ganz am Ende: Der Check selbst ändert Ergebnisse (Staffelklasse), was den Status zurücksetzt. Im
+        // Probelauf von records:check-meets rollt die Transaktion den Zeitstempel mit zurück.
+        $meet->markRecordsChecked();
+
         return [
             'new_records' => $newRecords,
             'pending_records' => $pendingRecords,

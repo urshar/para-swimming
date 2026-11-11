@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Athlete;
 use App\Models\ImportReviewItem;
+use App\Models\Meet;
 use Carbon\CarbonInterface;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -186,6 +187,14 @@ final readonly class AthleteMergeService
 
             DB::table('athlete_kader_memberships')->whereIn('id', $movedKaderIds)->where('athlete_id', $keep->id)
                 ->update(['updated_at' => $now]);
+
+            // Umgehängte Ergebnisse gehören jetzt einem anderen Athleten: Die Veranstaltungen gelten wieder als
+            // ungeprüft (die DB::table()-Updates unten lösen die Model-Events nicht aus).
+            Meet::invalidateRecordCheck(DB::table('results')->where('athlete_id', $drop->id)->pluck('meet_id')
+                ->merge(DB::table('relay_result_members')
+                    ->join('relay_results', 'relay_results.id', '=', 'relay_result_members.relay_result_id')
+                    ->where('relay_result_members.athlete_id', $drop->id)->pluck('relay_results.meet_id'))
+                ->map(fn ($id) => (int) $id)->unique()->values()->all());
 
             DB::table('results')->where('athlete_id', $drop->id)->update(['athlete_id' => $keep->id, 'updated_at' => $now]);
             foreach (['relay_result_members', 'entries', 'relay_entry_members', 'swim_records', 'relay_team_members',
