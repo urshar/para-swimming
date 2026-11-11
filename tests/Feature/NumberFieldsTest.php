@@ -49,12 +49,10 @@ it('ignoriert ein ungültiges Jahr im Veranstaltungsfilter', function (string $e
         ->assertSee('Altmeet');
 })->with(['Buchstaben' => 'abc', 'zu kurz' => '25', 'Dezimal' => '2025.5']);
 
-it('rendert keine Zahlenfelder mit Pfeilen im Verwaltungsbereich', function () {
-    // Die öffentlichen Punkterechner folgen in einer eigenen Phase.
+it('rendert nirgends Zahlenfelder mit Pfeilen', function () {
     $views = collect(File::allFiles(resource_path('views')))
         ->filter(fn (SplFileInfo $datei): bool => str_contains($datei->getContents(), 'type="number"'))
         ->map(fn (SplFileInfo $datei): string => str_replace('\\', '/', $datei->getRelativePathname()))
-        ->reject(fn (string $pfad): bool => str_starts_with($pfad, 'public/'))
         ->values()
         ->all();
 

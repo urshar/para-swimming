@@ -119,7 +119,7 @@
                 <div class="space-y-1" x-show="showPoints()">
                     <label for="points"
                            class="inline-block text-sm font-medium">{{ __('public.wps_point_calculator.fields.points') }}</label>
-                    <input id="points" name="points" type="number" min="1" step="1"
+                    <input id="points" name="points" type="text" inputmode="numeric"
                            value="{{ $pointsInput }}"
                            class="block w-full rounded-lg border border-gray-300 py-2 px-3 text-sm leading-6 dark:border-gray-600 dark:bg-gray-800">
                 </div>

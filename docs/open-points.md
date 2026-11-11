@@ -183,9 +183,14 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
 1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
-2. "Zahlenfelder ohne Pfeile (normales flux:input statt type="number")"
-3. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — mit "Rekorde je Veranstaltung (Liste und PDF)"
+2. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — mit "Rekorde je Veranstaltung (Liste und PDF)"
    verknüpfen
+
+**Erledigt:** "Zahlenfelder ohne Pfeile" (`feature/number-fields-without-spinners`, 11.11.2026): Alle Zahlenfelder
+(Verwaltung, Livewire, öffentliche Punkterechner) sind `type="text"` mit `inputmode="numeric"` bzw. `"decimal"`;
+`min`/`max`/`step` entfallen, Jahresfelder haben `maxlength="4"`. Die Prüfung liegt am Server: Jahresfilter der
+Veranstaltungsliste nur bei vierstelliger Jahreszahl, Massenaktion der Normtabelle nimmt "2,5" an. Neue Felder
+**nicht** wieder als `type="number"` anlegen — `NumberFieldsTest` (`--group=number-fields-p1`) schlägt sonst an.
 
 **Erledigt:** "Filter: Suchfeld verliert beim Tippen den Fokus" (`fix/filter-search-focus`, 11.11.2026): Die
 Auto-Submit-Filter (`indexFilters`, `entriesCockpitFilters`, `qualificationFilters`) laden die Liste ohne Neuladen
@@ -544,29 +549,6 @@ Aigners, "Aigner, M" oder "Aigner Matteo" dagegen nichts, obwohl die Liste die N
 vorkommen (UND über die Teile, ODER über die Felder), damit "Aigner, M", "Aigner Matteo" und "Matteo Aigner" treffen.
 Nur Standard-SQL (SQLite/MySQL). Prüfen, ob andere Namenssuchen (Ergebnisse, Meldungen, Sammelansicht,
 Qualifikationen) dasselbe Verhalten haben, und dann einheitlich lösen.
-
-## Zahlenfelder ohne Pfeile (normales flux:input statt type="number")
-
-**Seit:** 11.11.2026, Wunsch Erik (zuerst für Jahreszahlen, dann auf alle Zahlenfelder erweitert).
-
-**Ausgangslage:** Zahlen werden heute als `type="number"` erfasst — mit Pfeil-Spinner, und das Mausrad verändert den
-Wert beim Scrollen über dem Feld unbemerkt. Betroffen sind 46 Felder in 25 Views (Stand 11.11.2026, `grep -rn
-'type="number"' resources/views`), u. a. Jahreszahlen (`meets/index`, `championships/form`, `cups/form`,
-`qualifying-time-lists/_general-fields`, `wps/versions/edit`, `wps/import/preview`), "Beste n je Liste"
-(`championships/selection`), Platz-/Punkte-/Distanzfelder (`results/*`, `relay-results/form`, `records/form`,
-`swim-events/form`, `entries/edit`), Altersklassen, Kader-Typen, Sportklassen-Gruppen, Livewire-Filter
-(`wps-rankings`, `wps-club-ranking`, `wps-talent-report`, `championship-standard-table`) und die öffentlichen
-Punkterechner.
-
-**Entscheidung Erik (11.11.2026):** Keine Pfeile, gilt für **alle** Zahlenfelder.
-
-**Zum Schließen nötig:** Jedes Zahlenfeld als normales Textfeld: im Verwaltungsbereich `<flux:input>`, bei den
-nativen `<input>` (öffentlicher Bereich mit Tailkit, `swim-events/form`, Masken-Felder) ebenfalls `type="text"`.
-Ganze Zahlen mit `inputmode="numeric"` (Ziffernblock am Handy), Dezimalzahlen (z. B. `step="0.5"` im Talent-Report)
-mit `inputmode="decimal"` und Komma/Punkt serverseitig vereinheitlichen; ggf. `maxlength` (Jahr: 4). `min`/`max`/
-`step` fallen weg, die Prüfung bleibt bzw. kommt serverseitig (`integer`/`numeric`, `min`/`max`/`between`) — je Feld
-prüfen, dass die Validierung das wirklich abdeckt. Livewire-Felder mit `wire:model` auf Typ achten (Leerstring statt
-`null`). Tests anpassen, die `type="number"` erwarten.
 
 ## Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus
 
