@@ -291,7 +291,7 @@
                     </flux:callout.heading>
                     <flux:callout.text>
                         Weder der Verein in der Datei noch der Athlet in der Datenbank liefert eine Nationalität. Diese
-                        Einträge werden noch keine Rekorde, sondern kommen in die Import Prüfliste ("Nationalität
+                        Einträge werden noch keine Rekorde, sondern kommen in die Prüfliste ("Nationalität
                         unbekannt"), wo du sie als Rekord übernehmen oder ignorieren kannst. Ordnest du unten einen
                         unbekannten Athleten einer Person mit Nationalität AUT zu, wird der Eintrag normal importiert.
                     </flux:callout.text>

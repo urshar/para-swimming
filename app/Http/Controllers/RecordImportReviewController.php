@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ImportReviewItem;
+use App\Models\SwimRecord;
 use App\Services\RecordImportReviewService;
 use App\Support\ListUrl;
 use Illuminate\Http\RedirectResponse;
@@ -11,9 +12,11 @@ use Illuminate\View\View;
 use Throwable;
 
 /**
- * Prüfliste nach dem LENEX-Rekordimport: Vereinskonflikte, Zuordnungen mit abweichendem Geburtsdatum und Rekorde von
- * Athleten, deren Nationalität nicht AUT ist, Regionalrekorde mit falschem Verband, Abweichungen zur importierten
- * Rekordliste und Staffelrekorde ohne Verein (docs/specs/records.md "Prüfliste nach dem Import").
+ * Prüfliste Rekorde, Reiter "Import-Befunde": Prüfliste nach dem LENEX-Rekordimport mit Vereinskonflikten,
+ * Zuordnungen mit abweichendem Geburtsdatum und Rekorden von Athleten, deren Nationalität nicht AUT ist,
+ * Regionalrekorden mit falschem Verband, Abweichungen zur importierten Rekordliste und Staffelrekorden ohne Verein
+ * (docs/specs/records.md "Prüfliste nach dem Import"). Reiter "Ausstehende Rekorde": alle Rekorde mit Status
+ * PENDING zum Bestätigen oder Verwerfen.
  */
 class RecordImportReviewController extends Controller
 {
@@ -33,6 +36,20 @@ class RecordImportReviewController extends Controller
         ImportReviewItem::TYPE_LIST_MISMATCH => 'Abweichung zur Rekordliste',
         ImportReviewItem::TYPE_RELAY_NO_CLUB => 'Staffelrekord ohne Verein',
         ImportReviewItem::TYPE_UNKNOWN_NATION => 'Nationalität unbekannt',
+    ];
+
+    private const array PENDING_REASONS = [
+        'all' => 'Alle Gründe',
+        SwimRecord::PENDING_REASON_EXHIBITION => 'Außer Konkurrenz',
+        SwimRecord::PENDING_REASON_SPLIT => 'Zwischenzeit',
+        SwimRecord::PENDING_REASON_CLUB => 'Vereinszugehörigkeit',
+        SwimRecord::PENDING_REASON_OTHER => 'Sonstige',
+    ];
+
+    private const array PENDING_KINDS = [
+        'all' => 'Einzel und Staffel',
+        'single' => 'Einzel',
+        'relay' => 'Staffel',
     ];
 
     public function __construct(
@@ -72,6 +89,43 @@ class RecordImportReviewController extends Controller
             'statuses' => self::STATUSES,
             'types' => self::TYPES,
             'openCount' => ImportReviewItem::open()->count(),
+            'pendingCount' => SwimRecord::pending()->count(),
+            'backUrl' => ListUrl::to('records'),
+        ]);
+    }
+
+    /**
+     * Reiter "Ausstehende Rekorde": alle Rekordtypen, Klassen und Bahnen auf einen Blick, jüngste zuerst. Bestätigen
+     * und Verwerfen laufen über records.status.update (ordnet einen bestätigten Rekord in die Kette ein).
+     */
+    public function pending(Request $request): View
+    {
+        $reason = array_key_exists((string) $request->query('reason'), self::PENDING_REASONS)
+            ? (string) $request->query('reason')
+            : 'all';
+        $kind = array_key_exists((string) $request->query('kind'), self::PENDING_KINDS)
+            ? (string) $request->query('kind')
+            : 'all';
+
+        $records = SwimRecord::pending()
+            ->with(['strokeType', 'athlete.nation', 'athlete.club', 'club', 'relayTeam.athlete', 'result', 'relayResult.club'])
+            ->pendingReason($reason)
+            ->when($kind === 'single', fn ($q) => $q->where('relay_count', 1))
+            ->when($kind === 'relay', fn ($q) => $q->where('relay_count', '>', 1))
+            ->orderByDesc('set_date')
+            ->orderBy('record_type')
+            ->orderBy('id')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('records.review-pending', [
+            'records' => $records,
+            'reason' => $reason,
+            'kind' => $kind,
+            'reasons' => self::PENDING_REASONS,
+            'kinds' => self::PENDING_KINDS,
+            'openCount' => ImportReviewItem::open()->count(),
+            'pendingCount' => SwimRecord::pending()->count(),
             'backUrl' => ListUrl::to('records'),
         ]);
     }

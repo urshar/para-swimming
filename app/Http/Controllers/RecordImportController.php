@@ -142,7 +142,7 @@ class RecordImportController extends Controller
         }
         if ($result['review_open'] > 0) {
             $msg .= ', '.$result['review_open'].($result['review_open'] === 1 ? ' neuer Fall' : ' neue Fälle')
-                .' in der Import Prüfliste';
+                .' in der Prüfliste';
         }
 
         return redirect()

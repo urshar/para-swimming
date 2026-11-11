@@ -1,4 +1,4 @@
-@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Models\Club;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList; @endphp
+@php use App\Enums\Module;use App\Models\ChangeRequest;use App\Models\Club;use App\Models\ImportReviewItem;use App\Models\QualifyingTimeList;use App\Models\SwimRecord; @endphp
     
     <!DOCTYPE html>
 {{-- Dark/Light wird komplett über Flux' eigenes $flux.appearance-System gesteuert (Alpine-Magic aus dem
@@ -322,14 +322,21 @@
                         Importieren
                     </flux:navlist.item>
                     @php
+                        // Badge: offene Import-Befunde plus ausstehende Rekorde. Gibt es nur ausstehende Rekorde,
+                        // führt der Menüpunkt gleich auf deren Reiter.
                         $openReviewCount = ImportReviewItem::open()->count();
+                        $pendingRecordCount = SwimRecord::pending()->count();
+                        $reviewTotal = $openReviewCount + $pendingRecordCount;
+                        $reviewRoute = $openReviewCount === 0 && $pendingRecordCount > 0
+                            ? 'records.import-review.pending'
+                            : 'records.import-review.index';
                     @endphp
-                    <flux:navlist.item icon="clipboard-document-check" href="{{ route('records.import-review.index') }}"
+                    <flux:navlist.item icon="clipboard-document-check" href="{{ route($reviewRoute) }}"
                                        :current="request()->routeIs('records.import-review.*')"
-                                       :badge="$openReviewCount > 0 ? $openReviewCount : null"
+                                       :badge="$reviewTotal > 0 ? $reviewTotal : null"
                                        badge:color="red" badge:variant="solid"
                                        class="**:data-content:min-w-0 **:data-content:truncate">
-                        Import Prüfliste
+                        Prüfliste
                     </flux:navlist.item>
                 @endcan
                 <flux:navlist.item icon="arrow-down-tray" href="{{ route('records.export') }}"
