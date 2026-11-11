@@ -183,7 +183,7 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
 1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
-2. "Jahreszahl-Eingaben als normales flux:input statt Zahlenfeld"
+2. "Zahlenfelder ohne Pfeile (normales flux:input statt type="number")"
 3. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — mit "Rekorde je Veranstaltung (Liste und PDF)"
    verknüpfen
 
@@ -545,19 +545,28 @@ vorkommen (UND über die Teile, ODER über die Felder), damit "Aigner, M", "Aign
 Nur Standard-SQL (SQLite/MySQL). Prüfen, ob andere Namenssuchen (Ergebnisse, Meldungen, Sammelansicht,
 Qualifikationen) dasselbe Verhalten haben, und dann einheitlich lösen.
 
-## Jahreszahl-Eingaben als normales flux:input statt Zahlenfeld
+## Zahlenfelder ohne Pfeile (normales flux:input statt type="number")
 
-**Seit:** 11.11.2026, Wunsch Erik.
+**Seit:** 11.11.2026, Wunsch Erik (zuerst für Jahreszahlen, dann auf alle Zahlenfelder erweitert).
 
-**Ausgangslage:** Jahreszahlen werden heute als `<flux:input type="number">` erfasst (mit Pfeil-Spinner, Mausrad
-verändert den Wert): Veranstaltungs-Filter (`meets/index`), Meisterschaft (`championships/form`), Cup (`cups/form`),
-Richtzeitenliste (`qualifying-time-lists/_general-fields`), WPS-Version (`wps/versions/edit`, `wps/import/preview`).
+**Ausgangslage:** Zahlen werden heute als `type="number"` erfasst — mit Pfeil-Spinner, und das Mausrad verändert den
+Wert beim Scrollen über dem Feld unbemerkt. Betroffen sind 46 Felder in 25 Views (Stand 11.11.2026, `grep -rn
+'type="number"' resources/views`), u. a. Jahreszahlen (`meets/index`, `championships/form`, `cups/form`,
+`qualifying-time-lists/_general-fields`, `wps/versions/edit`, `wps/import/preview`), "Beste n je Liste"
+(`championships/selection`), Platz-/Punkte-/Distanzfelder (`results/*`, `relay-results/form`, `records/form`,
+`swim-events/form`, `entries/edit`), Altersklassen, Kader-Typen, Sportklassen-Gruppen, Livewire-Filter
+(`wps-rankings`, `wps-club-ranking`, `wps-talent-report`, `championship-standard-table`) und die öffentlichen
+Punkterechner.
 
-**Zum Schließen nötig:** Alle Jahreszahl-Felder als normales `<flux:input>` (Text, `inputmode="numeric"`,
-`maxlength="4"`), Prüfung weiter serverseitig (`integer`, Bereich wie bisher). **Vorab mit Erik bestätigen**, dass
-"normales flux input" so gemeint ist (kein Spinner) und ob das auch für andere reine Zahlfelder gelten soll (z. B.
-"Beste n je Liste" in der Auswahl-Rangliste). Die öffentlichen Jahresauswahlen (`<select>` in Cup-Wertung und
-Jahresbestleistungen) sind nicht betroffen.
+**Entscheidung Erik (11.11.2026):** Keine Pfeile, gilt für **alle** Zahlenfelder.
+
+**Zum Schließen nötig:** Jedes Zahlenfeld als normales Textfeld: im Verwaltungsbereich `<flux:input>`, bei den
+nativen `<input>` (öffentlicher Bereich mit Tailkit, `swim-events/form`, Masken-Felder) ebenfalls `type="text"`.
+Ganze Zahlen mit `inputmode="numeric"` (Ziffernblock am Handy), Dezimalzahlen (z. B. `step="0.5"` im Talent-Report)
+mit `inputmode="decimal"` und Komma/Punkt serverseitig vereinheitlichen; ggf. `maxlength` (Jahr: 4). `min`/`max`/
+`step` fallen weg, die Prüfung bleibt bzw. kommt serverseitig (`integer`/`numeric`, `min`/`max`/`between`) — je Feld
+prüfen, dass die Validierung das wirklich abdeckt. Livewire-Felder mit `wire:model` auf Typ achten (Leerstring statt
+`null`). Tests anpassen, die `type="number"` erwarten.
 
 ## Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus
 
@@ -571,9 +580,16 @@ Rekorde geprüft wurde. Heute gibt es den Check nur auf der Detailseite bzw. in 
 **Zum Schließen nötig:** Neue Spalte (z. B. `meets.records_checked_at`), gesetzt bei jedem erfolgreichen Check
 (Knopf, `CheckMeetRecordsCommand`, ggf. automatischer Check nach dem Import). Anzeige in der Liste z. B. als Badge
 neben I/E/R (geprüft am … / ungeprüft) mit Tooltip. Knopf mit Bestätigungsdialog wie auf der Detailseite, nur mit
-Schreibrecht (`module:meets,write`, `AccessControlTest`). Vorab mit Erik klären: Gilt eine Veranstaltung wieder als
-ungeprüft, wenn danach Ergebnisse geändert oder neu importiert werden? Bestand: alte Veranstaltungen bleiben
-ungeprüft oder per einmaligem Befehl markieren?
+Schreibrecht (`module:meets,write`, `AccessControlTest`).
+
+**Entscheidung Erik (11.11.2026):**
+- Werden danach Ergebnisse geändert oder neu importiert, gilt die Veranstaltung wieder als **ungeprüft**
+  (`records_checked_at` zurück auf `null`). Betrifft Einzel- und Staffelergebnisse: Anlegen, Bearbeiten, Löschen,
+  LENEX-Ergebnisimport, Ergebnisse auf Heimverein setzen, Zusammenführen von Athleten mit Ergebnissen dieser
+  Veranstaltung — am besten zentral (Model-Events an `Result`/`RelayResult` bzw. ein Service), nicht je Controller.
+  Punkte-Neuberechnung (ÖBSV/WPS) ändert keine Zeiten und setzt den Status **nicht** zurück — mit Erik bestätigen,
+  falls unklar.
+- **Bestand bleibt ungeprüft** — kein einmaliger Befehl zum Markieren.
 
 **Verknüpft mit:** "Rekorde je Veranstaltung (Liste und PDF)" — der Prüfstatus verlinkt dann auf die Rekorde der
 Veranstaltung.
