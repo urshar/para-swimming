@@ -109,7 +109,7 @@
                                     <flux:select.option value="{{ $stroke->id }}">{{ $stroke->name_de }}</flux:select.option>
                                 @endforeach
                             </flux:select>
-                            <flux:input name="distance" type="number" min="1" placeholder="Distanz (m)"/>
+                            <flux:input name="distance" type="text" inputmode="numeric" placeholder="Distanz (m)"/>
                             <flux:select variant="listbox" name="gender" placeholder="Geschlecht">
                                 <flux:select.option value="M">M</flux:select.option>
                                 <flux:select.option value="F">F</flux:select.option>
@@ -241,7 +241,7 @@
                                   class="flex gap-3 mb-4">
                                 @csrf
                                 <flux:input name="sport_class" placeholder="z.B. S2" class="w-24"/>
-                                <flux:input name="points" type="number" min="0" max="2000" placeholder="Punkte" class="w-24"/>
+                                <flux:input name="points" type="text" inputmode="numeric" placeholder="Punkte" class="w-24"/>
                                 <flux:button type="submit" variant="primary">Speichern</flux:button>
                             </form>
 

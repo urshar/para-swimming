@@ -49,13 +49,13 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Min. Alter <span class="font-normal text-zinc-400 ms-1">(optional)</span></flux:label>
-                        <flux:input name="min_age" type="number" min="0" max="120"
+                        <flux:input name="min_age" type="text" inputmode="numeric"
                                     value="{{ old('min_age', $ageGroup?->min_age) }}"/>
                         <flux:error name="min_age"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Max. Alter <span class="font-normal text-zinc-400 ms-1">(optional)</span></flux:label>
-                        <flux:input name="max_age" type="number" min="0" max="120"
+                        <flux:input name="max_age" type="text" inputmode="numeric"
                                     value="{{ old('max_age', $ageGroup?->max_age) }}"/>
                         <flux:error name="max_age"/>
                     </flux:field>
@@ -67,7 +67,7 @@
 
                 <flux:field>
                     <flux:label>Sortierung</flux:label>
-                    <flux:input name="sort_order" type="number" min="0" max="1000"
+                    <flux:input name="sort_order" type="text" inputmode="numeric"
                                 value="{{ old('sort_order', $ageGroup?->sort_order ?? 0) }}"/>
                     <flux:error name="sort_order"/>
                 </flux:field>

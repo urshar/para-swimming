@@ -72,6 +72,10 @@ Dev/Prod laufen auf **MySQL**, die Tests auf **In-Memory-SQLite**. Jede Abfrage 
 
 - Flux-Formularkomponenten immer mit **`x-model`**, **nie** `:value`.
 - Für **IMask** oder komplexe Alpine-Interaktion natives `<input>` statt der Flux-Komponente verwenden.
+- **Zahlenfelder nie als `type="number"`** (Pfeile, Mausrad ändert den Wert unbemerkt), sondern `type="text"` mit
+  `inputmode="numeric"` (ganze Zahlen) bzw. `inputmode="decimal"` (Komma serverseitig in Punkt umwandeln), Jahre
+  zusätzlich `maxlength="4"`. Kein `min`/`max`/`step` — die Prüfung gehört vollständig an den Server. Gilt auch für
+  native `<input>` im öffentlichen Bereich; `NumberFieldsTest` prüft das über alle Views.
 - **`<flux:select variant="listbox">` + `<flux:select.option :selected="...">`** (Prop-Bindung) für alle
   Dropdowns — die Standard-Variante rendert ohne `@tailwindcss/forms` keinen Pfeil. **Nicht** natives
   `<option>` mit `@selected()`, und **nicht** `@selected()` direkt in `<flux:select.option>` (bricht den

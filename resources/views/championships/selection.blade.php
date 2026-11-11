@@ -51,7 +51,7 @@
               x-data='indexFilters(@json($filterConfig))'>
             <flux:field class="w-40">
                 <flux:label>Beste n je Liste</flux:label>
-                <flux:input name="limit" type="number" min="1" x-model.debounce.500ms="limit" placeholder="alle"/>
+                <flux:input name="limit" type="text" inputmode="numeric" x-model.debounce.500ms="limit" placeholder="alle"/>
             </flux:field>
             {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
             <div data-filter-region="reset" class="contents">

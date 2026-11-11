@@ -226,12 +226,12 @@
                             @include('results._place-field', ['placements' => $placements ?? [], 'place' => $result->place ?? null])
                             <flux:field>
                                 <flux:label>Lauf</flux:label>
-                                <flux:input name="heat" type="number" min="1" value="{{ old('heat', $result->heat ?? '') }}"/>
+                                <flux:input name="heat" type="text" inputmode="numeric" value="{{ old('heat', $result->heat ?? '') }}"/>
                                 <flux:error name="heat"/>
                             </flux:field>
                             <flux:field>
                                 <flux:label>Bahn</flux:label>
-                                <flux:input name="lane" type="number" min="0" value="{{ old('lane', $result->lane ?? '') }}"/>
+                                <flux:input name="lane" type="text" inputmode="numeric" value="{{ old('lane', $result->lane ?? '') }}"/>
                                 <flux:error name="lane"/>
                             </flux:field>
                         </div>
@@ -239,7 +239,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <flux:field>
                                 <flux:label>Punkte</flux:label>
-                                <flux:input name="points" type="number" min="0"
+                                <flux:input name="points" type="text" inputmode="numeric"
                                             value="{{ old('points', $result->points ?? '') }}"/>
                                 <flux:description class="mt-1!">Leer lassen = automatisch nach den Punktesystemen der Veranstaltung.</flux:description>
                                 <flux:error name="points"/>
@@ -304,8 +304,7 @@
                                 <div>
                                     <flux:input
                                         name="splits[{{ $i }}][distance]"
-                                        type="number"
-                                        min="1"
+                                        type="text" inputmode="numeric"
                                         x-model="distances[{{ $i }}]"
                                         aria-label="Distanz Zeile {{ $i + 1 }}"
                                     />

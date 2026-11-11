@@ -9,7 +9,7 @@
 @if($meet->keep_file_places)
     <flux:field>
         <flux:label>Platz</flux:label>
-        <flux:input name="place" type="number" min="1" value="{{ old('place', $place ?? '') }}"/>
+        <flux:input name="place" type="text" inputmode="numeric" value="{{ old('place', $place ?? '') }}"/>
         <flux:description class="mt-1!">Wird nicht neu berechnet (Einstellung der Veranstaltung).</flux:description>
         <flux:error name="place"/>
     </flux:field>

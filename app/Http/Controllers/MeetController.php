@@ -49,7 +49,9 @@ class MeetController extends Controller
             $query->where('course', $course);
         }
 
-        if ($year = $request->query('year')) {
+        // Das Jahresfeld ist ein Textfeld ohne Browser-Prüfung, deshalb nur echte Jahreszahlen filtern.
+        $year = trim((string) $request->query('year'));
+        if (preg_match('/^\d{4}$/', $year) === 1) {
             $query->whereYear('start_date', $year);
         }
 

@@ -67,20 +67,20 @@
             @if($method === WpsClubRankingConfiguration::METHOD_COUNT)
                 <flux:field class="w-36">
                     <flux:label>Punktschwelle</flux:label>
-                    <flux:input x-model="$wire.threshold" type="number" min="1"
+                    <flux:input x-model="$wire.threshold" type="text" inputmode="numeric"
                                 x-on:change="$wire.setInput('threshold', $event.target.value)"/>
                 </flux:field>
             @else
                 <flux:field class="w-44">
                     <flux:label>Leistungen je Athlet</flux:label>
-                    <flux:input x-model="$wire.countedPerAthlete" type="number" min="1"
+                    <flux:input x-model="$wire.countedPerAthlete" type="text" inputmode="numeric"
                                 x-on:change="$wire.setInput('countedPerAthlete', $event.target.value)"/>
                 </flux:field>
             @endif
 
             <flux:field class="w-44">
                 <flux:label>Mind. Leistungen je Verein</flux:label>
-                <flux:input x-model="$wire.minEntriesPerClub" type="number" min="1"
+                <flux:input x-model="$wire.minEntriesPerClub" type="text" inputmode="numeric"
                             x-on:change="$wire.setInput('minEntriesPerClub', $event.target.value)"/>
             </flux:field>
 

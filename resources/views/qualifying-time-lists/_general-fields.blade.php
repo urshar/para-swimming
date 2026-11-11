@@ -4,7 +4,7 @@
      dort bereits für denselben Zweck etabliert). Erwartet eine umschließende Card vom aufrufenden View. --}}
 <flux:field>
     <flux:label>Wettkampfjahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-    <flux:input name="year" type="number" min="2000" max="2100" class="w-32"
+    <flux:input name="year" type="text" inputmode="numeric" maxlength="4" class="w-32"
                 value="{{ old('year', $list?->year) }}" required/>
     <flux:error name="year"/>
 </flux:field>

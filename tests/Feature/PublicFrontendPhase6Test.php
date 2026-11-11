@@ -366,6 +366,44 @@ it('berechnet über den WPS-Punkterechner-Endpunkt Punkte zu Zeit', function () 
         ->assertSee(__('public.wps_point_calculator.result.time_heading', [], 'de'));
 });
 
+// Das Punktefeld ist ein Textfeld ohne Pfeile (docs/open-points.md), der Browser prüft also nichts —
+// ungültige Eingaben müssen am Server mit der übersetzten Meldung abgefangen werden.
+it('zeigt eine Fehlermeldung bei ungültigen Punkten im Punkterechner', function (string $eingabe) {
+    $version = makeVersion_pfr6();
+    $category = makeCategory_pfr6();
+    $discipline = makeDiscipline_pfr6();
+    $sportClass = makeSportClass_pfr6();
+    putBaseTime_pfr6($version, $category, $discipline, $sportClass, 3000);
+
+    $this->get(route('public.point-calculator.index', [
+        'locale' => 'de',
+        'mode' => 'points_to_time',
+        'course' => 'LCM',
+        'gender' => 'M',
+        'discipline_id' => $discipline->id,
+        'sport_class' => 'S6',
+        'points' => $eingabe,
+    ]))
+        ->assertOk()
+        ->assertSee(__('public.point_calculator.errors.invalid_points', [], 'de'));
+})->with(['Buchstaben' => 'abc', 'null' => '0', 'negativ' => '-5', 'Dezimal' => '900,5']);
+
+it('zeigt eine Fehlermeldung bei ungültigen Punkten im WPS-Punkterechner', function (string $eingabe) {
+    $parameter = parameter_wps2(['sport_class' => 'S2', 'parameter_c' => 433.181]);
+    version_wps2();
+
+    $this->get(route('public.wps-point-calculator.index', [
+        'locale' => 'de',
+        'mode' => 'points_to_time',
+        'gender' => $parameter->gender,
+        'discipline_id' => $parameter->stroke_type_id.':'.$parameter->distance,
+        'sport_class' => '2',
+        'points' => $eingabe,
+    ]))
+        ->assertOk()
+        ->assertSee(__('public.wps_point_calculator.errors.invalid_points', [], 'de'));
+})->with(['Buchstaben' => 'abc', 'null' => '0', 'negativ' => '-5', 'Dezimal' => '900,5']);
+
 it('zeigt einen Fehler statt eine falsche Berechnung bei unbekanntem Bewerb im WPS-Rechner', function () {
     version_wps2();
 

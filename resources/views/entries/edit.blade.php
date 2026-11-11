@@ -196,12 +196,12 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Lauf</flux:label>
-                        <flux:input name="heat" type="number" min="1" value="{{ old('heat', $entry->heat) }}"/>
+                        <flux:input name="heat" type="text" inputmode="numeric" value="{{ old('heat', $entry->heat) }}"/>
                         <flux:error name="heat"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Bahn</flux:label>
-                        <flux:input name="lane" type="number" min="0" value="{{ old('lane', $entry->lane) }}"/>
+                        <flux:input name="lane" type="text" inputmode="numeric" value="{{ old('lane', $entry->lane) }}"/>
                         <flux:error name="lane"/>
                     </flux:field>
                 </div>

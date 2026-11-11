@@ -72,7 +72,7 @@
                 name="year"
                 x-model.debounce.500ms="year"
                 placeholder="Jahr"
-                type="number"
+                type="text" inputmode="numeric" maxlength="4"
             />
         </div>
         {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
