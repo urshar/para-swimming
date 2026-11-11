@@ -8,6 +8,9 @@
 
 @section('content')
 
+    {{-- Hängt am Wettkampf-Filter: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js), deshalb immer gerendert, auch wenn leer. --}}
+    <div data-filter-region="meet-tools">
     @if($selectedMeet)
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
             <form method="POST" action="{{ route('meets.recalculate-points', $selectedMeet) }}"
@@ -71,6 +74,7 @@
             </flux:accordion.item>
         </flux:accordion>
     @endif
+    </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 mb-4">
         @php
@@ -101,14 +105,21 @@
                 <flux:select.option value="DNS">DNS</flux:select.option>
                 <flux:select.option value="DNF">DNF</flux:select.option>
             </flux:select>
+            {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+            <div data-filter-region="reset" class="contents">
             @if(request()->hasAny(['meet_id', 'search', 'status']))
                 <div class="ml-auto flex items-center">
                     <flux:button href="{{ route('results.index') }}" variant="filled" icon="x-mark"
                                  class="text-red-500!">Zurücksetzen</flux:button>
                 </div>
             @endif
+            </div>
         </form>
     </div>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
 
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden p-4 [--flux-bleed:1rem]">
         <flux:table bleed>
@@ -207,6 +218,7 @@
 
     <div class="mt-4">
         {{ $results->links() }}
+    </div>
     </div>
 
 @endsection

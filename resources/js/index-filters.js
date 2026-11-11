@@ -12,6 +12,11 @@
  * übergebenen Config werden als reaktive Zustandsfelder gespreizt und je Key ein $watch registriert.
  * So teilen sich alle fünf Index-Seiten dieselbe Komponente, obwohl sie unterschiedliche Filter haben.
  *
+ * Abgeschickt wird nicht per $el.submit() (Seite lädt neu, Suchfeld verliert den Fokus), sondern über
+ * refreshFilterResults(): die Liste wird ohne Neuladen ausgetauscht, siehe filter-refresh.js. Die View
+ * markiert dafür die vom Filter abhängigen Bereiche mit data-filter-region. Enter im Suchfeld läuft
+ * über denselben Weg.
+ *
  * Registrierung in resources/js/app.js:
  *   import indexFilters from './index-filters'
  *   Alpine.data('indexFilters', indexFilters)
@@ -21,6 +26,8 @@
  *   <flux:select name="gender" x-model="gender" ...>
  *   <flux:input name="search" x-model.debounce.500ms="search" ...>
  */
+import refreshFilterResults from './filter-refresh';
+
 export default function indexFilters(config) {
     return {
         // Config-Keys als reaktive Felder übernehmen (z.B. search, gender, nation_id, ...).
@@ -30,7 +37,12 @@ export default function indexFilters(config) {
             // Je übergebenem Filterfeld ein $watch → Auto-Submit. 'init' selbst steckt nie in der
             // Config (das sind reine Request-Feldnamen), also keine Kollision mit dieser Methode.
             Object.keys(config).forEach((key) => {
-                this.$watch(key, () => this.$el.submit());
+                this.$watch(key, () => refreshFilterResults(this.$el));
+            });
+
+            this.$el.addEventListener('submit', (event) => {
+                event.preventDefault();
+                refreshFilterResults(this.$el);
             });
         },
     };

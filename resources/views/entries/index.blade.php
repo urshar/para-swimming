@@ -46,7 +46,8 @@
         ];
     @endphp
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    {{-- Kacheln zählen im aktuellen Filter: beim Filtern ohne Neuladen ausgetauscht (filter-refresh.js). --}}
+    <div data-filter-region="tiles" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         @foreach($tiles as $tile)
             <a href="{{ route('entries.index', array_merge($baseParams, $tile['params'])) }}"
                class="rounded-xl border p-4 transition {{ $tile['active']
@@ -91,14 +92,21 @@
                 <flux:select.option value="no_time">Ohne Meldezeit</flux:select.option>
                 <flux:select.option value="no_class">Ohne Sportklasse</flux:select.option>
             </flux:select>
+            {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+            <div data-filter-region="reset" class="contents">
             @if(request()->hasAny(['meet_id', 'search', 'status', 'problem']))
                 <div class="ml-auto flex items-center">
                     <flux:button href="{{ route('entries.index') }}" variant="filled" icon="x-mark"
                                  class="text-red-500!">Zurücksetzen</flux:button>
                 </div>
             @endif
+            </div>
         </form>
     </div>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
 
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden p-4 [--flux-bleed:1rem]">
         <flux:table bleed>
@@ -169,6 +177,7 @@
 
     <div class="mt-4">
         {{ $entries->links() }}
+    </div>
     </div>
 
 @endsection

@@ -88,14 +88,20 @@
             <flux:select.option value="0">Alle (inkl. inaktive)</flux:select.option>
             <flux:select.option value="2">Nur inaktive</flux:select.option>
         </flux:select>
+        {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+        <div data-filter-region="reset" class="contents">
         @if(request()->hasAny(['search', 'letter', 'gender', 'sport_class', 'nation_id', 'club_id', 'active_only']))
             <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('athletes.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
             </div>
         @endif
+        </div>
     </form>
 
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
     {{-- Buchstaben-Filter nach Nachname --}}
     <div class="flex flex-wrap gap-1 mb-4">
         <flux:button href="{{ route('athletes.index', request()->except(['letter', 'page'])) }}"
@@ -192,5 +198,6 @@
     </div>
 
     <div class="mt-4">{{ $athletes->links() }}</div>
+    </div>
 
 @endsection

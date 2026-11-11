@@ -8,6 +8,9 @@
  * CLAUDE.md: Alpine-Logik in separate .js-Dateien auslagern reduziert
  * IDE-Warnungen).
  *
+ * Abgeschickt wird ohne Neuladen über refreshFilterResults() (filter-refresh.js), damit das Suchfeld
+ * beim Tippen den Fokus behält; die View markiert die betroffenen Bereiche mit data-filter-region.
+ *
  * Registrierung in resources/js/app.js:
  *   import qualificationFilters from './qualification-filters'
  *   Alpine.data('qualificationFilters', qualificationFilters)
@@ -15,6 +18,8 @@
  * Verwendung in Blade:
  *   x-data="qualificationFilters(@js($filterConfig))"
  */
+import refreshFilterResults from './filter-refresh';
+
 export default function qualificationFilters(config) {
     return {
         strokeDistance: config.strokeDistance ?? '',
@@ -29,13 +34,18 @@ export default function qualificationFilters(config) {
             this.$watch('sportClassFilter', () => this.submitFilter());
             this.$watch('clubFilter', () => this.submitFilter());
             this.$watch('searchFilter', () => this.submitFilter());
+
+            this.$el.addEventListener('submit', (event) => {
+                event.preventDefault();
+                this.submitFilter();
+            });
         },
 
         submitFilter() {
             const [s, d] = (this.strokeDistance || '').split('|');
             this.$refs.strokeTypeIdField.value = s ?? '';
             this.$refs.distanceField.value = d ?? '';
-            this.$el.submit();
+            refreshFilterResults(this.$el);
         },
     };
 }

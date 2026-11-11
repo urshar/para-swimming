@@ -29,7 +29,9 @@
                  document.querySelectorAll('[data-flux-accordion-item]').forEach(el => { el.value = true })
              },
          }">
-        <div class="mb-6">
+        {{-- Kopf (Schwimmer-Zahl, Inhaltsverzeichnis, PDF-Link) hängt am Filter: beim Filtern ohne
+             Neuladen ausgetauscht (resources/js/filter-refresh.js). --}}
+        <div data-filter-region="header" class="mb-6">
             <div class="flex items-center gap-2">
                 <flux:button href="{{ route('qualifying-time-lists.show', $list) }}" variant="primary"
                              icon="arrow-left" size="sm" title="Zurück" aria-label="Zurück"/>
@@ -125,13 +127,20 @@
                 <flux:input name="search" x-model.debounce.500ms="searchFilter" placeholder="Name oder Verein"/>
             </div>
 
+            {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+            <span data-filter-region="reset" class="contents">
             @if(request()->anyFilled(['stroke_type_id', 'gender', 'sport_class', 'club_id', 'search']))
                 <flux:button href="{{ route('qualifying-time-lists.qualifications', $list) }}" variant="filled"
                              icon="x-mark" class="text-red-500!">
                     Filter zurücksetzen
                 </flux:button>
             @endif
+            </span>
         </form>
+
+        {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+             (resources/js/filter-refresh.js). --}}
+        <div data-filter-region="list">
 
         @if($qualifications->isEmpty())
             <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-8">
@@ -197,5 +206,6 @@
                 </flux:accordion>
             @endforeach
         @endif
+        </div>
     </div>
 @endsection
