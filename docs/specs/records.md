@@ -139,7 +139,7 @@ Seit `feature/split-records` (25.10.2026; Regeln, Entscheidungen und Phasen in
 - **Regional**: aus `club.regional_record_type` des **Vereins im Ergebnis** (Verein zum Zeitpunkt des Starts), nur
   ohne Verein im Ergebnis aus dem Verein des Athleten; jeweils Basis- und JR-Variante. Ein Verein ohne Landesverband
   (z. B. ÖBSV als Nationalteam) ergibt keinen Regionalrekord. Bis `fix/regional-record-club` (07.10.2026) kam der
-  Verband aus dem *aktuellen* Verein des Athleten — falsch zugeordnete Altfälle findet die Import Prüfliste.
+  Verband aus dem *aktuellen* Verein des Athleten — falsch zugeordnete Altfälle findet die Prüfliste.
   Kärnten heißt seit 27.07.2026 `KBSV` (vorher `KLSV`); alte `AUT.KLSV*`-Rekorde hat die Migration
   `2026_10_07_100002_rename_klsv_regional_record_types` umbenannt.
 
@@ -305,8 +305,10 @@ nur als "unbekannt" gelistet, sondern mit **Zuordnungs-Vorschlägen** versehen �
 ## Prüfliste nach dem Import — `RecordImportReviewService`
 
 Seit `feature/record-import-review` (07.10.2026). Gespeichert in `import_review_items` (Model `ImportReviewItem`),
-abzuarbeiten unter **Rekorde → Import Prüfliste** (`records.import-review.*`, nur Admin; der Menüpunkt zeigt die
-Zahl offener Einträge). Sechs Arten:
+abzuarbeiten unter **Rekorde → Prüfliste**, Reiter "Import-Befunde" (`records.import-review.index`, nur Schreibrecht;
+bis 11.11.2026 hieß der Menüpunkt "Import Prüfliste"). Der zweite Reiter zeigt die ausstehenden Rekorde (siehe
+"Ausstehende Rekorde" unten). Der Menüpunkt zeigt die Summe aus offenen Einträgen und ausstehenden Rekorden. Gibt es
+nur ausstehende Rekorde, führt er gleich auf deren Reiter. Sechs Arten:
 
 - **Vereinskonflikt (`club_conflict`)**: Seit `feature/record-import-cutoff` (10.10.2026, Entscheidung Erik) nur
   noch für **Athleten ohne Stammverein**, deren Rekord einen Verein trägt. Der Rekord trägt immer den Verein aus der
@@ -373,6 +375,28 @@ Staffelverein geprüft. Die Abweichung zur Rekordliste gibt es nur beim Import (
 Fall nicht neu anlegen (Duplikatprüfung über Typ und Rekord bzw. `details.key`). Erledigte kommen nur wieder, wenn der
 Befund tatsächlich noch besteht.
 
+### Ausstehende Rekorde (Reiter der Prüfliste)
+
+Seit `feature/pending-records-review` (11.11.2026). `GET /records/import-review/pending`
+(`records.import-review.pending`, `RecordImportReviewController::pending()`) listet **alle** Rekorde mit
+`record_status = 'PENDING'` über alle Rekordtypen, Klassen und Bahnen, jüngstes Rekorddatum zuerst. Überbotene
+ausstehende Rekorde (`PENDING.HISTORY`) fehlen bewusst, sie sind nicht mehr zu bestätigen. Scope: `SwimRecord::pending()`.
+
+Der **Grund** wird nicht gespeichert, sondern wie in `RecordCheckerService` hergeleitet
+(`SwimRecord::scopePendingReason()` für den Filter, `pending_reason` für die Anzeige):
+
+| Grund                  | Bedingung                                                                    |
+|------------------------|------------------------------------------------------------------------------|
+| `split` Zwischenzeit   | `from_split = true`                                                          |
+| `exhibition` AK        | sonst: verknüpftes Einzel- oder Staffelergebnis mit Status `EXH`             |
+| `club` Verein          | sonst: Staffelrekord mit Staffelergebnis (Vereinszugehörigkeit nicht belegt) |
+| `other` Sonstige       | alles Übrige (von Hand oder per Import als ausstehend eingetragen)           |
+
+Filter nach Grund und Einzel/Staffel als Links (Zustand in der URL). Aktionen je Zeile: **Bestätigen** und
+**Ungültig** (mit Rückfrage) über die vorhandene Schnelländerung `records.status.update` — Bestätigen ordnet den Rekord
+damit wie aus der Rekordliste per `SwimRecord::approve()` in die Kette ein und setzt die Landesrekorde; die Antwort
+führt per `back()` auf die Prüfliste zurück.
+
 ## Zusammenführung der ÖBSV-Typen — `NationalRecordMergeService`
 
 Das ÖBSV-Rekordfile verwendet `AUT.IND` / `AUT.REL` (nationale Einzel- bzw. Staffelrekorde) und `AUT.IND.JG` /
@@ -416,6 +440,7 @@ Alle unter `auth`, Prefix `records`:
 | `GET /records/export` · `POST /records/export/download`                             | `records.export` · `records.export.download`                       | Export             |
 | `POST /records/check/{meet}`                                                        | `records.check`                                                    | Prüflauf über Meet |
 | `GET /records/import-review` · `POST …/scan` · `…/purge` · `…/{item}/apply` · `…/ignore` | `records.import-review.index` · `.scan` · `.purge` · `.apply` · `.ignore` | Prüfliste (Admin)  |
+| `GET /records/import-review/pending`                                                | `records.import-review.pending`                                    | ausstehende Rekorde |
 | `GET /records/{record}/edit` · `PUT /records/{record}`                              | `records.edit` · `records.update`                                  | bearbeiten         |
 | `GET /records/{record}` · `DELETE /records/{record}`                                | `records.show` · `records.destroy`                                 | Detail/Löschen     |
 | `POST /records/{record}/restore`                                                    | `records.restore`                                                  | wiederherstellen   |
@@ -427,7 +452,8 @@ Alle unter `auth`, Prefix `records`:
 2. Ist die Nationalität unklar (`nation = null` bzw. Club-Nation fehlt beim Import), entsteht ein **PENDING**-Rekord,
    der den aktuellen Rekord noch **nicht** ablöst und in `pending_records` zur Bestätigung erscheint.
    Ebenso bei Starts außer Konkurrenz (`EXH`) — dort für alle Rekordtypen — und immer bei Rekorden aus Zwischenzeiten.
-   Bestätigen = Status auf APPROVED setzen; der Rekord wird dann an seinem Datum eingeordnet.
+   Bestätigen = Status auf APPROVED setzen (Rekordliste oder Prüfliste → "Ausstehende Rekorde"); der Rekord wird dann
+   an seinem Datum eingeordnet.
 3. Nicht-AUT-Ergebnisse werden gar nicht als AUT-Rekord angelegt.
 
 ## Tests
@@ -452,5 +478,7 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/RelayLeadOffRecordTest.php` (`split-records-p4`) — Staffel-Startschwimmer.
 - `tests/Feature/CheckSplitRecordsCommandTest.php` (`split-records-p5`) — `records:check-splits`.
 - `tests/Feature/CheckMeetRecordsCommandTest.php` (`records-check-meets`) — `records:check-meets`.
+- `tests/Feature/RecordPendingReviewTest.php` (`record-pending-review`) — Reiter "Ausstehende Rekorde": Liste, Grund,
+  Filter, Bestätigen/Ungültig, Zähler und Menü, Zugriff.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
   `set_date`).

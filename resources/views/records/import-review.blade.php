@@ -6,17 +6,14 @@
 
 @extends('layouts.app')
 
-@section('title', 'Prüfliste Rekordimport')
+@section('title', 'Prüfliste Rekorde')
 
 @section('content')
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-center gap-2">
             <flux:button href="{{ $backUrl }}" variant="primary" icon="arrow-left" size="sm"
                          title="Zurück" aria-label="Zurück zu den Rekorden"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Prüfliste Rekordimport</h1>
-            @if($openCount > 0)
-                <flux:badge color="amber" size="sm">{{ $openCount }} offen</flux:badge>
-            @endif
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Prüfliste Rekorde</h1>
         </div>
         <div class="flex items-center gap-2">
             {{-- Löscht nur Erledigte; Ignorierte bleiben als Merker, sonst kämen sie beim nächsten Prüflauf wieder. --}}
@@ -32,6 +29,8 @@
             </form>
         </div>
     </div>
+
+    @include('records._review-tabs')
 
     <ul class="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-3xl space-y-1 list-disc ps-5">
         <li>

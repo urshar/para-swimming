@@ -692,9 +692,10 @@ Route::middleware(['auth'])->group(function () {
             Route::post('import/preview', [RecordImportController::class, 'preview'])->name('import.preview');
             Route::post('import/run', [RecordImportController::class, 'run'])->name('import.run');
 
-            // Prüfliste nach dem Rekordimport (Vereinskonflikte, abweichende Geburtsdaten)
+            // Prüfliste Rekorde: Import-Befunde (Vereinskonflikte, abweichende Geburtsdaten usw.) und ausstehende Rekorde
             Route::prefix('import-review')->name('import-review.')->group(function () {
                 Route::get('/', [RecordImportReviewController::class, 'index'])->name('index');
+                Route::get('pending', [RecordImportReviewController::class, 'pending'])->name('pending');
                 Route::post('scan', [RecordImportReviewController::class, 'scan'])->name('scan');
                 Route::post('purge', [RecordImportReviewController::class, 'purge'])->name('purge');
                 Route::post('{item}/apply', [RecordImportReviewController::class, 'apply'])->name('apply');

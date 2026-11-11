@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\RecordChainService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,17 @@ use Throwable;
  */
 class SwimRecord extends Model
 {
+    // ── Ausstehende Rekorde ───────────────────────────────────────────────────
+
+    /** Gründe eines ausstehenden Rekords für Filter und Anzeige der Prüfliste (abgeleitet, nicht gespeichert). */
+    public const string PENDING_REASON_SPLIT = 'split';
+
+    public const string PENDING_REASON_EXHIBITION = 'exhibition';
+
+    public const string PENDING_REASON_CLUB = 'club';
+
+    public const string PENDING_REASON_OTHER = 'other';
+
     protected $fillable = [
         'stroke_type_id',
         'nation_id',
@@ -127,6 +139,45 @@ class SwimRecord extends Model
             'F' => '♀',
             'X' => '⚥',
             default => '♂',
+        };
+    }
+
+    /** Ausstehende Rekorde, die noch bestätigt werden können (ohne die überbotenen PENDING.HISTORY). */
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('record_status', 'PENDING');
+    }
+
+    /**
+     * Schränkt auf einen Grund ein. Der Grund wird nicht gespeichert, sondern wie in RecordCheckerService
+     * hergeleitet: Zwischenzeit, sonst Start außer Konkurrenz (Ergebnisstatus EXH), sonst bei Staffeln die nicht
+     * belegte Vereinszugehörigkeit; alles Übrige (z. B. manuell gesetzt) ist "Sonstige".
+     */
+    public function scopePendingReason(Builder $query, string $reason): Builder
+    {
+        $exhibition = fn (Builder $q) => $q
+            ->whereHas('result', fn (Builder $r) => $r->where('status', 'EXH'))
+            ->orWhereHas('relayResult', fn (Builder $r) => $r->where('status', 'EXH'));
+
+        return match ($reason) {
+            self::PENDING_REASON_SPLIT => $query->where('from_split', true),
+            self::PENDING_REASON_EXHIBITION => $query->where('from_split', false)->where($exhibition),
+            self::PENDING_REASON_CLUB => $query->where('from_split', false)->whereNotNull('relay_result_id')
+                ->whereNot($exhibition),
+            self::PENDING_REASON_OTHER => $query->where('from_split', false)->whereNull('relay_result_id')
+                ->whereNot($exhibition),
+            default => $query,
+        };
+    }
+
+    /** Grund dieses ausstehenden Rekords (siehe scopePendingReason()); erwartet geladene result/relayResult. */
+    public function getPendingReasonAttribute(): string
+    {
+        return match (true) {
+            $this->from_split => self::PENDING_REASON_SPLIT,
+            $this->result?->status === 'EXH', $this->relayResult?->status === 'EXH' => self::PENDING_REASON_EXHIBITION,
+            $this->relay_result_id !== null => self::PENDING_REASON_CLUB,
+            default => self::PENDING_REASON_OTHER,
         };
     }
 
