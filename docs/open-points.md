@@ -183,8 +183,8 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
 1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
-2. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — mit "Rekorde je Veranstaltung (Liste und PDF)"
-   verknüpfen
+2. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — auf die Rekorde der Veranstaltung (`meets.records`)
+   verlinken
 
 **Erledigt:** "Zahlenfelder ohne Pfeile" (`feature/number-fields-without-spinners`, 11.11.2026): Alle Zahlenfelder
 (Verwaltung, Livewire, öffentliche Punkterechner) sind `type="text"` mit `inputmode="numeric"` bzw. `"decimal"`;
@@ -211,9 +211,14 @@ ausgeblendet); Auswahllisten nach Anzeigename sortiert (`Club::orderByDisplayNam
 Vereinsformular, in der Überschrift der Vereins-Detailseite, in der Vereinsliste, im LENEX-Export und in der
 Vereinszuordnung des LENEX-Imports. Tests: `--group=club-short-names`.
 
-**Neue Wünsche (Erik, 31.10.2026)** — je unten beschrieben, jeweils eigener Branch:
+**Neue Wünsche (Erik, 31.10.2026)** — derzeit keine offen.
 
-1. "Rekorde je Veranstaltung (Liste und PDF)"
+**Erledigt:** "Rekorde je Veranstaltung (Liste und PDF)" (`feature/meet-records`, 11.11.2026): Knopf "Rekorde (n)"
+auf der Wettkampfseite → `meets/{meet}/records`, als PDF unter `…/records/pdf`, nur Verwaltung mit
+`module:records,read`. Quelle ist die Rekordhistorie (Rekorde mit Einzel- oder Staffelergebnis der Veranstaltung,
+auch aus Zwischenzeiten), je Rekordart gruppiert; bestätigte, überbotene und ausstehende mit Status-Badge, ohne
+ungültige, Zielzeiten und eingestellte Rekorde (Entscheidungen Erik, 11.11.2026). Beschrieben in
+[specs/records.md](specs/records.md) "Rekorde je Veranstaltung". Tests: `--group=meet-records-p1`, `meet-records-p2`.
 
 **Erledigt:** "WPS-Punkte: allgemeine Daten einer Version bearbeiten" (`feature/wps-version-edit`, 01.11.2026):
 Bearbeiten-Formular für Bezeichnung, Jahr, Version, Quelle und Gültigkeit; die Detailseite der Version listet
@@ -520,22 +525,6 @@ Rechte gegeben hat, ist damit nicht nachvollziehbar.
 **Zum Schließen nötig:** Trait `Auditable` an `User` (ohne Passwort-, Token- und 2FA-Felder) und ein Eintrag je
 Matrix-Änderung über `AuditLogger`; Anzeige in der Benutzerverwaltung.
 
-## Rekorde je Veranstaltung (Liste und PDF)
-
-**Seit:** 31.10.2026, Wunsch Erik.
-
-**Was fehlt:** Eine Übersicht je Veranstaltung, welche Rekorde dort verbessert wurden (Einzel und Staffel, je
-Rekordart), aufrufbar von der Wettkampfseite. Heute zeigt nur die Rekordprüfung ("Rekorde prüfen") ein einmaliges
-Ergebnis; eine dauerhafte Liste gibt es nicht.
-
-**Zum Schließen nötig:** Liste aus der Rekordhistorie (Rekorde mit Ergebnis dieses Wettkampfs, inkl. aus
-Zwischenzeiten), gruppiert nach Rekordart; Ausgabe als PDF im Stil der übrigen Berichte. Vorab mit Erik klären: auch
-eingestellte Rekorde, auch ausländische Rekordarten, Sichtbarkeit (Verwaltung und/oder öffentlicher Bereich).
-
-**Verknüpft mit:** "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — der Prüfstatus in der
-Veranstaltungsliste kann direkt auf diese Liste verlinken (z. B. "geprüft, 3 Rekorde" → Rekorde der Veranstaltung).
-Sinnvolle Reihenfolge: zuerst den Prüfstatus (braucht die neue Spalte), dann diese Liste, die den Link aufnimmt.
-
 ## Athletensuche: Eingabe "Nachname, Vorname" findet nichts
 
 **Seit:** 11.11.2026, beim Live-Test von `fix/filter-search-focus` aufgefallen.
@@ -573,5 +562,6 @@ Schreibrecht (`module:meets,write`, `AccessControlTest`).
   falls unklar.
 - **Bestand bleibt ungeprüft** — kein einmaliger Befehl zum Markieren.
 
-**Verknüpft mit:** "Rekorde je Veranstaltung (Liste und PDF)" — der Prüfstatus verlinkt dann auf die Rekorde der
-Veranstaltung.
+**Verknüpft mit:** "Rekorde je Veranstaltung (Liste und PDF)" (erledigt, `feature/meet-records`) — der Prüfstatus
+verlinkt auf die Rekorde der Veranstaltung: Route `meets.records`, Anzahl über `MeetRecordsService::count()` (z. B.
+"geprüft, 3 Rekorde"). Der Link nur mit Leserecht auf Rekorde (`module:records,read`).
