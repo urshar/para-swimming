@@ -223,7 +223,7 @@
                             </flux:field>
                             <flux:field>
                                 <flux:label>Staffel (Schwimmer)</flux:label>
-                                <flux:input name="relay_count" type="number" min="1" x-model="relayCountValue"/>
+                                <flux:input name="relay_count" type="text" inputmode="numeric" x-model="relayCountValue"/>
                             </flux:field>
                         </div>
                     </flux:tab.panel>

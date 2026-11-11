@@ -15,6 +15,7 @@ use App\Support\TimeParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -169,15 +170,19 @@ class ChampionshipStandardTable extends Component
     {
         $this->requireWrite();
 
-        $daten = $this->validate([
-            'bulkPercent' => ['required', 'numeric', 'min:0', 'max:99.99'],
-        ]);
+        // Komma erlauben (deutsche Tastatur) — wie beim Prozentsatz je Zeile in saveCell(). Geprüft
+        // wird der normalisierte Wert, das Feld behält die Eingabe so, wie sie getippt wurde.
+        $eingabe = trim($this->bulkPercent);
+        $daten = Validator::make(
+            ['bulkPercent' => str_replace(',', '.', $eingabe)],
+            ['bulkPercent' => ['required', 'numeric', 'min:0', 'max:99.99']],
+        )->validate();
 
         $anzahl = $service->applyPercentToOpenRows($this->championship, (float) $daten['bulkPercent']);
 
         $this->statusMessage = $anzahl === 0
             ? 'Keine offenen Zeilen — es wurde nichts geändert.'
-            : "$anzahl offene Zeile(n) auf {$daten['bulkPercent']} % gesetzt. "
+            : "$anzahl offene Zeile(n) auf $eingabe % gesetzt. "
                 .'Von Hand gesetzte Werte blieben unverändert.';
 
         $this->loadRows();

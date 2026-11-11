@@ -56,7 +56,7 @@
 
                         <flux:field>
                             <flux:label>Sortierung</flux:label>
-                            <flux:input name="sort_order" type="number" min="0" max="1000"
+                            <flux:input name="sort_order" type="text" inputmode="numeric"
                                         value="{{ old('sort_order', $group?->sort_order ?? 0) }}"/>
                             <flux:error name="sort_order"/>
                         </flux:field>

@@ -33,7 +33,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input type="number" name="year" value="{{ old('year', $version->year) }}" required/>
+                        <flux:input type="text" inputmode="numeric" maxlength="4" name="year" value="{{ old('year', $version->year) }}" required/>
                         <flux:error name="year"/>
                     </flux:field>
 

@@ -51,14 +51,14 @@
             <flux:label>Schwelle Jugend</flux:label>
             <flux:input x-model="$wire.youthThreshold"
                         x-on:change="$wire.setInput('youthThreshold', $event.target.value)"
-                        type="number" step="0.5"/>
+                        type="text" inputmode="decimal"/>
         </flux:field>
 
         <flux:field class="w-36">
             <flux:label>Schwelle Allgemein</flux:label>
             <flux:input x-model="$wire.generalThreshold"
                         x-on:change="$wire.setInput('generalThreshold', $event.target.value)"
-                        type="number" step="0.5"/>
+                        type="text" inputmode="decimal"/>
         </flux:field>
 
         <flux:field class="w-32">

@@ -84,13 +84,13 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Session<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="session_number" type="number" min="1"
+                        <flux:input name="session_number" type="text" inputmode="numeric"
                                     value="{{ old('session_number', $event->session_number ?? 1) }}" required/>
                         <flux:error name="session_number"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Event-Nr.</flux:label>
-                        <flux:input name="event_number" type="number" min="1"
+                        <flux:input name="event_number" type="text" inputmode="numeric"
                                     value="{{ old('event_number', $event->event_number ?? $nextEventNumber ?? '') }}"/>
                         <flux:error name="event_number"/>
                     </flux:field>
@@ -136,7 +136,7 @@
                     </flux:field>
                     <flux:field>
                         <flux:label>Schwimmer/Staffel<span class="text-red-500 dark:text-red-400 ms-1">*</span><x-hint content="1 = Einzel"/></flux:label>
-                        <flux:input name="relay_count" type="number" min="1"
+                        <flux:input name="relay_count" type="text" inputmode="numeric"
                                     value="{{ old('relay_count', $event->relay_count ?? 1) }}" required/>
                     </flux:field>
                 </div>
@@ -251,11 +251,11 @@
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][sport_classes]'" x-model="group.sport_classes">
                             </label>
                             <label class="md:col-span-1 text-xs text-zinc-500">Alter ab
-                                <input type="number" min="0" max="999" class="{{ $inputClass }}"
+                                <input type="text" inputmode="numeric" class="{{ $inputClass }}"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][age_min]'" x-model="group.age_min">
                             </label>
                             <label class="md:col-span-1 text-xs text-zinc-500">bis
-                                <input type="number" min="0" max="999" class="{{ $inputClass }}"
+                                <input type="text" inputmode="numeric" class="{{ $inputClass }}"
                                        :name="'scoring_groups[' + groups.indexOf(group) + '][age_max]'" x-model="group.age_max">
                             </label>
                             {{-- "ohne" als Sentinel NONE: eine leere Flux-Option kommt nicht zuverlässig an (CLAUDE.md). --}}

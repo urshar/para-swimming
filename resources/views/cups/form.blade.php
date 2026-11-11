@@ -34,7 +34,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <flux:field>
                         <flux:label>Cup-Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="year" type="number" min="2000" max="2100"
+                        <flux:input name="year" type="text" inputmode="numeric" maxlength="4"
                                     value="{{ old('year', $cup?->year) }}" required/>
                         <flux:error name="year"/>
                     </flux:field>
@@ -64,21 +64,21 @@
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Wertungsrunden<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="rounds_count" type="number" min="1" max="50"
+                        <flux:input name="rounds_count" type="text" inputmode="numeric"
                                     value="{{ old('rounds_count', $cup?->rounds_count ?? 1) }}" required/>
                         <flux:error name="rounds_count"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Beste X Ergebnisse<span
                                 class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="best_of_count" type="number" min="1" max="50"
+                        <flux:input name="best_of_count" type="text" inputmode="numeric"
                                     value="{{ old('best_of_count', $cup?->best_of_count ?? 1) }}" required/>
                         <flux:error name="best_of_count"/>
                     </flux:field>
                     <flux:field>
                         <flux:label>Top-Gruppe ab Punkten<span
                                 class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="top_group_points_threshold" type="number" min="0" max="1200"
+                        <flux:input name="top_group_points_threshold" type="text" inputmode="numeric"
                                     value="{{ old('top_group_points_threshold', $cup?->top_group_points_threshold ?? 450) }}"
                                     required/>
                         <flux:error name="top_group_points_threshold"/>

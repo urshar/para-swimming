@@ -92,7 +92,7 @@
             <flux:field class="w-28">
                 <flux:label>Strecke</flux:label>
                 <flux:input x-model="$wire.distance" x-on:change="$wire.setFilter('distance', $event.target.value)"
-                            type="number" placeholder="alle"/>
+                            type="text" inputmode="numeric" placeholder="alle"/>
             </flux:field>
 
             <flux:field class="w-32">
@@ -124,7 +124,7 @@
             <flux:field class="w-36">
                 <flux:label>Mind. Punkte</flux:label>
                 <flux:input x-model="$wire.minPoints" x-on:change="$wire.setFilter('minPoints', $event.target.value)"
-                            type="number" placeholder="—"/>
+                            type="text" inputmode="numeric" placeholder="—"/>
             </flux:field>
 
             <flux:field class="w-44">

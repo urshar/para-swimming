@@ -75,7 +75,7 @@
             <div class="flex flex-wrap items-end gap-3">
                 <flux:field class="w-40">
                     <flux:label>ÖBSV-Verschärfung</flux:label>
-                    <flux:input x-model="$wire.bulkPercent" placeholder="z.B. 2" type="number" step="0.01"/>
+                    <flux:input x-model="$wire.bulkPercent" placeholder="z.B. 2" type="text" inputmode="decimal"/>
                 </flux:field>
                 {{-- Standardhöhe (kein size="sm"), damit der Button so hoch ist wie das
                      Prozentsatz-Eingabefeld daneben. --}}
@@ -226,7 +226,7 @@
 
                 <flux:field class="w-28">
                     <flux:label>Strecke</flux:label>
-                    <flux:input x-model="$wire.newDistance" type="number" placeholder="100"/>
+                    <flux:input x-model="$wire.newDistance" type="text" inputmode="numeric" placeholder="100"/>
                     <flux:error name="newDistance"/>
                 </flux:field>
 

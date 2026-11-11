@@ -396,7 +396,7 @@
                     <flux:field x-show="status === 'FRD'" x-cloak>
                         @php $frdDefault = (int) date('Y') + 2; @endphp
                         <flux:label>FRD Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                        <flux:input name="frd_year" type="number" min="2000" max="2100"
+                        <flux:input name="frd_year" type="text" inputmode="numeric" maxlength="4"
                                     value="{{ old('frd_year', $frdDefault) }}"
                                     placeholder="{{ $frdDefault }}"/>
                         <flux:error name="frd_year"/>
@@ -633,7 +633,7 @@
                                     </flux:field>
                                     <flux:field x-show="status === 'FRD'" x-cloak>
                                         <flux:label>FRD Jahr<span class="text-red-500 dark:text-red-400 ms-1">*</span></flux:label>
-                                        <flux:input name="frd_year" type="number" min="2000" max="2100"
+                                        <flux:input name="frd_year" type="text" inputmode="numeric" maxlength="4"
                                                     value="{{ $cl->frd_year }}"/>
                                         <flux:error name="frd_year"/>
                                     </flux:field>

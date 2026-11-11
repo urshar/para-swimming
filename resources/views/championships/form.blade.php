@@ -49,7 +49,7 @@
 
                     <flux:field>
                         <flux:label>Jahr <span class="text-red-500 dark:text-red-400">*</span></flux:label>
-                        <flux:input name="year" type="number" required
+                        <flux:input name="year" type="text" inputmode="numeric" maxlength="4" required
                                     value="{{ old('year', $championship->year ?? now()->year) }}"/>
                         <flux:error name="year"/>
                     </flux:field>

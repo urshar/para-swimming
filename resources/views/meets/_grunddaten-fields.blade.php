@@ -93,7 +93,7 @@
     </flux:field>
     <flux:field>
         <flux:label>Höhe über Meeresspiegel</flux:label>
-        <flux:input name="altitude" type="number" min="0" max="9000"
+        <flux:input name="altitude" type="text" inputmode="numeric"
                     value="{{ old('altitude', $meet->altitude ?? 0) }}"/>
         <flux:error name="altitude"/>
     </flux:field>

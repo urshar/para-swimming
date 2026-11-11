@@ -398,6 +398,45 @@ it('wendet die Massenaktion auch auf ausgefilterte Zeilen an', function () {
         ->and($ruecken->fresh()->obsv_centiseconds)->toBe(7172);
 });
 
+it('akzeptiert bei der Massenaktion ein Komma als Dezimaltrennzeichen', function () {
+    // Das Feld ist ein Textfeld (keine Pfeile), deshalb tippt man auf deutscher Tastatur "2,5".
+    $mitKomma = championship_wq2([]);
+    $mitPunkt = championship_wq2([]);
+    $zeileKomma = standard_wq2($mitKomma, []);
+    $zeilePunkt = standard_wq2($mitPunkt, []);
+
+    Livewire::actingAs(admin_wq2())
+        ->test(ChampionshipStandardTable::class, ['championship' => $mitKomma])
+        ->set('bulkPercent', ' 2,5 ')
+        ->call('applyBulkPercent')
+        ->assertHasNoErrors()
+        ->assertSet('bulkPercent', ' 2,5 ')
+        ->assertSee('auf 2,5 % gesetzt');
+
+    Livewire::actingAs(admin_wq2())
+        ->test(ChampionshipStandardTable::class, ['championship' => $mitPunkt])
+        ->set('bulkPercent', '2.5')
+        ->call('applyBulkPercent')
+        ->assertHasNoErrors();
+
+    expect($zeileKomma->fresh()->obsv_centiseconds)->toBe($zeilePunkt->fresh()->obsv_centiseconds)
+        ->and($zeileKomma->fresh()->obsv_centiseconds)->not->toBe($zeileKomma->mqs_centiseconds);
+});
+
+it('lehnt bei der Massenaktion ungültige Prozentwerte ab', function (string $eingabe) {
+    $championship = championship_wq2([]);
+    $zeile = standard_wq2($championship, []);
+    $vorher = $zeile->obsv_centiseconds;
+
+    Livewire::actingAs(admin_wq2())
+        ->test(ChampionshipStandardTable::class, ['championship' => $championship])
+        ->set('bulkPercent', $eingabe)
+        ->call('applyBulkPercent')
+        ->assertHasErrors('bulkPercent');
+
+    expect($zeile->fresh()->obsv_centiseconds)->toBe($vorher);
+})->with(['Buchstaben' => 'abc', 'zwei Kommas' => '2,5,1', 'zu groß' => '100', 'negativ' => '-1', 'leer' => '']);
+
 // ── Filter ───────────────────────────────────────────────────────────────────
 
 it('filtert die Normtabelle nach Bewerb, Geschlecht und Sportklasse', function () {

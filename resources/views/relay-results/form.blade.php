@@ -85,7 +85,7 @@
                 <div class="grid grid-cols-3 gap-4">
                     <flux:field>
                         <flux:label>Mannschaft Nr.</flux:label>
-                        <flux:input name="relay_number" type="number" min="1"
+                        <flux:input name="relay_number" type="text" inputmode="numeric"
                                     value="{{ old('relay_number', $relayResult->relay_number ?? '') }}" placeholder="1"/>
                         <flux:error name="relay_number"/>
                     </flux:field>
@@ -161,7 +161,7 @@
                     @include('results._place-field', ['place' => $relayResult->place ?? null])
                     <flux:field>
                         <flux:label>Punkte</flux:label>
-                        <flux:input name="points" type="number" min="0" value="{{ old('points', $relayResult->points ?? '') }}"/>
+                        <flux:input name="points" type="text" inputmode="numeric" value="{{ old('points', $relayResult->points ?? '') }}"/>
                         <flux:error name="points"/>
                     </flux:field>
                     <flux:field>
