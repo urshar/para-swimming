@@ -19,6 +19,7 @@ Fachbegriffe (Rekordtypen, `record_status`): [../domain-glossary.md](../domain-g
 | CRUD & Prüflauf  | `App\Http\Controllers\RecordController`        |
 | Import (HTTP)    | `App\Http\Controllers\RecordImportController`  |
 | Export (HTTP)    | `App\Http\Controllers\RecordExportController`  |
+| Rekorde je Veranstaltung | `App\Services\MeetRecordsService`, `App\Http\Controllers\MeetRecordsController` |
 | Modelle          | `SwimRecord`, `RecordSplit`, `RelayTeamMember` |
 
 ## Rekordtypen
@@ -422,6 +423,32 @@ Regeln je Kategorie (Zieltyp, Schwimmart, Sportklasse, Geschlecht, Bahn, Strecke
 Probelauf auf Dev (07.10.2026): 554 Kategorien, 703 Rekorde entfernt (510 Ergebnis-Rekorde ohne echten Rekord, 117
 Doppelte, 72 nicht in der Liste, 4 Import-Einträge ohne Verbesserung), in 203 Kategorien wechselt der aktuelle Rekord.
 
+## Rekorde je Veranstaltung — `MeetRecordsService`
+
+Seit `feature/meet-records` (11.11.2026, Wunsch Erik vom 31.10.2026). Dauerhafte Übersicht, welche Rekorde bei
+einer Veranstaltung aufgestellt wurden — anders als das Prüfergebnis von "Rekorde prüfen", das nur einmal nach dem
+Check angezeigt wird.
+
+- **Quelle:** die Rekordhistorie. Ein Rekord gehört zur Veranstaltung, wenn sein `result_id` oder `relay_result_id`
+  auf ein Ergebnis dieser Veranstaltung zeigt — damit auch Rekorde aus Zwischenzeiten und Staffel-Startschwimmern.
+  Rekorde ohne Ergebnisbezug (Import, manuelle Pflege, meist WR/ER/OR) erscheinen nicht.
+- **Status:** `APPROVED`, `APPROVED.HISTORY` (inzwischen überboten), `PENDING` und `PENDING.HISTORY`, je mit Badge
+  (`MeetRecordsService::STATUS_LABELS`). Ohne `INVALID` und `TARGETTIME`.
+- **Eingestellte Rekorde** (gleiche Zeit wie der Rekord) erscheinen **nicht** — die Rekordprüfung legt dafür keinen
+  Rekord an (`swim_time <`), und die Liste leitet nichts zusätzlich her (Entscheidung Erik, 11.11.2026).
+- **Gruppierung:** je Rekordart; Reihenfolge Österreich (`AUT`), Österreich – Jugend (`AUT.JR`), dann die
+  Landesverbände in der Reihenfolge von `Club::REGIONAL_ASSOCIATIONS` (je Basis und Jugend), danach alle übrigen
+  Rekordarten alphabetisch. Innerhalb einer Rekordart Einzel vor Staffel, dann Lage
+  (`PointConversionService::STROKE_ORDER`), Strecke, Sportklasse (nach Nummer), Wertung.
+- **Spalten:** Disziplin mit Bahn (Badge "Zwischenzeit"), Sportklasse, Wertung, Athlet bzw. Staffelmitglieder,
+  Verein zum Zeitpunkt des Rekords, Zeit, bisherige Zeit (`supersedes`, der am Wettkampftag geltende Rekord),
+  Status, Link zum Rekord.
+- **Einstieg:** Knopf "Rekorde (n)" auf der Wettkampfseite, nur mit Leserecht auf Rekorde. Zurück führt zur
+  Wettkampfseite.
+- **PDF:** dieselbe Liste über `PdfExportService::stream()` (`pdf/meet-records`), Kopf- und Fußzeile wie der
+  Jahresbericht; Fußzeile als Tabelle statt `float` (dompdf-Fallstrick, siehe CLAUDE.md).
+- **Sichtbarkeit:** nur Verwaltung, `module:records,read`; ein öffentlicher Teil ist nicht vorgesehen.
+
 ## LENEX-Export — `RecordLenexExportService`
 
 `build(...)` erzeugt aus den (gefilterten) Rekorden ein LENEX-Dokument; die Auslieferung als Download übernimmt
@@ -444,6 +471,13 @@ Alle unter `auth`, Prefix `records`:
 | `GET /records/{record}/edit` · `PUT /records/{record}`                              | `records.edit` · `records.update`                                  | bearbeiten         |
 | `GET /records/{record}` · `DELETE /records/{record}`                                | `records.show` · `records.destroy`                                 | Detail/Löschen     |
 | `POST /records/{record}/restore`                                                    | `records.restore`                                                  | wiederherstellen   |
+
+Außerhalb des Prefix, unter `meets/{meet}` (`module:records,read`):
+
+| Route                          | Name                | Aktion                         |
+|--------------------------------|---------------------|--------------------------------|
+| `GET /meets/{meet}/records`     | `meets.records`     | Rekorde der Veranstaltung      |
+| `GET /meets/{meet}/records/pdf` | `meets.records.pdf` | dieselbe Liste als PDF         |
 
 ## Genehmigungs-Workflow (Zusammenfassung)
 
@@ -478,6 +512,10 @@ Alle unter `auth`, Prefix `records`:
 - `tests/Feature/RelayLeadOffRecordTest.php` (`split-records-p4`) — Staffel-Startschwimmer.
 - `tests/Feature/CheckSplitRecordsCommandTest.php` (`split-records-p5`) — `records:check-splits`.
 - `tests/Feature/CheckMeetRecordsCommandTest.php` (`records-check-meets`) — `records:check-meets`.
+- `tests/Feature/MeetRecordsTest.php` (`meet-records-p1`) — Rekorde je Veranstaltung: Auswahl (Status, fremde
+  Veranstaltungen, ohne Ergebnis), Reihenfolge der Rekordarten und Zeilen, Anzeige, Knopf, Zugriffsrechte.
+- `tests/Feature/MeetRecordsPdfTest.php` (`meet-records-p2`) — PDF dazu: Auslieferung, Inhalt, kein `float`,
+  leere Liste, Zugriffsrechte.
 - `tests/Feature/RecordPendingReviewTest.php` (`record-pending-review`) — Reiter "Ausstehende Rekorde": Liste, Grund,
   Filter, Bestätigen/Ungültig, Zähler und Menü, Zugriff.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über

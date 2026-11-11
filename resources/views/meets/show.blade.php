@@ -77,6 +77,12 @@
                          icon="arrow-down-tray" size="sm" class="text-blue-500!">
                 LENEX Export
             </flux:button>
+            @if(auth()->user()?->canRead(Module::Records))
+                <flux:button href="{{ route('meets.records', $meet) }}" variant="filled" icon="trophy" size="sm"
+                             class="text-blue-500!">
+                    Rekorde ({{ $recordsCount }})
+                </flux:button>
+            @endif
             @if(auth()->user()?->canWrite(Module::Meets))
             <form method="POST" action="{{ route('records.check', $meet) }}"
                   x-data="{ submit() { if (confirm('Alle Ergebnisse auf Rekorde prüfen?')) this.$el.submit() } }"

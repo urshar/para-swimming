@@ -39,6 +39,7 @@ use App\Http\Controllers\MeetEntryListController;
 use App\Http\Controllers\MeetFeeController;
 use App\Http\Controllers\MeetMedalRuleController;
 use App\Http\Controllers\MeetParticipantsController;
+use App\Http\Controllers\MeetRecordsController;
 use App\Http\Controllers\MeetResultClubsController;
 use App\Http\Controllers\MeetResultsOverviewController;
 use App\Http\Controllers\MeetScoringGroupRestrictionsController;
@@ -553,6 +554,12 @@ Route::middleware(['auth'])->group(function () {
         // Teilnehmer und Vereine einer Veranstaltung (Kacheln "Teilnehmer"/"Clubs" auf meets/show), nur lesend.
         Route::get('meets/{meet}/participants', [MeetParticipantsController::class, 'index'])
             ->name('meets.participants');
+    });
+
+    // Rekorde einer Veranstaltung (aus der Rekordhistorie), nur lesend.
+    Route::middleware('module:records,read')->group(function () {
+        Route::get('meets/{meet}/records', [MeetRecordsController::class, 'index'])->name('meets.records');
+        Route::get('meets/{meet}/records/pdf', [MeetRecordsController::class, 'pdf'])->name('meets.records.pdf');
     });
 
     Route::middleware('module:cup,read')->group(function () {
