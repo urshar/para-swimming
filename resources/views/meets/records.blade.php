@@ -8,19 +8,26 @@
 
 @section('content')
     {{-- ── Kopf ──────────────────────────────────────────────────────────────── --}}
-    <div class="mb-6">
-        <div class="flex items-center gap-2">
-            <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left"
-                         size="sm" title="Zurück" aria-label="Zurück zur Veranstaltung"/>
-            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekorde</h1>
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <flux:button href="{{ route('meets.show', $meet) }}" variant="primary" icon="arrow-left"
+                             size="sm" title="Zurück" aria-label="Zurück zur Veranstaltung"/>
+                <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Rekorde</h1>
+            </div>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                {{ $meet->name }}
+                @if($meet->city)
+                    · {{ $meet->city }}
+                @endif
+                · {{ $meet->start_date?->format('d.m.Y') }}
+            </p>
         </div>
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            {{ $meet->name }}
-            @if($meet->city)
-                · {{ $meet->city }}
-            @endif
-            · {{ $meet->start_date?->format('d.m.Y') }}
-        </p>
+
+        <flux:button href="{{ route('meets.records.pdf', $meet) }}" variant="filled" icon="printer" size="sm"
+                     class="text-purple-500!" target="_blank">
+            PDF / Drucken
+        </flux:button>
     </div>
 
     @if($groups->isEmpty())

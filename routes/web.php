@@ -559,6 +559,7 @@ Route::middleware(['auth'])->group(function () {
     // Rekorde einer Veranstaltung (aus der Rekordhistorie), nur lesend.
     Route::middleware('module:records,read')->group(function () {
         Route::get('meets/{meet}/records', [MeetRecordsController::class, 'index'])->name('meets.records');
+        Route::get('meets/{meet}/records/pdf', [MeetRecordsController::class, 'pdf'])->name('meets.records.pdf');
     });
 
     Route::middleware('module:cup,read')->group(function () {
