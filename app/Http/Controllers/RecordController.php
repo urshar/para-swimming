@@ -319,14 +319,18 @@ class RecordController extends Controller
      * Prüft alle Ergebnisse eines Wettkampfs auf neue Rekorde.
      *
      * Neue und ausstehende Rekorde werden als Liste in der Session gespeichert
-     * und in der meets/show View über das Partial records.check-result angezeigt.
+     * und in der meets/show View über das Partial records.check-result angezeigt. Aus der Veranstaltungsliste
+     * (from=list) geht es zurück in die gemerkte Liste, nur mit der Zusammenfassung als Flash-Meldung.
      */
-    public function checkMeet(Meet $meet): RedirectResponse
+    public function checkMeet(Request $request, Meet $meet): RedirectResponse
     {
+        $fromList = $request->input('from') === 'list';
+
         try {
             $result = $this->checker->checkMeet($meet);
         } catch (Throwable $e) {
-            return back()->with('error', 'Rekord-Check fehlgeschlagen: '.$e->getMessage());
+            return ($fromList ? redirect(ListUrl::to('meets')) : back())
+                ->with('error', 'Rekord-Check fehlgeschlagen: '.$e->getMessage());
         }
 
         $newCount = count($result['new_records']);
@@ -346,6 +350,10 @@ class RecordController extends Controller
         }
         if ($newCount === 0 && $pendingCount === 0) {
             $message .= ' — keine neuen Rekorde';
+        }
+
+        if ($fromList) {
+            return redirect(ListUrl::to('meets'))->with('success', $message);
         }
 
         // SwimRecord-Objekte können nicht direkt in der Session gespeichert werden.

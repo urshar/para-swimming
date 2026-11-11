@@ -183,8 +183,13 @@ Erik klären, erst danach Branch anlegen/implementieren.
 **Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
 
 1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
-2. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — auf die Rekorde der Veranstaltung (`meets.records`)
-   verlinken
+
+**Erledigt:** "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" (`feature/meet-records-check-status`,
+11.11.2026): Neue Spalte `meets.records_checked_at`, gesetzt nach jedem erfolgreichen Check, zurückgesetzt bei
+rekordrelevanten Ergebnisänderungen (Trait `InvalidatesMeetRecordCheck`; nicht bei Punkten, Platz, Rekord-Flags).
+Liste: Pokal-Badge neben I/E/R mit Anzahl und Link auf `meets.records`, Knopf "Rekorde prüfen" vor dem Auge-Symbol.
+Neue Massen-Updates an Ergebnissen per `DB::table()` müssen `Meet::invalidateRecordCheck()` selbst aufrufen. Details:
+`docs/specs/records.md` "Prüfstatus je Veranstaltung". Tests: `--group=meet-records-check-status-p1` und `-p2`.
 
 **Erledigt:** "Zahlenfelder ohne Pfeile" (`feature/number-fields-without-spinners`, 11.11.2026): Alle Zahlenfelder
 (Verwaltung, Livewire, öffentliche Punkterechner) sind `type="text"` mit `inputmode="numeric"` bzw. `"decimal"`;
@@ -538,30 +543,3 @@ Aigners, "Aigner, M" oder "Aigner Matteo" dagegen nichts, obwohl die Liste die N
 vorkommen (UND über die Teile, ODER über die Felder), damit "Aigner, M", "Aigner Matteo" und "Matteo Aigner" treffen.
 Nur Standard-SQL (SQLite/MySQL). Prüfen, ob andere Namenssuchen (Ergebnisse, Meldungen, Sammelansicht,
 Qualifikationen) dasselbe Verhalten haben, und dann einheitlich lösen.
-
-## Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus
-
-**Seit:** 11.11.2026, Wunsch Erik.
-
-**Was fehlt:** In der Veranstaltungsliste (`meets/index`) ein Knopf "Rekorde prüfen" je Zeile, **vor** dem
-Auge-Symbol (Detailseite). Außerdem soll in der Liste schon sichtbar sein, ob die Veranstaltung bereits auf neue
-Rekorde geprüft wurde. Heute gibt es den Check nur auf der Detailseite bzw. in der Ergebnis-Sammelansicht
-(`records.check`, `RecordController::checkMeet()`); ob und wann geprüft wurde, wird nirgends gespeichert.
-
-**Zum Schließen nötig:** Neue Spalte (z. B. `meets.records_checked_at`), gesetzt bei jedem erfolgreichen Check
-(Knopf, `CheckMeetRecordsCommand`, ggf. automatischer Check nach dem Import). Anzeige in der Liste z. B. als Badge
-neben I/E/R (geprüft am … / ungeprüft) mit Tooltip. Knopf mit Bestätigungsdialog wie auf der Detailseite, nur mit
-Schreibrecht (`module:meets,write`, `AccessControlTest`).
-
-**Entscheidung Erik (11.11.2026):**
-- Werden danach Ergebnisse geändert oder neu importiert, gilt die Veranstaltung wieder als **ungeprüft**
-  (`records_checked_at` zurück auf `null`). Betrifft Einzel- und Staffelergebnisse: Anlegen, Bearbeiten, Löschen,
-  LENEX-Ergebnisimport, Ergebnisse auf Heimverein setzen, Zusammenführen von Athleten mit Ergebnissen dieser
-  Veranstaltung — am besten zentral (Model-Events an `Result`/`RelayResult` bzw. ein Service), nicht je Controller.
-  Punkte-Neuberechnung (ÖBSV/WPS) ändert keine Zeiten und setzt den Status **nicht** zurück — mit Erik bestätigen,
-  falls unklar.
-- **Bestand bleibt ungeprüft** — kein einmaliger Befehl zum Markieren.
-
-**Verknüpft mit:** "Rekorde je Veranstaltung (Liste und PDF)" (erledigt, `feature/meet-records`) — der Prüfstatus
-verlinkt auf die Rekorde der Veranstaltung: Route `meets.records`, Anzahl über `MeetRecordsService::count()` (z. B.
-"geprüft, 3 Rekorde"). Der Link nur mit Leserecht auf Rekorde (`module:records,read`).

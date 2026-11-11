@@ -104,7 +104,8 @@ Details in `specs/athlete-merge.md`.
 wiedereröffnet; nur das letzte Öffnen), `timing`, `entry_type` (OPEN/INVITATION), `is_open`,
 `lenex_meet_id`, sowie später ergänzt `cup_id`, `qualifying_time_list_id` und
 `wps_approved` / `wps_approved_note`, `keep_file_places` ("Plätze nicht neu berechnen": Plätze aus der Ergebnisdatei
-bzw. manuell eingetragen, internationale Veranstaltungen). Soft-deletes nur noch für den Altbestand: "Wettkampf löschen" löscht seit 11.10.2026 endgültig
+bzw. manuell eingetragen, internationale Veranstaltungen), `records_checked_at` (letzter erfolgreicher Rekordcheck,
+`null` = ungeprüft; siehe [specs/records.md](specs/records.md) "Prüfstatus je Veranstaltung"). Soft-deletes nur noch für den Altbestand: "Wettkampf löschen" löscht seit 11.10.2026 endgültig
 samt Bewerben, Meldungen, Ergebnissen, Gaststarts (`foreign_starts`), Qualifikationen und den daraus entstandenen
 Rekorden (`MeetDeletionService`); als gelöscht markierte Altfälle räumt `php artisan meets:purge-deleted` (mit
 `--dry-run`) ab. → hat viele **SwimEvent**;

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AccessScope;
 use App\Enums\Module;
+use App\Models\Concerns\InvalidatesMeetRecordCheck;
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Result extends Model
 {
+    use InvalidatesMeetRecordCheck;
+
     /** Offiziell von World Para Swimming veröffentlichte Parameter (LCM). */
     public const string WPS_TYPE_OFFICIAL = 'official';
 
@@ -195,5 +198,18 @@ class Result extends Model
             || $this->is_junior_record
             || $this->is_regional_record
             || $this->is_regional_junior_record;
+    }
+
+    // ── Prüfstatus Rekordcheck ────────────────────────────────────────────────
+
+    protected function recordRelevantAttributes(): array
+    {
+        return ['meet_id', 'swim_event_id', 'athlete_id', 'club_id', 'swim_time', 'status', 'sport_class'];
+    }
+
+    protected function recordCheckMeetIds(): array
+    {
+        return array_map('intval', array_values(array_unique(array_filter(
+            [$this->meet_id, $this->getOriginal('meet_id')]))));
     }
 }

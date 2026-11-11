@@ -22,7 +22,7 @@ use Throwable;
 
 class MeetController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, MeetRecordsService $meetRecords): View
     {
         $query = Meet::with('nation')
             ->withCount([
@@ -57,13 +57,15 @@ class MeetController extends Controller
         }
 
         $meets = $query->paginate(20)->withQueryString();
+        // Rekorde je Veranstaltung für den Prüfstatus, eine Abfrage für die ganze Seite.
+        $recordCounts = $meetRecords->countsFor($meets->getCollection()->modelKeys());
         $meetCount = Meet::count();
         $athleteCount = Athlete::count();
         $clubCount = Club::count();
         $resultCount = Result::count();
 
         return view('meets.index', compact(
-            'meets', 'meetCount', 'athleteCount', 'clubCount', 'resultCount'
+            'meets', 'recordCounts', 'meetCount', 'athleteCount', 'clubCount', 'resultCount'
         ));
     }
 

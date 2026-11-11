@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AccessScope;
 use App\Enums\Module;
+use App\Models\Concerns\InvalidatesMeetRecordCheck;
 use App\Support\TimeParser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -36,6 +37,8 @@ use Illuminate\Support\Collection;
  */
 class RelayResult extends Model
 {
+    use InvalidatesMeetRecordCheck;
+
     protected $fillable = [
         'meet_id',
         'swim_event_id',
@@ -200,5 +203,18 @@ class RelayResult extends Model
         $club = $this->club?->display_name ?? '–';
 
         return $this->relay_number && $this->relay_number > 1 ? $club.' '.$this->relay_number : $club;
+    }
+
+    // ── Prüfstatus Rekordcheck ────────────────────────────────────────────────
+
+    protected function recordRelevantAttributes(): array
+    {
+        return ['meet_id', 'swim_event_id', 'club_id', 'swim_time', 'status', 'relay_class', 'gender'];
+    }
+
+    protected function recordCheckMeetIds(): array
+    {
+        return array_map('intval', array_values(array_unique(array_filter(
+            [$this->meet_id, $this->getOriginal('meet_id')]))));
     }
 }

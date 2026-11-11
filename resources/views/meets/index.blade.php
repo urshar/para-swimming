@@ -138,6 +138,23 @@
                             $ierDisciplines = $meet->swim_events_count > 0 && ! $meet->unconfigured_events_count;
                             $ierEntries = $meet->entries_exists || $meet->relay_entries_exists;
                             $ierResults = $meet->results_exists;
+                            // Prüfstatus Rekordcheck: geprüft (mit Anzahl der Rekorde) oder ungeprüft; zurückgesetzt,
+                            // sobald sich Ergebnisse ändern (InvalidatesMeetRecordCheck).
+                            // Anzahl und Link nur mit Leserecht auf Rekorde.
+                            $canReadRecords = (bool) auth()->user()?->canRead(Module::Records);
+                            $recordsChecked = $meet->records_checked_at !== null;
+                            $recordCount = $recordCounts[$meet->id] ?? 0;
+                            $recordsHint = match (true) {
+                                ! $recordsChecked => 'Noch nicht auf Rekorde geprüft',
+                                ! $canReadRecords => 'Rekorde geprüft am '.$meet->records_checked_at->format('d.m.Y H:i'),
+                                default => 'Rekorde geprüft am '.$meet->records_checked_at->format('d.m.Y H:i').' – '
+                                    .$recordCount.' '.($recordCount === 1 ? 'Rekord' : 'Rekorde'),
+                            };
+                            $recordsLabel = match (true) {
+                                ! $recordsChecked => '–',
+                                ! $canReadRecords => '✓',
+                                default => (string) $recordCount,
+                            };
                         @endphp
                         <div class="flex items-center gap-1">
                             <flux:badge size="sm" color="{{ $ierDisciplines ? 'emerald' : 'zinc' }}"
@@ -146,10 +163,36 @@
                                         title="E — Meldungen liegen vor">E</flux:badge>
                             <flux:badge size="sm" color="{{ $ierResults ? 'emerald' : 'zinc' }}"
                                         title="R — Ergebnisse liegen vor">R</flux:badge>
+                            @if($canReadRecords)
+                                <a href="{{ route('meets.records', $meet) }}" title="{{ $recordsHint }}"
+                                   class="rounded-md hover:opacity-80 transition-opacity">
+                                    <flux:badge size="sm" color="{{ $recordsChecked ? 'emerald' : 'zinc' }}" icon="trophy">
+                                        <span aria-hidden="true">{{ $recordsLabel }}</span>
+                                        <span class="sr-only">{{ $recordsHint }}</span>
+                                    </flux:badge>
+                                </a>
+                            @else
+                                <flux:badge size="sm" color="{{ $recordsChecked ? 'emerald' : 'zinc' }}" icon="trophy"
+                                            title="{{ $recordsHint }}">
+                                    <span aria-hidden="true">{{ $recordsLabel }}</span>
+                                    <span class="sr-only">{{ $recordsHint }}</span>
+                                </flux:badge>
+                            @endif
                         </div>
                     </flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-2 justify-end">
+                            @if(auth()->user()?->canWrite(Module::Meets))
+                            <form method="POST" action="{{ route('records.check', $meet) }}"
+                                  data-confirm="Alle Ergebnisse von &quot;{{ $meet->name }}&quot; auf Rekorde prüfen?"
+                                  x-data="{ submit() { if (confirm(this.$el.dataset.confirm)) this.$el.submit() } }"
+                                  @submit.prevent="submit()">
+                                @csrf
+                                <input type="hidden" name="from" value="list">
+                                <flux:button type="submit" size="sm" variant="ghost" icon="star"
+                                             class="text-blue-500!" title="Rekorde prüfen" aria-label="Rekorde prüfen"/>
+                            </form>
+                            @endif
                             <flux:button href="{{ route('meets.show', $meet) }}" size="sm" variant="ghost" icon="eye"/>
                             @if(auth()->user()?->canWrite(Module::Meets))
                             <flux:button href="{{ route('meets.edit', $meet) }}" size="sm" variant="ghost"

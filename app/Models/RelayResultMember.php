@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\InvalidatesMeetRecordCheck;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class RelayResultMember extends Model
 {
+    use InvalidatesMeetRecordCheck;
+
     protected $fillable = [
         'relay_result_id',
         'position',
@@ -58,5 +61,19 @@ class RelayResultMember extends Model
         }
 
         return trim(($this->last_name ?? '').', '.($this->first_name ?? ''), ', ');
+    }
+
+    // ── Prüfstatus Rekordcheck ────────────────────────────────────────────────
+
+    protected function recordRelevantAttributes(): array
+    {
+        return ['relay_result_id', 'position', 'athlete_id', 'gender', 'sport_class'];
+    }
+
+    protected function recordCheckMeetIds(): array
+    {
+        return RelayResult::query()
+            ->whereKey(array_filter([$this->relay_result_id, $this->getOriginal('relay_result_id')]))
+            ->distinct()->pluck('meet_id')->map(fn ($id) => (int) $id)->values()->all();
     }
 }

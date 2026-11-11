@@ -449,6 +449,31 @@ Check angezeigt wird.
   Jahresbericht; Fußzeile als Tabelle statt `float` (dompdf-Fallstrick, siehe CLAUDE.md).
 - **Sichtbarkeit:** nur Verwaltung, `module:records,read`; ein öffentlicher Teil ist nicht vorgesehen.
 
+## Prüfstatus je Veranstaltung — `meets.records_checked_at`
+
+Seit `feature/meet-records-check-status` (11.11.2026, Wunsch Erik). Hält fest, ob und wann eine Veranstaltung
+zuletzt auf neue Rekorde geprüft wurde; `null` = ungeprüft. Der Bestand bleibt ungeprüft (kein Befehl zum Markieren).
+
+- **Setzen:** am Ende jedes erfolgreichen `RecordCheckerService::checkMeet()` (`Meet::markRecordsChecked()`) — also
+  über den Knopf und über `records:check-meets`. Erst ganz am Ende, weil der Check selbst Ergebnisse ändert
+  (Staffelklasse). Im Probelauf rollt die Transaktion den Zeitstempel mit zurück; bricht der Check ab, bleibt der
+  alte Stand.
+- **Zurücksetzen:** Trait `App\Models\Concerns\InvalidatesMeetRecordCheck` an `Result`, `RelayResult`,
+  `ResultSplit`, `RelayResultSplit` und `RelayResultMember` — beim Anlegen, Löschen und bei Änderung eines
+  rekordrelevanten Felds (Zeit, Status, Athlet/Verein, Sport-/Staffelklasse, Geschlecht, Disziplin, Veranstaltung;
+  bei Zwischenzeiten Strecke und Zeit; bei Staffelmitgliedern Position, Athlet, Geschlecht, Sportklasse). Damit
+  wirken LENEX-Import, Formulare und "Heimverein setzen" automatisch. **Nicht** zurückgesetzt wird bei Punkten
+  (ÖBSV/WPS), Platz, Lauf/Bahn, Kommentar, Reaktionszeit und den Rekord-Flags (Entscheidung Erik, 11.11.2026).
+  `AthleteMergeService` hängt Ergebnisse per `DB::table()` um und ruft `Meet::invalidateRecordCheck()` selbst auf —
+  neue Massen-Updates an Ergebnissen müssen das ebenso tun.
+- **Anzeige in der Veranstaltungsliste** (`meets/index`): Pokal-Badge neben I/E/R — grün mit der Anzahl der Rekorde
+  (`MeetRecordsService::countsFor()`, eine Abfrage je Seite) und Link auf `meets.records`, grau mit "–" für
+  ungeprüft; Datum und Anzahl im Tooltip. Ohne Leserecht auf Rekorde nur "✓"/"–" ohne Anzahl und ohne Link.
+- **Knopf "Rekorde prüfen"** je Zeile vor dem Auge-Symbol, mit Bestätigungsdialog, nur mit `module:meets,write`.
+  Schickt `from=list` mit; die Weiterleitung geht dann in die gemerkte Liste (`ListUrl::to('meets')`) nur mit der
+  Zusammenfassung als Flash-Meldung. Das ausführliche Prüfergebnis zeigen weiterhin Wettkampfseite und
+  Ergebnis-Sammelansicht.
+
 ## LENEX-Export — `RecordLenexExportService`
 
 `build(...)` erzeugt aus den (gefilterten) Rekorden ein LENEX-Dokument; die Auslieferung als Download übernimmt
@@ -516,6 +541,11 @@ Außerhalb des Prefix, unter `meets/{meet}` (`module:records,read`):
   Veranstaltungen, ohne Ergebnis), Reihenfolge der Rekordarten und Zeilen, Anzeige, Knopf, Zugriffsrechte.
 - `tests/Feature/MeetRecordsPdfTest.php` (`meet-records-p2`) — PDF dazu: Auslieferung, Inhalt, kein `float`,
   leere Liste, Zugriffsrechte.
+- `tests/Feature/MeetRecordsCheckStatusTest.php` (`meet-records-check-status-p1`) — Prüfstatus: Setzen (Knopf,
+  Befehl, nicht im Probelauf, nicht bei Fehler), Zurücksetzen je Ergebnisart und beim Zusammenführen, kein
+  Zurücksetzen bei Punkten/Platz/Flags.
+- `tests/Feature/MeetRecordsCheckStatusListTest.php` (`meet-records-check-status-p2`) — Veranstaltungsliste: Anzahl
+  je Veranstaltung, Badge mit/ohne Rekord-Leserecht, Knopf nur mit Schreibrecht, Rückkehr in die gemerkte Liste.
 - `tests/Feature/RecordPendingReviewTest.php` (`record-pending-review`) — Reiter "Ausstehende Rekorde": Liste, Grund,
   Filter, Bestätigen/Ungültig, Zähler und Menü, Zugriff.
 - Die Rekordstatistik ist in `docs/specs/statistics.md` beschrieben (`RecordStatisticsService`, Abgrenzung über
