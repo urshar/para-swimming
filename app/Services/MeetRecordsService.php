@@ -40,6 +40,38 @@ final readonly class MeetRecordsService
     }
 
     /**
+     * Anzahl der Rekorde je Veranstaltung für mehrere Veranstaltungen auf einmal (Veranstaltungsliste, eine Abfrage
+     * je Ergebnisart statt einer je Zeile). Veranstaltungen ohne Rekorde fehlen im Ergebnis.
+     *
+     * @param  list<int>  $meetIds
+     * @return array<int, int> meet_id => Anzahl
+     */
+    public function countsFor(array $meetIds): array
+    {
+        if ($meetIds === []) {
+            return [];
+        }
+
+        $counts = [];
+        foreach (['results' => 'result_id', 'relay_results' => 'relay_result_id'] as $table => $foreignKey) {
+            $rows = SwimRecord::query()
+                ->join($table, "$table.id", '=', "swim_records.$foreignKey")
+                ->whereIn("$table.meet_id", $meetIds)
+                ->whereIn('swim_records.record_status', array_keys(self::STATUS_LABELS))
+                ->groupBy("$table.meet_id")
+                ->selectRaw("$table.meet_id as meet_id, count(*) as aggregate")
+                ->toBase()
+                ->get();
+
+            foreach ($rows as $row) {
+                $counts[(int) $row->meet_id] = ($counts[(int) $row->meet_id] ?? 0) + (int) $row->aggregate;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
      * Rekorde je Rekordart: Österreich, Österreich Jugend, dann die Landesverbände (je mit Jugend), danach alle
      * übrigen Rekordarten alphabetisch. Innerhalb einer Rekordart Einzel vor Staffel, dann Lage, Strecke,
      * Sportklasse und Wertung.
