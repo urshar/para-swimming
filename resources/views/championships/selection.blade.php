@@ -53,13 +53,20 @@
                 <flux:label>Beste n je Liste</flux:label>
                 <flux:input name="limit" type="number" min="1" x-model.debounce.500ms="limit" placeholder="alle"/>
             </flux:field>
+            {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+            <div data-filter-region="reset" class="contents">
             @if($limit !== null)
                 <div class="ml-auto flex items-end">
                     <flux:button href="{{ route('championships.selection', $championship) }}"
                                  variant="filled" icon="x-mark" class="text-red-500!">Zurücksetzen</flux:button>
                 </div>
             @endif
+            </div>
         </form>
+
+        {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+             (resources/js/filter-refresh.js). --}}
+        <div data-filter-region="list">
 
         {{-- ── Gesamtrangliste der Athleten ─────────────────────────────────── --}}
         <h2 class="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
@@ -170,5 +177,6 @@
                 </div>
             </div>
         @endforeach
+        </div>
     </div>
 @endsection

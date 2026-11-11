@@ -178,9 +178,21 @@ Erik klären, erst danach Branch anlegen/implementieren.
 3. "Umzug dev → prod mit Wettkämpfen und Ergebnissen" — erst Entscheidung Erik, dann Code; **vor** dem Go-live
 4. "Alte Uploads des Rekord-Imports" — nur auf Anweisung Erik
 
-**UI-Kleinigkeiten (Erik, 27.10.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
+**UI-Kleinigkeiten (Erik, 27.10.2026)** — derzeit keine offen.
 
-1. "Filter: Suchfeld verliert beim Tippen den Fokus"
+**Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
+
+1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
+2. "Zahlenfelder ohne Pfeile (normales flux:input statt type="number")"
+3. "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — mit "Rekorde je Veranstaltung (Liste und PDF)"
+   verknüpfen
+
+**Erledigt:** "Filter: Suchfeld verliert beim Tippen den Fokus" (`fix/filter-search-focus`, 11.11.2026): Die
+Auto-Submit-Filter (`indexFilters`, `entriesCockpitFilters`, `qualificationFilters`) laden die Liste ohne Neuladen
+nach (`resources/js/filter-refresh.js`): `fetch` derselben URL, Austausch aller Elemente mit `data-filter-region`,
+Adresszeile per `history.replaceState`. Fokus und laufende Eingaben bleiben erhalten; Enter im Suchfeld läuft über
+denselben Weg. Jede Region muss immer gerendert werden (leerer "Zurücksetzen"-Wrapper mit `class="contents"`), sonst
+lädt die Seite doch komplett neu. Tests: `--group=filter-regions`.
 
 **Erledigt:** "Rekordliste: Staffelklassen im Sportklassen-Filter der Einzelrekorde"
 (`fix/record-filter-relay-classes`, 08.11.2026): Einzel ohne die reinen Staffelklassen 20, 34, 49
@@ -302,27 +314,6 @@ Restarbeiten").
 gezippte `test-import.lef` vom 30.08.). Neue Importe räumen ihre Datei selbst auf.
 
 **Wer entscheidet:** Erik — Löschen nur auf seine ausdrückliche Anweisung.
-
-## Filter: Suchfeld verliert beim Tippen den Fokus
-
-**Seit:** 27.10.2026, Rückmeldung Erik.
-
-**Ausgangslage:** Gibt man in einem Filter einen Namen ein, ist der Fokus danach nicht mehr im Eingabefeld. Ursache:
-Die Auto-Submit-Filter (`resources/js/index-filters.js`, Muster seit `feature/index-filter-autosubmit`) schicken das
-Formular nach `x-model.debounce` (500 ms) per `$el.submit()` ab, die Seite lädt neu, und das Suchfeld ist nicht mehr
-fokussiert. Wer langsam tippt oder nach der Pause weitertippt, verliert außerdem die Eingaben, die während des Ladens
-getippt wurden.
-
-**Betroffen:** alle Listen mit `indexFilters` und Suchfeld (Athleten, Vereine, Klassifizierer, Ergebnisse,
-Veranstaltungen, Ergebnis-Sammelansicht u. a.), ähnlich gebaute Filter (`entriesCockpitFilters`, Meldungen,
-Staffelmeldungen) prüfen.
-
-**Wer entscheidet:** Erik — welches Verhalten gewünscht ist.
-
-**Zum Schließen nötig:** Eine Lösung wählen und einheitlich umsetzen, zum Beispiel: (a) nach dem Neuladen Fokus und
-Cursor wieder ins zuletzt bearbeitete Suchfeld setzen (kleinster Eingriff, in `indexFilters` zentral), (b) Textfelder
-erst bei Enter oder beim Verlassen des Felds absenden, Selects weiter sofort, oder (c) die Liste ohne Neuladen
-nachladen (größerer Umbau). Live mit Tastatur prüfen.
 
 ## Weitere Statistiken (sobald eine ordentliche Datenbasis vorhanden ist)
 
@@ -535,3 +526,70 @@ Ergebnis; eine dauerhafte Liste gibt es nicht.
 **Zum Schließen nötig:** Liste aus der Rekordhistorie (Rekorde mit Ergebnis dieses Wettkampfs, inkl. aus
 Zwischenzeiten), gruppiert nach Rekordart; Ausgabe als PDF im Stil der übrigen Berichte. Vorab mit Erik klären: auch
 eingestellte Rekorde, auch ausländische Rekordarten, Sichtbarkeit (Verwaltung und/oder öffentlicher Bereich).
+
+**Verknüpft mit:** "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" — der Prüfstatus in der
+Veranstaltungsliste kann direkt auf diese Liste verlinken (z. B. "geprüft, 3 Rekorde" → Rekorde der Veranstaltung).
+Sinnvolle Reihenfolge: zuerst den Prüfstatus (braucht die neue Spalte), dann diese Liste, die den Link aufnimmt.
+
+## Athletensuche: Eingabe "Nachname, Vorname" findet nichts
+
+**Seit:** 11.11.2026, beim Live-Test von `fix/filter-search-focus` aufgefallen.
+
+**Ausgangslage:** Die Suche in der Athletenliste (`AthleteController::index()`) vergleicht den ganzen Suchbegriff
+jeweils einzeln mit `last_name`, `first_name`, `license` und `license_ipc` (`LIKE %…%`). "Aigner" findet beide
+Aigners, "Aigner, M" oder "Aigner Matteo" dagegen nichts, obwohl die Liste die Namen genau so anzeigt
+("Nachname, Vorname").
+
+**Zum Schließen nötig:** Suchbegriff an Komma bzw. Leerzeichen in Teile zerlegen; jeder Teil muss in einem der Felder
+vorkommen (UND über die Teile, ODER über die Felder), damit "Aigner, M", "Aigner Matteo" und "Matteo Aigner" treffen.
+Nur Standard-SQL (SQLite/MySQL). Prüfen, ob andere Namenssuchen (Ergebnisse, Meldungen, Sammelansicht,
+Qualifikationen) dasselbe Verhalten haben, und dann einheitlich lösen.
+
+## Zahlenfelder ohne Pfeile (normales flux:input statt type="number")
+
+**Seit:** 11.11.2026, Wunsch Erik (zuerst für Jahreszahlen, dann auf alle Zahlenfelder erweitert).
+
+**Ausgangslage:** Zahlen werden heute als `type="number"` erfasst — mit Pfeil-Spinner, und das Mausrad verändert den
+Wert beim Scrollen über dem Feld unbemerkt. Betroffen sind 46 Felder in 25 Views (Stand 11.11.2026, `grep -rn
+'type="number"' resources/views`), u. a. Jahreszahlen (`meets/index`, `championships/form`, `cups/form`,
+`qualifying-time-lists/_general-fields`, `wps/versions/edit`, `wps/import/preview`), "Beste n je Liste"
+(`championships/selection`), Platz-/Punkte-/Distanzfelder (`results/*`, `relay-results/form`, `records/form`,
+`swim-events/form`, `entries/edit`), Altersklassen, Kader-Typen, Sportklassen-Gruppen, Livewire-Filter
+(`wps-rankings`, `wps-club-ranking`, `wps-talent-report`, `championship-standard-table`) und die öffentlichen
+Punkterechner.
+
+**Entscheidung Erik (11.11.2026):** Keine Pfeile, gilt für **alle** Zahlenfelder.
+
+**Zum Schließen nötig:** Jedes Zahlenfeld als normales Textfeld: im Verwaltungsbereich `<flux:input>`, bei den
+nativen `<input>` (öffentlicher Bereich mit Tailkit, `swim-events/form`, Masken-Felder) ebenfalls `type="text"`.
+Ganze Zahlen mit `inputmode="numeric"` (Ziffernblock am Handy), Dezimalzahlen (z. B. `step="0.5"` im Talent-Report)
+mit `inputmode="decimal"` und Komma/Punkt serverseitig vereinheitlichen; ggf. `maxlength` (Jahr: 4). `min`/`max`/
+`step` fallen weg, die Prüfung bleibt bzw. kommt serverseitig (`integer`/`numeric`, `min`/`max`/`between`) — je Feld
+prüfen, dass die Validierung das wirklich abdeckt. Livewire-Felder mit `wire:model` auf Typ achten (Leerstring statt
+`null`). Tests anpassen, die `type="number"` erwarten.
+
+## Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus
+
+**Seit:** 11.11.2026, Wunsch Erik.
+
+**Was fehlt:** In der Veranstaltungsliste (`meets/index`) ein Knopf "Rekorde prüfen" je Zeile, **vor** dem
+Auge-Symbol (Detailseite). Außerdem soll in der Liste schon sichtbar sein, ob die Veranstaltung bereits auf neue
+Rekorde geprüft wurde. Heute gibt es den Check nur auf der Detailseite bzw. in der Ergebnis-Sammelansicht
+(`records.check`, `RecordController::checkMeet()`); ob und wann geprüft wurde, wird nirgends gespeichert.
+
+**Zum Schließen nötig:** Neue Spalte (z. B. `meets.records_checked_at`), gesetzt bei jedem erfolgreichen Check
+(Knopf, `CheckMeetRecordsCommand`, ggf. automatischer Check nach dem Import). Anzeige in der Liste z. B. als Badge
+neben I/E/R (geprüft am … / ungeprüft) mit Tooltip. Knopf mit Bestätigungsdialog wie auf der Detailseite, nur mit
+Schreibrecht (`module:meets,write`, `AccessControlTest`).
+
+**Entscheidung Erik (11.11.2026):**
+- Werden danach Ergebnisse geändert oder neu importiert, gilt die Veranstaltung wieder als **ungeprüft**
+  (`records_checked_at` zurück auf `null`). Betrifft Einzel- und Staffelergebnisse: Anlegen, Bearbeiten, Löschen,
+  LENEX-Ergebnisimport, Ergebnisse auf Heimverein setzen, Zusammenführen von Athleten mit Ergebnissen dieser
+  Veranstaltung — am besten zentral (Model-Events an `Result`/`RelayResult` bzw. ein Service), nicht je Controller.
+  Punkte-Neuberechnung (ÖBSV/WPS) ändert keine Zeiten und setzt den Status **nicht** zurück — mit Erik bestätigen,
+  falls unklar.
+- **Bestand bleibt ungeprüft** — kein einmaliger Befehl zum Markieren.
+
+**Verknüpft mit:** "Rekorde je Veranstaltung (Liste und PDF)" — der Prüfstatus verlinkt dann auf die Rekorde der
+Veranstaltung.

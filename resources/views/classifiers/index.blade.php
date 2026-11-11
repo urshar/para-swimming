@@ -48,13 +48,20 @@
             <flux:select.option value="1">Nur aktive</flux:select.option>
             <flux:select.option value="0">Alle</flux:select.option>
         </flux:select>
+        {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+        <div data-filter-region="reset" class="contents">
         @if(request()->hasAny(['search', 'type', 'nation_id', 'active_only']))
             <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('classifiers.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
             </div>
         @endif
+        </div>
     </form>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
 
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
@@ -137,5 +144,6 @@
     </div>
 
     <div class="mt-4">{{ $classifiers->links() }}</div>
+    </div>
 
 @endsection

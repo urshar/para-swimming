@@ -37,13 +37,20 @@
                 <flux:select.option value="{{ $nation->id }}">{{ $nation->code }} – {{ $nation->name_de }}</flux:select.option>
             @endforeach
         </flux:select>
+        {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+        <div data-filter-region="reset" class="contents">
         @if(request()->hasAny(['search', 'nation_id']))
             <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('clubs.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
             </div>
         @endif
+        </div>
     </form>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
 
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
     <flux:table bleed>
@@ -136,5 +143,6 @@
     </div>
 
     <div class="mt-4">{{ $clubs->links() }}</div>
+    </div>
 
 @endsection

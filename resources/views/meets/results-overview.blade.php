@@ -62,10 +62,13 @@
                     </flux:button>
                 @endcan
                 {{-- Eigener Tab, damit die Sammelansicht erhalten bleibt; übernimmt einen gesetzten Disziplin-Filter. --}}
+                {{-- Link hängt am Disziplin-Filter: beim Filtern ohne Neuladen ausgetauscht (filter-refresh.js). --}}
+                <span data-filter-region="pdf" class="contents">
                 <flux:button href="{{ route('meets.results-overview.pdf', array_filter(['meet' => $meet, 'event_id' => $filterConfig['event_id']])) }}"
                              target="_blank" variant="filled" icon="document-text" size="sm" class="text-blue-500!">
                     Ergebnisliste (PDF)
                 </flux:button>
+                </span>
                 @can('module.write', Module::Results)
                     @if($hasRelayEvents)
                         <flux:button href="{{ route('meets.relay-results.create', $meet) }}" variant="filled" icon="plus" size="sm"
@@ -119,14 +122,21 @@
             @endif
             <flux:input name="search" x-model.debounce.500ms="search" placeholder="Athlet suchen…"
                         class="flex-1 min-w-48"/>
+            {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+            <div data-filter-region="reset" class="contents">
             @if($isFiltered)
                 <div class="ml-auto flex items-center">
                     <flux:button href="{{ route('meets.results-overview', $meet) }}" variant="filled" icon="x-mark"
                                  class="text-red-500!">Zurücksetzen</flux:button>
                 </div>
             @endif
+            </div>
         </form>
     </div>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). --}}
+    <div data-filter-region="list">
 
     {{-- ── Ergebnisse je Disziplin ───────────────────────────────────────────── --}}
     @php $anyResults = false; @endphp
@@ -336,5 +346,6 @@
             @endif
         </div>
     @endunless
+    </div>
 
 @endsection

@@ -75,13 +75,20 @@
                 type="number"
             />
         </div>
+        {{-- Wrapper immer rendern, auch ohne Knopf: filter-refresh.js tauscht ihn beim Filtern aus. --}}
+        <div data-filter-region="reset" class="contents">
         @if(request()->hasAny(['search', 'course', 'year']))
             <div class="ml-auto flex items-center">
                 <flux:button href="{{ route('meets.index') }}" variant="filled" icon="x-mark"
                              class="text-red-500!">Zurücksetzen</flux:button>
             </div>
         @endif
+        </div>
     </form>
+
+    {{-- Vom Filter abhängiger Bereich: wird beim Filtern ohne Neuladen ausgetauscht
+         (resources/js/filter-refresh.js). Die Kennzahlen oben zählen unabhängig vom Filter. --}}
+    <div data-filter-region="list">
 
     {{-- Table --}}
     <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden p-4 [--flux-bleed:1rem]">
@@ -172,6 +179,7 @@
 
     <div class="mt-4">
         {{ $meets->links() }}
+    </div>
     </div>
 
 @endsection
