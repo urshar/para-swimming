@@ -245,19 +245,9 @@ class RecordController extends Controller
         $supersedes_id = $record->supersedes_id;
 
         try {
-            DB::transaction(function () use ($record, $wasCurrent, $supersedes_id) {
-                // Wenn aktueller Rekord: Vorgänger automatisch wieder auf aktuell setzen
-                if ($wasCurrent && $supersedes_id) {
-                    $predecessor = SwimRecord::find($supersedes_id);
-                    $predecessor?->update([
-                        'is_current' => true,
-                        'superseded_by_id' => null,
-                        'record_status' => 'APPROVED',
-                    ]);
-                }
-
-                $record->delete();
-            });
+            // Hält die Historie konsistent (Vorgänger wieder aktuell bzw. mit dem Nachfolger verknüpft) und setzt das
+            // Rekord-Flag am Ergebnis zurück — sonst bleibt der gelöschte Rekord in Ergebnislisten sichtbar.
+            $record->removeFromHistory();
         } catch (Throwable $e) {
             return back()->with('error', 'Löschen fehlgeschlagen: '.$e->getMessage());
         }
