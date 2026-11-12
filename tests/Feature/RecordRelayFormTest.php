@@ -45,7 +45,7 @@ function relayRecord_rrf(): SwimRecord
 {
     $record = SwimRecord::create([
         'stroke_type_id' => stroke_rrf()->id, 'nation_id' => nation_rrf()->id, 'record_type' => 'AUT',
-        'sport_class' => 'SM49', 'gender' => 'X', 'course' => 'SCM', 'distance' => 50, 'relay_count' => 4,
+        'sport_class' => 'S49', 'gender' => 'X', 'course' => 'SCM', 'distance' => 50, 'relay_count' => 4,
         'swim_time' => 19632, 'record_status' => 'APPROVED', 'is_current' => true, 'set_date' => '2023-12-16',
         'meet_name' => 'STRAHOVSKÉ SPRINTY',
     ]);
