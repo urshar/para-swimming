@@ -32,7 +32,7 @@ class FixRecordSetDatesCommand extends Command
             ->where(fn ($q) => $q->whereNotNull('result_id')->orWhereNotNull('relay_result_id'))
             ->whereNotNull('set_date')
             ->with(['strokeType', 'result.swimEvent', 'result.meet', 'relayResult.swimEvent', 'relayResult.meet'])
-            ->orderBy('set_date')
+            ->oldest('set_date')
             ->orderBy('id')
             ->get()
             ->map(function (SwimRecord $record) use ($checker): ?array {
