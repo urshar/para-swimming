@@ -94,7 +94,7 @@ app/
   Concerns/           Wiederverwendbare Traits
   Policies/           Autorisierung je Datensatz (Athlet, Verein, Trainer, Meldung, Ergebnis, Antrag)
   Http/Middleware/    Rechte je Modul (module:), admin, Zwei-Faktor-Pflicht
-database/migrations/  Schema (58 Migrationen)
+database/migrations/  Schema (konsolidiert, eine Migration je Fachbereich)
 resources/views/      Blade-Views je Modul
 routes/               web.php, settings.php, console.php
 tests/                Feature/ und Unit/ (Pest)
@@ -121,4 +121,5 @@ Eine ausführliche Beschreibung der Schichten und Muster steht in
 - [docs/conventions.md](docs/conventions.md) – Code-, Test- und UI-Konventionen
 - [docs/domain-glossary.md](docs/domain-glossary.md) – Fachbegriffe des Para-Schwimmens
 - [docs/data-model.md](docs/data-model.md) – Datenmodell und Beziehungen
+- [docs/deployment.md](docs/deployment.md) – Live-Betrieb auf netcup/Plesk, Datenübernahme dev → prod, Updates
 - `docs/specs/` – Modul-Spezifikationen *(folgen ab Phase 3)*
