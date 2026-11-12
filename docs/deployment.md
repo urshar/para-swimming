@@ -17,15 +17,14 @@ Aufbau auf dem Server (andere Domains des Webspace bleiben unberührt):
 ├── tools/composer.phar
 ├── .ssh/                Deploy-Key für GitHub
 └── paraswim.at/
-    ├── app/             Git-Checkout des Projekts
-    │   ├── .env         nur auf dem Server
-    │   ├── auth.json    Flux-Pro-Zugang, nur auf dem Server
-    │   └── public/      ← Dokumentstamm
-    └── httpdocs/        bisheriger Dokumentstamm, ungenutzt
+    └── httpdocs/        Git-Checkout des Projekts
+        ├── .env         nur auf dem Server
+        ├── auth.json    Flux-Pro-Zugang, nur auf dem Server
+        └── public/      ← Dokumentstamm
 ```
 
-Der Dokumentstamm zeigt auf `paraswim.at/app/public`, damit `.env`, `storage`, `vendor` und der Quellcode **nicht**
-über das Web erreichbar sind. Lässt er sich nicht umstellen, siehe die Symlink-Variante in Schritt 5.
+Der Dokumentstamm zeigt auf `paraswim.at/httpdocs/public`, damit `.env`, `storage`, `vendor` und der Quellcode
+**nicht** über das Web erreichbar sind.
 
 ## 1. Plesk vorbereiten (einmalig)
 
@@ -108,30 +107,29 @@ Den ausgegebenen öffentlichen Schlüssel auf GitHub unter **urshar/para-swimmin
 deploy key** eintragen (ohne "Allow write access"). Steht `ssh-keygen` im chroot nicht zur Verfügung, den Schlüssel
 lokal erzeugen und beide Dateien per `scp` nach `~/.ssh/` kopieren.
 
-Nach `paraswim.at/app` klonen:
+Plesk legt in `paraswim.at/httpdocs` eventuell Standarddateien ab — beiseiteschieben und nach `httpdocs` klonen:
 
 ```bash
 cd /paraswim.at
-git clone git@github.com:urshar/para-swimming.git app
+mv httpdocs httpdocs.plesk-default
+git clone git@github.com:urshar/para-swimming.git httpdocs
 ```
 
-Wurde das Projekt schon nach `httpdocs` geklont, stattdessen umbenennen: `mv httpdocs app`.
-
 Alternative ohne Deploy-Key-Handarbeit: die Plesk-Erweiterung **Git** (Websites & Domains → Git) mit Ziel
-`paraswim.at/app`; Plesk zeigt dort den einzutragenden Schlüssel selbst an. Die Schritte ab hier bleiben gleich.
+`paraswim.at/httpdocs`; Plesk zeigt dort den einzutragenden Schlüssel selbst an. Die Schritte ab hier bleiben gleich.
 
 ## 4. Abhängigkeiten und Konfiguration (einmalig)
 
 Vom lokalen Rechner (PowerShell, im Projektordner) den Flux-Pro-Zugang hochladen:
 
 ```powershell
-scp auth.json <ssh-benutzer>@<ssh-host>:paraswim.at/app/auth.json
+scp auth.json <ssh-benutzer>@<ssh-host>:paraswim.at/httpdocs/auth.json
 ```
 
 Auf dem Server:
 
 ```bash
-cd /paraswim.at/app
+cd /paraswim.at/httpdocs
 $PHP -d memory_limit=1G ~/tools/composer.phar install --no-dev --optimize-autoloader --no-interaction
 cp .env.production.example .env
 nano .env        # bzw. vi — Datenbank, Mail, APP_URL eintragen
@@ -147,18 +145,8 @@ $PHP artisan key:generate
 
 ## 5. Dokumentstamm umstellen und Assets hochladen (einmalig)
 
-Den Dokumentstamm der Domain `paraswim.at` von `paraswim.at/httpdocs` auf **`paraswim.at/app/public`** setzen
+Den Dokumentstamm der Domain `paraswim.at` von `paraswim.at/httpdocs` auf **`paraswim.at/httpdocs/public`** setzen
 (Plesk: Hosting-Einstellungen der Domain).
-
-Falls sich der Dokumentstamm nicht ändern lässt: `httpdocs` durch einen **relativen** Symlink ersetzen. Relativ,
-weil der Webserver außerhalb des chroot andere absolute Pfade sieht (`/var/www/vhosts/...`) als die SSH-Sitzung:
-
-```bash
-cd /paraswim.at
-[ -d httpdocs ] && [ ! -L httpdocs ] && mv httpdocs httpdocs.plesk-default
-ln -s app/public httpdocs
-ls -la /paraswim.at        # httpdocs -> app/public
-```
 
 Lokal (PowerShell, im Projektordner) die Assets bauen und hochladen. `-Target` ist der SSH-Zugang aus dem netcup CCP
 (Webhosting → SSH): Benutzer **und** Server, z. B. `hosting123456@hosting123456.abc12.netcup.net`. Das Skript prüft
@@ -173,7 +161,7 @@ zuerst die Verbindung und baut erst dann:
 Auf dem Server das Schema anlegen:
 
 ```bash
-cd /paraswim.at/app
+cd /paraswim.at/httpdocs
 $PHP artisan migrate --force
 ```
 
@@ -181,8 +169,8 @@ Lokal einen **frischen** Export ziehen (nach der letzten Datenpflege auf dev) un
 
 ```powershell
 php artisan db:export-seed
-ssh <ssh-benutzer>@<ssh-host> "mkdir -p paraswim.at/app/database/seeders/data"
-scp -r database/seeders/data/snapshot <ssh-benutzer>@<ssh-host>:paraswim.at/app/database/seeders/data/
+ssh <ssh-benutzer>@<ssh-host> "mkdir -p paraswim.at/httpdocs/database/seeders/data"
+scp -r database/seeders/data/snapshot <ssh-benutzer>@<ssh-host>:paraswim.at/httpdocs/database/seeders/data/
 ```
 
 Auf dem Server einspielen und den Export sofort wieder löschen (Personen- und Gesundheitsdaten, Passwort-Hashes):
@@ -204,10 +192,10 @@ Sicht des chroot schreiben, den der Webserver nicht findet, und `--relative` bra
 das ohne Dev-Abhängigkeiten fehlt:
 
 ```bash
-cd /paraswim.at/app/public
+cd /paraswim.at/httpdocs/public
 ln -s ../storage/app/public storage
 ls -la storage        # storage -> ../storage/app/public
-cd /paraswim.at/app
+cd /paraswim.at/httpdocs
 $PHP artisan optimize
 ```
 
@@ -215,13 +203,13 @@ $PHP artisan optimize
 hinzufügen":
 
 - Typ: "Befehl ausführen"
-- Befehl: `/usr/local/php84/bin/php /paraswim.at/app/artisan schedule:run`
+- Befehl: `/usr/local/php84/bin/php /paraswim.at/httpdocs/artisan schedule:run`
 - Ausführen: jede Minute (`* * * * *`)
 - Benachrichtigung: "Nur bei Fehlern"
 
 Danach in der Aufgabenliste "Jetzt ausführen" klicken: Erscheint keine Fehlermeldung (bzw. "No scheduled commands
 are ready to run" oder die `queue:work`-Zeile), stimmt der Pfad. Bei "Could not open input file" läuft der Cronjob
-nicht im chroot — dann den vollen Serverpfad verwenden, `/var/www/vhosts/<webspace>/paraswim.at/app/artisan`
+nicht im chroot — dann den vollen Serverpfad verwenden, `/var/www/vhosts/<webspace>/paraswim.at/httpdocs/artisan`
 (`<webspace>` zeigt Plesk unter "Hosting-Einstellungen" im Pfad des Dokumentstamms).
 
 ## 8. Prüfen nach dem Go-live
@@ -256,7 +244,7 @@ Die 2FA-Geheimnisse der Benutzer sind mit dem `APP_KEY` verschlüsselt. Zwei Weg
 3. Auf dem Server:
 
    ```bash
-   cd /paraswim.at/app && bash scripts/deploy.sh
+   cd /paraswim.at/httpdocs && bash scripts/deploy.sh
    ```
 
 `scripts/deploy.sh` schaltet die Seite in den Wartungsmodus, holt den Code (`git pull --ff-only`), installiert die
