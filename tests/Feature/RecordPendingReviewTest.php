@@ -181,6 +181,24 @@ it('führt im Menü auf die ausstehenden Rekorde, wenn es keine offenen Import-B
         ->assertDontSee('Import Prüfliste');
 });
 
+it('zeigt neben dem ausstehenden den am Datum geltenden Rekord mit Abstand', function () {
+    [, , $athlete, $event] = setup_rpr();
+    $athlete->update(['first_name' => 'Vera', 'last_name' => 'Vorgängerin']);
+
+    record_rpr($event, ['athlete_id' => $athlete->id, 'record_status' => 'APPROVED.HISTORY', 'is_current' => false,
+        'swim_time' => 6250, 'set_date' => '2025-03-01']);
+    record_rpr($event, ['record_status' => 'APPROVED', 'swim_time' => 5900, 'set_date' => '2026-08-01']);
+    record_rpr($event, ['swim_time' => 6100, 'set_date' => '2026-05-01', 'meet_name' => 'Prüf-Meeting']);
+    record_rpr($event, ['course' => 'SCM', 'meet_name' => 'Ohne-Vorgänger-Meeting']);
+
+    $this->actingAs(admin_rpr())
+        ->get(route('records.import-review.pending'))
+        ->assertOk()
+        ->assertSeeInOrder(['1:01.00', 'bisher', '1:02.50', '-1.50 s', 'Vorgängerin', '01.03.2025', 'Prüf-Meeting'])
+        ->assertDontSee('0:59.00')
+        ->assertSee('bisher kein Rekord');
+});
+
 it('zeigt einen Hinweis, wenn nichts aussteht', function () {
     $this->actingAs(admin_rpr())
         ->get(route('records.import-review.pending'))

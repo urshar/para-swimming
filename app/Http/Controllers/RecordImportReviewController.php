@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\ImportReviewItem;
 use App\Models\SwimRecord;
+use App\Services\RecordChainService;
 use App\Services\RecordImportReviewService;
 use App\Support\ListUrl;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -54,6 +56,7 @@ class RecordImportReviewController extends Controller
 
     public function __construct(
         private readonly RecordImportReviewService $review,
+        private readonly RecordChainService $chain,
     ) {}
 
     public function index(Request $request): View
@@ -96,7 +99,8 @@ class RecordImportReviewController extends Controller
 
     /**
      * Reiter "Ausstehende Rekorde": alle Rekordtypen, Klassen und Bahnen auf einen Blick, jüngste zuerst. Bestätigen
-     * und Verwerfen laufen über records.status.update (ordnet einen bestätigten Rekord in die Kette ein).
+     * und Verwerfen laufen über records.status.update (ordnet einen bestätigten Rekord in die Kette ein). Zu jedem
+     * Rekord steht der an seinem Datum geltende Rekord — der Maßstab, an dem ihn "Bestätigen" misst.
      */
     public function pending(Request $request): View
     {
@@ -118,8 +122,14 @@ class RecordImportReviewController extends Controller
             ->paginate(50)
             ->withQueryString();
 
+        $previous = $records->getCollection()->mapWithKeys(fn (SwimRecord $record): array => [
+            $record->id => $this->chain->validOn($record, $record->set_date),
+        ]);
+        (new EloquentCollection($previous->filter()->values()))->load(['athlete.nation', 'club', 'relayResult.club']);
+
         return view('records.review-pending', [
             'records' => $records,
+            'previous' => $previous,
             'reason' => $reason,
             'kind' => $kind,
             'reasons' => self::PENDING_REASONS,

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AthleteClubHistory;
 use App\Models\Club;
 use App\Models\Meet;
+use App\Models\MeetSession;
 use App\Models\RecordSplit;
 use App\Models\RelayResult;
 use App\Models\RelayResultMember;
@@ -13,6 +14,8 @@ use App\Models\RelayTeamMember;
 use App\Models\Result;
 use App\Models\ResultSplit;
 use App\Models\SwimRecord;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -448,8 +451,22 @@ readonly class RecordCheckerService
     }
 
     /**
+     * Wettkampftag eines Ergebnisses: Datum des Abschnitts seines Bewerbs (meet_sessions), ohne gepflegtes Datum der
+     * Veranstaltungsbeginn. Auch von records:fix-set-dates genutzt.
+     */
+    public function swimDate(Result|RelayResult $result): ?CarbonInterface
+    {
+        $sessionDate = $result->swimEvent?->session_number === null ? null : MeetSession::query()
+            ->where('meet_id', $result->meet_id)
+            ->where('number', $result->swimEvent->session_number)
+            ->value('date');
+
+        return $sessionDate !== null ? Carbon::parse($sessionDate) : $result->meet?->start_date;
+    }
+
+    /**
      * Schnellste Zwischenzeit zuerst: je Kategorie entsteht nur aus der schnellsten Zwischenzeit des Wettkampfs ein
-     * Rekord (fasterSplitRecordInMeet()). Dazu die erste Teilstrecke der Freistilstaffeln als Einzelzeit des
+     * Rekord (fasterRecordInMeet()). Dazu die erste Teilstrecke der Freistilstaffeln als Einzelzeit des
      * Startschwimmers (leadOffSplit()).
      *
      * @param  Collection<int, Result>  $results
@@ -573,20 +590,26 @@ readonly class RecordCheckerService
     }
 
     /**
-     * Gibt es in der Kategorie schon einen gleich schnellen oder schnelleren Zwischenzeit-Rekord aus demselben
-     * Wettkampf (ausstehend oder bestätigt)?
+     * Gibt es in der Kategorie schon einen gleich schnellen oder schnelleren Rekord aus derselben Veranstaltung mit
+     * einem der Status? Mit $splitsOnly nur Rekorde aus Zwischenzeiten.
      *
      * @param  array<string, int|string>  $category
+     * @param  list<string>  $statuses
      */
-    private function fasterSplitRecordInMeet(array $category, Result|RelayResult $result, int $swimTime): bool
-    {
+    private function fasterRecordInMeet(
+        array $category,
+        Result|RelayResult $result,
+        int $swimTime,
+        array $statuses,
+        bool $splitsOnly,
+    ): bool {
         $meetResults = Result::query()->select('id')->where('meet_id', $result->meet_id);
         $meetRelayResults = RelayResult::query()->select('id')->where('meet_id', $result->meet_id);
 
         return SwimRecord::query()
             ->where($category)
-            ->where('from_split', true)
-            ->whereIn('record_status', ['PENDING', 'APPROVED', 'APPROVED.HISTORY'])
+            ->when($splitsOnly, fn ($q) => $q->where('from_split', true))
+            ->whereIn('record_status', $statuses)
             ->where('swim_time', '<=', $swimTime)
             ->where(fn ($q) => $q->whereIn('result_id', $meetResults)->orWhereIn('relay_result_id', $meetRelayResults))
             ->exists();
@@ -693,9 +716,11 @@ readonly class RecordCheckerService
             return [in_array($existing->record_status, ['APPROVED', 'APPROVED.HISTORY'], true), null, []];
         }
 
-        // Maßstab ist der Rekord, der am Wettkampftag galt (RecordChainService) — ein noch ausstehender (PENDING) ist
-        // (noch) keiner. So kommt ein Rekord aus einem nachträglich geprüften älteren Wettkampf an seine Stelle in der
-        // Kette, statt einen jüngeren Rekord abzulösen.
+        // Maßstab ist der Rekord, der bei Veranstaltungsbeginn galt (RecordChainService) — ein noch ausstehender
+        // (PENDING) ist (noch) keiner. So kommt ein Rekord aus einem nachträglich geprüften älteren Wettkampf an seine
+        // Stelle in der Kette, statt einen jüngeren Rekord abzulösen. Dazu kommen die anerkannten Rekorde derselben
+        // Veranstaltung: Je Kategorie und Veranstaltung stellt nur das schnellste Ergebnis den Rekord auf, auch wenn es
+        // an einem späteren Tag geschwommen wurde (Entscheidung Erik, 12.11.2026). Gespeichert wird der Wettkampftag.
         $category = [
             'record_type' => $recordType,
             'stroke_type_id' => $strokeTypeId,
@@ -705,18 +730,23 @@ readonly class RecordCheckerService
             'distance' => $distance,
             'relay_count' => $relayCount,
         ];
-        $setDate = $result->meet?->start_date;
+        $setDate = $this->swimDate($result);
         $swimTime = $split !== null ? $split->split_time : $result->swim_time;
-        $valid = $this->chain->validOn(new SwimRecord($category), $setDate);
+        $valid = $this->chain->validOn(new SwimRecord($category), $result->meet?->start_date);
 
         if ($valid !== null && $swimTime >= $valid->swim_time) {
+            return [false, null, []];
+        }
+
+        if ($this->fasterRecordInMeet($category, $result, $swimTime, ['APPROVED', 'APPROVED.HISTORY'], false)) {
             return [false, null, []];
         }
 
         // Zwischenzeit: je Kategorie und Wettkampf nur die schnellste (Entscheidung Erik, 25.10.2026). Die Splits
         // laufen schnellste zuerst; ein schon ausstehender Zwischenzeit-Rekord desselben Wettkampfs, auch aus einem
         // früheren Rekord-Check, ist gleich schnell oder schneller.
-        if ($split !== null && $this->fasterSplitRecordInMeet($category, $result, $swimTime)) {
+        if ($split !== null
+            && $this->fasterRecordInMeet($category, $result, $swimTime, ['PENDING', 'APPROVED', 'APPROVED.HISTORY'], true)) {
             return [false, null, []];
         }
 
