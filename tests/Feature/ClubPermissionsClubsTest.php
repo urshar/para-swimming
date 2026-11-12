@@ -61,7 +61,7 @@ it('lässt einen Verein Name, Code und Kontakt pflegen, Verbandsfelder bleiben',
         'name' => 'Neuer Name',
         'code' => ' nv01 ',
         'contact_name' => 'Eva Kontakt',
-        'contact_email' => 'eva@example.org',
+        'contact_email' => 'eva.kontakt@verein.test',
         'address_street' => 'Hauptstraße 1',
         'address_zip' => '1010',
         'address_city' => 'Wien',
@@ -76,7 +76,7 @@ it('lässt einen Verein Name, Code und Kontakt pflegen, Verbandsfelder bleiben',
     expect($club->name)->toBe('Neuer Name')
         ->and($club->code)->toBe('NV01')
         ->and($club->contact_name)->toBe('Eva Kontakt')
-        ->and($club->contact_email)->toBe('eva@example.org')
+        ->and($club->contact_email)->toBe('eva.kontakt@verein.test')
         ->and($club->address_city)->toBe('Wien')
         ->and($club->address_country)->toBe('AUT')
         ->and($club->nation_id)->toBe(makeNation_p5()->id)
@@ -172,14 +172,14 @@ it('legt einen Verein beim LENEX-Import ohne Code an, wenn der Code schon vergeb
 
 it('zeigt die Kontaktdaten nur Admins und dem eigenen Verein', function () {
     $club = makeClub_p5();
-    $club->update(['contact_name' => 'Eva Kontakt', 'contact_email' => 'eva@example.org']);
+    $club->update(['contact_name' => 'Eva Kontakt', 'contact_email' => 'eva.kontakt@verein.test']);
 
-    $this->actingAs(admin_cp7())->get(route('clubs.show', $club))->assertSee('Eva Kontakt')->assertSee('eva@example.org');
+    $this->actingAs(admin_cp7())->get(route('clubs.show', $club))->assertSee('Eva Kontakt')->assertSee('eva.kontakt@verein.test');
     $this->actingAs(clubUser_cp7($club))->get(route('clubs.show', $club))->assertSee('Eva Kontakt');
     $this->actingAs(clubUser_cp7(makeClub_p5()))->get(route('clubs.show', $club))
         ->assertOk()
         ->assertDontSee('Eva Kontakt')
-        ->assertDontSee('eva@example.org');
+        ->assertDontSee('eva.kontakt@verein.test');
 });
 
 it('führt Vereinsnutzer über "Mein Verein" auf die eigene Vereinsseite', function () {
