@@ -264,48 +264,11 @@ einspielen" (Erik, 27.10.2026).
 - **Dubletten zusammenführen** — Datenpflege Erik über Athleten → Dubletten (`specs/athlete-merge.md`). Der früher
   genannte "Athlet 733" ist auf der heutigen dev-DB vermutlich #717 Muhrhofer Katrin (Dublette von #576).
 - **Rekorde aus Zwischenzeiten nacharbeiten** — siehe eigenen Punkt unten.
-- **Danach Umzug nach prod** — siehe "Umzug dev → prod mit Wettkämpfen und Ergebnissen" unten. Der bisher hier
-  genannte Weg (`team-data:export` / `TeamDataSeeder`) bricht beim heutigen Stand ab.
+- **Danach Umzug nach prod** — kompletter Datenbestand über `php artisan db:export-seed` und den
+  `ProductionDataSeeder` (`DatabaseSnapshotService`). Nicht mehr über `team-data:export` / `TeamDataSeeder`, die sind
+  für einen Stand ohne Wettkämpfe gebaut und brechen heute ab.
 
 **Wer entscheidet / macht:** Erik (Datenpflege, Zeitpunkt des Umzugs).
-
-## Umzug dev → prod mit Wettkämpfen und Ergebnissen
-
-**Seit:** 28.10.2026 (beim Schließen des Punkts "Athleten-Import aus MSAccess-Datei" aufgefallen).
-
-**Ausgangslage:** Für den Umzug nach prod gibt es `php artisan team-data:export` und `TeamDataSeeder`
-(`specs/team-manager-import.md`, Phase 3). Beide sind für einen Stand **ohne Wettkämpfe** gebaut: übertragen werden
-Vereine, Athleten (samt Klassen, Histories, Ausnahmen), Klassifizierer, Klassifizierungen und die Rekordliste. Seit dem
-historischen Import liegen auf dev aber Wettkämpfe und Ergebnisse, die mit nach prod sollen. Stand dev 28.10.2026
-(lesend geprüft): 59 Wettkämpfe, 6969 Ergebnisse, 292 Staffelergebnisse; 3030 von 3662 Rekorden stammen aus
-Wettkampfergebnissen, 487 Klassen-Hinweise hängen an Wettkämpfen.
-
-**Folge:** Der Export bricht ab (er verweigert, solange Rekorde an Ergebnissen oder Klassen-Hinweise an Wettkämpfen
-hängen), und Wettkämpfe, Ergebnisse und Meldungen überträgt er ohnehin nicht. Die alte Anleitung "Testwettkämpfe vorher
-löschen" würde heute den ganzen historischen Import löschen — **nicht befolgen**.
-
-**Was fehlt:** Ein Weg, den gesamten fachlichen Stand von dev nach prod zu bringen: Stammdaten, Wettkämpfe mit Bewerben,
-Wertungsgruppen, Ergebnissen (Einzel und Staffel, Zwischenzeiten), Gaststarts und Meldungen, Rekorde samt Verknüpfung
-zu den Ergebnissen, Klassen-Hinweise, Cup-Wertungen und Qualifikationen, Dublettenmarkierungen
-(`athlete_duplicate_dismissals`), ggf. Prüflisten und hochgeladene Dateien (Dokumente).
-
-**Mögliche Wege:**
-
-- **Kompletter Datenbank-Dump** von dev nach prod (mysqldump), danach auf prod bereinigen: Test-Benutzer, Testwettkämpfe,
-  Konfiguration. Am wenigsten Code, übernimmt aber alles, auch Testdaten.
-- **Export/Seeder erweitern** um Wettkämpfe und alles, was daran hängt (IDs erhalten, wie bisher). Kontrollierter,
-  aber deutlich mehr Code und Tests.
-- **Auf prod neu importieren:** Team-Manager-Daten wie geplant, danach die LENEX-Dateien 2012–2017 erneut einlesen und
-  die Rekordprüfung wiederholen. Doppelte Arbeit, und alle Entscheidungen aus den Klärungsseiten fielen noch einmal an.
-
-**Offene Fragen (Erik):** Welcher Weg? Ist prod noch leer (keine Vereine, Athleten, Wettkämpfe)? Welche Daten von dev
-sollen ausdrücklich **nicht** mit (Test-Benutzer, Testwettkämpfe, alte Uploads)? Sollen hochgeladene Dateien
-(`storage/app`) mit?
-
-**Wer entscheidet:** Erik.
-
-**Zum Schließen nötig:** Entscheidung über den Weg; je nach Weg Kommando bzw. Anleitung, Probelauf in eine leere
-Datenbank und Abgleich der Zahlen (Wettkämpfe, Ergebnisse, Rekorde, Athleten) zwischen dev und dem Probelauf.
 
 ## Rekorde aus Zwischenzeiten: Nacharbeiten auf dev
 
