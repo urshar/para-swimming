@@ -4,7 +4,7 @@
 #   .\scripts\upload-build.ps1 -Target "hosting123456@hosting123456.abc12.netcup.net"
 #
 # -Target ist der SSH-Zugang aus dem netcup CCP (Benutzer@Server) oder ein Host-Alias aus ~/.ssh/config.
-# -RemoteDir ist der Projektordner relativ zum SSH-Startordner (Standard: paraswim.at/app).
+# -RemoteDir ist der Projektordner relativ zum SSH-Startordner (Standard: paraswim.at/httpdocs).
 #
 # Die Datei ist als UTF-8 mit BOM gespeichert, damit Windows PowerShell 5.1 die Umlaute richtig liest.
 param(
