@@ -36,6 +36,17 @@ Alles unter **Websites & Domains → paraswim.at**:
    `post_max_size` 64M, `max_execution_time` das Maximum (180 s reichen). Die LENEX-Importe und PDF-Berichte
    brauchen mehr als die Standardwerte. Erweiterungen prüfen: `pdo_mysql`, `mbstring`, `xml`/`dom`, `zip`, `gd`,
    `intl`, `fileinfo`, `bcmath` (per `php -m`, siehe Schritt 2).
+
+   **`open_basedir`** (gleiche Seite, Abschnitt Sicherheit) erweitern: Plesk erlaubt standardmäßig nur den
+   Dokumentstamm (`.../httpdocs/public/`), Laravel braucht aber das ganze Projekt (`vendor`, `storage`, `bootstrap`).
+   Ohne diese Änderung liefert die Seite HTTP 500 mit "open_basedir restriction in effect" im Fehlerlog. Eintragen
+   (eine Zeile, Pfad aus dem Fehlerlog bzw. "Hosting-Einstellungen"):
+
+   ```
+   /var/www/vhosts/<webspace>/paraswim.at/httpdocs/:/tmp/:/var/lib/php/sessions:/var/www/vhosts/<webspace>/tmp
+   ```
+
+   `<webspace>` ist z. B. `hosting123456.abc12.netcup.net`.
 2. **Datenbank:** "Datenbanken" → neue MySQL-Datenbank mit eigenem Benutzer anlegen. Name, Benutzer, Passwort und
    **Datenbankserver** notieren (für die `.env`). Bei netcup ist das ein eigener Server mit interner IP, nicht
    `localhost`. Der Benutzer muss **dieser** Datenbank zugeordnet sein, und seine Zugriffskontrolle muss Verbindungen
@@ -196,8 +207,15 @@ cd /paraswim.at/httpdocs/public
 ln -s ../storage/app/public storage
 ls -la storage        # storage -> ../storage/app/public
 cd /paraswim.at/httpdocs
-$PHP artisan optimize
+$PHP artisan route:cache
+$PHP artisan event:cache
 ```
+
+**Kein `artisan optimize` und kein `config:cache` per SSH:** Der Config-Cache enthält absolute Pfade (Logs,
+kompilierte Views). Die SSH-Sitzung sieht `/paraswim.at/httpdocs`, der Webserver
+`/var/www/vhosts/<webspace>/paraswim.at/httpdocs` — mit einem per SSH gebauten Config-Cache findet die Website ihre
+Ordner nicht. Routen- und Event-Cache enthalten keine Pfade. Ist versehentlich doch ein Config-Cache entstanden:
+`$PHP artisan optimize:clear`.
 
 **Cronjob:** im netcup CCP unter Produkte → Webhosting → "Plesk Panel Links" → **Geplante Aufgaben** → "Aufgabe
 hinzufügen":
@@ -248,8 +266,8 @@ Die 2FA-Geheimnisse der Benutzer sind mit dem `APP_KEY` verschlüsselt. Zwei Weg
    ```
 
 `scripts/deploy.sh` schaltet die Seite in den Wartungsmodus, holt den Code (`git pull --ff-only`), installiert die
-Abhängigkeiten, führt neue Migrationen aus, baut die Caches neu und schaltet die Seite wieder frei — auch wenn ein
-Schritt fehlschlägt.
+Abhängigkeiten, führt neue Migrationen aus, baut Routen- und Event-Cache neu (bewusst ohne Config-Cache, siehe
+Schritt 7) und schaltet die Seite wieder frei — auch wenn ein Schritt fehlschlägt.
 
 **Wichtig:** Migrationen auf prod nie bearbeiten oder zusammenfassen, sobald sie dort gelaufen sind — Änderungen am
 Schema immer als neue Migration.

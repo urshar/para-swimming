@@ -24,7 +24,11 @@ git pull --ff-only
 "$PHP" -d memory_limit=1G "$COMPOSER" install --no-dev --optimize-autoloader --no-interaction
 "$PHP" artisan migrate --force
 "$PHP" artisan optimize:clear
-"$PHP" artisan optimize
+# Kein "optimize"/"config:cache": Der Config-Cache enthält absolute Pfade, und die SSH-Sitzung (chroot,
+# /paraswim.at/...) sieht andere als der Webserver (/var/www/vhosts/...). Routen- und Event-Cache enthalten keine
+# Pfade und sind unbedenklich.
+"$PHP" artisan route:cache
+"$PHP" artisan event:cache
 "$PHP" artisan queue:restart
 
 echo "Deployment fertig: $(git log -1 --format='%h %s')"
