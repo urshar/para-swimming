@@ -2,6 +2,7 @@
     'expandable' => false,
     'expanded' => true,
     'heading' => null,
+    'badge' => null,
 ])
 
 <?php if ($expandable && $heading): ?>
@@ -21,6 +22,14 @@
         </div>
 
         <span class="text-sm font-medium leading-none">{{ $heading }}</span>
+
+        {{-- Zähler der Gruppe (z. B. offene Prüfliste/Anträge), nur bei eingeklappter Gruppe sichtbar —
+             aufgeklappt zeigt ihn bereits der jeweilige Menüpunkt. Der Badge ist direktes Flex-Kind des Buttons
+             (wie im Menüpunkt), sonst greift sein min-w-5 als Inline-Element nicht und er wirkt schmaler. --}}
+        <?php if (isset($badge) && $badge !== ''): ?>
+            <flux:navlist.badge color="red" variant="solid" class="ms-auto me-3 group-data-open/disclosure-button:hidden"
+                                data-flux-navlist-group-badge>{{ $badge }}</flux:navlist.badge>
+        <?php endif; ?>
     </button>
 
     <div class="relative hidden space-y-[2px] ps-7 data-open:block" @if ($expanded === true) data-open @endif>

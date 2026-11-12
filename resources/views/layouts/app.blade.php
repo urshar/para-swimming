@@ -311,7 +311,23 @@
         @endif
 
         @can('module.read', Module::Records)
-            <flux:navlist.group heading="Rekorde" expandable :expanded="request()->routeIs('records.*')">
+            @php
+                // Badge: offene Import-Befunde plus ausstehende Rekorde (nur mit Schreibrecht, wie der
+                // Menüpunkt "Prüfliste"). Gibt es nur ausstehende Rekorde, führt der Menüpunkt gleich auf
+                // deren Reiter. Die Summe steht auch an der Gruppe, damit sie eingeklappt sichtbar bleibt.
+                $reviewTotal = 0;
+                $reviewRoute = 'records.import-review.index';
+                if ($navUser->canWrite(Module::Records)) {
+                    $openReviewCount = ImportReviewItem::open()->count();
+                    $pendingRecordCount = SwimRecord::pending()->count();
+                    $reviewTotal = $openReviewCount + $pendingRecordCount;
+                    $reviewRoute = $openReviewCount === 0 && $pendingRecordCount > 0
+                        ? 'records.import-review.pending'
+                        : 'records.import-review.index';
+                }
+            @endphp
+            <flux:navlist.group heading="Rekorde" expandable :expanded="request()->routeIs('records.*')"
+                                :badge="$reviewTotal > 0 ? $reviewTotal : null">
                 <flux:navlist.item icon="star" href="{{ route('records.index') }}"
                                    :current="request()->routeIs('records.index') || request()->routeIs('records.show') || request()->routeIs('records.create') || request()->routeIs('records.edit')">
                     Rekordlisten
@@ -321,16 +337,6 @@
                                        :current="request()->routeIs('records.import', 'records.import.*')">
                         Importieren
                     </flux:navlist.item>
-                    @php
-                        // Badge: offene Import-Befunde plus ausstehende Rekorde. Gibt es nur ausstehende Rekorde,
-                        // führt der Menüpunkt gleich auf deren Reiter.
-                        $openReviewCount = ImportReviewItem::open()->count();
-                        $pendingRecordCount = SwimRecord::pending()->count();
-                        $reviewTotal = $openReviewCount + $pendingRecordCount;
-                        $reviewRoute = $openReviewCount === 0 && $pendingRecordCount > 0
-                            ? 'records.import-review.pending'
-                            : 'records.import-review.index';
-                    @endphp
                     <flux:navlist.item icon="clipboard-document-check" href="{{ route($reviewRoute) }}"
                                        :current="request()->routeIs('records.import-review.*')"
                                        :badge="$reviewTotal > 0 ? $reviewTotal : null"
@@ -473,16 +479,18 @@
                 </flux:navlist.item>
             </flux:navlist.group>
 
+            {{-- Anträge der Vereine mit Zähler offener Anträge (Spec club-permissions §4.5, N4); der Zähler steht
+                 auch an der Gruppe, damit er eingeklappt sichtbar bleibt. --}}
+            @php
+                $openChangeRequestCount = ChangeRequest::open()->count();
+            @endphp
             <flux:navlist.group heading="Verwaltung" expandable
-                                :expanded="request()->routeIs('admin.users.*') || request()->routeIs('admin.change-requests.*')">
+                                :expanded="request()->routeIs('admin.users.*') || request()->routeIs('admin.change-requests.*')"
+                                :badge="$openChangeRequestCount > 0 ? $openChangeRequestCount : null">
                 <flux:navlist.item icon="users" href="{{ route('admin.users.index') }}"
                                    :current="request()->routeIs('admin.users.*')">
                     Benutzerverwaltung
                 </flux:navlist.item>
-                {{-- Anträge der Vereine mit Zähler offener Anträge (Spec club-permissions §4.5, N4). --}}
-                @php
-                    $openChangeRequestCount = ChangeRequest::open()->count();
-                @endphp
                 <flux:navlist.item icon="inbox-arrow-down" href="{{ route('admin.change-requests.index') }}"
                                    :current="request()->routeIs('admin.change-requests.*')"
                                    :badge="$openChangeRequestCount > 0 ? $openChangeRequestCount : null"
