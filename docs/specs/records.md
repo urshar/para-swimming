@@ -220,7 +220,10 @@ Spricht ein Beleg (Stufe 1 oder 2) für einen anderen Verein, entsteht kein Reko
 davon) — bei Einzelrekorden S1–S15 und S21 plus weitere Nummern aus den Basiswerten (die feste Grundmenge hält den
 Filter auch ohne importierte Basiszeiten nutzbar), ohne die reinen Staffelklassen 20, 34, 49
 (`RelayClassValidator::RELAY_ONLY_CLASS_NUMBERS`, stehen auch in den Basiswerten), bei Staffeln die Staffelklassen 14, 15, 20, 21, 34, 49
-(Brust- und Lagenstaffeln heißen `SB…`/`SM…`). Wertung Herren/Damen, bei Staffeln zusätzlich Mixed (`X`); Anzeige über
+(auch Brust- und Lagenstaffeln haben die Klasse `S…`, ÖBSV-Schreibweise `R…`; der Rekordimport leitet `SB`/`SM` seit
+`fix/record-import-relay-class`, 12.11.2026, nur noch bei Einzelstarts aus der Lage ab — ältere importierte
+`SB…`/`SM…`-Staffelrekorde korrigiert die Migration `2026_11_12_100001_fix_relay_record_sport_classes`, Test
+`RecordImportRelayClassTest`). Wertung Herren/Damen, bei Staffeln zusätzlich Mixed (`X`); Anzeige über
 `SwimRecord::genderLabel()`/`genderColor()` (Herren blau, Damen rosa, Mixed violett).
 
 **Landesrekord beim manuellen Eintragen** (seit `feature/record-import-cutoff`, 10.10.2026): `storeManual()` gibt

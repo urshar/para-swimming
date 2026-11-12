@@ -421,7 +421,9 @@ class RecordImportService
                 $distance = (int) ($style['distance'] ?? 0);
                 $relayCount = (int) ($style['relaycount'] ?? 1);
                 $classNumber = (string) $recordList['handicap'];
-                $classPrefix = match (strtoupper($strokeCode)) {
+                // Staffeln haben nur die Staffelklasse S14/S15/S20/S21/S34/S49 (ÖBSV: R49 usw.), unabhängig von der
+                // Lage — SB/SM gibt es nur bei Einzelstarts.
+                $classPrefix = $relayCount > 1 ? 'S' : match (strtoupper($strokeCode)) {
                     'BREAST' => 'SB',
                     'MEDLEY', 'IMRELAY' => 'SM',
                     default => 'S',
