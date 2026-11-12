@@ -1893,9 +1893,10 @@ class LenexParserService
         //   FREE/BACK/FLY → S (free-Attribut), BREAST → SB (breast), MEDLEY → SM (medley)
         // Fallback: RESULT handicap (startSportClass()).
         $sportClass = $this->startSportClass($swimEventId, $handicapXml, $resultXml);
-        // Athletenauswahl (fremde Veranstaltung, oft ohne Klassenangabe): wie bei der manuellen Erfassung die Klasse
-        // des Athleten zur Lage des Bewerbs.
-        if ($sportClass === null && $this->onlyAthletes !== null) {
+        // Athletenauswahl (fremde Veranstaltung, oft ohne Klassenangabe) oder unbrauchbare Klassenangabe in der Datei
+        // (z. B. "_0"): wie bei der manuellen Erfassung die Klasse des Athleten zur Lage des Bewerbs.
+        if ($sportClass === null
+            && ($this->onlyAthletes !== null || $this->hasUnusableClass($swimEventId, $handicapXml, $resultXml))) {
             $sportClass = app(ClubEntryService::class)->resolveSportClass($athleteId, SwimEvent::findOrFail($swimEventId));
         }
 
@@ -2192,7 +2193,7 @@ class LenexParserService
             default => trim((string) ($handicapXml['free'] ?? '')),
         };
 
-        if ($classNumber === '' || $classNumber === '0') {
+        if (! self::isClassNumber($classNumber)) {
             return null;
         }
 
@@ -2204,7 +2205,7 @@ class LenexParserService
      * handicap-Attribut des Starts. Dort steht
      * meist nur die Klassennummer ("14", z. B. in automatisch konvertierten Ergebnisdateien ohne HANDICAP-Element) —
      * sie bekommt wie beim HANDICAP-Element das Präfix zur Lage des Bewerbs ("SB3" bei Brust). Ein Wert mit Präfix
-     * bleibt unverändert.
+     * ("SB3") bleibt unverändert; alles andere (z. B. der Platzhalter "_0") ist keine Klasse und liefert null.
      */
     private function startSportClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $startXml): ?string
     {
@@ -2214,16 +2215,55 @@ class LenexParserService
         }
 
         $handicap = strtoupper(trim((string) ($startXml['handicap'] ?? '')));
-        if ($handicap === '' || $handicap === '0') {
-            return null;
-        }
-        if (! ctype_digit($handicap)) {
+        if (self::isPrefixedClass($handicap)) {
             return $handicap;
+        }
+        if (! self::isClassNumber($handicap)) {
+            return null;
         }
 
         $strokeUpper = $this->eventStrokeCode($swimEventId);
 
         return $strokeUpper !== null ? self::strokeClassPrefix($strokeUpper).$handicap : null;
+    }
+
+    /**
+     * true, wenn die Datei für den Start eine Klassenangabe enthält, die keine Sportklasse ist — z. B. "_0" im
+     * handicap-Attribut des Starts oder im passenden Attribut von ATHLETE.HANDICAP. Leer und "0" zählen nicht dazu
+     * (keine Angabe). Dann gilt die Klasse des Athleten aus der Datenbank.
+     */
+    private function hasUnusableClass(int $swimEventId, ?SimpleXMLElement $handicapXml, SimpleXMLElement $startXml): bool
+    {
+        $values = [strtoupper(trim((string) ($startXml['handicap'] ?? '')))];
+
+        $strokeUpper = $this->eventStrokeCode($swimEventId);
+        if ($handicapXml !== null && $strokeUpper !== null) {
+            $values[] = trim((string) match (true) {
+                $strokeUpper === 'BREAST' => $handicapXml['breast'] ?? '',
+                in_array($strokeUpper, ['MEDLEY', 'IMRELAY']) => $handicapXml['medley'] ?? '',
+                default => $handicapXml['free'] ?? '',
+            });
+        }
+
+        foreach ($values as $value) {
+            if ($value !== '' && $value !== '0' && ! self::isClassNumber($value) && ! self::isPrefixedClass($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Klassennummer ohne Präfix, 1 bis 99 (z. B. "14"). */
+    private static function isClassNumber(string $value): bool
+    {
+        return preg_match('/^[1-9]\d?$/', $value) === 1;
+    }
+
+    /** Sportklasse mit Präfix zur Lage (z. B. "S14", "SB3", "SM10"). */
+    private static function isPrefixedClass(string $value): bool
+    {
+        return preg_match('/^S[BM]?[1-9]\d?$/', $value) === 1;
     }
 
     /** LENEX-Lage des Bewerbs in Großbuchstaben (Bewerb ist bereits importiert), null ohne Lage. */
@@ -2324,6 +2364,6 @@ class LenexParserService
     {
         $free = trim((string) ($handicapXml['free'] ?? ''));
 
-        return $free && $free !== '0' ? 'S'.$free : null;
+        return self::isClassNumber($free) ? 'S'.$free : null;
     }
 }
