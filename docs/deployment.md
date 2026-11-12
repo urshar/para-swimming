@@ -39,14 +39,15 @@ Alles unter **Websites & Domains → paraswim.at**:
 
    **`open_basedir`** (gleiche Seite, Abschnitt Sicherheit) erweitern: Plesk erlaubt standardmäßig nur den
    Dokumentstamm (`.../httpdocs/public/`), Laravel braucht aber das ganze Projekt (`vendor`, `storage`, `bootstrap`).
-   Ohne diese Änderung liefert die Seite HTTP 500 mit "open_basedir restriction in effect" im Fehlerlog. Eintragen
-   (eine Zeile, Pfad aus dem Fehlerlog bzw. "Hosting-Einstellungen"):
+   Ohne diese Änderung liefert die Seite HTTP 500 mit "open_basedir restriction in effect" im Fehlerlog. netcup
+   bietet keinen eigenen Wert an, nur zwei Vorgaben — die zweite wählen:
 
    ```
-   /var/www/vhosts/<webspace>/paraswim.at/httpdocs/:/tmp/:/var/lib/php/sessions:/var/www/vhosts/<webspace>/tmp
+   {WEBSPACEROOT}{/}{:}{TMP}{/}{:}{/}var{/}lib{/}php{/}sessions
    ```
 
-   `<webspace>` ist z. B. `hosting123456.abc12.netcup.net`.
+   Damit darf PHP den ganzen Webspace lesen (also auch die anderen Domains desselben Hosting-Benutzers), nicht nur
+   dieses Projekt.
 2. **Datenbank:** "Datenbanken" → neue MySQL-Datenbank mit eigenem Benutzer anlegen. Name, Benutzer, Passwort und
    **Datenbankserver** notieren (für die `.env`). Bei netcup ist das ein eigener Server mit interner IP, nicht
    `localhost`. Der Benutzer muss **dieser** Datenbank zugeordnet sein, und seine Zugriffskontrolle muss Verbindungen
