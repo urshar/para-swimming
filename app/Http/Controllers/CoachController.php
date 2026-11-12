@@ -8,6 +8,7 @@ use App\Models\Club;
 use App\Models\Coach;
 use App\Models\CoachQualification;
 use App\Support\ListUrl;
+use App\Support\NameSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,8 +35,7 @@ class CoachController extends Controller
             ->orderBy('first_name');
 
         if ($search = $request->query('search')) {
-            $query->where(fn (Builder $q) => $q->where('last_name', 'like', '%'.$search.'%')
-                ->orWhere('first_name', 'like', '%'.$search.'%'));
+            NameSearch::apply($query, $search, ['last_name', 'first_name']);
         }
         if ($clubId = $request->integer('club_id')) {
             $query->where('club_id', $clubId);

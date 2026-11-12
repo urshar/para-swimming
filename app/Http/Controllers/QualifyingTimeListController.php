@@ -15,6 +15,7 @@ use App\Services\QualificationDeterminationService;
 use App\Services\QualifyingTimeCalculationService;
 use App\Services\QualifyingTimeService;
 use App\Support\DisabilityGroupGrouper;
+use App\Support\NameSearch;
 use App\Support\SportClassSorter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -383,13 +384,12 @@ class QualifyingTimeListController extends Controller
             $filtered->where('club_id', $request->integer('club_id'));
         }
         if ($request->filled('search')) {
-            $search = $request->string('search');
-            $filtered->where(function ($q) use ($search) {
-                $q->whereHas('athlete', fn ($a) => $a
-                    ->where('first_name', 'like', "%$search%")
-                    ->orWhere('last_name', 'like', "%$search%"))
-                    ->orWhereHas('club', fn ($c) => $c->where('name', 'like', "%$search%"));
-            });
+            // Jeder Suchteil passt auf Vor- oder Nachname des Athleten oder auf den Vereinsnamen ("Aigner Linz").
+            NameSearch::applyEach($filtered, $request->string('search')->toString(), fn ($q, string $term) => $q
+                ->orWhereHas('athlete', fn ($a) => $a
+                    ->where('first_name', 'like', '%'.$term.'%')
+                    ->orWhere('last_name', 'like', '%'.$term.'%'))
+                ->orWhereHas('club', fn ($c) => $c->where('name', 'like', '%'.$term.'%')));
         }
 
         $qualifications = $filtered->get()->sortBy(

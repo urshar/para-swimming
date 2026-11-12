@@ -180,9 +180,15 @@ Erik klären, erst danach Branch anlegen/implementieren.
 
 **UI-Kleinigkeiten (Erik, 27.10.2026)** — derzeit keine offen.
 
-**Neue Wünsche (Erik, 11.11.2026)** — je unten beschrieben, jeweils kleiner eigener Branch:
+**Neue Wünsche (Erik, 11.11.2026)** — derzeit keine offen.
 
-1. "Athletensuche: Eingabe "Nachname, Vorname" findet nichts"
+**Erledigt:** "Athletensuche: Eingabe "Nachname, Vorname" findet nichts" (`fix/athlete-name-search`, 12.11.2026):
+Neue Hilfsklasse `App\Support\NameSearch` zerlegt den Suchbegriff an Kommas und Leerzeichen; jeder Teil muss in einem
+der Felder vorkommen (UND über die Teile, ODER über die Felder, nur `LIKE`). Eingesetzt in Athleten-, Trainer- und
+Klassifizierer-Liste, Ergebnissen und Meldungs-Cockpit (Trait `SearchesAthletes`), Qualifikationen (Teil passt auf
+Athletenname oder Verein, z. B. "Aigner Graz") und Sammelansicht (`NameSearch::matches()` im Speicher; bei Staffeln
+muss ein einzelner Schwimmer zu allen Teilen passen). Neue Namenssuchen sollen `NameSearch` verwenden. Tests:
+`--group=name-search`.
 
 **Erledigt:** "Veranstaltungsliste: Rekordcheck-Knopf und Prüfstatus" (`feature/meet-records-check-status`,
 11.11.2026): Neue Spalte `meets.records_checked_at`, gesetzt nach jedem erfolgreichen Check, zurückgesetzt bei
@@ -529,17 +535,3 @@ Rechte gegeben hat, ist damit nicht nachvollziehbar.
 
 **Zum Schließen nötig:** Trait `Auditable` an `User` (ohne Passwort-, Token- und 2FA-Felder) und ein Eintrag je
 Matrix-Änderung über `AuditLogger`; Anzeige in der Benutzerverwaltung.
-
-## Athletensuche: Eingabe "Nachname, Vorname" findet nichts
-
-**Seit:** 11.11.2026, beim Live-Test von `fix/filter-search-focus` aufgefallen.
-
-**Ausgangslage:** Die Suche in der Athletenliste (`AthleteController::index()`) vergleicht den ganzen Suchbegriff
-jeweils einzeln mit `last_name`, `first_name`, `license` und `license_ipc` (`LIKE %…%`). "Aigner" findet beide
-Aigners, "Aigner, M" oder "Aigner Matteo" dagegen nichts, obwohl die Liste die Namen genau so anzeigt
-("Nachname, Vorname").
-
-**Zum Schließen nötig:** Suchbegriff an Komma bzw. Leerzeichen in Teile zerlegen; jeder Teil muss in einem der Felder
-vorkommen (UND über die Teile, ODER über die Felder), damit "Aigner, M", "Aigner Matteo" und "Matteo Aigner" treffen.
-Nur Standard-SQL (SQLite/MySQL). Prüfen, ob andere Namenssuchen (Ergebnisse, Meldungen, Sammelansicht,
-Qualifikationen) dasselbe Verhalten haben, und dann einheitlich lösen.

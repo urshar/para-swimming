@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\MeetResultListService;
 use App\Services\PdfExportService;
 use App\Support\ListUrl;
+use App\Support\NameSearch;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,7 +60,7 @@ class MeetResultsOverviewController extends Controller
             $clubFilter = null;
         }
 
-        $search = mb_strtolower(trim((string) $request->query('search', '')));
+        $search = trim((string) $request->query('search', ''));
 
         // Wertung je Bewerb und Wertungsgruppe über alle Ergebnisse (Plätze gelten in der ganzen Gruppe); Verein und
         // Athletensuche blenden danach nur Zeilen aus.
@@ -83,8 +84,7 @@ class MeetResultsOverviewController extends Controller
             // Gäste haben keinen Verein in der Vereinsauswahl: Mit Vereinsfilter (und bei "eigener Verein") fallen sie
             // weg, die Suche findet sie über Name und Verein.
             $guests = $clubFilter !== null || ! $all ? collect() : $block['guests']->filter(
-                fn (ForeignStart $guest): bool => $search === ''
-                    || str_contains(mb_strtolower($guest->display_name.' '.$guest->club_name), $search),
+                fn (ForeignStart $guest): bool => NameSearch::matches($guest->display_name.' '.$guest->club_name, $search),
             )->values();
             if ($groups !== [] || $guests->isNotEmpty()) {
                 $blocks[$block['event']->id] = ['groups' => $groups, 'guests' => $guests, 'count' => count($visible) + $guests->count()];
@@ -104,7 +104,7 @@ class MeetResultsOverviewController extends Controller
             ->groupBy('swim_event_id')
             ->pluck('total', 'swim_event_id');
         foreach ($relayTotals as $eventId => $count) {
-            $eventTotals[$eventId] = (int) ($eventTotals[$eventId] ?? 0) + (int) $count;
+            $eventTotals[$eventId] = ($eventTotals[$eventId] ?? 0) + $count;
         }
         $guestTotals = ForeignStart::query()
             ->where('meet_id', $meet->id)
@@ -112,7 +112,7 @@ class MeetResultsOverviewController extends Controller
             ->groupBy('swim_event_id')
             ->pluck('total', 'swim_event_id');
         foreach ($guestTotals as $eventId => $count) {
-            $eventTotals[$eventId] = (int) ($eventTotals[$eventId] ?? 0) + (int) $count;
+            $eventTotals[$eventId] = ($eventTotals[$eventId] ?? 0) + $count;
         }
 
         return view('meets.results-overview', [
@@ -238,7 +238,8 @@ class MeetResultsOverviewController extends Controller
             ? $result->members->map(fn ($m) => ($m->athlete?->first_name ?? $m->first_name).' '.($m->athlete?->last_name ?? $m->last_name))->all()
             : [$result->athlete?->first_name.' '.$result->athlete?->last_name];
 
-        return collect($names)->contains(fn (?string $name): bool => str_contains(mb_strtolower((string) $name), $search));
+        // Bei Staffeln muss ein einzelner Schwimmer zu allen Suchteilen passen.
+        return collect($names)->contains(fn (?string $name): bool => NameSearch::matches((string) $name, $search));
     }
 
     /**
