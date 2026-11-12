@@ -199,8 +199,15 @@ Den lokalen Export danach ebenfalls löschen (`database/seeders/data/snapshot`).
 
 ## 7. Abschluss (einmalig)
 
+Den Storage-Link von Hand als **relativen** Symlink anlegen. `artisan storage:link` würde einen absoluten Pfad aus
+Sicht des chroot schreiben, den der Webserver nicht findet, und `--relative` braucht das Paket `symfony/filesystem`,
+das ohne Dev-Abhängigkeiten fehlt:
+
 ```bash
-$PHP artisan storage:link --relative
+cd /paraswim.at/app/public
+ln -s ../storage/app/public storage
+ls -la storage        # storage -> ../storage/app/public
+cd /paraswim.at/app
 $PHP artisan optimize
 ```
 
