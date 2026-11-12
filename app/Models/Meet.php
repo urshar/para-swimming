@@ -114,6 +114,12 @@ class Meet extends Model
             ->update(['records_checked_at' => null]);
     }
 
+    /** Hat die Veranstaltung Einzel- oder Staffelergebnisse (gleich welchen Status)? */
+    public function hasResults(): bool
+    {
+        return $this->results()->exists() || $this->relayResults()->exists();
+    }
+
     /** Hält den erfolgreichen Rekordcheck fest (RecordCheckerService::checkMeet()). */
     public function markRecordsChecked(): void
     {
