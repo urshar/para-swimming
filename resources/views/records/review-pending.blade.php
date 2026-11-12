@@ -72,6 +72,11 @@
                                 SwimRecord::PENDING_REASON_CLUB => 'cyan',
                                 default => 'zinc',
                             };
+                            $old = $previous->get($record->id);
+                            $delta = $old ? number_format(($record->swim_time - $old->swim_time) / 100, 2, '.', '') : null;
+                            $oldHolder = $old?->relay_count > 1
+                                ? ($old?->record_club_name ?? $old?->relayResult?->club?->display_name ?? 'Staffel')
+                                : ($old?->athlete?->display_name ?? '–');
                         @endphp
                         <flux:table.row>
                             <flux:table.cell class="whitespace-normal">
@@ -82,13 +87,24 @@
                                 </div>
                                 <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                                     {{ $record->sport_class }}
-                                    · <span aria-hidden="true">{{ SwimRecord::genderSymbol($record->gender) }}</span>
-                                    <span class="sr-only">{{ match ($record->gender) { 'F' => 'Damen', 'X' => 'Mixed', default => 'Herren' } }}</span>
+                                    · <x-gender-icon :gender="$record->gender"/>
                                     · {{ $record->course }}
                                 </div>
                             </flux:table.cell>
-                            <flux:table.cell class="font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                                {{ $record->formatted_swim_time }}
+                            {{-- Neu (ausstehend) grün und fett, darunter der am Datum geltende Rekord grau. --}}
+                            <flux:table.cell class="whitespace-normal">
+                                <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                    <span class="sr-only">Neu:</span>{{ $record->formatted_swim_time }}
+                                </div>
+                                @if($old)
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        bisher <span class="font-mono">{{ $old->formatted_swim_time }}</span>
+                                        <span class="font-mono">({{ $delta }} s)</span>
+                                        <div>{{ $oldHolder }}{{ $old->set_date ? ', '.$old->set_date->format('d.m.Y') : '' }}</div>
+                                    </div>
+                                @else
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">bisher kein Rekord</div>
+                                @endif
                             </flux:table.cell>
                             <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-400 whitespace-normal">
                                 @if($record->relay_count > 1)

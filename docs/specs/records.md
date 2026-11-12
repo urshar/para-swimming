@@ -57,19 +57,26 @@ Typs doppelt an.
 `checkMeet()` prüft die Einzel- und Staffelergebnisse **nach Zeit sortiert, schnellste zuerst**. Je Rekordtyp stellt
 damit nur das beste Ergebnis der Veranstaltung den Rekord auf; langsamere, die den alten Rekord ebenfalls unterboten
 hätten, kommen nicht in die Kette. Jedes Ergebnis wird trotzdem auf alle Typen geprüft — ein Ergebnis ohne ÖR kann
-den Landesrekord seines Verbands aufstellen, je Verband wieder nur das beste.
+den Landesrekord seines Verbands aufstellen, je Verband wieder nur das beste. Das gilt auch über mehrere Tage: Ein
+Rekordbruch am 1. Tag, der am 3. Tag noch einmal unterboten wird, kommt nicht in die Kette (Entscheidung Erik,
+12.11.2026) — `checkRecordType` misst dazu auch an den anerkannten Rekorden derselben Veranstaltung
+(`fasterRecordInMeet()`), weil deren Wettkampftag nach dem Veranstaltungsbeginn liegen kann.
 
 ### Vergleich & Anlage — `checkRecordType`
 
 Eine Kategorie ist die Kombination `record_type + stroke_type_id + sport_class + gender + course + distance +
-relay_count`. **Maßstab ist der Rekord, der am Wettkampftag galt** (seit `feature/split-records`, 25.10.2026,
-`RecordChainService::validOn()`): der schnellste anerkannte Rekord (`APPROVED`, `APPROVED.HISTORY`) der Kategorie mit
-`set_date <=` Wettkampfdatum; Rekorde ohne Datum zählen als älter. Bis dahin war es der heute aktuelle Rekord — ein
-nachträglich geprüfter älterer Wettkampf löste damit einen jüngeren Rekord ab. Gibt es keinen solchen Rekord oder ist
-die neue Zeit **schneller** (`swim_time <`), entsteht in einer Transaktion:
+relay_count`. **Maßstab ist der Rekord, der bei Veranstaltungsbeginn galt** (seit `feature/split-records`,
+25.10.2026, `RecordChainService::validOn()`): der schnellste anerkannte Rekord (`APPROVED`, `APPROVED.HISTORY`) der
+Kategorie mit `set_date <= meet.start_date`; Rekorde ohne Datum zählen als älter — dazu die anerkannten Rekorde
+derselben Veranstaltung (siehe oben). Bis dahin war es der heute aktuelle Rekord — ein nachträglich geprüfter älterer
+Wettkampf löste damit einen jüngeren Rekord ab. Gibt es keinen solchen Rekord oder ist die neue Zeit **schneller**
+(`swim_time <`), entsteht in einer Transaktion:
 
-1. ein neuer `SwimRecord` mit `supersedes_id = <Maßstab>`, `set_date = meet.start_date` und den denormalisierten
-   Meet-Feldern (`meet_name`, `meet_city`, `meet_course`);
+1. ein neuer `SwimRecord` mit `supersedes_id = <Maßstab>`, `set_date` = **Wettkampftag** und den denormalisierten
+   Meet-Feldern (`meet_name`, `meet_city`, `meet_course`). Der Wettkampftag ist das Datum des Abschnitts
+   (`meet_sessions.date` über `swim_events.session_number`), ohne gepflegtes Datum `meet.start_date` (seit 12.11.2026;
+   bis dahin immer der Veranstaltungsbeginn, was beim Vergleich mit der LENEX-Rekordliste abweichende Daten ergab).
+   Bestehende Rekorde zieht `php artisan records:fix-set-dates {--dry-run}` nach;
 2. die Kopien der Zwischenzeiten (`RecordSplit` aus `result.splits`);
 3. **nur bei `record_status = APPROVED`**: das Einordnen an seinem Datum (siehe "Chronologische Rekordkette").
 
@@ -124,7 +131,7 @@ Seit `feature/split-records` (25.10.2026; Regeln, Entscheidungen und Phasen in
 - Daraus entstehen **nur ausstehende Rekorde** (Grund `RecordCheckerService::PENDING_SPLIT`, auch bei `EXH`) mit
   `from_split = true` und einem Kommentar ("Zwischenzeit aus 100 m Freistil" bzw. "Startschwimmer 4×50 m Freistil").
   Je Kategorie und Wettkampf nur aus der **schnellsten** Zwischenzeit (Einzelrennen und Startschwimmer gemeinsam, auch
-  über einen erneuten Rekord-Check hinweg, `fasterSplitRecordInMeet()`). Am Rekord stehen nur die Zwischenzeiten vor
+  über einen erneuten Rekord-Check hinweg, `fasterRecordInMeet()`). Am Rekord stehen nur die Zwischenzeiten vor
   seiner Strecke.
 - Ein Zwischenzeit-Rekord setzt **kein Rekord-Flag** am Ergebnis (auch nicht bei der Bestätigung) — die Flags gehören zur
   Endzeit des Bewerbs.
