@@ -326,6 +326,33 @@ describe('QualifyingTimeListController::qualifications — Anzeige', function ()
             ->assertSee('Sucher')
             ->assertDontSee('Person');
     })->group('qualifying-time-lists-p5-p6');
+
+    it('filtert per Freitextsuche nach "Nachname, Vorname" und nach Name plus Verein', function () {
+        $list = makeQualifyingList_qtl7(2027, '2026-05-12', '2027-05-29');
+        $stroke = makeStrokeType_qtl7();
+        $clubA = makeClub_qtl7('Verein Linz');
+        $clubB = makeClub_qtl7('Verein Graz');
+        makeQualifyingTime_qtl7($list, $stroke, 100, 'M', 'S9', 6000);
+
+        $meet = makeMeet_qtl7('2026-08-01');
+        foreach ([[$clubA, 'Matteo', 'Aigner'], [$clubA, 'Leonie', 'Aigner'], [$clubB, 'Jonas', 'Aigner']] as [$club, $first, $last]) {
+            makeResult_qtl7($meet, makeSwimEvent_qtl7($meet, $stroke), makeAthlete_qtl7($club, $first, $last), $club, 5900);
+        }
+
+        $this->actingAs(makeAdmin_qtl7())
+            ->post(route('qualifying-time-lists.qualifications.calculate', $list));
+
+        $url = route('qualifying-time-lists.qualifications', $list);
+        $this->actingAs(makeClubUser_qtl7())
+            ->get($url.'?search='.urlencode('Aigner, M'))
+            ->assertSee('Matteo')
+            ->assertDontSee('Leonie')
+            ->assertDontSee('Jonas');
+        $this->get($url.'?search='.urlencode('Aigner Graz'))
+            ->assertSee('Jonas')
+            ->assertDontSee('Matteo')
+            ->assertDontSee('Leonie');
+    })->group('qualifying-time-lists-p5-p6');
 });
 
 // ── Phase 5: Historisierung/Isolation ────────────────────────────────────────────

@@ -6,6 +6,7 @@ use App\Models\AthleteClassification;
 use App\Models\Classifier;
 use App\Models\Nation;
 use App\Support\ListUrl;
+use App\Support\NameSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,18 +15,14 @@ class ClassifierController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Classifier::withCount([
+        $query = Classifier::query()->withCount([
             'classificationsAsMed',
             'classificationsAsTech1',
             'classificationsAsTech2',
         ])->orderBy('last_name')->orderBy('first_name');
 
         if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('last_name', 'like', '%'.$search.'%')
-                    ->orWhere('first_name', 'like', '%'.$search.'%')
-                    ->orWhere('email', 'like', '%'.$search.'%');
-            });
+            NameSearch::apply($query, $search, ['last_name', 'first_name', 'email']);
         }
 
         if ($type = $request->query('type')) {

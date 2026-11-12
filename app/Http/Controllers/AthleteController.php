@@ -22,6 +22,7 @@ use App\Services\KaderMembershipService;
 use App\Support\AthleteFieldRules;
 use App\Support\AuditHistory;
 use App\Support\ListUrl;
+use App\Support\NameSearch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -41,12 +42,7 @@ class AthleteController extends Controller
             ->orderBy('first_name');
 
         if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('last_name', 'like', '%'.$search.'%')
-                    ->orWhere('first_name', 'like', '%'.$search.'%')
-                    ->orWhere('license', 'like', '%'.$search.'%')
-                    ->orWhere('license_ipc', 'like', '%'.$search.'%');
-            });
+            NameSearch::apply($query, $search, ['last_name', 'first_name', 'license', 'license_ipc']);
         }
 
         if ($letter = $request->query('letter')) {
