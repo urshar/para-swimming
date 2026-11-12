@@ -123,6 +123,35 @@ it('setzt den Status über records:check-meets, aber nicht im Probelauf', functi
     expect(checkedAt_mcs1($meet))->not->toBeNull();
 });
 
+it('markiert eine Veranstaltung ohne Ergebnisse nicht als geprüft', function () {
+    $meet = meet_mcs1();
+    event_mcs1($meet, 1);
+
+    $this->actingAs(User::factory()->create(['is_admin' => true, 'club_id' => null]))
+        ->post(route('records.check', $meet))
+        ->assertRedirect();
+
+    expect(checkedAt_mcs1($meet))->toBeNull();
+});
+
+it('überspringt in records:check-meets Veranstaltungen ohne Ergebnisse', function () {
+    $empty = meet_mcs1('Leer-Meeting');
+    $withResults = meet_mcs1();
+    result_mcs1($withResults);
+
+    $this->artisan('records:check-meets')
+        ->expectsConfirmation('1 Wettkampf/Wettkämpfe jetzt auf Rekorde prüfen?', 'yes')
+        ->doesntExpectOutputToContain('Leer-Meeting')
+        ->assertSuccessful();
+
+    expect(checkedAt_mcs1($empty))->toBeNull()
+        ->and(checkedAt_mcs1($withResults))->not->toBeNull();
+
+    $this->artisan('records:check-meets', ['--meet' => $empty->id])
+        ->expectsOutput('Wettkampf '.$empty->id.' nicht gefunden oder ohne Ergebnisse.')
+        ->assertFailed();
+});
+
 it('setzt den Status nicht, wenn der Check fehlschlägt', function () {
     $meet = meet_mcs1();
     result_mcs1($meet);

@@ -11,10 +11,11 @@ use Throwable;
 
 /**
  * Führt den Rekord-Check (wie der Button am Wettkampf) für alle Wettkämpfe nach Datum aus, älteste zuerst — z. B. um die
- * Rekordketten nach einem Basis-Import neu aufzubauen. Prüft Endzeiten und Zwischenzeiten. Jeder Wettkampf läuft in einer
- * eigenen Transaktion; bricht einer ab, bleiben die schon geprüften erhalten. Mit --dry-run läuft alles in einer einzigen
- * Transaktion (spätere Wettkämpfe sehen die Rekorde der früheren) und wird am Ende zurückgerollt. Ein zweiter Lauf legt
- * nichts doppelt an.
+ * Rekordketten nach einem Basis-Import neu aufzubauen. Prüft Endzeiten und Zwischenzeiten. Wettkämpfe ohne Ergebnisse
+ * werden übersprungen (sie würden sonst als geprüft markiert). Jeder Wettkampf läuft in einer eigenen Transaktion;
+ * bricht einer ab, bleiben die schon geprüften erhalten. Mit --dry-run läuft alles in einer einzigen Transaktion
+ * (spätere Wettkämpfe sehen die Rekorde der früheren) und wird am Ende zurückgerollt. Ein zweiter Lauf legt nichts
+ * doppelt an.
  *
  *   php artisan records:check-meets --dry-run
  *   php artisan records:check-meets --meet=26
@@ -33,14 +34,18 @@ class CheckMeetRecordsCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $meetId = $this->option('meet');
 
+        // Nur Veranstaltungen mit Ergebnissen — eine leere würde sonst als geprüft markiert.
         $meets = Meet::query()
             ->when($meetId !== null, fn ($q) => $q->whereKey((int) $meetId))
+            ->where(fn ($q) => $q->whereHas('results')->orWhereHas('relayResults'))
             ->oldest('start_date')
             ->orderBy('id')
             ->get();
 
         if ($meets->isEmpty()) {
-            $this->error($meetId !== null ? 'Wettkampf '.$meetId.' nicht gefunden.' : 'Keine Wettkämpfe vorhanden.');
+            $this->error($meetId !== null
+                ? 'Wettkampf '.$meetId.' nicht gefunden oder ohne Ergebnisse.'
+                : 'Keine Wettkämpfe mit Ergebnissen vorhanden.');
 
             return self::FAILURE;
         }

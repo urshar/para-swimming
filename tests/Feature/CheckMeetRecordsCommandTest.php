@@ -16,23 +16,33 @@ uses(RefreshDatabase::class)->group('records-check-meets');
 
 function nation_cmr(): Nation
 {
-    return Nation::firstOrCreate(['code' => 'AUT'], ['name_de' => 'Österreich', 'name_en' => 'Austria', 'is_active' => true]);
+    return Nation::firstOrCreate(['code' => 'AUT'],
+        ['name_de' => 'Österreich', 'name_en' => 'Austria', 'is_active' => true]);
 }
 
 /** Wettkampf mit einem 100-m-Freistil-Ergebnis (S9, Herren, Langbahn), ohne Zwischenzeiten. */
 function meet_cmr(string $date, int $swimTime): Meet
 {
     $austria = nation_cmr();
-    $stroke = StrokeType::firstOrCreate(['lenex_code' => 'FREE'], ['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'code' => 'FREE']);
+    $stroke = StrokeType::firstOrCreate(['lenex_code' => 'FREE'],
+        ['name_de' => 'Freistil', 'name_en' => 'Freestyle', 'code' => 'FREE']);
     $club = Club::query()->create(['name' => 'Verein '.$date, 'nation_id' => $austria->id, 'type' => 'CLUB']);
-    $meet = Meet::query()->create(['name' => 'Meet '.$date, 'start_date' => $date, 'end_date' => $date, 'course' => 'LCM',
-        'city' => 'Wien', 'nation_id' => $austria->id, 'timing' => 'AUTOMATIC']);
-    $event = SwimEvent::query()->create(['meet_id' => $meet->id, 'stroke_type_id' => $stroke->id, 'distance' => 100,
-        'relay_count' => 1, 'gender' => 'M', 'session_number' => 1, 'event_number' => 1, 'round' => 'TIM']);
-    $athlete = Athlete::query()->create(['first_name' => 'Max', 'last_name' => 'Muster '.$date, 'gender' => 'M',
-        'birth_date' => '1980-01-01', 'nation_id' => $austria->id, 'club_id' => $club->id]);
-    Result::query()->create(['meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id,
-        'club_id' => $club->id, 'sport_class' => 'S9', 'swim_time' => $swimTime, 'heat' => 1]);
+    $meet = Meet::query()->create([
+        'name' => 'Meet '.$date, 'start_date' => $date, 'end_date' => $date, 'course' => 'LCM',
+        'city' => 'Wien', 'nation_id' => $austria->id, 'timing' => 'AUTOMATIC',
+    ]);
+    $event = SwimEvent::query()->create([
+        'meet_id' => $meet->id, 'stroke_type_id' => $stroke->id, 'distance' => 100,
+        'relay_count' => 1, 'gender' => 'M', 'session_number' => 1, 'event_number' => 1, 'round' => 'TIM',
+    ]);
+    $athlete = Athlete::query()->create([
+        'first_name' => 'Max', 'last_name' => 'Muster '.$date, 'gender' => 'M',
+        'birth_date' => '1980-01-01', 'nation_id' => $austria->id, 'club_id' => $club->id,
+    ]);
+    Result::query()->create([
+        'meet_id' => $meet->id, 'swim_event_id' => $event->id, 'athlete_id' => $athlete->id,
+        'club_id' => $club->id, 'sport_class' => 'S9', 'swim_time' => $swimTime, 'heat' => 1,
+    ]);
 
     return $meet;
 }
@@ -73,7 +83,7 @@ it('prüft die Wettkämpfe nach Datum, nicht nach Anlage-Reihenfolge', function 
         ->expectsConfirmation('2 Wettkampf/Wettkämpfe jetzt auf Rekorde prüfen?', 'yes')
         ->assertSuccessful();
 
-    $chain = SwimRecord::query()->where('record_type', 'AUT')->orderBy('set_date')->get();
+    $chain = SwimRecord::query()->where('record_type', 'AUT')->oldest('set_date')->get();
 
     expect($chain)->toHaveCount(2)
         ->and($chain[0]->swim_time)->toBe(7000)
@@ -85,7 +95,8 @@ it('prüft die Wettkämpfe nach Datum, nicht nach Anlage-Reihenfolge', function 
 it('legt bei einem zweiten Lauf nichts doppelt an', function () {
     meet_cmr('2018-05-05', 7000);
 
-    $this->artisan('records:check-meets')->expectsConfirmation('1 Wettkampf/Wettkämpfe jetzt auf Rekorde prüfen?', 'yes');
+    $this->artisan('records:check-meets')->expectsConfirmation('1 Wettkampf/Wettkämpfe jetzt auf Rekorde prüfen?',
+        'yes');
     $count = SwimRecord::query()->count();
 
     $this->artisan('records:check-meets', ['--dry-run' => true])
@@ -105,6 +116,6 @@ it('prüft mit --meet nur einen Wettkampf und meldet einen unbekannten', functio
         ->assertSuccessful();
 
     $this->artisan('records:check-meets', ['--dry-run' => true, '--meet' => 999])
-        ->expectsOutputToContain('Wettkampf 999 nicht gefunden.')
+        ->expectsOutputToContain('Wettkampf 999 nicht gefunden oder ohne Ergebnisse.')
         ->assertFailed();
 });

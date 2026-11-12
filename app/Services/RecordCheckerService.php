@@ -135,8 +135,11 @@ readonly class RecordCheckerService
         $pendingRecords = array_merge($pendingRecords, $this->checkSplits($meet, $results, $relayResults));
 
         // Erst ganz am Ende: Der Check selbst ändert Ergebnisse (Staffelklasse), was den Status zurücksetzt. Im
-        // Probelauf von records:check-meets rollt die Transaktion den Zeitstempel mit zurück.
-        $meet->markRecordsChecked();
+        // Probelauf von records:check-meets rollt die Transaktion den Zeitstempel mit zurück. Ohne Ergebnisse (z. B. eine
+        // erst angelegte Veranstaltung) gibt es nichts zu prüfen — sie bleibt ungeprüft.
+        if ($meet->hasResults()) {
+            $meet->markRecordsChecked();
+        }
 
         return [
             'new_records' => $newRecords,
