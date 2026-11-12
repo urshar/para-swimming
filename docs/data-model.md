@@ -255,11 +255,8 @@ mit `age_group_id` und `counted_daily_result_ids` (JSON). **CupTopGroupClassific
 `manual_is_top_group`, `manual_note`, `manual_set_by`, `manual_set_at` — siehe
 [specs/cup-top-group.md](specs/cup-top-group.md).
 
-> **Hinweis:** Die Spalte in `cup_overall_results` heißt in der Erst-Migration
-> `counted_daily_result_ids`, wurde per Migration
-> `2026_07_17_090001_rename_counted_daily_result_ids_to_counted_meet_ids`
-> in **`counted_meet_ids`** umbenannt (IDs würden bei Neuberechnung sonst
-> veralten). Der finale Spaltenname ist `counted_meet_ids`.
+> **Hinweis:** Die Spalte in `cup_overall_results` heißt `counted_meet_ids` (früher
+> `counted_daily_result_ids` — IDs der Tagesergebnisse würden bei einer Neuberechnung veralten).
 
 ## Internationale Qualifikation (EM/WM/Paralympics)
 

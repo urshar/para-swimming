@@ -8,7 +8,7 @@ tauscht Daten über das LENEX-Format mit Wettkampf-Software (z. B. Splash Meet M
 
 | Bereich   | Technologie                                                           |
 |-----------|-----------------------------------------------------------------------|
-| Sprache   | PHP 8.3+                                                              |
+| Sprache   | PHP 8.4+                                                              |
 | Framework | Laravel 13                                                            |
 | UI        | Livewire 4 + Flux UI 2, Blade                                         |
 | Frontend  | Alpine.js 3, Tailwind CSS 4, Vite 8, IMask (Zeiteingaben), flag-icons |
@@ -21,7 +21,7 @@ tauscht Daten über das LENEX-Format mit Wettkampf-Software (z. B. Splash Meet M
 
 ## Voraussetzungen
 
-- PHP **8.3** oder neuer mit den Extensions `dom`, `libxml`, `simplexml`, `zip`
+- PHP **8.4** oder neuer mit den Extensions `dom`, `libxml`, `simplexml`, `zip`
 - Composer
 - Node **22** und npm
 - MySQL (für Dev/Prod)
@@ -94,7 +94,7 @@ app/
   Concerns/           Wiederverwendbare Traits
   Policies/           Autorisierung je Datensatz (Athlet, Verein, Trainer, Meldung, Ergebnis, Antrag)
   Http/Middleware/    Rechte je Modul (module:), admin, Zwei-Faktor-Pflicht
-database/migrations/  Schema (58 Migrationen)
+database/migrations/  Schema (konsolidiert, eine Migration je Fachbereich)
 resources/views/      Blade-Views je Modul
 routes/               web.php, settings.php, console.php
 tests/                Feature/ und Unit/ (Pest)
@@ -121,4 +121,5 @@ Eine ausführliche Beschreibung der Schichten und Muster steht in
 - [docs/conventions.md](docs/conventions.md) – Code-, Test- und UI-Konventionen
 - [docs/domain-glossary.md](docs/domain-glossary.md) – Fachbegriffe des Para-Schwimmens
 - [docs/data-model.md](docs/data-model.md) – Datenmodell und Beziehungen
+- [docs/deployment.md](docs/deployment.md) – Live-Betrieb auf netcup/Plesk, Datenübernahme dev → prod, Updates
 - `docs/specs/` – Modul-Spezifikationen *(folgen ab Phase 3)*

@@ -79,22 +79,6 @@ describe('Rekordprüfung: Landesverband aus dem Verein im Ergebnis', function ()
     });
 });
 
-// ── Migration KLSV → KBSV ─────────────────────────────────────────────────────
-
-it('benennt die alten Kärntner Rekordtypen auf KBSV um', function () {
-    $stroke = makeStrokeType_p5();
-    foreach (['AUT.KLSV', 'AUT.KLSV.JR', 'AUT.WBSV'] as $type) {
-        SwimRecord::create(['stroke_type_id' => $stroke->id, 'record_type' => $type, 'sport_class' => 'S9',
-            'gender' => 'M', 'course' => 'LCM', 'distance' => 100, 'relay_count' => 1, 'swim_time' => 6000,
-            'record_status' => 'APPROVED', 'is_current' => true]);
-    }
-
-    $migration = require database_path('migrations/2026_10_07_100002_rename_klsv_regional_record_types.php');
-    $migration->up();
-
-    expect(regionalTypes_rrc())->toBe(['AUT.KBSV', 'AUT.KBSV.JR', 'AUT.WBSV']);
-});
-
 // ── Import Prüfliste ──────────────────────────────────────────────────────────
 
 describe('Import Prüfliste: Regionalrekord mit falschem Verband', function () {
