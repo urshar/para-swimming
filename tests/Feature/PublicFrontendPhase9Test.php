@@ -92,7 +92,6 @@ function makeSwimEventWithResult_p9(Meet $meet, array $eventOverrides = [], arra
         'club_id' => makeClub_p9()->id,
         'sport_class' => 'S6',
         'swim_time' => 6000,
-        'status' => 'OK',
     ], $resultOverrides));
 
     return $swimEvent;

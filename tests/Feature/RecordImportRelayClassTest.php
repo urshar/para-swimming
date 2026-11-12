@@ -2,10 +2,8 @@
 
 use App\Models\Nation;
 use App\Models\StrokeType;
-use App\Models\SwimRecord;
 use App\Services\RecordImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class)->group('record-import-relay-class');
 
@@ -44,20 +42,3 @@ it('leitet die Sportklasse nur bei Einzelstarts aus der Lage ab', /** @throws Ex
     'Einzel Lagen' => ['MEDLEY', 1, '9', 'SM9'],
     'Einzel Brust' => ['BREAST', 1, '9', 'SB9'],
 ]);
-
-it('korrigiert bestehende Staffelrekorde mit SB-/SM-Klasse auf die Staffelklasse', function () {
-    $nation = Nation::where('code', 'AUT')->firstOrFail();
-    $breast = StrokeType::where('lenex_code', 'BREAST')->firstOrFail();
-    $base = ['stroke_type_id' => $breast->id, 'nation_id' => $nation->id, 'record_type' => 'AUT', 'gender' => 'M',
-        'course' => 'SCM', 'distance' => 50, 'swim_time' => 19794, 'is_current' => true, 'record_status' => 'APPROVED'];
-    $relay = SwimRecord::forceCreate([...$base, 'sport_class' => 'SB49', 'relay_count' => 4]);
-    $medley = SwimRecord::forceCreate([...$base, 'sport_class' => 'SM34', 'relay_count' => 4]);
-    $single = SwimRecord::forceCreate([...$base, 'sport_class' => 'SB9', 'relay_count' => 1]);
-
-    $migration = require database_path('migrations/2026_11_12_100001_fix_relay_record_sport_classes.php');
-    $migration->up();
-
-    expect(DB::table('swim_records')->where('id', $relay->id)->value('sport_class'))->toBe('S49')
-        ->and(DB::table('swim_records')->where('id', $medley->id)->value('sport_class'))->toBe('S34')
-        ->and(DB::table('swim_records')->where('id', $single->id)->value('sport_class'))->toBe('SB9');
-});

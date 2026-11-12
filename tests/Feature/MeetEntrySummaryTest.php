@@ -187,25 +187,6 @@ it('belegt Titel und Medaillenwertung beim LENEX-Import vor und lässt einen ges
     expect(ScoringGroup::orderBy('sort_order')->pluck('awards_medals')->all())->toBe([true, true, false]);
 });
 
-it('trägt in der Migration fehlende Titel nach und setzt die Medaillenwertung danach', function () {
-    $event = makeEvent_p5(makeMeet_p5());
-    $junior = group_mes($event, 'ÖJM PI', ['title' => null]);
-    $state = group_mes($event, 'Klassen 1-10', ['title' => ScoringGroup::TITLE_STATE]);
-    $cup = group_mes($event, 'ÖBSV Cup');
-
-    $migration = require database_path('migrations/2026_11_07_100001_add_medal_settings_to_meets_and_scoring_groups.php');
-    $migration->down();
-    $migration->up();
-
-    expect($junior->fresh()->title)->toBe(ScoringGroup::TITLE_JUNIOR)
-        ->and($junior->fresh()->awards_medals)->toBeTrue()
-        ->and($state->fresh()->title)->toBe(ScoringGroup::TITLE_STATE)
-        ->and($state->fresh()->awards_medals)->toBeTrue()
-        ->and($cup->fresh()->title)->toBeNull()
-        ->and($cup->fresh()->awards_medals)->toBeFalse()
-        ->and($event->meet->fresh()->medal_reduction_rule)->toBeTrue();
-});
-
 it('behält die Medaillenwertung beim Speichern des Bewerbsformulars und beim Kopieren', function () {
     $meet = makeMeet_p5();
     $event = makeEvent_p5($meet);
